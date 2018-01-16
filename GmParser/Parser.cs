@@ -394,6 +394,7 @@ namespace GmParser
                     result = new SyntaxToken("end", Confirm(tokens, "end").Value);
                     break;
                 case "if":
+                    Confirm(tokens, "if");
                     var temp = new SyntaxNode("if");
                     var paren = Validate(tokens, "oparen");
                     temp.AddChild(Expression(tokens));
@@ -405,6 +406,7 @@ namespace GmParser
                     result = temp;
                     break;
                 case "switch":
+                    Confirm(tokens, "switch");
                     temp = new SyntaxNode("switch");
                     paren = Validate(tokens, "oparen");
                     temp.AddChild(Expression(tokens));
@@ -427,7 +429,72 @@ namespace GmParser
                     Confirm(tokens, "cbrace");
                     result = temp;
                     break;
-                
+                case "while":
+                    Confirm(tokens, "while");
+                    temp = new SyntaxNode("while");
+                    paren = Validate(tokens, "oparen");
+                    temp.AddChild(Expression(tokens));
+                    if (paren)
+                        Confirm(tokens, "cparen");
+                    temp.AddChild(EmbeddedStatement(tokens));
+                    result = temp;
+                    break;
+                case "with":
+                    Confirm(tokens, "with");
+                    temp = new SyntaxNode("with");
+                    paren = Validate(tokens, "oparen");
+                    temp.AddChild(Expression(tokens));
+                    if (paren)
+                        Confirm(tokens, "cparen");
+                    temp.AddChild(EmbeddedStatement(tokens));
+                    result = temp;
+                    break;
+                case "do":
+                    Confirm(tokens, "do");
+                    temp = new SyntaxNode("do");
+                    temp.AddChild(EmbeddedStatement(tokens));
+                    Confirm(tokens, "until");
+                    paren = Validate(tokens, "oparen");
+                    temp.AddChild(Expression(tokens));
+                    if (paren)
+                        Confirm(tokens, "cparen");
+                    result = temp;
+                    break;
+                case "for":
+                    Confirm(tokens, "for");
+                    Confirm(tokens, "oparen");
+                    temp = new SyntaxNode("for");
+                    // gamemaker does not require a for initializer,
+                    // but it does require a bool expression and for iterator
+                    var init = new SyntaxNode("forInit");
+                    if (!Try(tokens, "end"))
+                        init.AddChild(EmbeddedStatement(tokens));
+                    temp.AddChild(init);
+                    Confirm(tokens, "end");
+                    if (Try(tokens, "end"))
+                        throw new InvalidTokenException(tokens.Peek(), "Expected expression in for block");
+                    temp.AddChild(Expression(tokens));
+                    Confirm(tokens, "end");
+                    temp.AddChild(EmbeddedStatement(tokens));
+                    Confirm(tokens, "cparen");
+                    temp.AddChild(EmbeddedStatement(tokens));
+                    result = temp;
+                    break;
+                case "break":
+                    result = new SyntaxToken("break", Confirm(tokens, "break").Value);
+                    break;
+                case "continue":
+                    result = new SyntaxToken("continue", Confirm(tokens, "continue").Value);
+                    break;
+                case "exit":
+                    result = new SyntaxToken("exit", Confirm(tokens, "exit").Value);
+                    break;
+                case "return":
+                    Confirm(tokens, "return");
+                    temp = new SyntaxNode("return");
+                    temp.AddChild(Expression(tokens));
+                    result = temp;
+                    break;
                 default:
                     result = Expression(tokens);
                     break;
