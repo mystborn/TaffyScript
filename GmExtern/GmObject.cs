@@ -797,12 +797,11 @@ namespace GmExtern
             Console.WriteLine(obj);
         }
 
-        public static void ForTest()
+        public static void ConditionalTest()
         {
-            for(var i = 0; i < 10; i++)
-            {
-                Console.WriteLine(i);
-            }
+            var i = 0;
+
+            var s = i == 0 ? 0 : 1;
         }
 
         #endregion

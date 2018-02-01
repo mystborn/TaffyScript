@@ -122,6 +122,38 @@ namespace GmParser.Backend
             emit.StLocal(locals[left.Value]);
         }
 
+        public void Locals(ISyntaxElement element, ILEmitter emit, Dictionary<string, LocalBuilder> locals)
+        {
+            var localsNode = (SyntaxNode)element;
+            // The localsNode can only contain two types of children:
+            // * Assign
+            // * Declare
+            //
+            // Due to GM's strange scoping rules, all of the variables will have been declared already.
+            // So we only need to process the assign nodes.
+
+            foreach (var child in localsNode.Children.Where(c => c.Type == SyntaxType.Assign))
+                Assign(child, emit, locals);
+        }
+
+        public void Conditional(ISyntaxElement element, ILEmitter emit, Dictionary<string, LocalBuilder> locals)
+        {
+            var conditionalNode = (SyntaxNode)element;
+            var test = conditionalNode.Children[0];
+            var left = conditionalNode.Children[1];
+            var right = conditionalNode.Children[2];
+
+            _nodeHandlers[test.Type](element, emit, locals);
+            var brFalse = emit.DefineLabel();
+            var brFinal = emit.DefineLabel();
+            emit.BrFalse(brFalse);
+            _nodeHandlers[left.Type](left, emit, locals);
+            emit.Br(brFinal)
+                .MarkLabel(brFinal);
+            _nodeHandlers[right.Type](right, emit, locals);
+            emit.MarkLabel(brFinal);
+        }
+
         public void Constant(ISyntaxElement element, ILEmitter emit, Dictionary<string, LocalBuilder> locals)
         {
             var cToken = (IConstantToken)element;

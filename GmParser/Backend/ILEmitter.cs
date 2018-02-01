@@ -37,11 +37,43 @@ namespace GmParser.Backend
             return local;
         }
 
+        public Label DefineLabel()
+        {
+            return _generator.DefineLabel();
+        }
+
+        public ILEmitter MarkLabel(Label label)
+        {
+            _generator.MarkLabel(label);
+            return this;
+        }
+
         public ILEmitter Box(Type valueType)
         {
             _types.Pop();
             _types.Push(typeof(object));
             _generator.Emit(OpCodes.Box, valueType);
+            return this;
+        }
+
+        public ILEmitter Br(Label label)
+        {
+            _types.Pop();
+            _generator.Emit(OpCodes.Br);
+            return this;
+        }
+
+        public ILEmitter BrFalse(Label label)
+        {
+            _types.Pop();
+            _generator.Emit(OpCodes.Brfalse, label);
+            return this;
+        }
+
+        public ILEmitter BrTrue(Label label)
+        {
+            _types.Pop();
+            _generator.Emit(OpCodes.Brtrue, label);
             return this;
         }
 
