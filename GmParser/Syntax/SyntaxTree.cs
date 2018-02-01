@@ -9,10 +9,12 @@ namespace GmParser
     public class SyntaxTree
     {
         public SyntaxNode Root { get; }
+        public SymbolTable Table { get; }
 
-        public SyntaxTree()
+        public SyntaxTree(SymbolTable table)
         {
-            Root = new SyntaxNode("root");
+            Table = table;
+            Root = new SyntaxNode(SyntaxType.Root);
         }
     }
 }

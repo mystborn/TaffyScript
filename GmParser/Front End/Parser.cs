@@ -16,6 +16,12 @@ namespace GmParser
             _lexer = InitLexer();
         }
 
+        public ISyntaxNode ParseCode(string code)
+        {
+            var tokens = new Queue<Token>(_lexer.Tokenize(code).Where(t => t.Type != Lexer.EoF));
+            return Statements(tokens);
+        }
+
         public ISyntaxNode ParseExpression(string expr)
         {
             var tokens = new Queue<Token>(_lexer.Tokenize(expr).Where(t => t.Type != Lexer.EoF));
@@ -289,6 +295,7 @@ namespace GmParser
             {
                 var postfix = new SyntaxNode("postfix", post.Value);
                 postfix.AddChild(value);
+                value = postfix;
             }
 
             return value;
@@ -326,9 +333,23 @@ namespace GmParser
 
         #region Statements
 
+        /// <summary>
+        /// Temporary entry point.
+        /// </summary>
+        /// <param name="tokens"></param>
+        /// <returns></returns>
+        private ISyntaxNode Statements(Queue<Token> tokens)
+        {
+            var statements = new SyntaxNode("statements");
+            while (tokens.Count > 0)
+                statements.AddChild(Statement(tokens));
+
+            return statements;
+        }
+
         private ISyntaxNode Statement(Queue<Token> tokens)
         {
-            if (Try(tokens, "local") || Try(tokens, "id"))
+            if (Try(tokens, "local") /*|| Try(tokens, "id")*/)
                 return VariableDeclaration(tokens);
             else
                 return EmbeddedStatement(tokens);
@@ -337,7 +358,7 @@ namespace GmParser
         private ISyntaxNode VariableDeclaration(Queue<Token> tokens)
         {
             //members must be set
-            if (Try(tokens, "id", out var member))
+            /*if (Try(tokens, "id", out var member))
             {
                 Confirm(tokens, "assign");
                 var node = new SyntaxNode("assign");
@@ -346,7 +367,7 @@ namespace GmParser
                 return node;
             }
             //locals can be set or declared
-            else if (Validate(tokens, "local"))
+            else*/ if (Validate(tokens, "local"))
             {
                 var node = new SyntaxNode("locals");
                 do
@@ -468,7 +489,7 @@ namespace GmParser
                     // but it does require a bool expression and for iterator
                     var init = new SyntaxNode("forInit");
                     if (!Try(tokens, "end"))
-                        init.AddChild(EmbeddedStatement(tokens));
+                        init.AddChild(Statement(tokens));
                     temp.AddChild(init);
                     Confirm(tokens, "end");
                     if (Try(tokens, "end"))
@@ -677,8 +698,8 @@ namespace GmParser
             lexer.AddDefinition(new TokenDefinition(@"\]", "cbracket"));
             lexer.AddDefinition(new TokenDefinition(@"\{", "obrace"));
             lexer.AddDefinition(new TokenDefinition(@"\}", "cbrace"));
-            lexer.AddDefinition(new TokenDefinition(@"/\*(?i).*?\*/(?-i)", "multicomment"));
-            lexer.AddDefinition(new TokenDefinition(@"//.*?\n", "singlecomment"));
+            lexer.AddDefinition(new TokenDefinition(@"/\*(?i).*?\*/(?-i)", "multicomment", true));
+            lexer.AddDefinition(new TokenDefinition(@"//.*?\n", "singlecomment", true));
             lexer.AddDefinition(new TokenDefinition(@"\.", "dot"));
             lexer.AddDefinition(new TokenDefinition("(?i)(\".*?\")|('.*?')(?-i)", "string"));
             lexer.AddDefinition(new TokenDefinition("=", "assign"));
@@ -697,7 +718,7 @@ namespace GmParser
 
             //In GM "_" is a valid variable name O_O
             lexer.AddDefinition(new TokenDefinition("(_)|(_*[a-zA-Z][_a-zA-Z0-9]*)", "id"));
-            lexer.AddDefinition(new TokenDefinition(@"(0x[0-9a-fA-F]+)|([0-9]*?\.?[0-9]+?)", "num"));
+            lexer.AddDefinition(new TokenDefinition(@"(0x[0-9a-fA-F]+)|([0-9]*(\.[0-9]+)?)", "num"));
             lexer.AddDefinition(new TokenDefinition(",", "comma"));
             lexer.AddDefinition(new TokenDefinition(@"\?", "question"));
             lexer.AddDefinition(new TokenDefinition("#", "sharp"));

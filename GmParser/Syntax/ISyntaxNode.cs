@@ -6,11 +6,9 @@ using System.Threading.Tasks;
 
 namespace GmParser
 {
-    public interface ISyntaxNode
+    public interface ISyntaxNode : ISyntaxElement
     {
-        SyntaxNode Parent { get; set; }
-        string Type { get; }
+        // Convert this to an enum?
         string Value { get; }
-        bool IsToken { get; }
     }
 }
