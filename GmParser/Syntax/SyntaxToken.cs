@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GmParser
+namespace GmParser.Syntax
 {
-    public class SyntaxToken : ISyntaxElement
+    public abstract class SyntaxToken : ISyntaxElement
     {
         public SyntaxNode Parent { get; set; }
         public string Text { get; }
@@ -25,6 +25,8 @@ namespace GmParser
             Type = type;
             Text = value;
         }
+
+        public abstract void Accept(ISyntaxElementVisitor visitor);
 
         public override string ToString()
         {

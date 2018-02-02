@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Myst.LexicalAnalysis;
+using GmParser.Syntax;
 
 namespace GmParser
 {

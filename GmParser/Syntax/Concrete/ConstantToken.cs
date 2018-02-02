@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GmParser
+﻿namespace GmParser.Syntax
 {
     public class ConstantToken<T> : SyntaxToken, IConstantToken<T>
     {
@@ -20,6 +14,11 @@ namespace GmParser
         {
             ConstantType = type;
             _value = realValue;
+        }
+
+        public override void Accept(ISyntaxElementVisitor visitor)
+        {
+            visitor.Visit(this);
         }
     }
 }

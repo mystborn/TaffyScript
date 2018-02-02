@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GmParser
+namespace GmParser.Syntax
 {
-    public interface IConstantToken
+    public interface IConstantToken : ISyntaxToken
     {
         ConstantType ConstantType { get; }
         object WeakValue { get; }

@@ -10,6 +10,7 @@ namespace GmParser.Syntax
     {
         ISyntaxNode CreateNode(SyntaxType type);
         ISyntaxNode CreateNode(SyntaxType type, string value);
-        ISynt
+        ISyntaxToken CreateToken(SyntaxType type, string value);
+        ISyntaxToken CreateConstant(ConstantType type, string value);
     }
 }

@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GmParser
+namespace GmParser.Syntax
 {
-    public class SyntaxNode : ISyntaxNode
+    public abstract class SyntaxNode : ISyntaxNode
     {
         public SyntaxNode Parent { get; set; }
         public string Value { get; } = null;
@@ -14,16 +14,13 @@ namespace GmParser
         public bool IsToken => false;
         public SyntaxType Type { get; }
 
-        public SyntaxNode(SyntaxType type)
-        {
-            Type = type;
-        }
-
         public SyntaxNode(SyntaxType type, string value)
         {
             Type = type;
             Value = value;
         }
+
+        public abstract void Accept(ISyntaxElementVisitor visitor);
 
         public override string ToString()
         {
@@ -48,26 +45,6 @@ namespace GmParser
         {
             Children.Add(token);
             token.Parent = this;
-        }
-
-        public SyntaxNode AddNode(SyntaxType type)
-        {
-            var node = new SyntaxNode(type);
-            Children.Add(node);
-            return node;
-        }
-
-        public SyntaxNode AddNode(SyntaxType type, string value)
-        {
-            var node = new SyntaxNode(type, value);
-            Children.Add(node);
-            return node;
-        }
-
-        public void AddNode(SyntaxNode node)
-        {
-            Children.Add(node);
-            node.Parent = this;
         }
 
         public void AddChild(ISyntaxElement child)
