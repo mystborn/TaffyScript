@@ -4,8 +4,9 @@
     {
         public ISyntaxElement Left => Children[0];
         public ISyntaxElement Right => Children[1];
+        public override SyntaxType Type => SyntaxType.MapAccess;
 
-        public MapAccessNode(SyntaxType type, string value) : base(type, value)
+        public MapAccessNode(string value) : base(value)
         {
         }
 

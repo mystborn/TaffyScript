@@ -2,7 +2,9 @@
 {
     public class ContinueToken : SyntaxToken
     {
-        public ContinueToken(SyntaxType type, string value) : base(type, value)
+        public override SyntaxType Type => SyntaxType.Continue;
+
+        public ContinueToken(string value) : base(value)
         {
         }
 

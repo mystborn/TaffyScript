@@ -4,17 +4,20 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GmParser
+namespace GmParser.Syntax
 {
-    public class SyntaxTree
+    /// <summary>
+    /// Default implementation of a syntax tree.
+    /// </summary>
+    public class SyntaxTree : ISyntaxTree
     {
-        public SyntaxNode Root { get; }
+        public ISyntaxNode Root { get; }
         public SymbolTable Table { get; }
 
         public SyntaxTree(SymbolTable table)
         {
             Table = table;
-            Root = new SyntaxNode(SyntaxType.Root);
+            Root = new RootNode(null);
         }
     }
 }

@@ -63,8 +63,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Backend\DotNetCompiler.cs" />
-    <Compile Include="Backend\LocalTable.cs" />
+    <Compile Include="Backend\CompileMode.cs" />
+    <Compile Include="Backend\CompilerResult.cs" />
+    <Compile Include="Backend\MsilWeakBuildConfig.cs" />
+    <Compile Include="Backend\MsilWeakCodeGen.cs" />
     <Compile Include="DotNet\AssemblyLoader.cs" />
     <Compile Include="Backend\Compiler.cs" />
     <Compile Include="Backend\ILEmitter.cs" />
@@ -132,11 +134,14 @@
     <Compile Include="Syntax\ISyntaxElementVisitor.cs" />
     <Compile Include="Syntax\Concrete\Root.cs" />
     <Compile Include="Syntax\Concrete\Locals.cs" />
+    <Compile Include="Syntax\ISyntaxTree.cs" />
+    <Compile Include="Syntax\SyntaxElementFactory.cs" />
     <Compile Include="Syntax\SyntaxNode.cs" />
     <Compile Include="Syntax\SyntaxToken.cs" />
     <Compile Include="Syntax\SyntaxTree.cs" />
     <Compile Include="Syntax\SyntaxType.cs" />
     <Compile Include="DotNet\TypeParser.cs" />
+    <Compile Include="TestAsmBuilder.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -160,5 +165,6 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -7,8 +7,9 @@ namespace GmParser.Syntax
     {
         public ISyntaxElement Test => Children[0];
         public IEnumerable<ISyntaxElement> Expressions => Children.Skip(1);
+        public override SyntaxType Type => SyntaxType.Case;
 
-        public CaseNode(SyntaxType type, string value) : base(type, value)
+        public CaseNode(string value) : base(value)
         {
         }
 

@@ -2,7 +2,9 @@
 {
     public class EnumNode : SyntaxNode
     {
-        public EnumNode(SyntaxType type, string value) : base(type, value)
+        public override SyntaxType Type => SyntaxType.Enum;
+
+        public EnumNode(string value) : base(value)
         {
         }
 

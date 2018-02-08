@@ -2,7 +2,9 @@
 {
     public class EndToken : SyntaxToken
     {
-        public EndToken(SyntaxType type, string value) : base(type, value)
+        public override SyntaxType Type => SyntaxType.End;
+
+        public EndToken(string value) : base(value)
         {
         }
 

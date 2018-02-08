@@ -7,10 +7,11 @@
         public T Value => _value;
         public ConstantType ConstantType { get; }
         public object WeakValue => _value;
+        public override SyntaxType Type => SyntaxType.Constant;
 
 
-        internal ConstantToken(string text, ConstantType type, T realValue, SyntaxNode parent = null) 
-            : base(parent, SyntaxType.Constant, text)
+        internal ConstantToken(string text, ConstantType type, T realValue) 
+            : base(text)
         {
             ConstantType = type;
             _value = realValue;

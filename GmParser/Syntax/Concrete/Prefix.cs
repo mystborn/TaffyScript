@@ -3,8 +3,9 @@
     public class PrefixNode : SyntaxNode
     {
         public ISyntaxElement Child => Children[0];
+        public override SyntaxType Type => SyntaxType.Prefix;
 
-        public PrefixNode(SyntaxType type, string value) : base(type, value)
+        public PrefixNode(string value) : base(value)
         {
         }
 

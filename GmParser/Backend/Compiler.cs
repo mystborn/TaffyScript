@@ -8,31 +8,17 @@ using System.Reflection;
 using System.Reflection.Emit;
 using GmExtern;
 
-namespace GmParser
+namespace GmParser.Backend
 {
+    public interface ICompiler
+    {
+        CompilerResult CompileFiles(string output, params string[] files);
+        CompilerResult CompileCode(string output, string code);
+    }
+
     public abstract class Compiler
     {
-        protected string _asmName;
-        protected AssemblyBuilder _asm;
-        protected ModuleBuilder _module;
-        protected TypeBuilder _baseType;
-        protected bool _isDebug = false;
-
-        public Compiler(string asmName)
-        {
-            var name = new AssemblyName(asmName);
-            _asmName = name.Name;
-            Init(name);
-            _isDebug = true;
-        }
-
-        public abstract void Compile(SyntaxTree tree);
-
-        private void Init(AssemblyName name)
-        {
-            _asm = AppDomain.CurrentDomain.DefineDynamicAssembly(name, AssemblyBuilderAccess.Save);
-            _module = _asm.DefineDynamicModule(_asmName, _asmName + ".dll", true);
-            _baseType = _module.DefineType("GmModuleBaseType");
-        }
+        public abstract CompilerResult CompileFiles(params string[] files);
+        public abstract CompilerResult CompileCode(string code);
     }
 }

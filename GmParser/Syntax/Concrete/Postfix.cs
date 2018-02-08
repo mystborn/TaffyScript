@@ -3,8 +3,9 @@
     public class PostfixNode : SyntaxNode
     {
         public ISyntaxElement Child => Children[0];
+        public override SyntaxType Type => SyntaxType.Postfix;
 
-        public PostfixNode(SyntaxType type, string value) : base(type, value)
+        public PostfixNode(string value) : base(value)
         {
         }
 

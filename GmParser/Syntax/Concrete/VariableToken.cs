@@ -2,7 +2,9 @@
 {
     public class VariableToken : SyntaxToken
     {
-        public VariableToken(SyntaxType type, string value) : base(type, value)
+        public override SyntaxType Type => SyntaxType.Variable;
+
+        public VariableToken(string value) : base(value)
         {
         }
 

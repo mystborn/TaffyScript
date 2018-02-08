@@ -4,8 +4,9 @@
     {
         public ISyntaxElement Left => Children[0];
         public ISyntaxElement Right => Children[1];
+        public override SyntaxType Type => SyntaxType.GridAccess;
 
-        public GridAccessNode(SyntaxType type, string value) : base(type, value)
+        public GridAccessNode(string value) : base(value)
         {
         }
 

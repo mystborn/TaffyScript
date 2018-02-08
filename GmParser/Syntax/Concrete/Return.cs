@@ -3,8 +3,9 @@
     public class ReturnNode : SyntaxNode
     {
         public ISyntaxElement ReturnValue => Children[0];
+        public override SyntaxType Type => SyntaxType.Return;
 
-        public ReturnNode(SyntaxType type, string value) : base(type, value)
+        public ReturnNode(string value) : base(value)
         {
         }
 

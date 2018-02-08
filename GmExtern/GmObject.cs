@@ -8,6 +8,8 @@ namespace GmExtern
 {
     public struct GmObject
     {
+        public static Stack<GmObject> Id { get; }
+
         public VariableType Type { get; }
         public IGmValue Value { get; }
 
@@ -67,6 +69,23 @@ namespace GmExtern
             return ((GmValue<float>)Value).StrongValue;
         }
 
+        /// <summary>
+        /// Particularly useful when accessing native array indices.
+        /// </summary>
+        public int GetNumAsInt()
+        {
+            return (int)GetNum();
+        }
+
+        /// <summary>
+        /// Gets this object as a long. Used for bitwise operations.
+        /// </summary>
+        /// <returns></returns>
+        public long GetNumAsLong()
+        {
+            return (long)GetNum();
+        }
+
         public float GetNumUnchecked()
         {
             return ((GmValue<float>)Value).StrongValue;
@@ -119,6 +138,11 @@ namespace GmExtern
 
         #region Member Access
 
+        public static GmObject GetId()
+        {
+            return Id.Peek();
+        }
+
         public void MemberSet(string name, float value)
         {
             if (!GmInstance.TryGet(GetNum(), out var inst))
@@ -151,11 +175,14 @@ namespace GmExtern
 
         #region Array Access
 
-        public void ArraySet(GmObject index, GmObject right)
-            => ArraySet((int)index.GetNum(), right);
+        //Todo: Allow access via ints.
 
-        public void ArraySet(int index, GmObject right)
+        public void ArraySet(GmObject index, GmObject right)
+            => ArraySet(index.GetNum(), right);
+
+        public void ArraySet(float index, GmObject right)
         {
+            var real = (int)index;
             if (Type != VariableType.Array1)
                 throw new InvalidInstanceException();
             if (index < 0)
@@ -164,25 +191,27 @@ namespace GmExtern
             var arr = self.StrongValue;
             if (index >= arr.Length)
             {
-                var temp = new GmObject[index + 1];
+                var temp = new GmObject[real + 1];
                 Buffer.BlockCopy(arr, 0, temp, 0, arr.Length);
                 arr = temp;
                 self.StrongValue = temp;
             }
-            arr[index] = right;
+            arr[real] = right;
         }
 
         public void ArraySet(GmObject index1, GmObject index2, GmObject right)
-            => ArraySet((int)index1.GetNum(), (int)index2.GetNum(), right);
+            => ArraySet(index1.GetNum(), index2.GetNum(), right);
 
-        public void ArraySet(int index1, GmObject index2, GmObject right)
-            => ArraySet(index1, (int)index2.GetNum(), right);
+        public void ArraySet(float index1, GmObject index2, GmObject right)
+            => ArraySet(index1, index2.GetNum(), right);
 
-        public void ArraySet(GmObject index1, int index2, GmObject right)
-            => ArraySet((int)index1.GetNum(), index2, right);
+        public void ArraySet(GmObject index1, float index2, GmObject right)
+            => ArraySet(index1.GetNum(), index2, right);
 
-        public void ArraySet(int index1, int index2, GmObject right)
+        public void ArraySet(float index1, float index2, GmObject right)
         {
+            int real1 = (int)index1;
+            int real2 = (int)index2;
             if (Type != VariableType.Array2)
                 throw new InvalidInstanceException();
             if (index1 < 0 || index2 < 0)
@@ -190,47 +219,50 @@ namespace GmExtern
             var self = (GmValueArray<GmObject[][]>)Value;
             if(index1 >= self.StrongValue.Length)
             {
-                var temp = new GmObject[index1 + 1][];
+                var temp = new GmObject[real1 + 1][];
                 Buffer.BlockCopy(self.StrongValue, 0, temp, 0, self.StrongValue.Length);
                 self.StrongValue = temp;
             }
-            if (self.StrongValue[index1] == null)
-                self.StrongValue[index1] = new GmObject[index2 + 1];
-            else if(index2 >= self.StrongValue[index1].Length)
+            if (self.StrongValue[real1] == null)
+                self.StrongValue[real1] = new GmObject[real2 + 1];
+            else if(index2 >= self.StrongValue[real1].Length)
             {
-                var temp = new GmObject[index2 + 1];
-                Buffer.BlockCopy(self.StrongValue[index1], 0, temp, 0, self.StrongValue[index1].Length);
-                self.StrongValue[index1] = temp;
+                var temp = new GmObject[real2 + 1];
+                Buffer.BlockCopy(self.StrongValue[real1], 0, temp, 0, self.StrongValue[real2].Length);
+                self.StrongValue[real1] = temp;
             }
-            self.StrongValue[index1][index2] = right;
+            self.StrongValue[real1][real2] = right;
         }
 
         public GmObject ArrayGet(GmObject index)
-            => ArrayGet((int)index.GetNum());
+            => ArrayGet(index.GetNum());
 
-        public GmObject ArrayGet(int index)
+        public GmObject ArrayGet(float index)
         {
+            var real = (int)index;
             var arr = GetArray1D();
-            if (index < 0 || index >= arr.Length)
+            if (real < 0 || real >= arr.Length)
                 throw new IndexOutOfRangeException();
-            return arr[index];
+            return arr[real];
         }
 
         public GmObject ArrayGet(GmObject index1, GmObject index2)
-            => ArrayGet((int)index1, (int)index2);
+            => ArrayGet((float)index1, (float)index2);
 
-        public GmObject ArrayGet(GmObject index1, int index2)
-            => ArrayGet((int)index1, index2);
+        public GmObject ArrayGet(GmObject index1, float index2)
+            => ArrayGet((float)index1, index2);
 
-        public GmObject ArrayGet(int index1, GmObject index2)
-            => ArrayGet(index1, (int)index2);
+        public GmObject ArrayGet(float index1, GmObject index2)
+            => ArrayGet(index1, (float)index2);
 
-        public GmObject ArrayGet(int index1, int index2)
+        public GmObject ArrayGet(float index1, float index2)
         {
+            var real1 = (int)index1;
+            var real2 = (int)index2;
             var arr = GetArray2D();
-            if (index1 < 0 || index1 >= arr.Length || index2 < 0 || index2 >= arr[index1].Length)
+            if (real1 < 0 || real1 >= arr.Length || real2 < 0 || real2 >= arr[real1].Length)
                 throw new IndexOutOfRangeException();
-            return arr[index1][index2];
+            return arr[real1][real2];
         }
 
         #endregion
@@ -778,7 +810,7 @@ namespace GmExtern
 
         private static int GetMemAddress(object obj)
         {
-            if (ReferenceEquals(obj, null))
+            if (obj is null)
                 return 0;
             return obj.GetHashCode();
         }
@@ -787,7 +819,7 @@ namespace GmExtern
 
         #region Base Class Library
 
-        public static string ToString(GmObject obj)
+        public static string ToString(object obj)
         {
             return obj.ToString();
         }
@@ -799,9 +831,8 @@ namespace GmExtern
 
         public static void ConditionalTest()
         {
-            var i = 0;
-
-            var s = i == 0 ? 0 : 1;
+            var i = 10;
+            var t = (i + 2).GetHashCode();
         }
 
         #endregion

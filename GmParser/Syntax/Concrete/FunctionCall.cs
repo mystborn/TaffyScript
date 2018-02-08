@@ -2,7 +2,9 @@
 {
     public class FunctionCallNode : SyntaxNode
     {
-        public FunctionCallNode(SyntaxType type, string value) : base(type, value)
+        public override SyntaxType Type => SyntaxType.FunctionCall;
+
+        public FunctionCallNode(string value) : base(value)
         {
         }
 

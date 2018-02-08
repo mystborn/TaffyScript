@@ -4,8 +4,9 @@
     {
         public ISyntaxElement Left => Children[0];
         public ISyntaxElement Right => Children[1];
+        public override SyntaxType Type => SyntaxType.Equality;
 
-        public EqualityNode(SyntaxType type, string value) : base(type, value)
+        public EqualityNode(string value) : base(value)
         {
         }
 

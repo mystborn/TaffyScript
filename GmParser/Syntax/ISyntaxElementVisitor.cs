@@ -24,7 +24,7 @@ namespace GmParser.Syntax
         void Visit(BlockNode block);
         void Visit(EnumNode enumDeclaration);
         void Visit(ReturnNode @return);
-        void Visit<T>(ConstantToken<T> constantToken);
+        void Visit(IConstantToken constantToken);
         void Visit(ForNode @for);
         void Visit(DoNode @do);
         void Visit(WithNode with);

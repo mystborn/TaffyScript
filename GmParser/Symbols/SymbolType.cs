@@ -12,6 +12,7 @@ namespace GmParser
         Object,
         Enum,
         Script,
+        Namespace,
         Variable
     }
 }

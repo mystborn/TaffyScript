@@ -11,5 +11,7 @@ namespace GmParser.Syntax
         // Convert this to an enum?
         string Value { get; }
         List<ISyntaxElement> Children { get; }
+
+        void AddChild(ISyntaxElement child);
     }
 }

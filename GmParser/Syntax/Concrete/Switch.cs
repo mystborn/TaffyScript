@@ -7,8 +7,9 @@ namespace GmParser.Syntax
     {
         public ISyntaxElement Test => Children[0];
         public IEnumerable<ISyntaxElement> Cases => Children.Skip(1);
+        public override SyntaxType Type => SyntaxType.Switch;
 
-        public SwitchNode(SyntaxType type, string value) : base(type, value)
+        public SwitchNode(string value) : base(value)
         {
         }
 

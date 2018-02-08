@@ -2,7 +2,9 @@
 {
     public class BreakToken : SyntaxToken
     {
-        public BreakToken(SyntaxType type, string value) : base(type, value)
+        public override SyntaxType Type => SyntaxType.Additive;
+
+        public BreakToken(string value) : base(value)
         {
         }
 

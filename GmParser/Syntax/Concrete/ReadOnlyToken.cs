@@ -2,7 +2,9 @@
 {
     public class ReadOnlyToken : SyntaxToken
     {
-        public ReadOnlyToken(SyntaxType type, string value) : base(type, value)
+        public override SyntaxType Type => SyntaxType.ReadOnlyValue;
+
+        public ReadOnlyToken(string value) : base(value)
         {
         }
 

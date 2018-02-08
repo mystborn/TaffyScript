@@ -2,7 +2,9 @@
 {
     public class LocalsNode : SyntaxNode
     {
-        public LocalsNode(SyntaxType type, string value) : base(type, value)
+        public override SyntaxType Type => SyntaxType.Locals;
+
+        public LocalsNode(string value) : base(value)
         {
         }
 

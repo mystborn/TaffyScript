@@ -4,8 +4,9 @@
     {
         public ISyntaxElement Body => Children[0];
         public ISyntaxElement Until => Children[1];
+        public override SyntaxType Type => SyntaxType.Do;
 
-        public DoNode(SyntaxType type, string value) : base(type, value)
+        public DoNode(string value) : base(value)
         {
         }
 

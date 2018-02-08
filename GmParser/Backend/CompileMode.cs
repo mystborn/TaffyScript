@@ -6,8 +6,15 @@ using System.Threading.Tasks;
 
 namespace GmParser.Backend
 {
-    public class VariableTree
+    public enum CompileMode
     {
+        Debug,
+        Release
+    }
 
+    public enum Cpu
+    {
+        x86,
+        x64
     }
 }

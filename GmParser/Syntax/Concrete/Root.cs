@@ -8,7 +8,9 @@ namespace GmParser.Syntax
 {
     public class RootNode : SyntaxNode
     {
-        public RootNode(SyntaxType type, string value) : base(type, value)
+        public override SyntaxType Type => SyntaxType.Root;
+
+        public RootNode(string value) : base(value)
         {
         }
 

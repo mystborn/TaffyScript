@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 
 namespace GmParser.Syntax
 {
-    public interface ISyntaxToken : ISyntaxElement
+    public interface ISyntaxTree
     {
-        string Text { get; }
+        ISyntaxNode Root { get; }
+        SymbolTable Table { get; }
     }
 }

@@ -4,8 +4,9 @@
     {
         public ISyntaxElement Condition => Children[0];
         public ISyntaxElement Body => Children[1];
+        public override SyntaxType Type => SyntaxType.If;
 
-        public IfNode(SyntaxType type, string value) : base(type, value)
+        public IfNode(string value) : base(value)
         {
         }
 

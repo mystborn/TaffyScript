@@ -6,23 +6,15 @@ using System.Threading.Tasks;
 
 namespace GmParser.Syntax
 {
-    public abstract class SyntaxToken : ISyntaxElement
+    public abstract class SyntaxToken : ISyntaxToken
     {
         public SyntaxNode Parent { get; set; }
         public string Text { get; }
-        public SyntaxType Type { get; }
+        public abstract SyntaxType Type { get; }
         public bool IsToken => true;
 
-        public SyntaxToken(SyntaxType type, string value)
+        public SyntaxToken(string value)
         {
-            Type = type;
-            Text = value;
-        }
-
-        public SyntaxToken(SyntaxNode parent, SyntaxType type, string value)
-        {
-            Parent = parent;
-            Type = type;
             Text = value;
         }
 
@@ -33,7 +25,7 @@ namespace GmParser.Syntax
             return $"{Type}: {Text}";
         }
 
-        public static SyntaxToken CreateConstant(ConstantType type, string value, SyntaxNode parent = null)
+        /*public static SyntaxToken CreateConstant(ConstantType type, string value, SyntaxNode parent = null)
         {
             switch (type)
             {
@@ -54,6 +46,6 @@ namespace GmParser.Syntax
                 default:
                     throw new InvalidOperationException();
             }
-        }
+        }*/
     }
 }

@@ -2,7 +2,9 @@
 {
     public class ExitToken : SyntaxToken
     {
-        public ExitToken(SyntaxType type, string value) : base(type, value)
+        public override SyntaxType Type => SyntaxType.Exit;
+
+        public ExitToken(string value) : base(value)
         {
         }
 

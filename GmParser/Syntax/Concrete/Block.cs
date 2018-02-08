@@ -2,7 +2,9 @@
 {
     public class BlockNode : SyntaxNode
     {
-        public BlockNode(SyntaxType type, string value) : base(type, value)
+        public override SyntaxType Type => SyntaxType.Block;
+
+        internal BlockNode(string value) : base(value)
         {
         }
 

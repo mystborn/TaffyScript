@@ -19,21 +19,21 @@ namespace GmParser.DotNet
                 LoadAssembly(asm);
         }
 
-        public bool LoadAssembly(string asmPath)
+        public Assembly LoadAssembly(string asmPath)
         {
             if (_loadedAssemblies.ContainsKey(asmPath))
-                return false;
+                throw new InvalidOperationException();
 
             var asm = Assembly.ReflectionOnlyLoadFrom(asmPath);
-            _loadedAssemblies.Add(asmPath, asm);
 
             InitializeAssembly(asm);
 
-            return true;
+            return asm;
         }
 
-        private void InitializeAssembly(Assembly asm)
+        public void InitializeAssembly(Assembly asm)
         {
+            _loadedAssemblies[asm.Location] = asm;
             var namespaces = asm.GetExportedTypes()
                                 .Select(t => t.Namespace)
                                 .Where(t => t != null)

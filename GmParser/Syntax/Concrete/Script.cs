@@ -3,8 +3,9 @@
     public class ScriptNode : SyntaxNode
     {
         public ISyntaxElement Body => Children[0];
+        public override SyntaxType Type => SyntaxType.Script;
 
-        public ScriptNode(SyntaxType type, string value) : base(type, value)
+        public ScriptNode(string value) : base(value)
         {
         }
 

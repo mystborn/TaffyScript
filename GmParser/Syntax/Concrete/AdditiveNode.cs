@@ -4,8 +4,9 @@
     {
         public ISyntaxElement Left => Children[0];
         public ISyntaxElement Right => Children[1];
+        public override SyntaxType Type => SyntaxType.Additive;
 
-        public AdditiveNode(SyntaxType type, string value) : base(type, value)
+        public AdditiveNode(string value) : base(value)
         {
         }
 

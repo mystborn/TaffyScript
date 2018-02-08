@@ -8,6 +8,7 @@ namespace GmParser.Syntax
 {
     public interface ISyntaxElement
     {
+        //Todo: Element should know file pos.
         SyntaxNode Parent { get; set; }
         SyntaxType Type { get; }
         bool IsToken { get; }

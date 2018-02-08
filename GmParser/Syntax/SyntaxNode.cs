@@ -12,11 +12,10 @@ namespace GmParser.Syntax
         public string Value { get; } = null;
         public List<ISyntaxElement> Children { get; } = new List<ISyntaxElement>();
         public bool IsToken => false;
-        public SyntaxType Type { get; }
+        public abstract SyntaxType Type { get; }
 
-        public SyntaxNode(SyntaxType type, string value)
+        public SyntaxNode(string value)
         {
-            Type = type;
             Value = value;
         }
 
@@ -27,14 +26,7 @@ namespace GmParser.Syntax
             return Type + (Value == null ? "" : (": " + Value));
         }
 
-        public SyntaxToken AddToken(SyntaxType type, string value)
-        {
-            var token = new SyntaxToken(this, type, value);
-            Children.Add(token);
-            return token;
-        }
-
-        public SyntaxToken AddToken(ConstantType type, string value)
+        /*public SyntaxToken AddToken(ConstantType type, string value)
         {
             var token = SyntaxToken.CreateConstant(type, value, this);
             Children.Add(token);
@@ -45,7 +37,7 @@ namespace GmParser.Syntax
         {
             Children.Add(token);
             token.Parent = this;
-        }
+        }*/
 
         public void AddChild(ISyntaxElement child)
         {

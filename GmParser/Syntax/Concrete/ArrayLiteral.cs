@@ -4,8 +4,9 @@
     {
         public ISyntaxElement Left => Children[0];
         public ISyntaxElement Right => Children[1];
+        public override SyntaxType Type => SyntaxType.ArrayLiteral;
 
-        public ArrayLiteralNode(SyntaxType type, string value) : base(type, value)
+        public ArrayLiteralNode(string value) : base(value)
         {
         }
 

@@ -6,8 +6,9 @@
         public ISyntaxElement Condition => Children[1];
         public ISyntaxElement Iterator => Children[2];
         public ISyntaxElement Body => Children[3];
+        public override SyntaxType Type => SyntaxType.For;
 
-        public ForNode(SyntaxType type, string value) : base(type, value)
+        public ForNode(string value) : base(value)
         {
         }
 

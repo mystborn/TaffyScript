@@ -2,7 +2,9 @@
 {
     public class DefaultNode : SyntaxNode
     {
-        public DefaultNode(SyntaxType type, string value) : base(type, value)
+        public override SyntaxType Type => SyntaxType.Default;
+
+        public DefaultNode(string value) : base(value)
         {
         }
 

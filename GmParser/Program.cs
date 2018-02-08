@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using GmParser.Backend;
+using GmParser.Syntax;
 
 namespace GmParser
 {
@@ -11,15 +12,15 @@ namespace GmParser
     {
         static void Main(string[] args)
         {
-            var tree = Parser.FromCode("enum Color { Red = 0xFF0000, Green = 0x00FF00, Blue = 0x0000FF, Next } import System.Console.WriteLine(string) as show_debug_message; script trace { var value = string(argument[0]); for(var i = 1; i < argument_count; i++) { value += \", \" + string(argument[i]); } show_debug_message(value); }");
-            var table = tree.Table;
-            WriteSyntax(tree.Root, 0);
+            //var code = "import System.Console.WriteLine(string) as show_debug_message; script test { var arr; arr[0] = 20; arr[0] = arr[0] + 20; show_debug_message(arr[0]); }";
+            /*var code = "import GmExtern.GmObject.ToString(object) as string; " +
+                "script trace { var out = string(argument[0]); for(var i = 1; i < argument_count; i = i + 1) { out = out + \" \" + string(argument[i + 0]); } show_debug_message(out); } " +
+                "import System.Console.WriteLine(string) as show_debug_message;";*/
 
-            //table.PrintTable();
-            //table.PrintPending();
-
-            var compiler = new MsilWeakCompiler("test");
-            compiler.Compile(tree);
+            var code = "import Console.WriteLine(string) as show_debug_message; script main { show_debug_message(\"Hello, World!\"); }";
+            var compiler = new MsilWeakCompiler();
+            compiler.CompileCode(code, "test");
+            //TestAsmBuilder.Test();
 
             Console.ReadLine();
         }
