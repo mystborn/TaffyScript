@@ -10,7 +10,7 @@ namespace GmParser.Syntax
     {
         public override SyntaxType Type => SyntaxType.Root;
 
-        public RootNode(string value) : base(value)
+        public RootNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

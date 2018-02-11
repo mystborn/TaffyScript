@@ -8,7 +8,7 @@
         public ISyntaxElement Body => Children[3];
         public override SyntaxType Type => SyntaxType.For;
 
-        public ForNode(string value) : base(value)
+        public ForNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

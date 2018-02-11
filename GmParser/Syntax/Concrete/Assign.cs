@@ -6,7 +6,7 @@
         public ISyntaxElement Right => Children[1];
         public override SyntaxType Type => SyntaxType.Assign;
 
-        public AssignNode(string value) : base(value)
+        public AssignNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

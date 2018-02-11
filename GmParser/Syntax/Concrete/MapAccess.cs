@@ -6,7 +6,7 @@
         public ISyntaxElement Right => Children[1];
         public override SyntaxType Type => SyntaxType.MapAccess;
 
-        public MapAccessNode(string value) : base(value)
+        public MapAccessNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

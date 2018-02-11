@@ -8,7 +8,7 @@ namespace GmParser.Syntax
         public IConstantToken<string> InternalName => Children[Children.Count - 1] as IConstantToken<string>;
         public override SyntaxType Type => SyntaxType.Import;
 
-        public ImportNode(string value) : base(value)
+        public ImportNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

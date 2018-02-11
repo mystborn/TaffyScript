@@ -4,7 +4,7 @@
     {
         public override SyntaxType Type => SyntaxType.Block;
 
-        internal BlockNode(string value) : base(value)
+        internal BlockNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

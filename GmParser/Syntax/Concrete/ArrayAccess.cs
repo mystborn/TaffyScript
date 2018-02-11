@@ -6,7 +6,7 @@
         public ISyntaxElement Right => Children[1];
         public override SyntaxType Type => SyntaxType.ArrayAccess;
 
-        public ArrayAccessNode(string value) : base(value)
+        public ArrayAccessNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

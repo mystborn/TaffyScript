@@ -22,6 +22,13 @@ namespace GmParser.Backend
             _paramTypes = input;
         }
 
+        public ILEmitter(ConstructorBuilder builder, Type[] input, bool isDebug)
+        {
+            _generator = builder.GetILGenerator();
+            _isDebug = isDebug;
+            _paramTypes = input;
+        }
+
         public LocalBuilder DeclareLocal(Type type, string name)
         {
             var local = _generator.DeclareLocal(type);
@@ -38,6 +45,12 @@ namespace GmParser.Backend
         public ILEmitter MarkLabel(Label label)
         {
             _generator.MarkLabel(label);
+            return this;
+        }
+
+        public ILEmitter MarkSequencePoint(System.Diagnostics.SymbolStore.ISymbolDocumentWriter document, int startLine, int startIndex, int endLine, int endIndex)
+        {
+            _generator.MarkSequencePoint(document, startLine, startIndex, endLine, endIndex);
             return this;
         }
 
@@ -136,6 +149,8 @@ namespace GmParser.Backend
         public ILEmitter Call(MethodInfo method)
         {
             var length = method.GetParameters().Length;
+            if (!method.IsStatic)
+                length += 1;
             for (var i = 0; i < length; i++)
                 _types.Pop();
 
@@ -250,6 +265,22 @@ namespace GmParser.Backend
             return this;
         }
 
+        public ILEmitter ConvertLong(bool unsigned)
+        {
+            _types.Pop();
+            if (unsigned)
+            {
+                _generator.Emit(OpCodes.Conv_U8);
+                _types.Push(typeof(ulong));
+            }
+            else
+            {
+                _generator.Emit(OpCodes.Conv_I8);
+                _types.Push(typeof(long));
+            }
+            return this;
+        }
+
         public ILEmitter Dup()
         {
             _generator.Emit(OpCodes.Dup);
@@ -296,6 +327,16 @@ namespace GmParser.Backend
             return this;
         }
 
+        public ILEmitter LdBool(bool value)
+        {
+            if (value)
+                _generator.Emit(OpCodes.Ldc_I4_1);
+            else
+                _generator.Emit(OpCodes.Ldc_I4_0);
+            _types.Push(typeof(bool));
+            return this;
+        }
+
         public ILEmitter LdElem(Type type)
         {
             _types.Pop();
@@ -303,6 +344,7 @@ namespace GmParser.Backend
             if (!type.IsValueType)
             {
                 _generator.Emit(OpCodes.Ldelem_Ref);
+                _types.Push(type);
                 return this;
             }
 
@@ -343,6 +385,25 @@ namespace GmParser.Backend
             return this;
         }
 
+        public ILEmitter LdFld(FieldInfo field)
+        {
+            var code = field.IsStatic ? OpCodes.Ldsfld : OpCodes.Ldfld;
+            _generator.Emit(code, field);
+            _types.Push(field.FieldType);
+            return this;
+        }
+
+        public ILEmitter LdFldA(FieldInfo field)
+        {
+            var code = field.IsStatic ? OpCodes.Ldsflda : OpCodes.Ldflda;
+            _generator.Emit(code, field);
+            var type = field.FieldType;
+            if (type.IsValueType)
+                type = type.MakePointerType();
+            _types.Push(type);
+            return this;
+        }
+
         public ILEmitter LdFloat(float value)
         {
             _generator.Emit(OpCodes.Ldc_R4, value);
@@ -350,9 +411,15 @@ namespace GmParser.Backend
             return this;
         }
 
+        public ILEmitter LdFtn(MethodInfo function)
+        {
+            _generator.Emit(OpCodes.Ldftn, function);
+            _types.Push(typeof(MethodInfo));
+            return this;
+        }
+
         public ILEmitter LdInt(int value)
         {
-            _types.Push(typeof(int));
             switch(value)
             {
                 case -1:
@@ -390,6 +457,7 @@ namespace GmParser.Backend
                     break;
             }
 
+            _types.Push(typeof(int));
             return this;
         }
 
@@ -418,7 +486,7 @@ namespace GmParser.Backend
                     _generator.Emit(OpCodes.Ldloc_3);
                     break;
                 default:
-                    _generator.Emit(OpCodes.Ldloc, (builder.LocalIndex));
+                    _generator.Emit(OpCodes.Ldloc, (short)(builder.LocalIndex));
                     break;
             }
             _types.Push(builder.LocalType);
@@ -442,10 +510,57 @@ namespace GmParser.Backend
             return this;
         }
 
+        public ILEmitter LdNull()
+        {
+            _generator.Emit(OpCodes.Ldnull);
+            _types.Push(null);
+            return this;
+        }
+
+        public ILEmitter LdObj(Type type)
+        {
+            _types.Pop();
+            if (!type.IsValueType)
+                _generator.Emit(OpCodes.Ldind_Ref);
+            else
+            {
+                if (type == typeof(sbyte))
+                    _generator.Emit(OpCodes.Ldind_I1);
+                else if (type == typeof(short))
+                    _generator.Emit(OpCodes.Ldind_I2);
+                else if (type == typeof(int))
+                    _generator.Emit(OpCodes.Ldind_I4);
+                else if (type == typeof(long))
+                    _generator.Emit(OpCodes.Ldind_I8);
+                else if (type == typeof(byte))
+                    _generator.Emit(OpCodes.Ldind_U1);
+                else if (type == typeof(ushort))
+                    _generator.Emit(OpCodes.Ldind_U2);
+                else if (type == typeof(uint))
+                    _generator.Emit(OpCodes.Ldind_U4);
+                else if (type == typeof(float))
+                    _generator.Emit(OpCodes.Ldind_R4);
+                else if (type == typeof(double))
+                    _generator.Emit(OpCodes.Ldind_R8);
+                else
+                    _generator.Emit(OpCodes.Ldobj, type);
+
+            }
+            _types.Push(type);
+            return this;
+        }
+
         public ILEmitter LdStr(string value)
         {
             _generator.Emit(OpCodes.Ldstr, value);
             _types.Push(typeof(string));
+            return this;
+        }
+
+        public ILEmitter LdType(Type type)
+        {
+            _generator.Emit(OpCodes.Ldtoken, type);
+            _types.Push(typeof(Type));
             return this;
         }
 
@@ -482,6 +597,7 @@ namespace GmParser.Backend
 
         public ILEmitter NewArr(Type elementType)
         {
+            _types.Pop();
             _generator.Emit(OpCodes.Newarr, elementType);
             _types.Push(elementType.MakeArrayType());
             return this;
@@ -502,9 +618,10 @@ namespace GmParser.Backend
             return this;
         }
 
-        public ILEmitter Pop()
+        public ILEmitter Pop(bool removeTop = true)
         {
-            _types.Pop();
+            if(removeTop)
+                _types.Pop();
             _generator.Emit(OpCodes.Pop);
             return this;
         }
@@ -570,6 +687,32 @@ namespace GmParser.Backend
             return this;
         }
 
+        public ILEmitter StObj(Type type)
+        {
+            _types.Pop();
+            _types.Pop();
+            if (!type.IsValueType)
+                _generator.Emit(OpCodes.Stind_Ref);
+            else
+            {
+                if (type == typeof(sbyte))
+                    _generator.Emit(OpCodes.Stind_I1);
+                else if (type == typeof(short))
+                    _generator.Emit(OpCodes.Stind_I2);
+                else if (type == typeof(int))
+                    _generator.Emit(OpCodes.Stind_I4);
+                else if (type == typeof(long))
+                    _generator.Emit(OpCodes.Stind_I8);
+                else if (type == typeof(float))
+                    _generator.Emit(OpCodes.Stind_R4);
+                else if (type == typeof(double))
+                    _generator.Emit(OpCodes.Stind_R8);
+                else
+                    _generator.Emit(OpCodes.Stobj, type);
+            }
+            return this;
+        }
+
         public ILEmitter Sub()
         {
             //Load this type back into the stack.
@@ -577,6 +720,12 @@ namespace GmParser.Backend
             //Therefore, only pop one, leaving other ont top.
             _types.Pop();
             _generator.Emit(OpCodes.Sub);
+            return this;
+        }
+
+        public ILEmitter WriteLine(string value)
+        {
+            _generator.EmitWriteLine(value);
             return this;
         }
 

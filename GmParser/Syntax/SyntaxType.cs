@@ -36,6 +36,7 @@ namespace GmParser
         Case,
         Default,
         While,
+        Repeat,
         With,
         Do,
         For,
@@ -45,6 +46,8 @@ namespace GmParser
         Enum,
         Script,
         ArgumentAccess,
+        Object,
+        Event,
 
         //Token
         Constant,

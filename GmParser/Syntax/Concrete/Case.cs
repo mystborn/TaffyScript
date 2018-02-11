@@ -5,11 +5,11 @@ namespace GmParser.Syntax
 {
     public class CaseNode : SyntaxNode
     {
-        public ISyntaxElement Test => Children[0];
-        public IEnumerable<ISyntaxElement> Expressions => Children.Skip(1);
+        public ISyntaxElement Condition => Children[0];
+        public ISyntaxElement Expressions => Children[1];
         public override SyntaxType Type => SyntaxType.Case;
 
-        public CaseNode(string value) : base(value)
+        public CaseNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

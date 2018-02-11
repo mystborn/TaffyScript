@@ -6,7 +6,7 @@
         public ISyntaxElement Right => Children[1];
         public override SyntaxType Type => SyntaxType.ListAccess;
 
-        public ListAccessNode(string value) : base(value)
+        public ListAccessNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

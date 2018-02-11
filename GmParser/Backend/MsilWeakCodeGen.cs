@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Diagnostics.SymbolStore;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -12,12 +14,15 @@ namespace GmParser.Backend
 {
     internal partial class MsilWeakCodeGen : ISyntaxElementVisitor
     {
+        private const string SpecialImportsFileName = "SpecialImports.resource";
         private int _secret = 0;
+        private Dictionary<string, ISymbolDocumentWriter> _documents = new Dictionary<string, ISymbolDocumentWriter>();
 
         private readonly bool _isDebug;
         private readonly AssemblyName _asmName;
         private readonly AssemblyBuilder _asm;
         private ModuleBuilder _module;
+        private ILEmitter _moduleInitializer = null;
         private readonly DotNetAssemblyLoader _assemblyLoader;
         private readonly DotNetTypeParser _typeParser;
 
@@ -37,7 +42,34 @@ namespace GmParser.Backend
         private Dictionary<string, LookupTable<Type, Type, MethodInfo>> _binaryOps = new Dictionary<string, LookupTable<Type, Type, MethodInfo>>();
         private Dictionary<string, string> _operators;
         private HashSet<string> _pendingMethods = new HashSet<string>();
+        private System.IO.MemoryStream _stream = null;
+        private System.IO.StreamWriter _specialImports = null;
+        private System.IO.StreamWriter SpecialImports
+        {
+            get
+            {
+                if(_specialImports == null)
+                {
+                    _stream = new System.IO.MemoryStream();
+                    _specialImports = new System.IO.StreamWriter(_stream);
+                }
+                return _specialImports;
+            }
+        }
 
+        private ILEmitter ModuleInitializer
+        {
+            get
+            {
+                if (_moduleInitializer == null)
+                {
+                    var attribs = MethodAttributes.Static | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName;
+                    var input = new Type[] { };
+                    _moduleInitializer = new ILEmitter(_module.DefineGlobalMethod(".cctor", attribs, typeof(void), input), input, _isDebug);
+                }
+                return _moduleInitializer;
+            }
+        }
 
         private string _namespace = "";
 
@@ -50,32 +82,62 @@ namespace GmParser.Backend
         private Stack<Label> _loopEnd = new Stack<Label>();
         private bool _inScript;
         private bool _needAddress = false;
+        private LocalBuilder _id = null;
 
 
-        public MsilWeakCodeGen(string name, MsilWeakBuildConfig config)
+        public MsilWeakCodeGen(SymbolTable table, MsilWeakBuildConfig config)
         {
+            _table = table;
             _isDebug = config.Mode == CompileMode.Debug;
-            _asmName = new AssemblyName(name);
+            _asmName = new AssemblyName(config.Output);
             _asm = AppDomain.CurrentDomain.DefineDynamicAssembly(_asmName, AssemblyBuilderAccess.Save);
             _assemblyLoader = new DotNetAssemblyLoader();
             _typeParser = new DotNetTypeParser(_assemblyLoader);
-            foreach(var asm in config.References.Select(s => _assemblyLoader.LoadAssembly(s)))
+            _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(GmObject)));
+            _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(Console)));
+
+            foreach (var asm in config.References.Select(s => _assemblyLoader.LoadAssembly(s)))
             {
                 if(asm.GetCustomAttribute<WeakLibraryAttribute>() != null)
                 {
                     FindValidMethods(asm);
+                    var resources = asm.GetManifestResourceNames();
+                    if (resources.Contains(SpecialImportsFileName))
+                    {
+                        using (var stream = asm.GetManifestResourceStream(SpecialImportsFileName))
+                        {
+                            using (var reader = new System.IO.StreamReader(stream))
+                            {
+                                while (!reader.EndOfStream)
+                                {
+                                    var line = reader.ReadLine();
+                                    var input = line.Split(':');
+                                    var external = input[1];
+                                    var owner = external.Remove(external.LastIndexOf('.'));
+                                    var methodName = external.Substring(owner.Length + 1);
+                                    var type = _typeParser.GetType(owner);
+                                    var method = GetMethodToImport(type, methodName, new[] { typeof(GmObject[]) });
+                                    _methods[input[0]] = method;
+                                }
+                            }
+                        }
+                    }
                 }
             }
             InitGmMethods();
-            _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(GmObject)));
-            _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(Console)));
             var attrib = new CustomAttributeBuilder(typeof(WeakLibraryAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
             _asm.SetCustomAttribute(attrib);
+            if (_isDebug)
+            {
+                var aType = typeof(DebuggableAttribute);
+                var ctor = aType.GetConstructor(new[] { typeof(DebuggableAttribute.DebuggingModes) });
+                attrib = new CustomAttributeBuilder(ctor, new object[] { DebuggableAttribute.DebuggingModes.DisableOptimizations | DebuggableAttribute.DebuggingModes.Default });
+                _asm.SetCustomAttribute(attrib);
+            }
         }
 
-        public void CompileTree(ISyntaxTree tree, SymbolTable table)
+        public void CompileTree(ISyntaxTree tree)
         {
-            _table = table;
             var output = ".dll";
             if (_table.Defined("main", out var symbol) && symbol.Type == SymbolType.Script)
                 output = ".exe";
@@ -85,17 +147,48 @@ namespace GmParser.Backend
             tree.Root.Accept(this);
             foreach (var type in _baseTypes.Values)
                 type.CreateType();
+
+            if (_specialImports != null)
+            {
+                _specialImports.Flush();
+                _module.DefineManifestResource(SpecialImportsFileName, _stream, ResourceAttributes.Public);
+            }
+
+            if (_moduleInitializer != null)
+            {
+                _moduleInitializer.Ret();
+                _module.CreateGlobalFunctions();
+            }
+
             _asm.Save(_asmName.Name + output);
+            if (_specialImports != null)
+            {
+                _specialImports.Dispose();
+                _stream.Dispose();
+                _specialImports = null;
+                _stream = null;
+            }
         }
 
         private void FindValidMethods(Assembly asm)
         {
             foreach(var type in asm.ExportedTypes)
             {
-                foreach(var method in type.GetMethods(_methodFlags).Where(mi => IsMethodValid(mi)))
+                if (type.GetCustomAttribute<WeakObjectAttribute>() != null)
                 {
-                    _methods.Add(method.Name, method);
-                    _table.AddLeaf(method.Name, SymbolType.Script, SymbolScope.Global);
+                    var parts = type.FullName.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
+                    for(var i = 0; i < parts.Length; i++)
+                        _table.EnterNew(parts[i], i == parts.Length - 1 ? SymbolType.Namespace : SymbolType.Object);
+                    for (var i = 0; i < parts.Length; i++)
+                        _table.Exit();
+                }
+                else
+                {
+                    foreach (var method in type.GetMethods(_methodFlags).Where(mi => IsMethodValid(mi)))
+                    {
+                        _methods.Add(method.Name, method);
+                        _table.AddLeaf(method.Name, SymbolType.Script, SymbolScope.Global);
+                    }
                 }
             }
         }
@@ -124,7 +217,11 @@ namespace GmParser.Backend
                 //Todo: Define name conflict exception
                 return (result as MethodBuilder) ?? throw new InvalidProgramException();
             }
+            if (!_table.Defined(name, out var symbol) || symbol.Type != SymbolType.Script)
+                throw new InvalidOperationException($"There is no method with the name {name}");
             var mb = GetBaseType().DefineMethod(name, MethodAttributes.Public | MethodAttributes.Static, typeof(GmObject), new[] { typeof(GmObject[]) });
+            if (_isDebug)
+                mb.DefineParameter(1, ParameterAttributes.None, "__args_");
             _methods.Add(name, mb);
             return mb;
         }
@@ -136,30 +233,35 @@ namespace GmParser.Backend
                 var name = $"{_namespace}.BasicType";
                 if (name.StartsWith("."))
                     name = name.TrimStart('.');
-                type = _module.DefineType(name);
+                type = _module.DefineType(name, TypeAttributes.Public);
                 _baseTypes.Add(_namespace, type);
             }
             return type;
         }
 
-        private void GenerateWeakMethodForImport(MethodInfo method, string importName, Type[] argTypes)
+        private void GenerateWeakMethodForImport(MethodInfo method, string importName)
         {
             var mb = StartMethod(importName);
             var emit = new ILEmitter(mb, new[] { typeof(GmObject[]) }, _isDebug);
-            for (var i = 0; i < argTypes.Length; i++)
+            var paramArray = method.GetParameters();
+            var paramTypes = new Type[paramArray.Length];
+            for (var i = 0; i < paramArray.Length; ++i)
+                paramTypes[i] = paramArray[i].ParameterType;
+
+            for (var i = 0; i < paramTypes.Length; i++)
             {
                 emit.LdArg(0)
                     .LdInt(i);
                 //Only cast the the GmObject if needed.
-                if (argTypes[i] == typeof(object))
+                if (paramTypes[i] == typeof(object))
                 {
                     emit.LdElem(typeof(GmObject))
                         .Box(typeof(GmObject));
                 }
-                else if (argTypes[i] != typeof(GmObject))
+                else if (paramTypes[i] != typeof(GmObject))
                 {
                     emit.LdElemA(typeof(GmObject))
-                        .Call(_gmObjectCasts[argTypes[i]]);
+                        .Call(_gmObjectCasts[paramTypes[i]]);
                 }
                 else
                     emit.LdElem(typeof(GmObject));
@@ -169,7 +271,7 @@ namespace GmParser.Backend
                 emit.Call(_getEmptyObject);
             else if (_gmConstructors.TryGetValue(method.ReturnType, out var init))
                 emit.New(init);
-            else
+            else if(method.ReturnType != typeof(GmObject))
                 throw new InvalidProgramException("Imported method had an invalid return type.");
 
             emit.Ret();
@@ -185,6 +287,7 @@ namespace GmParser.Backend
             var count = emit.DeclareLocal(typeof(int), "count");
             var start = emit.DefineLabel();
             var end = emit.DefineLabel();
+            //The following IL is equivalent to this method:
             //public static void Main(string[] arg1)
             //{
             //    var count = arg1.Length;
@@ -234,7 +337,7 @@ namespace GmParser.Backend
             _gmObjectCasts = new Dictionary<Type, MethodInfo>()
             {
                 { typeof(string), objType.GetMethod("GetString") },
-                { typeof(double), objType.GetMethod("GetNum") },
+                { typeof(float), objType.GetMethod("GetNum") },
                 { typeof(int), objType.GetMethod("GetNumAsInt") },
                 { typeof(long), objType.GetMethod("GetNumAsLong") },
                 { typeof(bool), objType.GetMethod("GetBool") },
@@ -256,12 +359,12 @@ namespace GmParser.Backend
             _gmBasicTypes = new Dictionary<string, Type>()
             {
                 { "bool", typeof(bool) },
-                { "double", typeof(double) },
+                { "double", typeof(float) },
                 { "string", typeof(string) },
                 { "instance", typeof(GmInstance) },
                 { "array1d", typeof(GmObject[]) },
                 { "array2d", typeof(GmObject[][]) },
-                { "object", typeof(object) }
+                { "object", typeof(GmObject) }
             };
 
             _operators = new Dictionary<string, string>()
@@ -366,15 +469,63 @@ namespace GmParser.Backend
             return emit.DeclareLocal(typeof(GmObject), name);
         }
 
+        private LocalBuilder MakeSecret(Type type)
+        {
+            return emit.DeclareLocal(type, $"__0secret_{_secret++}");
+        }
+
+        private void GetAddressIfPossible(ISyntaxElement element)
+        {
+            if (element.Type == SyntaxType.Variable || element.Type == SyntaxType.ArrayAccess || element.Type == SyntaxType.ReadOnlyValue)
+            {
+                _needAddress = true;
+                element.Accept(this);
+                _needAddress = false;
+            }
+            else
+                element.Accept(this);
+        }
+
+        private void CallInstanceMethod(MethodInfo method)
+        {
+            var top = emit.GetTop();
+            if (top == typeof(GmObject))
+            {
+                var secret = MakeSecret();
+                emit.StLocal(secret)
+                    .LdLocalA(secret)
+                    .Call(method);
+            }
+            else if (top == typeof(GmObject).MakePointerType())
+                emit.Call(method);
+            else
+                throw new InvalidOperationException();
+        }
+
+        private LocalBuilder GetId()
+        {
+            if (_id == null)
+                _id = MakeSecret();
+            return _id;
+        }
+
+        private void MarkSequencePoint(string file, int startLine, int startColumn, int endLine, int endColumn)
+        {
+            if(_isDebug && file != null)
+            {
+                if(!_documents.TryGetValue(file, out var writer))
+                {
+                    writer = _module.DefineDocument(file, Guid.Empty, Guid.Empty, Guid.Empty);
+                    _documents.Add(file, writer);
+                }
+                emit.MarkSequencePoint(writer, startLine, startColumn, endLine, endColumn);
+            }
+        }
+
         #region Visitor
 
         public void Visit(AdditiveNode additive)
         {
-            //Todo: Process ReadOnlyValues.
-
-            if (additive.Left.Type == SyntaxType.ReadOnlyValue || additive.Right.Type == SyntaxType.ReadOnlyValue)
-                throw new NotImplementedException();
-
             additive.Left.Accept(this);
             var left = emit.GetTop();
             if(left == typeof(bool))
@@ -434,17 +585,7 @@ namespace GmParser.Backend
             }
             else
             {
-                // Todo: Optimize Argument Access
-                // If Index == Variable || Index == MemberAccess, get address,
-                // otherwise, get value.
-                if(argumentAccess.Index.Type == SyntaxType.Variable)
-                {
-                    _needAddress = true;
-                    argumentAccess.Index.Accept(this);
-                    _needAddress = false;
-                }
-                else
-                    argumentAccess.Index.Accept(this);
+                GetAddressIfPossible(argumentAccess.Index);
                 var type = emit.GetTop();
                 if (type == typeof(float))
                     emit.ConvertInt(false);
@@ -460,22 +601,46 @@ namespace GmParser.Backend
                 else if (type != typeof(int))
                     throw new InvalidProgramException();
             }
-            //Todo: Test if this can be LdElem or if it HAS to be LdElemA
-            emit.LdElem(typeof(GmObject));
+            if (_needAddress)
+                emit.LdElemA(typeof(GmObject));
+            else
+                emit.LdElem(typeof(GmObject));
         }
 
         public void Visit(ArrayAccessNode arrayAccess)
         {
-            arrayAccess.Left.Accept(this);
-            if (emit.GetTop() != typeof(GmObject))
-                throw new InvalidProgramException();
-            var types = new Type[arrayAccess.Children.Count - 1];
-            for(var i = 1; i < arrayAccess.Children.Count; i++)
+            var address = _needAddress;
+            _needAddress = false;
+            GetAddressIfPossible(arrayAccess.Left);
+            CallInstanceMethod(_gmObjectCasts[arrayAccess.Children.Count == 2 ? typeof(GmObject[]) : typeof(GmObject[][])]);
+            GetAddressIfPossible(arrayAccess.Children[1]);
+            var top = emit.GetTop();
+            if (top == typeof(float))
+                emit.ConvertInt(false);
+            else if (top != typeof(int) || top != typeof(bool))
+                CallInstanceMethod(_gmObjectCasts[typeof(int)]);
+            if(arrayAccess.Children.Count == 2)
             {
-                arrayAccess.Children[i].Accept(this);
-                types[i - 1] = emit.GetTop();
+                if (address)
+                    emit.LdElemA(typeof(GmObject));
+                else
+                    emit.LdElem(typeof(GmObject));
             }
-            emit.Call(typeof(GmObject).GetMethod("ArrayGet", BindingFlags.Public | BindingFlags.Instance, null, types, null));
+            else
+            {
+                emit.LdElem(typeof(GmObject[]));
+                GetAddressIfPossible(arrayAccess.Children[2]);
+                top = emit.GetTop();
+                if (top == typeof(float))
+                    emit.ConvertInt(false);
+                else if (top != typeof(int) || top != typeof(bool))
+                    CallInstanceMethod(_gmObjectCasts[typeof(int)]);
+
+                if (address)
+                    emit.LdElemA(typeof(GmObject));
+                else
+                    emit.LdElem(typeof(GmObject));
+            }
         }
 
         public void Visit(ArrayLiteralNode arrayLiteral)
@@ -493,22 +658,27 @@ namespace GmParser.Backend
                     emit.New(_gmConstructors[type]);
                 emit.StElem(typeof(GmObject));
             }
+            emit.New(_gmConstructors[typeof(GmObject[])]);
         }
 
         public void Visit(AssignNode assign)
         {
-            //Todo: allow x = y = 6;
-            //Todo: allow x += 4;
-            if(assign.Right is AssignNode inner)
+            if(assign.Value != "=")
             {
-                Visit(inner);
-                assign.Children[1] = inner.Left;
+                ProcessAssignExtra(assign);
+                return;
             }
+
             if (assign.Left is ArrayAccessNode array)
             {
-                array.Left.Accept(this);
-                if (emit.GetTop() != typeof(GmObject))
-                    throw new InvalidProgramException();
+                //Here we have to resize the array if needed, so more work needs to be done.
+                GetAddressIfPossible(array.Left);
+                if (emit.GetTop() == typeof(GmObject))
+                {
+                    var secret = MakeSecret();
+                    emit.StLocal(secret)
+                        .LdLocalA(secret);
+                }
 
                 var argTypes = new Type[array.Children.Count];
                 for (var i = 1; i < array.Children.Count; i++)
@@ -521,8 +691,7 @@ namespace GmParser.Backend
                 if (top != typeof(GmObject))
                     emit.New(_gmConstructors[top]);
                 argTypes[argTypes.Length - 1] = emit.GetTop();
-                var setter = typeof(GmObject).GetMethod("ArraySet", BindingFlags.Public | BindingFlags.Instance, null, argTypes, null);
-                emit.Call(setter);
+                emit.Call(typeof(GmObject).GetMethod("ArraySet", argTypes));
             }
             else if (assign.Left is VariableToken variable)
             {
@@ -532,6 +701,7 @@ namespace GmParser.Backend
                 {
                     if (symbol.Type != SymbolType.Variable)
                         throw new InvalidSymbolException();
+
                     assign.Right.Accept(this);
                     var result = emit.GetTop();
                     if (result != typeof(GmObject))
@@ -540,26 +710,85 @@ namespace GmParser.Backend
                 }
                 else
                 {
+                    var id = GetId();
                     emit.Call(_getId)
+                        .StLocal(id)
+                        .LdLocalA(id)
                         .LdStr(variable.Text);
                     assign.Right.Accept(this);
                     var argTypes = new[] { typeof(string), emit.GetTop() };
-                    emit.Call(typeof(GmObject).GetMethod("SetMember", BindingFlags.Public | BindingFlags.Instance, null, argTypes, null));
+                    emit.Call(typeof(GmObject).GetMethod("MemberSet", BindingFlags.Public | BindingFlags.Instance, null, argTypes, null));
                 }
             }
             else if (assign.Left is MemberAccessNode member)
             {
-                if (member.Right.Type == SyntaxType.ReadOnlyValue)
-                    throw new InvalidProgramException("Tried to access a readonly variable.");
-                member.Left.Accept(this);
+                GetAddressIfPossible(member.Left);
+                var top = emit.GetTop();
+                if(top == typeof(GmObject))
+                {
+                    var secret = MakeSecret();
+                    emit.StLocal(secret)
+                        .LdLocalA(secret);
+                }
                 emit.LdStr(((ISyntaxToken)member.Right).Text);
                 assign.Right.Accept(this);
                 var argTypes = new[] { typeof(string), emit.GetTop() };
-                emit.Call(typeof(GmObject).GetMethod("SetMember", BindingFlags.Public | BindingFlags.Instance, null, argTypes, null));
+                emit.Call(typeof(GmObject).GetMethod("MemberSet", BindingFlags.Public | BindingFlags.Instance, null, argTypes, null));
             }
             else
                 throw new NotImplementedException();
             //Todo: Finish assignments
+        }
+
+        private void ProcessAssignExtra(AssignNode assign)
+        {
+            var op = assign.Value.Replace("=", "");
+            if (assign.Left is ArrayAccessNode array)
+            {
+                //Because this has to access the array location,
+                //we can safely just get the address of the array elem and overwrite
+                //the the data pointed to by that address.
+                GetAddressIfPossible(array);
+                emit.Dup()
+                    .LdObj(typeof(GmObject));
+                assign.Right.Accept(this);
+                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop()))
+                    .StObj(typeof(GmObject));
+            }
+            else if(assign.Left is VariableToken variable)
+            {
+                if (_table.Defined(variable.Text, out var symbol))
+                {
+                    if (symbol.Type != SymbolType.Variable)
+                        throw new InvalidSymbolException();
+                    GetAddressIfPossible(assign.Left);
+                    emit.Dup()
+                        .LdObj(typeof(GmObject));
+                    assign.Right.Accept(this);
+                    emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop()))
+                        .StObj(typeof(GmObject));
+                }
+                else
+                    throw new NotImplementedException();
+            }
+            else if(assign.Left is MemberAccessNode member)
+            {
+                member.Left.Accept(this);
+                var top = emit.GetTop();
+                if (top != typeof(GmObject))
+                    throw new InvalidOperationException();
+                var name = ((ISyntaxToken)member.Right).Text;
+                var secret = MakeSecret();
+                emit.StLocal(secret)
+                    .LdLocalA(secret)
+                    .LdStr(name)
+                    .LdLocalA(secret)
+                    .LdStr(name)
+                    .Call(typeof(GmObject).GetMethod("MemberGet"));
+                assign.Right.Accept(this);
+                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop()))
+                    .Call(typeof(GmObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }));
+            }
         }
 
         public void Visit(BitwiseNode bitwise)
@@ -612,7 +841,11 @@ namespace GmParser.Backend
         {
             var size = block.Children.Count;
             for (var i = 0; i < size; ++i)
+            {
                 block.Children[i].Accept(this);
+                if (block.Children[i].Type == SyntaxType.FunctionCall || block.Children[i].Type == SyntaxType.Postfix || block.Children[i].Type == SyntaxType.Prefix)
+                    emit.Pop();
+            }
         }
 
         public void Visit(BreakToken breakToken)
@@ -622,6 +855,8 @@ namespace GmParser.Backend
 
         public void Visit(CaseNode caseNode)
         {
+            //Due to the way that a switch statements logic gets seperated, the SwitchNode implements
+            //the logic for both Default and CaseNodes.
             throw new NotImplementedException();
         }
 
@@ -665,12 +900,19 @@ namespace GmParser.Backend
 
         public void Visit(DeclareNode declare)
         {
-            //throw new NotImplementedException();
-            Console.WriteLine("Should I do something on declare?");
+            if (_table.Defined(declare.Value, out var symbol) && symbol.Type == SymbolType.Variable && _locals.TryGetValue(symbol, out var local))
+            {
+                emit.Call(_getEmptyObject)
+                    .StLocal(local);
+            }
+            else
+                throw new InvalidOperationException();
         }
 
         public void Visit(DefaultNode defaultNode)
         {
+            //Due to the way that a switch statements logic gets seperated, the SwitchNode implements
+            //the logic for both Default and CaseNodes.
             throw new NotImplementedException();
         }
 
@@ -732,94 +974,81 @@ namespace GmParser.Backend
 
         public void Visit(EqualityNode equality)
         {
-            //Todo: Add release mode optimization
-
-            var name = equality.Value == "==" ? "op_Equality" : "op_Inequality";
-
-            if (equality.Left is IConstantToken left && equality.Right is IConstantToken right)
+            equality.Left.Accept(this);
+            var left = emit.GetTop();
+            if (left == typeof(bool) || left == typeof(int))
             {
-                if(left is IConstantToken<string> leftString)
-                {
-                    if (right is IConstantToken<string> rightString)
-                    {
-                        emit.LdStr(leftString.Value)
-                            .LdStr(rightString.Value)
-                            .Call(typeof(string).GetMethod(name, new[] { typeof(string), typeof(string) }));
-                    }
-                    else
-                        emit.LdInt(0);
-                }
-                else if(left is IConstantToken<float> leftReal)
-                {
-                    if (right is IConstantToken<float> rightReal)
-                    {
-                        emit.LdFloat(leftReal.Value)
-                            .LdFloat(rightReal.Value);
-
-                        if (equality.Value == "==")
-                            emit.Ceq();
-                        else
-                            emit.Neq();
-                    }
-                    else if (right is IConstantToken<bool> rightBool)
-                    {
-                        emit.LdFloat(leftReal.Value)
-                            .LdFloat(rightBool.Value ? 1f : 0f);
-
-                        if (equality.Value == "==")
-                            emit.Ceq();
-                        else
-                            emit.Neq();
-                    }
-                    else
-                        emit.LdInt(0);
-                }
-                else if(left is IConstantToken<bool> leftBool)
-                {
-                    if (right is IConstantToken<bool> rightBool)
-                    {
-                        emit.LdInt(leftBool.Value ? 1 : 0)
-                            .LdInt(rightBool.Value ? 1 : 0);
-
-                        if (equality.Value == "==")
-                            emit.Ceq();
-                        else
-                            emit.Neq();
-                    }
-                    else if (right is IConstantToken<float> rightReal)
-                    {
-                        emit.LdFloat(leftBool.Value ? 1 : 0)
-                            .LdFloat(rightReal.Value);
-
-                        if (equality.Value == "==")
-                            emit.Ceq();
-                        else
-                            emit.Neq();
-                    }
-                    else
-                        emit.LdInt(0);
-                }
+                emit.ConvertFloat();
+                left = typeof(float);
             }
+            equality.Right.Accept(this);
+            var right = emit.GetTop();
+            if (right == typeof(bool) || right == typeof(int))
+            {
+                emit.ConvertFloat();
+                right = typeof(float);
+            }
+
+            TestEquality(equality.Value, left, right);
+        }
+
+        private void TestEquality(string op, Type left, Type right)
+        {
+            if (left == typeof(float))
+            {
+                if (right == typeof(float))
+                {
+                    if (op == "==")
+                        emit.Ceq();
+                    else
+                        emit.Neq();
+                }
+                else if (right == typeof(string))
+                {
+                    emit.Pop()
+                        .Pop();
+                    if (op == "==")
+                        emit.LdBool(false);
+                    else
+                        emit.LdBool(true);
+                }
+                else if (right == typeof(GmObject))
+                    emit.Call(GetOperator(op, left, right));
+                else
+                    throw new NotImplementedException();
+            }
+            else if (left == typeof(string))
+            {
+                if (right == typeof(float))
+                {
+                    emit.Pop()
+                        .Pop();
+                    if (op == "==")
+                        emit.LdBool(false);
+                    else
+                        emit.LdBool(true);
+                }
+                else if (right == typeof(string) || right == typeof(GmObject))
+                    emit.Call(GetOperator(op, left, right));
+                else
+                    throw new InvalidOperationException();
+            }
+            else if (left == typeof(GmObject))
+                emit.Call(GetOperator(op, left, right));
             else
-            {
-                var argTypes = new Type[2];
-                equality.Left.Accept(this);
-                argTypes[0] = emit.GetTop();
-                equality.Right.Accept(this);
-                argTypes[1] = emit.GetTop();
-
-                var opAddition = typeof(GmObject).GetMethod(name, BindingFlags.Public | BindingFlags.Static, null, argTypes, null)
-                    ?? throw new NotImplementedException();
-
-                emit.Call(opAddition);
-            }
+                throw new InvalidOperationException();
         }
 
         public void Visit(ExitToken exitToken)
         {
-            if (_inScript)
+            if (_inScript && !emit.TryGetTop(out _))
                 emit.Call(_getEmptyObject);
             emit.Ret();
+        }
+
+        public void Visit(EventNode eventNode)
+        {
+            throw new NotImplementedException();
         }
 
         public void Visit(ExplicitArrayAccessNode explicitArrayAccess)
@@ -858,6 +1087,41 @@ namespace GmParser.Backend
             {
                 method = StartMethod(name);
                 _pendingMethods.Add(name);
+            }
+
+            if (_isDebug && functionCall.Position.File != null)
+            {
+                var line = functionCall.Position.Line;
+                var end = 0;
+                ISyntaxElement element = functionCall;
+                while(true)
+                {
+                    if (element.Position.Line > line)
+                        line = element.Position.Line;
+                    if (element.IsToken)
+                    {
+                        end = element.Position.Column + ((ISyntaxToken)element).Text.Length + 2;
+                        break;
+                    }
+                    else
+                    {
+                        var node = element as ISyntaxNode;
+                        if (node.Children.Count == 0)
+                        {
+                            end = node.Position.Column + (node.Value == null ? 0 : node.Value.Length) + 2;
+                            break;
+                        }
+                        else
+                        {
+                            element = node.Children[node.Children.Count - 1];
+                        }
+                    }
+                }
+                MarkSequencePoint(functionCall.Position.File,
+                                  functionCall.Position.Line,
+                                  functionCall.Position.Column,
+                                  line,
+                                  end);
             }
 
             emit.LdInt(functionCall.Children.Count)
@@ -927,7 +1191,15 @@ namespace GmParser.Backend
             var methodName = externalName.Substring(typeName.Length + 1);
             var owner = _typeParser.GetType(typeName);
             var method = GetMethodToImport(owner, methodName, args) ?? throw new InvalidProgramException();
-            GenerateWeakMethodForImport(method, internalName, args);
+            if (method.GetCustomAttribute<WeakMethodAttribute>() != null && IsMethodValid(method))
+            {
+                _methods.Add(internalName, method);
+                SpecialImports.Write(internalName);
+                SpecialImports.Write(':');
+                SpecialImports.WriteLine(externalName);
+            }
+            else
+                GenerateWeakMethodForImport(method, internalName);
         }
 
         public void Visit(ListAccessNode listAccess)
@@ -1006,10 +1278,17 @@ namespace GmParser.Backend
             }
             else
             {
-                memberAccess.Left.Accept(this);
+                GetAddressIfPossible(memberAccess.Left);
                 var left = emit.GetTop();
-                if(left != typeof(GmObject))
+                if(left == typeof(GmObject))
                 {
+                    var secret = MakeSecret();
+                    emit.StLocal(secret)
+                        .LdLocalA(secret);
+                }
+                else if(left != typeof(GmObject).MakePointerType())
+                {
+
                     //Todo: MemberAccess class variables.
                     //There won't be any static class variables,
                     //instead it will set the variable on the first instance of the type.
@@ -1020,7 +1299,14 @@ namespace GmParser.Backend
                 if (memberAccess.Right is VariableToken right)
                 {
                     emit.LdStr(right.Text)
-                        .Call(typeof(GmObject).GetMethod("MemberGet", BindingFlags.Public, null, new[] { typeof(string) }, null));
+                        .Call(typeof(GmObject).GetMethod("MemberGet", new[] { typeof(string) }));
+                }
+                else if(memberAccess.Right is ReadOnlyToken readOnly)
+                {
+                    if (readOnly.Text != "id" && readOnly.Text != "self")
+                        throw new InvalidOperationException();
+                    emit.LdStr("id")
+                        .Call(typeof(GmObject).GetMethod("MemberGet", new[] { typeof(string) }));
                 }
                 else
                     throw new InvalidOperationException();
@@ -1066,16 +1352,174 @@ namespace GmParser.Backend
                 emit.Call(GetOperator(multiplicative.Value, left, right));
         }
 
+        public void Visit(ObjectNode objectNode)
+        {
+            var name = $"{_namespace}.{objectNode.Value}";
+            if (name.StartsWith("."))
+                name = name.TrimStart('.');
+            var type = _module.DefineType(name, TypeAttributes.Public);
+            _table.Enter(objectNode.Value);
+            var input = new[] { typeof(GmInstance) };
+            var getIdStack = typeof(GmObject).GetMethod("get_Id");
+            var push = typeof(Stack<GmObject>).GetMethod("Push");
+            var pop = typeof(Stack<GmObject>).GetMethod("Pop");
+            var addMethod = typeof(Dictionary<string, InstanceEvent>).GetMethod("Add");
+            var objectIds = typeof(GmInstance).GetField("ObjectIndexMapping");
+            var events = typeof(GmInstance).GetField("Events");
+            var addObjectId = typeof(Dictionary<Type, string>).GetMethod("Add");
+            var init = ModuleInitializer;
+            init.LdFld(objectIds)
+                .LdType(type)
+                .Call(typeof(Type).GetMethod("GetTypeFromHandle"))
+                .LdStr(name)
+                .Call(addObjectId)
+                .LdFld(events)
+                .LdStr(name)
+                .New(typeof(Dictionary<string, InstanceEvent>).GetConstructor(Type.EmptyTypes));
+
+            foreach (EventNode ev in objectNode.Children)
+            {
+                var method = type.DefineMethod(ev.Value, MethodAttributes.Public | MethodAttributes.Static, typeof(void), input);
+                emit = new ILEmitter(method, input, _isDebug);
+                emit.Call(getIdStack)
+                    .LdArg(0)
+                    .Call(typeof(GmInstance).GetMethod("get_Id"))
+                    .New(_gmConstructors[typeof(float)])
+                    .Call(push);
+                ev.Body.Accept(this);
+                emit.Call(getIdStack)
+                    .Call(pop)
+                    .Pop()
+                    .Ret();
+
+                _id = null;
+
+                init.Dup()
+                    .LdStr(ev.Value)
+                    .LdNull()
+                    .LdFtn(method)
+                    .New(typeof(InstanceEvent).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                    .Call(addMethod);
+            }
+            init.Call(typeof(Dictionary<string, Dictionary<string, InstanceEvent>>).GetMethod("Add"));
+
+            var attrib = new CustomAttributeBuilder(typeof(WeakObjectAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
+            type.SetCustomAttribute(attrib);
+            type.CreateType();
+
+            _table.Exit();
+        }
+
         public void Visit(PostfixNode postfix)
         {
-            //Todo: Implement (post|pre)fix operator
-            //It works exactly like addition op.
-            throw new NotImplementedException();
+            if (postfix.Child is ArrayAccessNode array)
+            {
+                var secret = MakeSecret();
+                GetAddressIfPossible(array);
+                emit.Dup()
+                    .Dup()
+                    .LdObj(typeof(GmObject))
+                    .StLocal(secret)
+                    .LdObj(typeof(GmObject))
+                    .Call(GetOperator(postfix.Value, typeof(GmObject)))
+                    .StObj(typeof(GmObject))
+                    .LdLocal(secret);
+            }
+            else if (postfix.Child is VariableToken variable)
+            {
+                if (_table.Defined(variable.Text, out var symbol))
+                {
+                    if (symbol.Type != SymbolType.Variable)
+                        throw new InvalidSymbolException();
+                    var secret = MakeSecret();
+                    GetAddressIfPossible(variable);
+                    emit.Dup()
+                        .Dup()
+                        .LdObj(typeof(GmObject))
+                        .StLocal(secret)
+                        .LdObj(typeof(GmObject))
+                        .Call(GetOperator(postfix.Value, typeof(GmObject)))
+                        .StObj(typeof(GmObject))
+                        .LdLocal(secret);
+                }
+                else
+                    throw new InvalidOperationException();
+            }
+            else if (postfix.Child is MemberAccessNode member)
+            {
+                member.Left.Accept(this);
+                var top = emit.GetTop();
+                if (top != typeof(GmObject))
+                    throw new InvalidOperationException();
+                var name = ((ISyntaxToken)member.Right).Text;
+                var secret = MakeSecret();
+                var value = MakeSecret();
+                emit.StLocal(secret)
+                    .LdLocalA(secret)
+                    .LdStr(name)
+                    .LdLocalA(secret)
+                    .LdStr(name)
+                    .LdLocalA(secret)
+                    .LdStr(name)
+                    .Call(typeof(GmObject).GetMethod("MemberGet"))
+                    .StLocal(value)
+                    .Call(typeof(GmObject).GetMethod("MemberGet"))
+                    .Call(GetOperator(postfix.Value, typeof(GmObject)))
+                    .Call(typeof(GmObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }))
+                    .LdLocal(value);
+            }
+            else
+                throw new NotImplementedException();
         }
 
         public void Visit(PrefixNode prefix)
         {
-            throw new NotImplementedException();
+            if (prefix.Child is ArrayAccessNode array)
+            {
+                GetAddressIfPossible(array);
+                emit.Dup()
+                    .Dup()
+                    .LdObj(typeof(GmObject))
+                    .Call(GetOperator(prefix.Value, typeof(GmObject)))
+                    .StObj(typeof(GmObject))
+                    .LdObj(typeof(GmObject));
+            }
+            else if (prefix.Child is VariableToken variable)
+            {
+                if (_table.Defined(variable.Text, out var symbol))
+                {
+                    if (symbol.Type != SymbolType.Variable)
+                        throw new InvalidSymbolException();
+                    variable.Accept(this);
+                    emit.Call(GetOperator(prefix.Value, typeof(GmObject)))
+                        .StLocal(_locals[symbol])
+                        .LdLocal(_locals[symbol]);
+                }
+                else
+                    throw new InvalidOperationException();
+            }
+            else if (prefix.Child is MemberAccessNode member)
+            {
+                member.Left.Accept(this);
+                var top = emit.GetTop();
+                if (top != typeof(GmObject))
+                    throw new InvalidOperationException();
+                var name = ((ISyntaxToken)member.Right).Text;
+                var secret = MakeSecret();
+                emit.StLocal(secret)
+                    .LdLocalA(secret)
+                    .LdStr(name)
+                    .LdLocalA(secret)
+                    .LdStr(name)
+                    .LdLocalA(secret)
+                    .LdStr(name)
+                    .Call(typeof(GmObject).GetMethod("MemberGet"))
+                    .Call(GetOperator(prefix.Value, typeof(GmObject)))
+                    .Call(typeof(GmObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }))
+                    .Call(typeof(GmObject).GetMethod("MemberGet"));
+            }
+            else
+                throw new NotImplementedException();
         }
 
         public void Visit(ReadOnlyToken readOnlyToken)
@@ -1087,25 +1531,15 @@ namespace GmParser.Backend
                     emit.Call(_getId);
                     break;
                 case "argument_count":
-                    //Todo: Test argument_count
-                    // Possible problems:
-                    // LdArg might need to be LdArgA
-                    // LdLen might not convert to float.
-                    // If it doesn't work, uncomment code underneath current implementation.
                     emit.LdArg(0)
                         .LdLen()
                         .ConvertFloat();
-                    /*
-                    * LdArgA
-                    emit.LdArgA(0)
-                        .LdLen()
-                        .ConvertFloat();
-
-                    * LdLen invalid
-                    emit.LdArg(0)
-                        .LdInt(0)
-                        .Call(typeof(GmObject[]).GetMethod("GetLength", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(int) }, null));
-                    */
+                    break;
+                case "global":
+                    if (_needAddress)
+                        emit.LdFldA(typeof(GmObject).GetField("Global"));
+                    else
+                        emit.LdFld(typeof(GmObject).GetField("Global"));
                     break;
                 case "pi":
                     emit.LdFloat((float)Math.PI);
@@ -1117,9 +1551,6 @@ namespace GmParser.Backend
 
         public void Visit(RelationalNode relational)
         {
-            //Todo: (LOW) Get String address as int?
-
-
             relational.Left.Accept(this);
             var left = emit.GetTop();
             if (left == typeof(bool) || left == typeof(int))
@@ -1181,6 +1612,38 @@ namespace GmParser.Backend
             return;
         }
 
+        public void Visit(RepeatNode repeat)
+        {
+            var secret = MakeSecret(typeof(float));
+            var start = emit.DefineLabel();
+            var end = emit.DefineLabel();
+            emit.LdFloat(0)
+                .StLocal(secret)
+                .MarkLabel(start)
+                .LdLocal(secret);
+            repeat.Condition.Accept(this);
+            var top = emit.GetTop();
+            if (top == typeof(int) || top == typeof(bool))
+            {
+                emit.ConvertFloat()
+                    .Clt();
+            }
+            else if (top == typeof(GmObject))
+                emit.Call(GetOperator("<", typeof(float), top));
+            else if (top == typeof(float))
+                emit.Clt();
+            else
+                throw new InvalidProgramException();
+            emit.BrFalse(end);
+            repeat.Body.Accept(this);
+            emit.LdLocal(secret)
+                .LdFloat(1)
+                .Add()
+                .StLocal(secret)
+                .Br(start)
+                .MarkLabel(end);
+        }
+
         public void Visit(ReturnNode returnNode)
         {
             returnNode.ReturnValue.Accept(this);
@@ -1201,7 +1664,7 @@ namespace GmParser.Backend
                 //Todo: Create exception for invalid node type.
                 //Todo: Process everything before scripts.
                 //      Alternatively, process titles, then go through sequentially.
-                if (child.Type != SyntaxType.Enum && child.Type != SyntaxType.Import && child.Type != SyntaxType.Script)
+                if (child.Type != SyntaxType.Enum && child.Type != SyntaxType.Import && child.Type != SyntaxType.Script && child.Type != SyntaxType.Object)
                     throw new InvalidProgramException();
 
                 child.Accept(this);
@@ -1221,8 +1684,7 @@ namespace GmParser.Backend
                 _locals.Add(symbol, emit.DeclareLocal(typeof(GmObject), symbol.Name));
 
             script.Body.Accept(this);
-
-            //Todo: Remove possibly unnecessary return stmt.
+            
             if (!emit.TryGetTop(out _))
             {
                 emit.Call(_getEmptyObject);
@@ -1232,6 +1694,7 @@ namespace GmParser.Backend
 
             _inScript = false;
             _table.Exit();
+            _id = null;
 
             if (name == "main")
                 GenerateEntryPoint(mb);
@@ -1239,12 +1702,115 @@ namespace GmParser.Backend
 
         public void Visit(ShiftNode shift)
         {
-            throw new NotImplementedException();
+            shift.Left.Accept(this);
+            var left = emit.GetTop();
+            if (left == typeof(float) || left == typeof(int) || left == typeof(bool))
+            {
+                emit.ConvertLong(false);
+                left = typeof(long);
+            }
+            else if (left == typeof(string))
+                throw new InvalidOperationException("Cannot shift a string.");
+            GetAddressIfPossible(shift.Right);
+            var right = emit.GetTop();
+            if (right == typeof(float))
+            {
+                emit.ConvertInt(true);
+                right = typeof(int);
+            }
+            else if(right == typeof(GmObject) || right == typeof(GmObject).MakePointerType())
+            {
+                CallInstanceMethod(_gmObjectCasts[typeof(int)]);
+                right = typeof(int);
+            }
+            else
+                throw new InvalidOperationException("Cannot shift by a string.");
+
+            if (left == typeof(long))
+            {
+                if (right == typeof(int))
+                {
+                    emit.Call(GetOperator(shift.Value, left, right))
+                        .ConvertFloat();
+                }
+                else
+                    throw new NotImplementedException();
+            }
+            else if (left == typeof(GmObject))
+            {
+                if (right == typeof(int))
+                    emit.Call(GetOperator(shift.Value, left, right));
+                else
+                    throw new InvalidOperationException();
+            }
+            else
+                throw new NotImplementedException();
         }
 
         public void Visit(SwitchNode switchNode)
         {
-            throw new NotImplementedException();
+            var end = emit.DefineLabel();
+            _loopEnd.Push(end);
+
+            switchNode.Test.Accept(this);
+            var left = emit.GetTop();
+            if(left == typeof(int) || left == typeof(bool))
+            {
+                emit.ConvertFloat();
+                left = typeof(float);
+            }
+
+            int defaultLocation = -1;
+            var cases = new List<ISyntaxElement>(switchNode.Cases);
+            var labels = new Label[cases.Count];
+            for (var i = 0; i < labels.Length; i++)
+            {
+                labels[i] = emit.DefineLabel();
+                if (cases[i] is CaseNode caseNode)
+                {
+                    emit.Dup();
+                    caseNode.Condition.Accept(this);
+                    var right = emit.GetTop();
+                    if (right == typeof(int) || right == typeof(bool))
+                    {
+                        emit.ConvertFloat();
+                        right = typeof(float);
+                    }
+                    TestEquality("==", left, right);
+                    var isFalse = emit.DefineLabel();
+                    emit.BrFalse(isFalse)
+                        .Pop(false)
+                        .Br(labels[i])
+                        .MarkLabel(isFalse);
+                }
+                else
+                    defaultLocation = i;
+            }
+
+            if (defaultLocation != -1)
+                emit.Pop()
+                    .Br(labels[defaultLocation]);
+            else
+            {
+                emit.Pop()
+                    .Br(end);
+            }
+
+            for(var i = 0; i < labels.Length; i++)
+            {
+                emit.MarkLabel(labels[i]);
+
+                if (cases[i] is CaseNode caseNode)
+                    caseNode.Expressions.Accept(this);
+                else if (cases[i] is DefaultNode defaultNode)
+                    defaultNode.Expressions.Accept(this);
+                else
+                    throw new InvalidOperationException();
+            }
+
+            emit.MarkLabel(end);
+
+            _loopEnd.Pop();
         }
 
         public void Visit(VariableToken variableToken)
@@ -1252,24 +1818,36 @@ namespace GmParser.Backend
             var name = variableToken.Text;
             if(_table.Defined(name, out var symbol))
             {
-                if (symbol.Type != SymbolType.Variable)
-                    throw new InvalidOperationException();
-
-                if (_locals.TryGetValue(symbol, out var local))
+                switch(symbol.Type)
                 {
-                    if (_needAddress)
-                        emit.LdLocalA(local);
-                    else
-                        emit.LdLocal(local);
+                    case SymbolType.Object:
+                    case SymbolType.Script:
+                        emit.LdStr(name);
+                        break;
+                    case SymbolType.Variable:
+                        if (_locals.TryGetValue(symbol, out var local))
+                        {
+                            if (_needAddress)
+                                emit.LdLocalA(local);
+                            else
+                                emit.LdLocal(local);
+                        }
+                        else
+                            throw new InvalidOperationException();
+                        break;
+                    default:
+                        throw new InvalidOperationException();
                 }
-                else
-                    throw new InvalidOperationException();
             }
             else
             {
-                emit.Call(_getId);
-                emit.LdStr(variableToken.Text);
-                emit.Call(typeof(GmObject).GetMethod("GetMember", _methodFlags, null, new[] { typeof(string) }, null));
+                var id = GetId();
+
+                emit.Call(_getId)
+                    .StLocal(id)
+                    .LdLocalA(id)
+                    .LdStr(variableToken.Text)
+                    .Call(typeof(GmObject).GetMethod("MemberGet", new[] { typeof(string) }));
             }
         }
 

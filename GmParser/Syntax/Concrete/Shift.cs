@@ -6,7 +6,7 @@
         public ISyntaxElement Right => Children[1];
         public override SyntaxType Type => SyntaxType.Shift;
 
-        public ShiftNode(string value) : base(value)
+        public ShiftNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

@@ -5,7 +5,7 @@
         public ISyntaxElement Index => Children[0];
         public override SyntaxType Type => SyntaxType.ArgumentAccess;
 
-        public ArgumentAccessNode(string value) : base(value)
+        public ArgumentAccessNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

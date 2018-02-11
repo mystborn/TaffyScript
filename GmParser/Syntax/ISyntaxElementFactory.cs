@@ -8,9 +8,9 @@ namespace GmParser.Syntax
 {
     public interface ISyntaxElementFactory
     {
-        ISyntaxNode CreateNode(SyntaxType type);
-        ISyntaxNode CreateNode(SyntaxType type, string value);
-        ISyntaxToken CreateToken(SyntaxType type, string value);
-        ISyntaxToken CreateConstant(ConstantType type, string value);
+        ISyntaxNode CreateNode(SyntaxType type, TokenPosition position);
+        ISyntaxNode CreateNode(SyntaxType type, string value, TokenPosition position);
+        ISyntaxToken CreateToken(SyntaxType type, string value, TokenPosition position);
+        ISyntaxToken CreateConstant(ConstantType type, string value, TokenPosition position);
     }
 }

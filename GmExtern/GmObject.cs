@@ -6,12 +6,19 @@ using System.Threading.Tasks;
 
 namespace GmExtern
 {
+    public delegate void InstanceEvent(GmInstance inst);
+    public delegate GmObject NativeFunction(GmObject[] args);
+
     public struct GmObject
     {
-        public static Stack<GmObject> Id { get; }
+        public static Stack<GmObject> Id { get; } = new Stack<GmObject>();
+        /// <summary>
+        /// Global GM object. DO NOT SET.
+        /// </summary>
+        public static GmObject Global = GmInstance.InitGlobal();
 
-        public VariableType Type { get; }
-        public IGmValue Value { get; }
+        public VariableType Type { get; private set; }
+        public IGmValue Value { get; private set; }
 
         private GmObject(VariableType type, IGmValue value)
         {
@@ -64,6 +71,8 @@ namespace GmExtern
 
         public float GetNum()
         {
+            if (Type == VariableType.Null)
+                return 0;
             if (Type != VariableType.Real)
                 throw new InvalidGmTypeException($"Variable is supposed to be of type Real, is {Type} instead.");
             return ((GmValue<float>)Value).StrongValue;
@@ -93,6 +102,8 @@ namespace GmExtern
 
         public string GetString()
         {
+            if (Type == VariableType.Null)
+                return "";
             if (Type != VariableType.String)
                 throw new InvalidGmTypeException($"Variable is supposed to be of type Real, is {Type} instead.");
             return ((GmValue<string>)Value).StrongValue;
@@ -131,6 +142,8 @@ namespace GmExtern
 
         public object GetValue()
         {
+            if (Value == null)
+                return 0;
             return Value.WeakValue;
         }
 
@@ -175,18 +188,22 @@ namespace GmExtern
 
         #region Array Access
 
-        //Todo: Allow access via ints.
-
         public void ArraySet(GmObject index, GmObject right)
             => ArraySet(index.GetNum(), right);
 
         public void ArraySet(float index, GmObject right)
         {
             var real = (int)index;
-            if (Type != VariableType.Array1)
-                throw new InvalidInstanceException();
-            if (index < 0)
+            if (real < 0)
                 throw new ArgumentOutOfRangeException("index");
+            if (Type != VariableType.Array1)
+            {
+                Type = VariableType.Array1;
+                var temp = new GmObject[real + 1];
+                temp[real] = right;
+                Value = new GmValueArray<GmObject[]>(temp);
+                return;
+            }
             var self = (GmValueArray<GmObject[]>)Value;
             var arr = self.StrongValue;
             if (index >= arr.Length)
@@ -212,12 +229,20 @@ namespace GmExtern
         {
             int real1 = (int)index1;
             int real2 = (int)index2;
-            if (Type != VariableType.Array2)
-                throw new InvalidInstanceException();
-            if (index1 < 0 || index2 < 0)
+            if (real1 < 0 || index2 < 0)
                 throw new IndexOutOfRangeException();
+            if (Type != VariableType.Array2)
+            {
+                Type = VariableType.Array2;
+                var temp = new GmObject[real1 + 1][];
+                var inner = new GmObject[real2 + 1];
+                inner[real2] = right;
+                temp[real1] = inner;
+                Value = new GmValueArray<GmObject[][]>(temp);
+                return;
+            }
             var self = (GmValueArray<GmObject[][]>)Value;
-            if(index1 >= self.StrongValue.Length)
+            if(real1 >= self.StrongValue.Length)
             {
                 var temp = new GmObject[real1 + 1][];
                 Buffer.BlockCopy(self.StrongValue, 0, temp, 0, self.StrongValue.Length);
@@ -225,7 +250,7 @@ namespace GmExtern
             }
             if (self.StrongValue[real1] == null)
                 self.StrongValue[real1] = new GmObject[real2 + 1];
-            else if(index2 >= self.StrongValue[real1].Length)
+            else if(real2 >= self.StrongValue[real1].Length)
             {
                 var temp = new GmObject[real2 + 1];
                 Buffer.BlockCopy(self.StrongValue[real1], 0, temp, 0, self.StrongValue[real2].Length);
@@ -824,15 +849,15 @@ namespace GmExtern
             return obj.ToString();
         }
 
-        public static void ShowDebugMessage(GmObject obj)
+        public static void ShowDebugMessage(GmInstance obj)
         {
             Console.WriteLine(obj);
         }
 
         public static void ConditionalTest()
         {
-            var i = 10;
-            var t = (i + 2).GetHashCode();
+            GetId().GetBool();
+            GetId().GetNum();
         }
 
         #endregion

@@ -8,12 +8,12 @@ namespace GmParser.Syntax
 {
     public class SyntaxElementFactory : ISyntaxElementFactory
     {
-        public ISyntaxToken CreateConstant(ConstantType type, string value)
+        public ISyntaxToken CreateConstant(ConstantType type, string value, TokenPosition position)
         {
             switch (type)
             {
                 case ConstantType.Bool:
-                    return new ConstantToken<bool>(value, type, value == "true");
+                    return new ConstantToken<bool>(value, position, type, value == "true");
                 case ConstantType.Real:
                     float real;
                     if (value.StartsWith("0x"))
@@ -23,118 +23,124 @@ namespace GmParser.Syntax
                     }
                     else
                         real = float.Parse(value);
-                    return new ConstantToken<float>(value, type, real);
+                    return new ConstantToken<float>(value, position, type, real);
                 case ConstantType.String:
-                    return new ConstantToken<string>(value, ConstantType.String, value);
+                    return new ConstantToken<string>(value, position, ConstantType.String, value);
                 default:
                     throw new InvalidOperationException();
             }
         }
 
-        public ISyntaxNode CreateNode(SyntaxType type)
+        public ISyntaxNode CreateNode(SyntaxType type, TokenPosition position)
         {
             switch(type)
             {
                 case SyntaxType.Locals:
-                    return new LocalsNode(null);
+                    return new LocalsNode(null, position);
                 case SyntaxType.Import:
-                    return new ImportNode(null);
-                case SyntaxType.Declare:
-                    return new DeclareNode(null);
+                    return new ImportNode(null, position);
                 case SyntaxType.Return:
-                    return new ReturnNode(null);
+                    return new ReturnNode(null, position);
                 case SyntaxType.While:
-                    return new WhileNode(null);
+                    return new WhileNode(null, position);
+                case SyntaxType.Repeat:
+                    return new RepeatNode(null, position);
                 case SyntaxType.With:
-                    return new WithNode(null);
+                    return new WithNode(null, position);
                 case SyntaxType.Do:
-                    return new DoNode(null);
+                    return new DoNode(null, position);
                 case SyntaxType.If:
-                    return new IfNode(null);
+                    return new IfNode(null, position);
                 case SyntaxType.For:
-                    return new ForNode(null);
+                    return new ForNode(null, position);
                 case SyntaxType.Switch:
-                    return new SwitchNode(null);
+                    return new SwitchNode(null, position);
                 case SyntaxType.Case:
-                    return new CaseNode(null);
+                    return new CaseNode(null, position);
                 case SyntaxType.Default:
-                    return new DefaultNode(null);
+                    return new DefaultNode(null, position);
                 case SyntaxType.Block:
-                    return new BlockNode(null);
+                    return new BlockNode(null, position);
                 case SyntaxType.Conditional:
-                    return new ConditionalNode(null);
+                    return new ConditionalNode(null, position);
                 case SyntaxType.MemberAccess:
-                    return new MemberAccessNode(null);
+                    return new MemberAccessNode(null, position);
                 case SyntaxType.ListAccess:
-                    return new ListAccessNode(null);
+                    return new ListAccessNode(null, position);
                 case SyntaxType.GridAccess:
-                    return new GridAccessNode(null);
+                    return new GridAccessNode(null, position);
                 case SyntaxType.MapAccess:
-                    return new MapAccessNode(null);
+                    return new MapAccessNode(null, position);
                 case SyntaxType.ExplicitArrayAccess:
-                    return new ExplicitArrayAccessNode(null);
+                    return new ExplicitArrayAccessNode(null, position);
                 case SyntaxType.ArrayAccess:
-                    return new ArrayAccessNode(null);
+                    return new ArrayAccessNode(null, position);
                 case SyntaxType.ArgumentAccess:
-                    return new ArgumentAccessNode(null);
+                    return new ArgumentAccessNode(null, position);
                 case SyntaxType.ArrayLiteral:
-                    return new ArrayLiteralNode(null);
+                    return new ArrayLiteralNode(null, position);
                 default:
                     throw new InvalidOperationException();
             }
         }
 
-        public ISyntaxNode CreateNode(SyntaxType type, string value)
+        public ISyntaxNode CreateNode(SyntaxType type, string value, TokenPosition position)
         {
             switch(type)
             {
                 case SyntaxType.Assign:
-                    return new AssignNode(value);
+                    return new AssignNode(value, position);
                 case SyntaxType.Logical:
-                    return new LogicalNode(value);
+                    return new LogicalNode(value, position);
                 case SyntaxType.Bitwise:
-                    return new BitwiseNode(value);
+                    return new BitwiseNode(value, position);
+                case SyntaxType.Declare:
+                    return new DeclareNode(value, position);
                 case SyntaxType.Equality:
-                    return new EqualityNode(value);
+                    return new EqualityNode(value, position);
                 case SyntaxType.Relational:
-                    return new RelationalNode(value);
+                    return new RelationalNode(value, position);
                 case SyntaxType.Shift:
-                    return new ShiftNode(value);
+                    return new ShiftNode(value, position);
                 case SyntaxType.Additive:
-                    return new AdditiveNode(value);
+                    return new AdditiveNode(value, position);
                 case SyntaxType.Multiplicative:
-                    return new MultiplicativeNode(value);
+                    return new MultiplicativeNode(value, position);
                 case SyntaxType.Prefix:
-                    return new PrefixNode(value);
+                    return new PrefixNode(value, position);
                 case SyntaxType.FunctionCall:
-                    return new FunctionCallNode(value);
+                    return new FunctionCallNode(value, position);
                 case SyntaxType.Postfix:
-                    return new PostfixNode(value);
+                    return new PostfixNode(value, position);
                 case SyntaxType.Enum:
-                    return new EnumNode(value);
+                    return new EnumNode(value, position);
                 case SyntaxType.Script:
-                    return new ScriptNode(value);
+                    return new ScriptNode(value, position);
+                case SyntaxType.Object:
+                    return new ObjectNode(value, position);
+                case SyntaxType.Event:
+                    return new EventNode(value, position);
                 default:
                     throw new InvalidOperationException();
             }
         }
 
-        public ISyntaxToken CreateToken(SyntaxType type, string value)
+        public ISyntaxToken CreateToken(SyntaxType type, string value, TokenPosition position)
         {
             switch(type)
             {
                 case SyntaxType.Variable:
-                    return new VariableToken(value);
+                    return new VariableToken(value, position);
                 case SyntaxType.End:
-                    return new EndToken(value);
+                    return new EndToken(value, position);
                 case SyntaxType.Break:
-                    return new BreakToken(value);
+                    return new BreakToken(value, position);
                 case SyntaxType.Continue:
-                    return new ContinueToken(value);
+                    return new ContinueToken(value, position);
                 case SyntaxType.Exit:
-                    return new ExitToken(value);
+                    return new ExitToken(value, position);
                 case SyntaxType.ReadOnlyValue:
-                    return new ReadOnlyToken(value);
+                    return new ReadOnlyToken(value, position);
                 default:
                     throw new InvalidOperationException();
             }

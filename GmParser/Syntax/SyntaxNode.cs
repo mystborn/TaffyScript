@@ -11,11 +11,13 @@ namespace GmParser.Syntax
         public SyntaxNode Parent { get; set; }
         public string Value { get; } = null;
         public List<ISyntaxElement> Children { get; } = new List<ISyntaxElement>();
+        public TokenPosition Position { get; }
         public bool IsToken => false;
         public abstract SyntaxType Type { get; }
 
-        public SyntaxNode(string value)
+        public SyntaxNode(string value, TokenPosition position)
         {
+            Position = position;
             Value = value;
         }
 

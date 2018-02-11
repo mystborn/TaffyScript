@@ -10,8 +10,8 @@
         public override SyntaxType Type => SyntaxType.Constant;
 
 
-        internal ConstantToken(string text, ConstantType type, T realValue) 
-            : base(text)
+        internal ConstantToken(string text, TokenPosition position, ConstantType type, T realValue)
+            : base(text, position)
         {
             ConstantType = type;
             _value = realValue;

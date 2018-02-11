@@ -3,22 +3,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Myst.LexicalAnalysis;
+using GmParser.FrontEnd;
 using GmParser.Syntax;
 
 namespace GmParser
 {
     public class Parser
     {
-        // Todo:
-        // Parse argument constant.
-
-        private static Lexer _lexer = InitLexer();
-
         private ISyntaxTree _tree;
-        private TokenStream _stream;
+        private Tokenizer _stream;
         private SymbolTable _table;
         private ISyntaxElementFactory _factory;
+
+        /// <summary>
+        /// Flag used to determine whether = should mean assignment or equality.
+        /// </summary>
+        private int _canAssign = 0;
 
         public SymbolTable Table => _table;
         public ISyntaxTree Tree => _tree;
@@ -32,36 +32,68 @@ namespace GmParser
 
         public void Parse(string code)
         {
-            _stream = new TokenStream(_lexer, code);
-            while (!_stream.Finished)
-                _tree.Root.AddChild(DeclarationOrStatement());
+            using (_stream = new Tokenizer(code))
+            {
+                while (!_stream.Finished)
+                    _tree.Root.AddChild(DeclarationOrStatement());
+            }
+        }
+
+        public void ParseFile(string file)
+        {
+            using (var fs = new System.IO.FileStream(file, System.IO.FileMode.Open))
+            {
+                using(_stream = new Tokenizer(fs))
+                {
+                    while (!_stream.Finished)
+                        _tree.Root.AddChild(DeclarationOrStatement());
+                }
+            }
         }
 
         private ISyntaxElement DeclarationOrStatement()
         {
             switch(_stream.Peek().Type)
             {
+                case "object":
+                    Confirm("object");
+                    var objName = Confirm("id");
+                    _table.EnterNew(objName.Value, SymbolType.Object);
+                    var node = _factory.CreateNode(SyntaxType.Object, objName.Value, objName.Position);
+                    Confirm("{");
+                    while (!Try("}"))
+                    {
+                        Confirm("event");
+                        var evName = Confirm("id");
+                        _table.AddLeaf(evName.Value, SymbolType.Script, SymbolScope.Member);
+                        var eventNode = _factory.CreateNode(SyntaxType.Event, evName.Value, evName.Position);
+                        eventNode.AddChild(BlockStatement());
+                        node.AddChild(eventNode);
+                    }
+                    Confirm("}");
+                    _table.Exit();
+                    return node;
                 case "enum":
                     Confirm("enum");
-                    var enumName = Confirm("id").Value;
-                    _table.EnterNew(enumName, SymbolType.Enum);
-                    var node = _factory.CreateNode(SyntaxType.Enum, enumName);
-                    //node.AddChild(new SyntaxToken(SyntaxType.Constant, enumName));
+                    var enumName = Confirm("id");
+                    _table.EnterNew(enumName.Value, SymbolType.Enum);
+                    node = _factory.CreateNode(SyntaxType.Enum, enumName.Value, enumName.Position);
                     Confirm("{");
                     if(!Try("}"))
                     {
                         do
                         {
-                            var name = Confirm("id").Value;
-                            _table.AddLeaf(name, SymbolType.Variable, SymbolScope.Member);
+                            var name = Confirm("id");
+                            _table.AddLeaf(name.Value, SymbolType.Variable, SymbolScope.Member);
                             ISyntaxNode nameNode;
                             if (Validate("="))
                             {
-                                nameNode = _factory.CreateNode(SyntaxType.Assign, name);
-                                nameNode.AddChild(_factory.CreateConstant(ConstantType.Real, Confirm("num").Value));
+                                nameNode = _factory.CreateNode(SyntaxType.Assign, name.Value, name.Position);
+                                var num = Confirm("num");
+                                nameNode.AddChild(_factory.CreateConstant(ConstantType.Real, num.Value, num.Position));
                             }
                             else
-                                nameNode = _factory.CreateNode(SyntaxType.Assign, name);
+                                nameNode = _factory.CreateNode(SyntaxType.Assign, name.Value, name.Position);
                             node.AddChild(nameNode);
                         }
                         while (Validate(","));
@@ -70,40 +102,44 @@ namespace GmParser
                     _table.Exit();
                     return node;
                 case "import":
-                    Confirm("import");
-                    node = _factory.CreateNode(SyntaxType.Import);
-                    var baseType = new StringBuilder(Confirm("id").Value);
+                    var import = Confirm("import");
+                    node = _factory.CreateNode(SyntaxType.Import, import.Position);
+                    var start = Confirm("id");
+                    var baseType = new StringBuilder(start.Value);
                     do
                     {
                         baseType.Append(Confirm(".").Value);
                         baseType.Append(Confirm("id").Value);
                     }
                     while (Try("."));
-                    node.AddChild(_factory.CreateConstant(ConstantType.String, baseType.ToString()));
+                    node.AddChild(_factory.CreateConstant(ConstantType.String, baseType.ToString(), start.Position));
                     Confirm("(");
                     if(!Try(")"))
                     {
                         do
                         {
-                            var token = Confirm("id");
+                            if (!(Try("id", out var token) || Try("object", out token)))
+                                throw new InvalidTokenException(_stream.Peek());
                             var type = token.Value;
+                            if (type == "array")
+                                type = "array1d";
                             if (type != "object" && type != "instance" && type != "double" && type != "string" && type != "array1d" && type != "array2d")
                                 throw new InvalidTokenException(token, "Import type must be one of the following: object, double, string, instance, array1d, array2d");
-                            node.AddChild(_factory.CreateConstant(ConstantType.String, type));
+                            node.AddChild(_factory.CreateConstant(ConstantType.String, type, token.Position));
                         }
                         while (Validate(","));
                     }
                     Confirm(")");
                     Confirm("as");
-                    var importName = Confirm("id").Value;
-                    _table.AddLeaf(importName, SymbolType.Script, SymbolScope.Global);
-                    node.AddChild(_factory.CreateConstant(ConstantType.String, importName));
+                    var importName = Confirm("id");
+                    _table.AddLeaf(importName.Value, SymbolType.Script, SymbolScope.Global);
+                    node.AddChild(_factory.CreateConstant(ConstantType.String, importName.Value, importName.Position));
                     return node;
                 case "script":
                     Confirm("script");
-                    var scriptName = Confirm("id").Value;
-                    _table.EnterNew(scriptName, SymbolType.Script);
-                    node = _factory.CreateNode(SyntaxType.Script, scriptName);
+                    var scriptName = Confirm("id");
+                    _table.EnterNew(scriptName.Value, SymbolType.Script);
+                    node = _factory.CreateNode(SyntaxType.Script, scriptName.Value, scriptName.Position);
                     node.AddChild(Statement());
                     _table.Exit();
                     return node;
@@ -117,9 +153,9 @@ namespace GmParser
 
         private ISyntaxElement Statement()
         {
-            if (Validate("local"))
+            if (Try("local", out var localToken))
             {
-                var locals = _factory.CreateNode(SyntaxType.Locals);
+                var locals = _factory.CreateNode(SyntaxType.Locals, localToken.Position);
                 do
                 {
                     var localName = Confirm("id");
@@ -128,18 +164,17 @@ namespace GmParser
                     else if (symbol.Type != SymbolType.Variable)
                         throw new InvalidTokenException(localName, $"Id already defined for higher priority type: {localName.Value} = {symbol.Type}");
                     
-                    var id = _factory.CreateToken(SyntaxType.Variable, localName.Value);
-                    if (Validate("="))
+                    if (Try("=", out var equalToken))
                     {
-                        var assign = _factory.CreateNode(SyntaxType.Assign, "=");
+                        var id = _factory.CreateToken(SyntaxType.Variable, localName.Value, localToken.Position);
+                        var assign = _factory.CreateNode(SyntaxType.Assign, "=", equalToken.Position);
                         assign.AddChild(id);
                         assign.AddChild(Expression());
                         locals.AddChild(assign);
                     }
                     else
                     {
-                        var declare = _factory.CreateNode(SyntaxType.Declare);
-                        declare.AddChild(id);
+                        var declare = _factory.CreateNode(SyntaxType.Declare, localName.Value, localName.Position);
                         locals.AddChild(declare);
                     }
                 }
@@ -162,33 +197,43 @@ namespace GmParser
 
         private ISyntaxElement SimpleStatement()
         {
-            var type = _stream.Peek().Type;
+            var type = _stream.Peek();
             ISyntaxElement result;
-            switch (type)
+            switch (type.Value)
             {
                 case ";":
                     Confirm(";");
                     result = null;
                     break;
                 case "break":
-                    result = _factory.CreateToken(SyntaxType.Break, Confirm("break").Value);
+                    result = _factory.CreateToken(SyntaxType.Break, Confirm("break").Value, type.Position);
                     break;
                 case "continue":
-                    result = _factory.CreateToken(SyntaxType.Continue, Confirm("continue").Value);
+                    result = _factory.CreateToken(SyntaxType.Continue, Confirm("continue").Value, type.Position);
                     break;
                 case "exit":
-                    result = _factory.CreateToken(SyntaxType.Exit, Confirm("exit").Value);
+                    result = _factory.CreateToken(SyntaxType.Exit, Confirm("exit").Value, type.Position);
                     break;
                 case "return":
                     Confirm("return");
-                    var temp = _factory.CreateNode(SyntaxType.Return);
+                    var temp = _factory.CreateNode(SyntaxType.Return, type.Position);
                     temp.AddChild(Expression());
+                    result = temp;
+                    break;
+                case "repeat":
+                    Confirm("repeat");
+                    temp = _factory.CreateNode(SyntaxType.Repeat, type.Position);
+                    var paren = Validate("(");
+                    temp.AddChild(Expression());
+                    if (paren)
+                        Confirm(")");
+                    temp.AddChild(BodyStatement());
                     result = temp;
                     break;
                 case "while":
                     Confirm("while");
-                    temp = _factory.CreateNode(SyntaxType.While);
-                    var paren = Validate("(");
+                    temp = _factory.CreateNode(SyntaxType.While, type.Position);
+                    paren = Validate("(");
                     temp.AddChild(Expression());
                     if (paren)
                         Confirm(")");
@@ -197,7 +242,7 @@ namespace GmParser
                     break;
                 case "with":
                     Confirm("with");
-                    temp = _factory.CreateNode(SyntaxType.With);
+                    temp = _factory.CreateNode(SyntaxType.With, type.Position);
                     paren = Validate("(");
                     temp.AddChild(Expression());
                     if (paren)
@@ -207,7 +252,7 @@ namespace GmParser
                     break;
                 case "do":
                     Confirm("do");
-                    temp = _factory.CreateNode(SyntaxType.Do);
+                    temp = _factory.CreateNode(SyntaxType.Do, type.Position);
                     temp.AddChild(BodyStatement());
                     Confirm("until");
                     paren = Validate("(");
@@ -218,7 +263,7 @@ namespace GmParser
                     break;
                 case "if":
                     Confirm("if");
-                    temp = _factory.CreateNode(SyntaxType.If);
+                    temp = _factory.CreateNode(SyntaxType.If, type.Position);
                     paren = Validate("(");
                     temp.AddChild(Expression());
                     if (paren)
@@ -231,11 +276,11 @@ namespace GmParser
                 case "for":
                     Confirm("for");
                     Confirm("(");
-                    temp = _factory.CreateNode(SyntaxType.For);
+                    temp = _factory.CreateNode(SyntaxType.For, type.Position);
                     if (!Try(";"))
                         temp.AddChild(BodyStatement());
                     else
-                        temp.AddChild(_factory.CreateNode(SyntaxType.Block));
+                        temp.AddChild(_factory.CreateNode(SyntaxType.Block, type.Position));
                     Confirm(";");
                     if (Try(";"))
                         throw new InvalidTokenException(_stream.Peek(), "Expected expression in for declaration");
@@ -248,7 +293,7 @@ namespace GmParser
                     break;
                 case "switch":
                     Confirm("switch");
-                    temp = _factory.CreateNode(SyntaxType.Switch);
+                    temp = _factory.CreateNode(SyntaxType.Switch, type.Position);
                     paren = Validate("(");
                     temp.AddChild(Expression());
                     if (paren)
@@ -257,18 +302,20 @@ namespace GmParser
                     ISyntaxNode caseNode;
                     while(!Try("}"))
                     {
-                        if (Validate("case"))
+                        if (Try("case", out var caseToken))
                         {
-                            caseNode = _factory.CreateNode(SyntaxType.Case);
+                            caseNode = _factory.CreateNode(SyntaxType.Case, caseToken.Position);
                             caseNode.AddChild(Expression());
                         }
-                        else if (Validate("default"))
-                            caseNode = _factory.CreateNode(SyntaxType.Default);
+                        else if (Try("default", out var defaultToken))
+                            caseNode = _factory.CreateNode(SyntaxType.Default, defaultToken.Position);
                         else
                             throw new InvalidTokenException(_stream.Peek(), $"Expected case declaration, got {_stream.Peek().Value}");
-                        Confirm(":");
+                        var blockStart = Confirm(":");
+                        var block = _factory.CreateNode(SyntaxType.Block, blockStart.Position);
                         while (!Try("case") && !Try("default") && !Try("}"))
-                            caseNode.AddChild(Statement());
+                            block.AddChild(Statement());
+                        caseNode.AddChild(block);
                         temp.AddChild(caseNode);
                     }
                     Confirm("}");
@@ -284,9 +331,9 @@ namespace GmParser
 
         private ISyntaxElement BlockStatement()
         {
-            Confirm("{");
-            var result = _factory.CreateNode(SyntaxType.Block);
-            while (!Try("}"))
+            var blockStart = Confirm("{");
+            var result = _factory.CreateNode(SyntaxType.Block, blockStart.Position);
+            while (!_stream.Finished && !Try("}"))
                 result.AddChild(Statement());
 
             Confirm("}");
@@ -300,8 +347,9 @@ namespace GmParser
                 body = BlockStatement();
             else
             {
-                var temp = _factory.CreateNode(SyntaxType.Block);
-                temp.AddChild(Statement());
+                var child = Statement();
+                var temp = _factory.CreateNode(SyntaxType.Block, child.Position);
+                temp.AddChild(child);
                 body = temp;
             }
             return body;
@@ -310,23 +358,24 @@ namespace GmParser
         private ISyntaxElement Expression()
         {
             var value = AssignmentExpression();
-
             return value;
         }
 
         private ISyntaxElement AssignmentExpression()
         {
+            _canAssign++;
             var value = ConditionalExpression();
 
             //value = 10;
-            if ((value.Type.ToString().Contains("Access") || value.Type == SyntaxType.Variable) && IsAssignment())
+            if (_canAssign == 1 && (value.Type.ToString().Contains("Access") || value.Type == SyntaxType.Variable) && IsAssignment())
             {
-                var assign = _factory.CreateNode(SyntaxType.Assign, _stream.ReadValue());
+                var next = _stream.Read();
+                var assign = _factory.CreateNode(SyntaxType.Assign, next.Value, next.Position);
                 assign.AddChild(value);
                 assign.AddChild(AssignmentExpression());
                 value = assign;
             }
-
+            --_canAssign;
             return value;
         }
 
@@ -336,9 +385,9 @@ namespace GmParser
             var value = LogicalOrExpression();
 
             //true == false ? "hello" : "henlo"
-            if (Validate("?"))
+            if (Try("?", out var token))
             {
-                var conditional = _factory.CreateNode(SyntaxType.Conditional);
+                var conditional = _factory.CreateNode(SyntaxType.Conditional, token.Position);
                 conditional.AddChild(value);
                 conditional.AddChild(AssignmentExpression());
                 Confirm(":");
@@ -354,7 +403,7 @@ namespace GmParser
             var value = LogicalAndExpression();
             while(Try("||", out var token))
             {
-                var or = _factory.CreateNode(SyntaxType.Logical, token.Value);
+                var or = _factory.CreateNode(SyntaxType.Logical, token.Value, token.Position);
                 or.AddChild(value);
                 or.AddChild(LogicalAndExpression());
                 value = or;
@@ -367,7 +416,7 @@ namespace GmParser
             var value = BitwiseOrExpression();
             while (Try("&&", out var token))
             {
-                var and = _factory.CreateNode(SyntaxType.Logical, token.Value);
+                var and = _factory.CreateNode(SyntaxType.Logical, token.Value, token.Position);
                 and.AddChild(value);
                 and.AddChild(BitwiseOrExpression());
                 value = and;
@@ -380,7 +429,7 @@ namespace GmParser
             var value = BitwiseXorExpression();
             while (Try("|", out var token))
             {
-                var or = _factory.CreateNode(SyntaxType.Bitwise, token.Value);
+                var or = _factory.CreateNode(SyntaxType.Bitwise, token.Value, token.Position);
                 or.AddChild(value);
                 or.AddChild(BitwiseXorExpression());
                 value = or;
@@ -393,7 +442,7 @@ namespace GmParser
             var value = BitwiseAndExpression();
             while (Try("^", out var token))
             {
-                var xor = _factory.CreateNode(SyntaxType.Bitwise, token.Value);
+                var xor = _factory.CreateNode(SyntaxType.Bitwise, token.Value, token.Position);
                 xor.AddChild(value);
                 xor.AddChild(BitwiseAndExpression());
                 value = xor;
@@ -406,7 +455,7 @@ namespace GmParser
             var value = EqualityExpression();
             while (Try("&", out var token))
             {
-                var and = _factory.CreateNode(SyntaxType.Bitwise, token.Value);
+                var and = _factory.CreateNode(SyntaxType.Bitwise, token.Value, token.Position);
                 and.AddChild(value);
                 and.AddChild(EqualityExpression());
                 value = and;
@@ -418,9 +467,10 @@ namespace GmParser
         {
             var value = RelationalExpression();
 
-            while(Try("==", out var token) || Try("!=", out token))
+            while(Try("==", out var token) || Try("!=", out token) || (_canAssign > 1 && Try("=", out token)))
             {
-                var equal = _factory.CreateNode(SyntaxType.Equality, token.Value);
+                var op = token.Value == "=" ? "==" : token.Value;
+                var equal = _factory.CreateNode(SyntaxType.Equality, op, token.Position);
                 equal.AddChild(value);
                 equal.AddChild(RelationalExpression());
                 value = equal;
@@ -435,7 +485,7 @@ namespace GmParser
 
             while(Try("<", out var token) || Try("<=", out token) || Try(">", out token) || Try(">=", out token))
             {
-                var compare = _factory.CreateNode(SyntaxType.Relational, token.Value);
+                var compare = _factory.CreateNode(SyntaxType.Relational, token.Value, token.Position);
                 compare.AddChild(value);
                 compare.AddChild(ShiftExpression());
                 value = compare;
@@ -450,7 +500,7 @@ namespace GmParser
 
             while(Try("<<", out var token) || Try(">>", out token))
             {
-                var shift = _factory.CreateNode(SyntaxType.Shift, token.Value);
+                var shift = _factory.CreateNode(SyntaxType.Shift, token.Value, token.Position);
                 shift.AddChild(value);
                 shift.AddChild(AdditiveExpression());
                 value = shift;
@@ -465,7 +515,7 @@ namespace GmParser
 
             while (Try("+", out var token) || Try("-", out token))
             {
-                var add = _factory.CreateNode(SyntaxType.Additive, token.Value);
+                var add = _factory.CreateNode(SyntaxType.Additive, token.Value, token.Position);
                 add.AddChild(value);
                 add.AddChild(MultiplicativeExpression());
                 value = add;
@@ -480,7 +530,7 @@ namespace GmParser
 
             while (Try("*", out var token) || Try("/", out token) || Try("%", out token))
             {
-                var mul = _factory.CreateNode(SyntaxType.Multiplicative, token.Value);
+                var mul = _factory.CreateNode(SyntaxType.Multiplicative, token.Value, token.Position);
                 mul.AddChild(value);
                 mul.AddChild(UnaryExpression());
                 value = mul;
@@ -494,7 +544,7 @@ namespace GmParser
             if (Try("+", out var token) || Try("-", out token) || Try("!", out token) ||
                 Try("~", out token) || Try("++", out token) || Try("--", out token))
             {
-                var prefix = _factory.CreateNode(SyntaxType.Prefix, token.Value);
+                var prefix = _factory.CreateNode(SyntaxType.Prefix, token.Value, token.Position);
                 prefix.AddChild(UnaryExpression());
                 return prefix;
             }
@@ -509,7 +559,7 @@ namespace GmParser
             {
                 if (value.Type != SyntaxType.Variable)
                     throw new InvalidTokenException(paren, "Invalid identifier for a function call.");
-                var function = _factory.CreateNode(SyntaxType.FunctionCall, ((SyntaxToken)value).Text);
+                var function = _factory.CreateNode(SyntaxType.FunctionCall, ((SyntaxToken)value).Text, value.Position);
                 if(!Try(")"))
                 {
                     do
@@ -527,10 +577,10 @@ namespace GmParser
                 if (Validate("."))
                 {
                     if (!Try("id", out var next))
-                        next = Confirm("this");
-                    var temp = _factory.CreateNode(SyntaxType.MemberAccess);
+                        throw new InvalidOperationException();
+                    var temp = _factory.CreateNode(SyntaxType.MemberAccess, value.Position);
                     temp.AddChild(value);
-                    temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value));
+                    temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
                     value = temp;
                     wasAccessor = false;
                 }
@@ -540,15 +590,15 @@ namespace GmParser
                         throw new InvalidProgramException("Cannot have two accessors in a row.");
                     ISyntaxNode access;
                     if (Validate("|"))
-                        access = _factory.CreateNode(SyntaxType.ListAccess);
+                        access = _factory.CreateNode(SyntaxType.ListAccess, value.Position);
                     else if (Validate("#"))
-                        access = _factory.CreateNode(SyntaxType.GridAccess);
+                        access = _factory.CreateNode(SyntaxType.GridAccess, value.Position);
                     else if (Validate("?"))
-                        access = _factory.CreateNode(SyntaxType.MapAccess);
+                        access = _factory.CreateNode(SyntaxType.MapAccess, value.Position);
                     else if (Validate("@"))
-                        access = _factory.CreateNode(SyntaxType.ExplicitArrayAccess);
+                        access = _factory.CreateNode(SyntaxType.ExplicitArrayAccess, value.Position);
                     else
-                        access = _factory.CreateNode(SyntaxType.ArrayAccess);
+                        access = _factory.CreateNode(SyntaxType.ArrayAccess, value.Position);
 
                     access.AddChild(value);
                     access.AddChild(Expression());
@@ -564,7 +614,7 @@ namespace GmParser
             }
             if(Try("++", out var token) || Try("--", out token))
             {
-                var postfix = _factory.CreateNode(SyntaxType.Postfix, token.Value);
+                var postfix = _factory.CreateNode(SyntaxType.Postfix, token.Value, value.Position);
                 postfix.AddChild(value);
                 value = postfix;
             }
@@ -574,17 +624,16 @@ namespace GmParser
 
         private ISyntaxElement PrimaryExpressionStart()
         {
-            //Todo:
-            //Process self reference. i.e. var i = id|self
             if (IsConstant())
                 return Constant();
             else if(Try("readonly", out var token))
-                return _factory.CreateToken(SyntaxType.ReadOnlyValue, token.Value);
+                return _factory.CreateToken(SyntaxType.ReadOnlyValue, token.Value, token.Position);
             else if(Try("argument", out token))
             {
-                var arg = _factory.CreateNode(SyntaxType.ArgumentAccess);
+                var arg = _factory.CreateNode(SyntaxType.ArgumentAccess, token.Position);
                 if(token.Value != "argument")
-                    arg.AddChild(_factory.CreateConstant(ConstantType.Real, token.Value.Remove(0, 8)));
+                    arg.AddChild(_factory.CreateConstant(ConstantType.Real, token.Value.Remove(0, 8), 
+                        new TokenPosition(token.Position.Index + 8, token.Position.Line, token.Position.Column + 8, token.Position.File)));
                 else
                 {
                     Confirm("[");
@@ -597,7 +646,7 @@ namespace GmParser
             {
                 if (!_table.Defined(token.Value, out _))
                     _table.AddPending(token.Value);
-                return _factory.CreateToken(SyntaxType.Variable, token.Value);
+                return _factory.CreateToken(SyntaxType.Variable, token.Value, token.Position);
             }
             else if (Validate("("))
             {
@@ -605,9 +654,9 @@ namespace GmParser
                 Confirm(")");
                 return value;
             }
-            else if (Validate("["))
+            else if (Try("[", out token))
             {
-                var array = _factory.CreateNode(SyntaxType.ArrayLiteral);
+                var array = _factory.CreateNode(SyntaxType.ArrayLiteral, token.Position);
                 while (!Try("]"))
                 {
                     array.AddChild(Expression());
@@ -671,11 +720,12 @@ namespace GmParser
         private ISyntaxToken Constant()
         {
             if (Try("num", out var token))
-                return _factory.CreateConstant(ConstantType.Real, token.Value);
+                return _factory.CreateConstant(ConstantType.Real, token.Value, token.Position);
             else if (Try("string", out token))
-                return _factory.CreateConstant(ConstantType.String, token.Value);
+                return _factory.CreateConstant(ConstantType.String, token.Value.Trim('"', '\''),
+                    new TokenPosition(token.Position.Index + 1, token.Position.Line, token.Position.Column + 1, token.Position.File));
             else if (Try("bool", out token))
-                return _factory.CreateConstant(ConstantType.Bool, token.Value);
+                return _factory.CreateConstant(ConstantType.Bool, token.Value, token.Position);
             else
                 throw new InvalidTokenException(_stream.Peek(), $"Expected literal, got {_stream.Peek().Type}");
         }
@@ -692,86 +742,6 @@ namespace GmParser
                    type == "&=" ||
                    type == "^=" ||
                    type == "|=";
-        }
-
-        private static Lexer InitLexer()
-        {
-            var lexer = new Lexer();
-            lexer.AddDefinition(new TokenDefinition("true|false", "bool"));
-            lexer.AddDefinition(new TokenDefinition("var", "local"));
-            lexer.AddDefinition(new TokenDefinition("break", "break"));
-            lexer.AddDefinition(new TokenDefinition("continue", "continue"));
-            lexer.AddDefinition(new TokenDefinition("while", "while"));
-            lexer.AddDefinition(new TokenDefinition("do", "do"));
-            lexer.AddDefinition(new TokenDefinition("until", "until"));
-            lexer.AddDefinition(new TokenDefinition("if", "if"));
-            lexer.AddDefinition(new TokenDefinition("else", "else"));
-            lexer.AddDefinition(new TokenDefinition("for", "for"));
-            lexer.AddDefinition(new TokenDefinition("noone", "noone"));
-            lexer.AddDefinition(new TokenDefinition("return", "return"));
-            lexer.AddDefinition(new TokenDefinition("exit", "exit"));
-            lexer.AddDefinition(new TokenDefinition("switch", "switch"));
-            lexer.AddDefinition(new TokenDefinition("case", "case"));
-            lexer.AddDefinition(new TokenDefinition("default", "default"));
-            lexer.AddDefinition(new TokenDefinition("continue", "continue"));
-            lexer.AddDefinition(new TokenDefinition("enum", "enum"));
-            lexer.AddDefinition(new TokenDefinition("with", "with"));
-            lexer.AddDefinition(new TokenDefinition("this|self|id", "this"));
-            lexer.AddDefinition(new TokenDefinition("import", "import"));
-            lexer.AddDefinition(new TokenDefinition("script", "script"));
-            lexer.AddDefinition(new TokenDefinition(@"argument(\d{1,2})?", "argument"));
-            lexer.AddDefinition(new TokenDefinition("argument_count|all|noone|id|self|pi", "readonly"));
-            lexer.AddDefinition(new TokenDefinition("as", "as"));
-            lexer.AddDefinition(new TokenDefinition(";", ";"));
-            lexer.AddDefinition(new TokenDefinition("||", "||"));
-            lexer.AddDefinition(new TokenDefinition("&&", "&&"));
-            lexer.AddDefinition(new TokenDefinition("!=|<>", "!="));
-            lexer.AddDefinition(new TokenDefinition("==", "=="));
-            lexer.AddDefinition(new TokenDefinition("<=", "<="));
-            lexer.AddDefinition(new TokenDefinition(">=", ">="));
-            lexer.AddDefinition(new TokenDefinition("<", "<"));
-            lexer.AddDefinition(new TokenDefinition(">", ">"));
-            lexer.AddDefinition(new TokenDefinition("!", "!"));
-            lexer.AddDefinition(new TokenDefinition("~", "~"));
-            lexer.AddDefinition(new TokenDefinition(@"\^", "^"));
-            lexer.AddDefinition(new TokenDefinition("|", "|"));
-            lexer.AddDefinition(new TokenDefinition("&", "&"));
-            lexer.AddDefinition(new TokenDefinition("<<", "<<"));
-            lexer.AddDefinition(new TokenDefinition(">>", ">>"));
-            lexer.AddDefinition(new TokenDefinition(@"\(", "("));
-            lexer.AddDefinition(new TokenDefinition(@"\)", ")"));
-            lexer.AddDefinition(new TokenDefinition(@"\[", "["));
-            lexer.AddDefinition(new TokenDefinition(@"\]", "]"));
-            lexer.AddDefinition(new TokenDefinition(@"\{", "{"));
-            lexer.AddDefinition(new TokenDefinition(@"\}", "}"));
-            lexer.AddDefinition(new TokenDefinition(@"/\*(?i).*?\*/(?-i)", "multicomment", true));
-            lexer.AddDefinition(new TokenDefinition(@"//.*?\n", "singlecomment", true));
-            lexer.AddDefinition(new TokenDefinition(@"\.", "."));
-            lexer.AddDefinition(new TokenDefinition("(?i)(\".*?\")|('.*?')(?-i)", "string"));
-            lexer.AddDefinition(new TokenDefinition("=", "="));
-            lexer.AddDefinition(new TokenDefinition(@"\+\+", "++"));
-            lexer.AddDefinition(new TokenDefinition("--", "--"));
-            lexer.AddDefinition(new TokenDefinition(@"\+=", "+="));
-            lexer.AddDefinition(new TokenDefinition("-=", "-="));
-            lexer.AddDefinition(new TokenDefinition(@"\*=", "*="));
-            lexer.AddDefinition(new TokenDefinition("/=", "/="));
-            lexer.AddDefinition(new TokenDefinition("%=", "%="));
-            lexer.AddDefinition(new TokenDefinition(@"\+", "+"));
-            lexer.AddDefinition(new TokenDefinition("-", "-"));
-            lexer.AddDefinition(new TokenDefinition(@"\*", "*"));
-            lexer.AddDefinition(new TokenDefinition("/", "/"));
-            lexer.AddDefinition(new TokenDefinition("%", "%"));
-
-            //In GM "_" is a valid variable name O_O
-            lexer.AddDefinition(new TokenDefinition("[_a-zA-Z][_a-zA-Z0-9]*", "id"));
-            lexer.AddDefinition(new TokenDefinition(@"(0x[0-9a-fA-F]+)|([0-9]*(\.[0-9]+)?)", "num"));
-            lexer.AddDefinition(new TokenDefinition(",", ","));
-            lexer.AddDefinition(new TokenDefinition(@"\?", "?"));
-            lexer.AddDefinition(new TokenDefinition("#", "#"));
-            lexer.AddDefinition(new TokenDefinition(":", ":"));
-
-
-            return lexer;
         }
     }
 }

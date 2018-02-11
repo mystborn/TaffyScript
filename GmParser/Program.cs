@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using System.Reflection;
+using GmParser.FrontEnd;
 using GmParser.Backend;
 using GmParser.Syntax;
 
@@ -12,17 +15,24 @@ namespace GmParser
     {
         static void Main(string[] args)
         {
-            //var code = "import System.Console.WriteLine(string) as show_debug_message; script test { var arr; arr[0] = 20; arr[0] = arr[0] + 20; show_debug_message(arr[0]); }";
-            /*var code = "import GmExtern.GmObject.ToString(object) as string; " +
-                "script trace { var out = string(argument[0]); for(var i = 1; i < argument_count; i = i + 1) { out = out + \" \" + string(argument[i + 0]); } show_debug_message(out); } " +
-                "import System.Console.WriteLine(string) as show_debug_message;";*/
+            //var code = "import Console.WriteLine(object) as show_debug_message; import GmObject.ToString(array) as string; ";
 
-            var code = "import Console.WriteLine(string) as show_debug_message; script main { show_debug_message(\"Hello, World!\"); }";
+            //var code = "script main { var user = instance_create(obj_user); user.name = 'Chris'; instance_destroy(user); } object obj_user { event create { name = '' } event destroy { show_debug_message('goodbye, ' + name); } }";
+
+            //CompileBcl();
+
             var compiler = new MsilWeakCompiler();
-            compiler.CompileCode(code, "test");
-            //TestAsmBuilder.Test();
+
+            compiler.CompileProject(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Source", "GmToSharpSamples", "HelloLanguage"));
 
             Console.ReadLine();
+        }
+
+        static void CompileBcl()
+        {
+            var code = Bcl.Generate();
+            var compiler = new MsilWeakCompiler();
+            compiler.CompileCode(code, "gmbcl");
         }
 
         static void WriteSyntax(ISyntaxElement node, int indent)

@@ -3,8 +3,9 @@
     public class DefaultNode : SyntaxNode
     {
         public override SyntaxType Type => SyntaxType.Default;
+        public ISyntaxElement Expressions => Children[0];
 
-        public DefaultNode(string value) : base(value)
+        public DefaultNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

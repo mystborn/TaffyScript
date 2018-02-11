@@ -4,7 +4,7 @@
     {
         public override SyntaxType Type => SyntaxType.Variable;
 
-        public VariableToken(string value) : base(value)
+        public VariableToken(string value, TokenPosition position) : base(value, position)
         {
         }
 

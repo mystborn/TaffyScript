@@ -6,7 +6,7 @@
         public ISyntaxElement Right => Children[1];
         public override SyntaxType Type => SyntaxType.ArrayLiteral;
 
-        public ArrayLiteralNode(string value) : base(value)
+        public ArrayLiteralNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

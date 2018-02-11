@@ -7,7 +7,7 @@
         public ISyntaxElement Right => Children[2];
         public override SyntaxType Type => SyntaxType.Conditional;
 
-        public ConditionalNode(string value) : base(value)
+        public ConditionalNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

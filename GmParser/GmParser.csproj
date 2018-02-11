@@ -50,9 +50,6 @@
     <Reference Include="Myst, Version=1.0.0.8, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Myst.1.0.0.8\lib\net45\Myst.dll</HintPath>
     </Reference>
-    <Reference Include="Myst.LexicalAnalysis, Version=1.2.2.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Myst.LexicalAnalysis.1.2.2\lib\net45\Myst.LexicalAnalysis.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -63,6 +60,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Backend\Bcl.cs" />
     <Compile Include="Backend\CompileMode.cs" />
     <Compile Include="Backend\CompilerResult.cs" />
     <Compile Include="Backend\MsilWeakBuildConfig.cs" />
@@ -72,6 +70,10 @@
     <Compile Include="Backend\ILEmitter.cs" />
     <Compile Include="Backend\MsilWeakCompiler.cs" />
     <Compile Include="Extensions.cs" />
+    <Compile Include="Front End\Token.cs" />
+    <Compile Include="Front End\Tokenizer.cs" />
+    <Compile Include="Front End\TokenPosition.cs" />
+    <Compile Include="Front End\UnrecognizedTokenException.cs" />
     <Compile Include="Symbols\InvalidSymbolException.cs" />
     <Compile Include="Symbols\ISymbol.cs" />
     <Compile Include="Symbols\Symbol.cs" />
@@ -80,7 +82,6 @@
     <Compile Include="Symbols\SymbolTable.cs" />
     <Compile Include="Front End\InvalidTokenException.cs" />
     <Compile Include="Front End\TokenParser.cs" />
-    <Compile Include="Front End\TokenStream.cs" />
     <Compile Include="Symbols\SymbolType.cs" />
     <Compile Include="Syntax\Concrete\AdditiveNode.cs" />
     <Compile Include="Syntax\Concrete\ArgumentAccess.cs" />
@@ -99,6 +100,7 @@
     <Compile Include="Syntax\Concrete\EndToken.cs" />
     <Compile Include="Syntax\Concrete\EnumDeclaration.cs" />
     <Compile Include="Syntax\Concrete\Equality.cs" />
+    <Compile Include="Syntax\Concrete\EventNode.cs" />
     <Compile Include="Syntax\Concrete\ExitToken.cs" />
     <Compile Include="Syntax\Concrete\ExplicitArrayAccess.cs" />
     <Compile Include="Syntax\Concrete\For.cs" />
@@ -111,10 +113,12 @@
     <Compile Include="Syntax\Concrete\MapAccess.cs" />
     <Compile Include="Syntax\Concrete\MemberAccess.cs" />
     <Compile Include="Syntax\Concrete\Multiplicative.cs" />
+    <Compile Include="Syntax\Concrete\ObjectNode.cs" />
     <Compile Include="Syntax\Concrete\Postfix.cs" />
     <Compile Include="Syntax\Concrete\Prefix.cs" />
     <Compile Include="Syntax\Concrete\ReadOnlyToken.cs" />
     <Compile Include="Syntax\Concrete\Relational.cs" />
+    <Compile Include="Syntax\Concrete\RepeatNode.cs" />
     <Compile Include="Syntax\Concrete\Return.cs" />
     <Compile Include="Syntax\Concrete\Script.cs" />
     <Compile Include="Syntax\Concrete\Shift.cs" />
@@ -141,7 +145,6 @@
     <Compile Include="Syntax\SyntaxTree.cs" />
     <Compile Include="Syntax\SyntaxType.cs" />
     <Compile Include="DotNet\TypeParser.cs" />
-    <Compile Include="TestAsmBuilder.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

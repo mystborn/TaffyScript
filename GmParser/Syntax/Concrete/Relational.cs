@@ -6,7 +6,7 @@
         public ISyntaxElement Right => Children[1];
         public override SyntaxType Type => SyntaxType.Relational;
 
-        public RelationalNode(string value) : base(value)
+        public RelationalNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

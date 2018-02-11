@@ -6,7 +6,7 @@
         public ISyntaxElement Body => Children[1];
         public override SyntaxType Type => SyntaxType.While;
 
-        public WhileNode(string value) : base(value)
+        public WhileNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

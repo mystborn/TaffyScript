@@ -4,7 +4,7 @@
     {
         public override SyntaxType Type => SyntaxType.ReadOnlyValue;
 
-        public ReadOnlyToken(string value) : base(value)
+        public ReadOnlyToken(string value, TokenPosition position) : base(value, position)
         {
         }
 

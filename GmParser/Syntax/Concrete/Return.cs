@@ -5,7 +5,7 @@
         public ISyntaxElement ReturnValue => Children[0];
         public override SyntaxType Type => SyntaxType.Return;
 
-        public ReturnNode(string value) : base(value)
+        public ReturnNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

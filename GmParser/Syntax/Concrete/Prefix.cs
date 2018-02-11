@@ -5,7 +5,7 @@
         public ISyntaxElement Child => Children[0];
         public override SyntaxType Type => SyntaxType.Prefix;
 
-        public PrefixNode(string value) : base(value)
+        public PrefixNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

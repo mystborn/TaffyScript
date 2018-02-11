@@ -4,7 +4,7 @@
     {
         public override SyntaxType Type => SyntaxType.FunctionCall;
 
-        public FunctionCallNode(string value) : base(value)
+        public FunctionCallNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

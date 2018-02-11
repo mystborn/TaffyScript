@@ -6,7 +6,7 @@
         public ISyntaxElement Right => Children[1];
         public override SyntaxType Type => SyntaxType.GridAccess;
 
-        public GridAccessNode(string value) : base(value)
+        public GridAccessNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

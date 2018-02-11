@@ -6,7 +6,7 @@
         public ISyntaxElement Right => Children[1];
         public override SyntaxType Type => SyntaxType.Logical;
 
-        public LogicalNode(string value) : base(value)
+        public LogicalNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

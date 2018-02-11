@@ -4,7 +4,7 @@
     {
         public override SyntaxType Type => SyntaxType.End;
 
-        public EndToken(string value) : base(value)
+        public EndToken(string value, TokenPosition position) : base(value, position)
         {
         }
 

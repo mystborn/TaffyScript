@@ -4,7 +4,7 @@
     {
         public override SyntaxType Type => SyntaxType.Exit;
 
-        public ExitToken(string value) : base(value)
+        public ExitToken(string value, TokenPosition position) : base(value, position)
         {
         }
 

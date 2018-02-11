@@ -4,7 +4,7 @@
     {
         public override SyntaxType Type => SyntaxType.Locals;
 
-        public LocalsNode(string value) : base(value)
+        public LocalsNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

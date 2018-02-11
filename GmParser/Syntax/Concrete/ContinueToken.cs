@@ -4,7 +4,7 @@
     {
         public override SyntaxType Type => SyntaxType.Continue;
 
-        public ContinueToken(string value) : base(value)
+        public ContinueToken(string value, TokenPosition position) : base(value, position)
         {
         }
 

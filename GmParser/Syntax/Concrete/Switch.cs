@@ -9,7 +9,7 @@ namespace GmParser.Syntax
         public IEnumerable<ISyntaxElement> Cases => Children.Skip(1);
         public override SyntaxType Type => SyntaxType.Switch;
 
-        public SwitchNode(string value) : base(value)
+        public SwitchNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

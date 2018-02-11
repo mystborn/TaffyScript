@@ -6,7 +6,7 @@
         public ISyntaxElement Until => Children[1];
         public override SyntaxType Type => SyntaxType.Do;
 
-        public DoNode(string value) : base(value)
+        public DoNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

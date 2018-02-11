@@ -6,7 +6,7 @@
         public ISyntaxElement Body => Children[1];
         public override SyntaxType Type => SyntaxType.With;
 
-        public WithNode(string value) : base(value)
+        public WithNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

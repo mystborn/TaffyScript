@@ -1,11 +1,11 @@
 ﻿namespace GmParser.Syntax
 {
-    public class ScriptNode : SyntaxNode
+    public class EventNode : SyntaxNode
     {
         public ISyntaxElement Body => Children[0];
-        public override SyntaxType Type => SyntaxType.Script;
+        public override SyntaxType Type => SyntaxType.Event;
 
-        public ScriptNode(string value, TokenPosition position) : base(value, position)
+        public EventNode(string value, TokenPosition position) : base(value, position)
         {
         }
 

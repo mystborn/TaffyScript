@@ -4,7 +4,7 @@
     {
         public override SyntaxType Type => SyntaxType.Additive;
 
-        public BreakToken(string value) : base(value)
+        public BreakToken(string value, TokenPosition position) : base(value, position)
         {
         }
 

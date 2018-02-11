@@ -17,7 +17,7 @@ namespace GmParser.Syntax
         public SyntaxTree(SymbolTable table)
         {
             Table = table;
-            Root = new RootNode(null);
+            Root = new RootNode(null, null);
         }
     }
 }

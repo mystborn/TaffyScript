@@ -24,7 +24,7 @@ namespace GmParser.DotNet
             if (_loadedAssemblies.ContainsKey(asmPath))
                 throw new InvalidOperationException();
 
-            var asm = Assembly.ReflectionOnlyLoadFrom(asmPath);
+            var asm = Assembly.LoadFrom(asmPath);
 
             InitializeAssembly(asm);
 

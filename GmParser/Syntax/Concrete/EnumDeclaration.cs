@@ -4,7 +4,7 @@
     {
         public override SyntaxType Type => SyntaxType.Enum;
 
-        public EnumNode(string value) : base(value)
+        public EnumNode(string value, TokenPosition position) : base(value, position)
         {
         }
 
