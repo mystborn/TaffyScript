@@ -16,6 +16,7 @@ Currently the only way to acquire Taffy is to build it from the source, however 
 ## Example Code
 ```cs
 script main {
+    show_debug_message("Hello, World!");
     var user = instance_create(obj_user);
     user.name = "Taffy";
     instance_destroy(user);
@@ -28,9 +29,14 @@ object obj_user {
     }
 
     event destroy {
-        show_debug_message("goodbye, " + name);
+        show_debug_message("Goodbye, " + name);
     }
 }
+
+// Output:
+// Hello World!
+// Goodbye, Taffy
+// Closing...
 ```
 
 ## What's Left?
