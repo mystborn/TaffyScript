@@ -1,14 +1,16 @@
-# Taffy
-## What is Taffy?
+# TaffyScript
+## What is TaffyScript?
 Taffy is a dynamic programming language based heavily off of Gamemaker language, 
 which is the scripting language used inside of the game engine Gamemaker.
 
-## What Makes Taffy Special?
-Taffy is built in C# and compiles down to a valid .NET assembly. Despite being a dynamically typed language, it doesn't use the DLR at all, 
-allowing it to have speed both in execution and development.
-In addition, it can be easily added to current .NET projects as an embedded scripting language.
-Furthermore, it supports a wide variety of Reflection-esque features, making it particularly useful as a plug-in language.
-Finally, it can easily reference methods defined in any .NET language, giving it access to a wide variety of features, such as the phenomenal Base Class Library.
+## Features
+* Built in C#
+* Compiles into valid .NET assembly
+* Dynamic Typing
+* Does not use DLR
+* Accessable from existing .NET projects
+* Import outside .NET methods.
+* Reflection (WIP)
 
 ## Sounds Great! How Can I Get it?
 Currently the only way to acquire Taffy is to build it from the source, however that will be changing soon.
@@ -41,6 +43,13 @@ object obj_user {
 
 ## What's Left?
 * Base class library (High)
-* Better error handling during compilation. (High)
 * Namespace/module system (Mid)
+* Constant values i.e. macros (Mid)
 * C style import (Low)
+
+## Breaking Changes
+As mentioned earlier, the language is based off of GML. However, in order to be usable, some things had to change. Here's a list of some the biggest changes.
+* Asset Ids: In GM, all assets (scripts, object, etc) are given a numerical id that you can use to refer to them. In Taffyscript, assets are referred to using their name (aka a string).
+* Asset Declaration: In Taffyscript, you declare all assets and their type inside of the code. No more clicking on the objects folder to find the type that you're looking for.
+
+I've tried to keep the list of changes as small as possible (sometimes to the decrement of the language). Any code that works in GM will essentially work in TaffyScript, and the reverse is also true.
