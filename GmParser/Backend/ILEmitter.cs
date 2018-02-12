@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Reflection;
 using System.Reflection.Emit;
 
-namespace GmParser.Backend
+namespace TaffyScript.Backend
 {
     public class ILEmitter
     {
@@ -154,7 +154,7 @@ namespace GmParser.Backend
             for (var i = 0; i < length; i++)
                 _types.Pop();
 
-            if (!method.IsStatic && (method.IsVirtual || method.IsAbstract))
+            if (!method.IsStatic && !method.DeclaringType.IsValueType && (method.IsVirtual || method.IsAbstract))
                 _generator.Emit(OpCodes.Callvirt, method);
             else
                 _generator.Emit(OpCodes.Call, method);

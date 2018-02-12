@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using GmParser.FrontEnd;
-using GmParser.Syntax;
+using TaffyScript.FrontEnd;
+using TaffyScript.Syntax;
 
-namespace GmParser
+namespace TaffyScript
 {
     public class Parser
     {
@@ -22,6 +22,7 @@ namespace GmParser
 
         public SymbolTable Table => _table;
         public ISyntaxTree Tree => _tree;
+        public List<Exception> Errors { get; } = new List<Exception>();
 
         public Parser()
         {
@@ -34,6 +35,7 @@ namespace GmParser
         {
             using (_stream = new Tokenizer(code))
             {
+                _stream.ErrorEncountered += (e) => Errors.Add(e);
                 while (!_stream.Finished)
                     _tree.Root.AddChild(DeclarationOrStatement());
             }
@@ -45,6 +47,7 @@ namespace GmParser
             {
                 using(_stream = new Tokenizer(fs))
                 {
+                    _stream.ErrorEncountered += (e) => Errors.Add(e);
                     while (!_stream.Finished)
                         _tree.Root.AddChild(DeclarationOrStatement());
                 }
@@ -119,13 +122,20 @@ namespace GmParser
                         do
                         {
                             if (!(Try("id", out var token) || Try("object", out token)))
-                                throw new InvalidTokenException(_stream.Peek());
+                            {
+                                Throw(new InvalidTokenException(_stream.Read()));
+                                continue;
+                            }
                             var type = token.Value;
                             if (type == "array")
                                 type = "array1d";
                             if (type != "object" && type != "instance" && type != "double" && type != "string" && type != "array1d" && type != "array2d")
-                                throw new InvalidTokenException(token, "Import type must be one of the following: object, double, string, instance, array1d, array2d");
-                            node.AddChild(_factory.CreateConstant(ConstantType.String, type, token.Position));
+                            {
+                                Throw(new InvalidTokenException(token, "Import type must be one of the following: object, double, string, instance, array1d, array2d"));
+                                node.AddChild(null);
+                            }
+                            else
+                                node.AddChild(_factory.CreateConstant(ConstantType.String, type, token.Position));
                         }
                         while (Validate(","));
                     }
@@ -147,7 +157,8 @@ namespace GmParser
                     Confirm(";");
                     return null;
                 default:
-                    throw new InvalidTokenException(_stream.Peek(), $"Expected declaration, got {_stream.Peek().Type}");
+                    Throw(new InvalidTokenException(_stream.Peek(), $"Expected declaration, got {_stream.Read().Type}"));
+                    return null;
             }
         }
 
@@ -162,7 +173,7 @@ namespace GmParser
                     if (!_table.Defined(localName.Value, out var symbol))
                         _table.AddLeaf(localName.Value, SymbolType.Variable, SymbolScope.Local);
                     else if (symbol.Type != SymbolType.Variable)
-                        throw new InvalidTokenException(localName, $"Id already defined for higher priority type: {localName.Value} = {symbol.Type}");
+                        Throw(new InvalidTokenException(localName, $"Id already defined for higher priority type: {localName.Value} = {symbol.Type}"));
                     
                     if (Try("=", out var equalToken))
                     {
@@ -283,8 +294,9 @@ namespace GmParser
                         temp.AddChild(_factory.CreateNode(SyntaxType.Block, type.Position));
                     Confirm(";");
                     if (Try(";"))
-                        throw new InvalidTokenException(_stream.Peek(), "Expected expression in for declaration");
-                    temp.AddChild(Expression());
+                        Throw(new InvalidTokenException(_stream.Peek(), "Expected expression in for declaration"));
+                    else
+                        temp.AddChild(Expression());
                     Confirm(";");
                     temp.AddChild(BodyStatement());
                     Confirm(")");
@@ -310,7 +322,10 @@ namespace GmParser
                         else if (Try("default", out var defaultToken))
                             caseNode = _factory.CreateNode(SyntaxType.Default, defaultToken.Position);
                         else
-                            throw new InvalidTokenException(_stream.Peek(), $"Expected case declaration, got {_stream.Peek().Value}");
+                        {
+                            Throw(new InvalidTokenException(_stream.Peek(), $"Expected case declaration, got {_stream.Read().Value}"));
+                            continue;
+                        }
                         var blockStart = Confirm(":");
                         var block = _factory.CreateNode(SyntaxType.Block, blockStart.Position);
                         while (!Try("case") && !Try("default") && !Try("}"))
@@ -555,10 +570,16 @@ namespace GmParser
         private ISyntaxElement PrimaryExpression()
         {
             var value = PrimaryExpressionStart();
+            if (value == null)
+                return null;
+
             if(Try("(", out var paren))
             {
                 if (value.Type != SyntaxType.Variable)
-                    throw new InvalidTokenException(paren, "Invalid identifier for a function call.");
+                {
+                    Throw(new InvalidTokenException(paren, "Invalid identifier for a function call."));
+                    return null;
+                }
                 var function = _factory.CreateNode(SyntaxType.FunctionCall, ((SyntaxToken)value).Text, value.Position);
                 if(!Try(")"))
                 {
@@ -577,17 +598,22 @@ namespace GmParser
                 if (Validate("."))
                 {
                     if (!Try("id", out var next))
-                        throw new InvalidOperationException();
+                    {
+                        Throw(new InvalidTokenException(next, "The value after a period in an access expression must be a variable."));
+                        return null;
+                    }
                     var temp = _factory.CreateNode(SyntaxType.MemberAccess, value.Position);
                     temp.AddChild(value);
                     temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
                     value = temp;
                     wasAccessor = false;
                 }
-                else if (Validate("["))
+                else if (Try("[", out var accessToken))
                 {
                     if (wasAccessor)
-                        throw new InvalidProgramException("Cannot have two accessors in a row.");
+                    {
+                        Throw(new InvalidTokenException(accessToken, "Cannot have two accessors in a row."));
+                    }
                     ISyntaxNode access;
                     if (Validate("|"))
                         access = _factory.CreateNode(SyntaxType.ListAccess, value.Position);
@@ -626,13 +652,13 @@ namespace GmParser
         {
             if (IsConstant())
                 return Constant();
-            else if(Try("readonly", out var token))
+            else if (Try("readonly", out var token))
                 return _factory.CreateToken(SyntaxType.ReadOnlyValue, token.Value, token.Position);
-            else if(Try("argument", out token))
+            else if (Try("argument", out token))
             {
                 var arg = _factory.CreateNode(SyntaxType.ArgumentAccess, token.Position);
-                if(token.Value != "argument")
-                    arg.AddChild(_factory.CreateConstant(ConstantType.Real, token.Value.Remove(0, 8), 
+                if (token.Value != "argument")
+                    arg.AddChild(_factory.CreateConstant(ConstantType.Real, token.Value.Remove(0, 8),
                         new TokenPosition(token.Position.Index + 8, token.Position.Line, token.Position.Column + 8, token.Position.File)));
                 else
                 {
@@ -666,7 +692,10 @@ namespace GmParser
                 return array;
             }
             else
-                throw new InvalidProgramException();
+            {
+                Throw(new InvalidTokenException(_stream.Read()));
+                return null;
+            }
         }
 
         private bool Try(string next)
@@ -699,10 +728,13 @@ namespace GmParser
         private Token Confirm(string next)
         {
             if (_stream.Finished)
-                throw new InvalidProgramException();
+            {
+                Throw(new System.IO.EndOfStreamException($"Expected {next}, reached the end of file instead."));
+                return null;
+            }
             var result = _stream.Read();
             if (result.Type != next)
-                throw new InvalidTokenException(result, $"Expected {next}, got {result.Type}");
+                Throw(new InvalidTokenException(result, $"Expected {next}, got {result.Type}"));
             return result;
         }
 
@@ -727,7 +759,9 @@ namespace GmParser
             else if (Try("bool", out token))
                 return _factory.CreateConstant(ConstantType.Bool, token.Value, token.Position);
             else
-                throw new InvalidTokenException(_stream.Peek(), $"Expected literal, got {_stream.Peek().Type}");
+                Throw(new InvalidTokenException(_stream.Peek(), $"Expected literal, got {_stream.Peek().Type}"));
+
+            return null;
         }
 
         private bool IsAssignment()
@@ -742,6 +776,11 @@ namespace GmParser
                    type == "&=" ||
                    type == "^=" ||
                    type == "|=";
+        }
+
+        private void Throw(Exception exception)
+        {
+            Errors.Add(exception);
         }
     }
 }

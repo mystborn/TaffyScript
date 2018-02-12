@@ -47,13 +47,14 @@
     <Compile Include="GmObject.cs" />
     <Compile Include="GmValue.cs" />
     <Compile Include="Grid.cs" />
-    <Compile Include="InvalidGmTypeException.cs" />
-    <Compile Include="InvalidInstanceException.cs" />
+    <Compile Include="InstanceEnumerator.cs" />
+    <Compile Include="Exceptions\InvalidGmTypeException.cs" />
+    <Compile Include="Exceptions\InvalidInstanceException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VariableType.cs" />
-    <Compile Include="WeakLibraryAttribute.cs" />
-    <Compile Include="WeakMethodAttribute.cs" />
-    <Compile Include="WeakObjectAttribute.cs" />
+    <Compile Include="Attributes\WeakLibraryAttribute.cs" />
+    <Compile Include="Attributes\WeakMethodAttribute.cs" />
+    <Compile Include="Attributes\WeakObjectAttribute.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

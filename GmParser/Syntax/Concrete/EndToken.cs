@@ -1,4 +1,4 @@
-﻿namespace GmParser.Syntax
+﻿namespace TaffyScript.Syntax
 {
     public class EndToken : SyntaxToken
     {

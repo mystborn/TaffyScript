@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 
-namespace GmParser.Backend
+namespace TaffyScript.Backend
 {
     [XmlRoot(ElementName = "Config")]
     public class MsilWeakBuildConfig

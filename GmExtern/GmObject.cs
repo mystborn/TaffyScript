@@ -6,11 +6,10 @@ using System.Threading.Tasks;
 
 namespace GmExtern
 {
-    public delegate void InstanceEvent(GmInstance inst);
-    public delegate GmObject NativeFunction(GmObject[] args);
 
     public struct GmObject
     {
+        public const float All = -3f;
         public static Stack<GmObject> Id { get; } = new Stack<GmObject>();
         /// <summary>
         /// Global GM object. DO NOT SET.

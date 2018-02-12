@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 
-namespace GmParser.DotNet
+namespace TaffyScript.DotNet
 {
     public class DotNetTypeParser
     {

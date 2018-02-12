@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace GmParser.Syntax
+namespace TaffyScript.Syntax
 {
     public class ImportNode : SyntaxNode
     {

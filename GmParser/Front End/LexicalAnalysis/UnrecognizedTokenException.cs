@@ -4,8 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GmParser.FrontEnd
+namespace TaffyScript.FrontEnd
 {
+    /// <summary>
+    /// This exception is thrown when a lexer or tokenizer encounters an undefined token.
+    /// </summary>
     public class UnrecognizedTokenException : Exception
     {
         /// <summary>

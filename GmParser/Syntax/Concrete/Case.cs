@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
-namespace GmParser.Syntax
+namespace TaffyScript.Syntax
 {
     public class CaseNode : SyntaxNode
     {

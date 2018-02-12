@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Xml.Serialization;
 
-namespace GmParser.Backend
+namespace TaffyScript.Backend
 {
     public class MsilWeakCompiler
     {
@@ -13,7 +13,7 @@ namespace GmParser.Backend
         {
         }
 
-        public void CompileProject(string projectDir)
+        public CompilerResult CompileProject(string projectDir)
         {
             if (!Directory.Exists(projectDir))
                 throw new DirectoryNotFoundException($"Could not find the project directory {projectDir}");
@@ -32,9 +32,13 @@ namespace GmParser.Backend
             VerifyReferencesExists(projectDir, config);
             var parser = new Parser();
             EnumerateDirectories(projectDir, parser, new HashSet<string>());
+            if(parser.Errors.Count != 0)
+            {
+                return new CompilerResult(null, null, parser.Errors.ToArray());
+            }
 
             var generator = new MsilWeakCodeGen(parser.Table, config);
-            generator.CompileTree(parser.Tree);
+            return generator.CompileTree(parser.Tree);
         }
 
         private void EnumerateDirectories(string directory, Parser parser, HashSet<string> exclude)
@@ -52,7 +56,11 @@ namespace GmParser.Backend
             {
                 var find = Path.Combine(projectDir, config.References[i]);
                 if (!File.Exists(find))
-                    throw new FileNotFoundException($"Could not find the specified reference: {find}.");
+                {
+                    find = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Taffy", "Libraries", config.References[i]);
+                    if(!File.Exists(find))
+                        throw new FileNotFoundException($"Could not find the specified reference: {config.References[i]}.");
+                }
                 config.References[i] = find;
             }
         }

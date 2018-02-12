@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GmParser.FrontEnd
+namespace TaffyScript.FrontEnd
 {
     //Todo: Finish custom tokenizer.
     //Reason: Less memory consumption. Possibly speed increase.
@@ -25,6 +25,7 @@ namespace GmParser.FrontEnd
         private string _fname = null;
 
         public bool Finished => _current == '\0';
+        public Action<Exception> ErrorEncountered;
 
         public Tokenizer(string input)
         {
@@ -266,7 +267,8 @@ namespace GmParser.FrontEnd
                         _token = new Token("id", next, pos);
                         break;
                     default:
-                        throw new UnrecognizedTokenException(next[0], pos);
+                        ErrorEncountered?.Invoke(new UnrecognizedTokenException(next[0], pos));
+                        break;
                         
                 }
             }
@@ -347,7 +349,7 @@ namespace GmParser.FrontEnd
                         TryReadNext();
                         sb.Append(ReadHexNumber());
                         if (sb.Length == 2)
-                            throw new UnrecognizedTokenException(_current, new TokenPosition(_index, _line, _column, _fname));
+                            ErrorEncountered?.Invoke(new UnrecognizedTokenException(_current, new TokenPosition(_index, _line, _column, _fname)));
                         return sb.ToString();
                     }
                     else

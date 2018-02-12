@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
 
-namespace GmParser.Backend
+namespace TaffyScript.Backend
 {
     public class CompilerResult
     {

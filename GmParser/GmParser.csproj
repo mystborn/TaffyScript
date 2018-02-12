@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{4022F406-FCE6-4A8D-B99F-6EF6C406248A}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>GmParser</RootNamespace>
-    <AssemblyName>GmParser</AssemblyName>
+    <RootNamespace>TaffyScript</RootNamespace>
+    <AssemblyName>tsc</AssemblyName>
     <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -50,6 +50,9 @@
     <Reference Include="Myst, Version=1.0.0.8, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Myst.1.0.0.8\lib\net45\Myst.dll</HintPath>
     </Reference>
+    <Reference Include="NDesk.Options, Version=0.2.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\NDesk.Options.0.2.1\lib\NDesk.Options.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -70,10 +73,10 @@
     <Compile Include="Backend\ILEmitter.cs" />
     <Compile Include="Backend\MsilWeakCompiler.cs" />
     <Compile Include="Extensions.cs" />
-    <Compile Include="Front End\Token.cs" />
-    <Compile Include="Front End\Tokenizer.cs" />
-    <Compile Include="Front End\TokenPosition.cs" />
-    <Compile Include="Front End\UnrecognizedTokenException.cs" />
+    <Compile Include="Front End\LexicalAnalysis\Token.cs" />
+    <Compile Include="Front End\LexicalAnalysis\Tokenizer.cs" />
+    <Compile Include="Front End\LexicalAnalysis\TokenPosition.cs" />
+    <Compile Include="Front End\LexicalAnalysis\UnrecognizedTokenException.cs" />
     <Compile Include="Symbols\InvalidSymbolException.cs" />
     <Compile Include="Symbols\ISymbol.cs" />
     <Compile Include="Symbols\Symbol.cs" />
@@ -168,6 +171,5 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

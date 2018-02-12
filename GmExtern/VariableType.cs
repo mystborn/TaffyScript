@@ -8,7 +8,6 @@ namespace GmExtern
 {
     public enum VariableType
     {
-        //Literals
         Null,
         Real,
         String,

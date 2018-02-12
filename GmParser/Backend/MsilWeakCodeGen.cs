@@ -6,15 +6,16 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using GmExtern;
-using GmParser.DotNet;
-using GmParser.Syntax;
+using TaffyScript.DotNet;
+using TaffyScript.Syntax;
 using Myst.Collections;
 
-namespace GmParser.Backend
+namespace TaffyScript.Backend
 {
     internal partial class MsilWeakCodeGen : ISyntaxElementVisitor
     {
         private const string SpecialImportsFileName = "SpecialImports.resource";
+        private const float All = -3f;
         private int _secret = 0;
         private Dictionary<string, ISymbolDocumentWriter> _documents = new Dictionary<string, ISymbolDocumentWriter>();
 
@@ -38,6 +39,9 @@ namespace GmParser.Backend
         private Dictionary<string, Type> _gmBasicTypes;
         private MethodInfo _getEmptyObject;
         private MethodInfo _getId;
+        private MethodInfo _getIdStack;
+        private MethodInfo _pushId;
+        private MethodInfo _popId;
         private LookupTable<string, Type, MethodInfo> _unaryOps = new LookupTable<string, Type, MethodInfo>();
         private Dictionary<string, LookupTable<Type, Type, MethodInfo>> _binaryOps = new Dictionary<string, LookupTable<Type, Type, MethodInfo>>();
         private Dictionary<string, string> _operators;
@@ -68,6 +72,36 @@ namespace GmParser.Backend
                     _moduleInitializer = new ILEmitter(_module.DefineGlobalMethod(".cctor", attribs, typeof(void), input), input, _isDebug);
                 }
                 return _moduleInitializer;
+            }
+        }
+
+        private MethodInfo GetIdStack
+        {
+            get
+            {
+                if(_getIdStack == null)
+                    _getIdStack = typeof(GmObject).GetMethod("get_Id");
+                return _getIdStack;
+            }
+        }
+
+        private MethodInfo PushId
+        {
+            get
+            {
+                if (_pushId == null)
+                    _pushId = typeof(Stack<GmObject>).GetMethod("Push");
+                return _pushId;
+            }
+        }
+
+        private MethodInfo PopId
+        {
+            get
+            {
+                if (_popId == null)
+                    _popId = typeof(Stack<GmObject>).GetMethod("Pop");
+                return _popId;
             }
         }
 
@@ -136,7 +170,7 @@ namespace GmParser.Backend
             }
         }
 
-        public void CompileTree(ISyntaxTree tree)
+        public CompilerResult CompileTree(ISyntaxTree tree)
         {
             var output = ".dll";
             if (_table.Defined("main", out var symbol) && symbol.Type == SymbolType.Script)
@@ -168,6 +202,8 @@ namespace GmParser.Backend
                 _specialImports = null;
                 _stream = null;
             }
+
+            return new CompilerResult(_asm, System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), _asmName.Name + output));
         }
 
         private void FindValidMethods(Assembly asm)
@@ -1360,9 +1396,6 @@ namespace GmParser.Backend
             var type = _module.DefineType(name, TypeAttributes.Public);
             _table.Enter(objectNode.Value);
             var input = new[] { typeof(GmInstance) };
-            var getIdStack = typeof(GmObject).GetMethod("get_Id");
-            var push = typeof(Stack<GmObject>).GetMethod("Push");
-            var pop = typeof(Stack<GmObject>).GetMethod("Pop");
             var addMethod = typeof(Dictionary<string, InstanceEvent>).GetMethod("Add");
             var objectIds = typeof(GmInstance).GetField("ObjectIndexMapping");
             var events = typeof(GmInstance).GetField("Events");
@@ -1381,14 +1414,14 @@ namespace GmParser.Backend
             {
                 var method = type.DefineMethod(ev.Value, MethodAttributes.Public | MethodAttributes.Static, typeof(void), input);
                 emit = new ILEmitter(method, input, _isDebug);
-                emit.Call(getIdStack)
+                emit.Call(GetIdStack)
                     .LdArg(0)
                     .Call(typeof(GmInstance).GetMethod("get_Id"))
                     .New(_gmConstructors[typeof(float)])
-                    .Call(push);
+                    .Call(PushId);
                 ev.Body.Accept(this);
-                emit.Call(getIdStack)
-                    .Call(pop)
+                emit.Call(GetIdStack)
+                    .Call(PopId)
                     .Pop()
                     .Ret();
 
@@ -1696,6 +1729,14 @@ namespace GmParser.Backend
             _table.Exit();
             _id = null;
 
+            var init = ModuleInitializer;
+            init.LdFld(typeof(GmInstance).GetField("Functions"))
+                .LdStr(name)
+                .LdNull()
+                .LdFtn(mb)
+                .New(typeof(TaffyFunction).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                .Call(typeof(Dictionary<string, TaffyFunction>).GetMethod("Add"));
+
             if (name == "main")
                 GenerateEntryPoint(mb);
         }
@@ -1866,7 +1907,40 @@ namespace GmParser.Backend
 
         public void Visit(WithNode with)
         {
-            throw new NotImplementedException();
+            with.Condition.Accept(this);
+            var top = emit.GetTop();
+            if(top == typeof(int) || top == typeof(bool))
+            {
+                emit.New(_gmConstructors[typeof(int)]);
+                top = typeof(GmObject);
+            }
+            if(top == typeof(float))
+            {
+                emit.New(_gmConstructors[typeof(float)]);
+                top = typeof(GmObject);
+            }
+            var start = emit.DefineLabel();
+            var end = emit.DefineLabel();
+            var final = emit.DefineLabel();
+            var gen = MakeSecret(typeof(InstanceEnumerator));
+            _loopStart.Push(start);
+            _loopEnd.Push(end);
+            emit.New(typeof(InstanceEnumerator).GetConstructor(new[] { top }))
+                .StLocal(gen)
+                .MarkLabel(start)
+                .LdLocalA(gen)
+                .Call(typeof(InstanceEnumerator).GetMethod("MoveNext"))
+                .BrFalse(final)
+                .Call(GetIdStack)
+                .LdLocalA(gen)
+                .Call(typeof(InstanceEnumerator).GetMethod("get_Current"))
+                .Call(PushId);
+            with.Body.Accept(this);
+            emit.MarkLabel(end)
+                .Call(GetIdStack)
+                .Call(PopId)
+                .Pop()
+                .MarkLabel(final);
         }
 
         #endregion

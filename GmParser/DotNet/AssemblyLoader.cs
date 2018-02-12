@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace GmParser.DotNet
+namespace TaffyScript.DotNet
 {
     public class DotNetAssemblyLoader
     {

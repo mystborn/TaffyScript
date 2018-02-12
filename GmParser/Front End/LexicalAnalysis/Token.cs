@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GmParser.FrontEnd
+namespace TaffyScript.FrontEnd
 {
     public class Token
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GmParser
+namespace TaffyScript
 {
     /// <summary>
     /// Represents a position within a document/stream where a <see cref="Token"/> was found.

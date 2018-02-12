@@ -8,7 +8,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using GmExtern;
 
-namespace GmParser.Backend
+namespace TaffyScript.Backend
 {
     public interface ICompiler
     {
