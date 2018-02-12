@@ -159,7 +159,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GmExtern\GmExtern.csproj">
+    <ProjectReference Include="..\TaffyScript\TaffyScript.csproj">
       <Project>{68399d06-20df-4ce8-9920-bd82df2b8f69}</Project>
       <Name>GmExtern</Name>
     </ProjectReference>
