@@ -47,6 +47,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="AssemblyVerifier, Version=5.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\AssemblyVerifier.5.0.1.0\lib\net40\AssemblyVerifier.dll</HintPath>
+    </Reference>
     <Reference Include="Myst, Version=1.0.0.8, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Myst.1.0.0.8\lib\net45\Myst.dll</HintPath>
     </Reference>
@@ -64,10 +67,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Backend\Bcl.cs" />
+    <Compile Include="Backend\CompileException.cs" />
     <Compile Include="Backend\CompileMode.cs" />
     <Compile Include="Backend\CompilerResult.cs" />
     <Compile Include="Backend\MsilWeakBuildConfig.cs" />
     <Compile Include="Backend\MsilWeakCodeGen.cs" />
+    <Compile Include="Backend\NameConflictException.cs" />
     <Compile Include="DotNet\AssemblyLoader.cs" />
     <Compile Include="Backend\Compiler.cs" />
     <Compile Include="Backend\ILEmitter.cs" />

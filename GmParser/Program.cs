@@ -16,12 +16,6 @@ namespace TaffyScript
     {
         static void Main(string[] args)
         {
-            //var code = "import Console.WriteLine(object) as show_debug_message; import GmObject.ToString(array) as string; ";
-
-            //var code = "script main { var user = instance_create(obj_user); user.name = 'Chris'; instance_destroy(user); } object obj_user { event create { name = '' } event destroy { show_debug_message('goodbye, ' + name); } }";
-
-            //CompileBcl();
-
             bool run = false;
             bool isDebug = true;
 
@@ -40,10 +34,9 @@ namespace TaffyScript
 
             var result = compiler.CompileProject(path);
 
-            Console.WriteLine("Compile End...");
-
             if (result.Errors.Count == 0)
             {
+                Console.WriteLine("Compile succeeded...");
                 if (run && result.PathToAssembly.EndsWith(".exe"))
                 {
                     Console.WriteLine("Running...\n");
@@ -52,6 +45,8 @@ namespace TaffyScript
             }
             else
             {
+                Console.WriteLine("Compile failed...");
+                Console.WriteLine("Errors: \n");
                 foreach (var error in result.Errors)
                     Console.WriteLine(error.Message);
             }

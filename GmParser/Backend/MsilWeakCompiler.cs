@@ -16,11 +16,11 @@ namespace TaffyScript.Backend
         public CompilerResult CompileProject(string projectDir)
         {
             if (!Directory.Exists(projectDir))
-                throw new DirectoryNotFoundException($"Could not find the project directory {projectDir}");
+                return new CompilerResult(null, null, new DirectoryNotFoundException($"Could not find the project directory {projectDir}"));
 
             var projectFile = Path.Combine(projectDir, "config.cfg");
             if (!File.Exists(Path.Combine(projectDir, "config.cfg")))
-                throw new FileNotFoundException("Could not find the project file.");
+                return new CompilerResult(null, null, new FileNotFoundException("Could not find the project file."));
 
             MsilWeakBuildConfig config;
             using(var sr = new StreamReader(projectFile))
@@ -29,13 +29,15 @@ namespace TaffyScript.Backend
                 config = (MsilWeakBuildConfig)cereal.Deserialize(sr);
             }
 
-            VerifyReferencesExists(projectDir, config);
+            var errors = new List<Exception>();
+            VerifyReferencesExists(projectDir, config, errors);
+            if (errors.Count != 0)
+                return new CompilerResult(errors);
+
             var parser = new Parser();
             EnumerateDirectories(projectDir, parser, new HashSet<string>());
             if(parser.Errors.Count != 0)
-            {
-                return new CompilerResult(null, null, parser.Errors.ToArray());
-            }
+                return new CompilerResult(parser.Errors);
 
             var generator = new MsilWeakCodeGen(parser.Table, config);
             return generator.CompileTree(parser.Tree);
@@ -50,7 +52,7 @@ namespace TaffyScript.Backend
                 EnumerateDirectories(dir, parser, exclude);
         }
 
-        private void VerifyReferencesExists(string projectDir, MsilWeakBuildConfig config)
+        private void VerifyReferencesExists(string projectDir, MsilWeakBuildConfig config, List<Exception> errors)
         {
             for(var i = 0; i < config.References.Count; i++)
             {
@@ -58,8 +60,8 @@ namespace TaffyScript.Backend
                 if (!File.Exists(find))
                 {
                     find = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Taffy", "Libraries", config.References[i]);
-                    if(!File.Exists(find))
-                        throw new FileNotFoundException($"Could not find the specified reference: {config.References[i]}.");
+                    if (!File.Exists(find))
+                        errors.Add(new FileNotFoundException($"Could not find the specified reference: {config.References[i]}."));
                 }
                 config.References[i] = find;
             }

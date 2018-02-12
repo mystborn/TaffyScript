@@ -11,9 +11,15 @@ namespace TaffyScript.Backend
     public class MsilWeakBuildConfig
     {
         public string Output { get; set; }
+
         [XmlArray]
         [XmlArrayItem(ElementName = "Reference")]
         public List<string> References { get; set; } = new List<string>();
+
+        [XmlArray]
+        [XmlArrayItem(ElementName = "Exclude")]
+        public List<string> Excludes { get; set; } = new List<string>();
+
         public CompileMode Mode { get; set; } = CompileMode.Debug;
     }
 }

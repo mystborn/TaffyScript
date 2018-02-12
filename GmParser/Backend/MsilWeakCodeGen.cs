@@ -34,6 +34,7 @@ namespace TaffyScript.Backend
         private readonly BindingFlags _methodFlags = BindingFlags.Public | BindingFlags.Static;
         private readonly Dictionary<string, TypeBuilder> _baseTypes = new Dictionary<string, TypeBuilder>();
 
+        private List<Exception> _errors = new List<Exception>();
         private Dictionary<Type, MethodInfo> _gmObjectCasts;
         private Dictionary<Type, ConstructorInfo> _gmConstructors;
         private Dictionary<string, Type> _gmBasicTypes;
@@ -125,6 +126,14 @@ namespace TaffyScript.Backend
             _isDebug = config.Mode == CompileMode.Debug;
             _asmName = new AssemblyName(config.Output);
             _asm = AppDomain.CurrentDomain.DefineDynamicAssembly(_asmName, AssemblyBuilderAccess.Save);
+            CustomAttributeBuilder attrib;
+            if (_isDebug)
+            {
+                var aType = typeof(DebuggableAttribute);
+                var ctor = aType.GetConstructor(new[] { typeof(DebuggableAttribute.DebuggingModes) });
+                attrib = new CustomAttributeBuilder(ctor, new object[] { DebuggableAttribute.DebuggingModes.DisableOptimizations | DebuggableAttribute.DebuggingModes.Default });
+                _asm.SetCustomAttribute(attrib);
+            }
             _assemblyLoader = new DotNetAssemblyLoader();
             _typeParser = new DotNetTypeParser(_assemblyLoader);
             _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(GmObject)));
@@ -159,15 +168,8 @@ namespace TaffyScript.Backend
                 }
             }
             InitGmMethods();
-            var attrib = new CustomAttributeBuilder(typeof(WeakLibraryAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
+            attrib = new CustomAttributeBuilder(typeof(WeakLibraryAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
             _asm.SetCustomAttribute(attrib);
-            if (_isDebug)
-            {
-                var aType = typeof(DebuggableAttribute);
-                var ctor = aType.GetConstructor(new[] { typeof(DebuggableAttribute.DebuggingModes) });
-                attrib = new CustomAttributeBuilder(ctor, new object[] { DebuggableAttribute.DebuggingModes.DisableOptimizations | DebuggableAttribute.DebuggingModes.Default });
-                _asm.SetCustomAttribute(attrib);
-            }
         }
 
         public CompilerResult CompileTree(ISyntaxTree tree)
@@ -179,6 +181,9 @@ namespace TaffyScript.Backend
             _module = _asm.DefineDynamicModule(_asmName.Name, _asmName.Name + output, _isDebug);
 
             tree.Root.Accept(this);
+            if (_errors.Count != 0)
+                return new CompilerResult(_errors);
+
             foreach (var type in _baseTypes.Values)
                 type.CreateType();
 
@@ -251,10 +256,16 @@ namespace TaffyScript.Backend
             if (_methods.TryGetValue(name, out var result))
             {
                 //Todo: Define name conflict exception
-                return (result as MethodBuilder) ?? throw new InvalidProgramException();
+                var m = result as MethodBuilder;
+                if (m == null)
+                    _errors.Add(new NameConflictException($"Function with name {name} is already defined by {m.GetModule()}"));
+                return m;
             }
             if (!_table.Defined(name, out var symbol) || symbol.Type != SymbolType.Script)
-                throw new InvalidOperationException($"There is no method with the name {name}");
+            {
+                _errors.Add(new CompileException($"Tried to call an undefined function: {name}"));
+                return null;
+            }
             var mb = GetBaseType().DefineMethod(name, MethodAttributes.Public | MethodAttributes.Static, typeof(GmObject), new[] { typeof(GmObject[]) });
             if (_isDebug)
                 mb.DefineParameter(1, ParameterAttributes.None, "__args_");
@@ -307,8 +318,8 @@ namespace TaffyScript.Backend
                 emit.Call(_getEmptyObject);
             else if (_gmConstructors.TryGetValue(method.ReturnType, out var init))
                 emit.New(init);
-            else if(method.ReturnType != typeof(GmObject))
-                throw new InvalidProgramException("Imported method had an invalid return type.");
+            else if (method.ReturnType != typeof(GmObject))
+                _errors.Add(new InvalidProgramException("Imported method had an invalid return type."));
 
             emit.Ret();
         }
@@ -443,7 +454,7 @@ namespace TaffyScript.Backend
         /// <param name="op"></param>
         /// <param name="type"></param>
         /// <returns></returns>
-        private MethodInfo GetOperator(string op, Type type)
+        private MethodInfo GetOperator(string op, Type type, TokenPosition pos)
         {
             if(!_unaryOps.TryGetValue(op, type, out var method))
             {
@@ -453,9 +464,14 @@ namespace TaffyScript.Backend
                 else if (op == "+")
                     name = "op_UnaryPlus";
                 else if (!_operators.TryGetValue(op, out name))
-                    throw new InvalidOperationException();
-                method = type.GetMethod(name, _methodFlags, null, new[] { type }, null)
-                    ?? throw new InvalidOperationException();
+                {
+                    //This doesn't specify a token position, but it also should never be encountered.
+                    _errors.Add(new CompileException($"Operator {op} does not exist {pos}."));
+                    return null;
+                }
+                method = type.GetMethod(name, _methodFlags, null, new[] { type }, null);
+                if (method == null)
+                    _errors.Add(new CompileException($"No operator function is defined for the operator {op} and the type {type} {pos}."));
             }
             return method;
         }
@@ -467,7 +483,7 @@ namespace TaffyScript.Backend
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        private MethodInfo GetOperator(string op, Type left, Type right)
+        private MethodInfo GetOperator(string op, Type left, Type right, TokenPosition pos)
         {
             if (!_binaryOps.TryGetValue(op, out var table))
             {
@@ -478,25 +494,34 @@ namespace TaffyScript.Backend
             if(!table.TryGetValue(left, right, out var method))
             {
                 if (!_operators.TryGetValue(op, out var opName))
-                    throw new InvalidOperationException();
+                {
+                    //This doesn't specify a token position, but it also should never be encountered.
+                    _errors.Add(new CompileException($"Operator {op} does not exist {pos}."));
+                    return null;
+                }
 
                 var argTypes = new Type[] { left, right };
                 method = left.GetMethod(opName, _methodFlags, null, argTypes, null) ??
-                         right.GetMethod(opName, _methodFlags, null, argTypes, null) ??
-                         throw new InvalidOperationException();
+                         right.GetMethod(opName, _methodFlags, null, argTypes, null);
+                if (method == null)
+                    _errors.Add(new CompileException($"No operator function is defined for the operator {op} and the types {left} and {right} {pos}."));
             }
 
             return method;
         }
 
-        private MethodInfo GetOperator(string op, Type[] types)
+        private MethodInfo GetOperator(string op, Type[] types, TokenPosition pos)
         {
             if (types.Length == 1)
-                return GetOperator(op, types[0]);
+                return GetOperator(op, types[0], pos);
             else if (types.Length == 2)
-                return GetOperator(op, types[0], types[1]);
+                return GetOperator(op, types[0], types[1], pos);
             else
-                throw new InvalidOperationException();
+            {
+                //This doesn't specify a token position, but it also should never be encountered.
+                _errors.Add(new CompileException($"Operator {op} does not exist for the type(s) {string.Join(" and ", types.ToList())} {pos}."));
+                return null;
+            }
         }
 
         private LocalBuilder MakeSecret()
@@ -522,7 +547,7 @@ namespace TaffyScript.Backend
                 element.Accept(this);
         }
 
-        private void CallInstanceMethod(MethodInfo method)
+        private void CallInstanceMethod(MethodInfo method, TokenPosition pos)
         {
             var top = emit.GetTop();
             if (top == typeof(GmObject))
@@ -535,7 +560,7 @@ namespace TaffyScript.Backend
             else if (top == typeof(GmObject).MakePointerType())
                 emit.Call(method);
             else
-                throw new InvalidOperationException();
+                _errors.Add(new CompileException($"Something went wrong {pos}"));
         }
 
         private LocalBuilder GetId()
@@ -587,27 +612,38 @@ namespace TaffyScript.Backend
                         emit.Sub();
                 }
                 else if (right == typeof(string))
-                    throw new InvalidOperationException();
+                {
+                    _errors.Add(new CompileException($"Cannot {additive.Value} types {left} and {right}"));
+                    return;
+                }
                 else if (right == typeof(GmObject))
-                    emit.Call(GetOperator(additive.Value, left, right));
+                    emit.Call(GetOperator(additive.Value, left, right, additive.Position));
                 else
-                    throw new InvalidOperationException();
+                {
+                    _errors.Add(new CompileException($"Cannot {additive.Value} types {left} and {right}"));
+                    return;
+                }
             }
             else if(left == typeof(string))
             {
                 if (additive.Value != "+")
-                    throw new InvalidOperationException();
+                {
+                    _errors.Add(new CompileException($"Cannot {additive.Value} types {left} and {right}"));
+                    return;
+                }
                 if (right == typeof(float))
-                    throw new InvalidOperationException();
+                {
+                    _errors.Add(new CompileException($"Cannot {additive.Value} types {left} and {right}"));
+                    return;
+                }
                 else if(right == typeof(string))
                     emit.Call(typeof(string).GetMethod("Concat", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(string), typeof(string) }, null));
                 else if(right == typeof(GmObject))
-                    emit.Call(GetOperator(additive.Value, left, right));
+                    emit.Call(GetOperator(additive.Value, left, right, additive.Position));
             }
             else if(left == typeof(GmObject))
             {
-                var method = GetOperator(additive.Value, left, right)
-                    ?? throw new InvalidOperationException();
+                var method = GetOperator(additive.Value, left, right, additive.Position);
                 emit.Call(method);
             }
         }
@@ -632,10 +668,10 @@ namespace TaffyScript.Backend
                         .LdLocalA(secret)
                         .Call(_gmObjectCasts[typeof(int)]);
                 }
-                else if(type == typeof(GmObject).MakePointerType())
+                else if (type == typeof(GmObject).MakePointerType())
                     emit.Call(_gmObjectCasts[typeof(int)]);
                 else if (type != typeof(int))
-                    throw new InvalidProgramException();
+                    _errors.Add(new CompileException($"Invalid argument access {argumentAccess.Position}"));
             }
             if (_needAddress)
                 emit.LdElemA(typeof(GmObject));
@@ -648,13 +684,13 @@ namespace TaffyScript.Backend
             var address = _needAddress;
             _needAddress = false;
             GetAddressIfPossible(arrayAccess.Left);
-            CallInstanceMethod(_gmObjectCasts[arrayAccess.Children.Count == 2 ? typeof(GmObject[]) : typeof(GmObject[][])]);
+            CallInstanceMethod(_gmObjectCasts[arrayAccess.Children.Count == 2 ? typeof(GmObject[]) : typeof(GmObject[][])], arrayAccess.Position);
             GetAddressIfPossible(arrayAccess.Children[1]);
             var top = emit.GetTop();
             if (top == typeof(float))
                 emit.ConvertInt(false);
             else if (top != typeof(int) || top != typeof(bool))
-                CallInstanceMethod(_gmObjectCasts[typeof(int)]);
+                CallInstanceMethod(_gmObjectCasts[typeof(int)], arrayAccess.Position);
             if(arrayAccess.Children.Count == 2)
             {
                 if (address)
@@ -670,7 +706,7 @@ namespace TaffyScript.Backend
                 if (top == typeof(float))
                     emit.ConvertInt(false);
                 else if (top != typeof(int) || top != typeof(bool))
-                    CallInstanceMethod(_gmObjectCasts[typeof(int)]);
+                    CallInstanceMethod(_gmObjectCasts[typeof(int)], arrayAccess.Position);
 
                 if (address)
                     emit.LdElemA(typeof(GmObject));
@@ -736,7 +772,7 @@ namespace TaffyScript.Backend
                 if (_table.Defined(variable.Text, out var symbol))
                 {
                     if (symbol.Type != SymbolType.Variable)
-                        throw new InvalidSymbolException();
+                        _errors.Add(new CompileException($"Cannot assign to the value {symbol.Name} {variable.Position}"));
 
                     assign.Right.Accept(this);
                     var result = emit.GetTop();
@@ -760,7 +796,7 @@ namespace TaffyScript.Backend
             {
                 GetAddressIfPossible(member.Left);
                 var top = emit.GetTop();
-                if(top == typeof(GmObject))
+                if (top == typeof(GmObject))
                 {
                     var secret = MakeSecret();
                     emit.StLocal(secret)
@@ -772,7 +808,7 @@ namespace TaffyScript.Backend
                 emit.Call(typeof(GmObject).GetMethod("MemberSet", BindingFlags.Public | BindingFlags.Instance, null, argTypes, null));
             }
             else
-                throw new NotImplementedException();
+                _errors.Add(new CompileException($"This assignment is not yet supported {assign.Position}"));
             //Todo: Finish assignments
         }
 
@@ -788,7 +824,7 @@ namespace TaffyScript.Backend
                 emit.Dup()
                     .LdObj(typeof(GmObject));
                 assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop()))
+                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
                     .StObj(typeof(GmObject));
             }
             else if(assign.Left is VariableToken variable)
@@ -796,23 +832,23 @@ namespace TaffyScript.Backend
                 if (_table.Defined(variable.Text, out var symbol))
                 {
                     if (symbol.Type != SymbolType.Variable)
-                        throw new InvalidSymbolException();
+                        _errors.Add(new CompileException($"Cannot assign to the value {symbol.Name} {variable.Position}"));
                     GetAddressIfPossible(assign.Left);
                     emit.Dup()
                         .LdObj(typeof(GmObject));
                     assign.Right.Accept(this);
-                    emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop()))
+                    emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
                         .StObj(typeof(GmObject));
                 }
                 else
-                    throw new NotImplementedException();
+                    _errors.Add(new CompileException($"This assignment is not yet supported {assign.Position}"));
             }
             else if(assign.Left is MemberAccessNode member)
             {
                 member.Left.Accept(this);
                 var top = emit.GetTop();
                 if (top != typeof(GmObject))
-                    throw new InvalidOperationException();
+                    _errors.Add(new CompileException($"Invalid syntax detected {member.Position}"));
                 var name = ((ISyntaxToken)member.Right).Text;
                 var secret = MakeSecret();
                 emit.StLocal(secret)
@@ -822,7 +858,7 @@ namespace TaffyScript.Backend
                     .LdStr(name)
                     .Call(typeof(GmObject).GetMethod("MemberGet"));
                 assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop()))
+                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
                     .Call(typeof(GmObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }));
             }
         }
@@ -831,28 +867,32 @@ namespace TaffyScript.Backend
         {
             if(bitwise.Left.Type == SyntaxType.Constant)
             {
-                var leftConst = bitwise.Left as IConstantToken<float> 
-                    ?? throw new InvalidOperationException();
-                emit.LdLong((long)leftConst.Value);
+                var leftConst = bitwise.Left as IConstantToken<float>;
+                if (leftConst == null)
+                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the constant type {(bitwise.Left as IConstantToken).ConstantType} {bitwise.Position}"));
+                else
+                    emit.LdLong((long)leftConst.Value);
             }
             else
             {
                 bitwise.Left.Accept(this);
                 if (emit.GetTop() != typeof(GmObject))
-                    throw new InvalidOperationException();
+                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the type {emit.GetTop()} {bitwise.Position}"));
                 emit.Call(_gmObjectCasts[typeof(long)]);
             }
             if(bitwise.Right.Type == SyntaxType.Constant)
             {
-                var rightConst = bitwise.Right as IConstantToken<float>
-                    ?? throw new InvalidOperationException();
-                emit.LdLong((long)rightConst.Value);
+                var rightConst = bitwise.Right as IConstantToken<float>;
+                if(rightConst == null)
+                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the constant type {(bitwise.Right as IConstantToken).ConstantType} {bitwise.Position}"));
+                else
+                    emit.LdLong((long)rightConst.Value);
             }
             else
             {
                 bitwise.Right.Accept(this);
                 if (!emit.TryGetTop(out var top) || top != typeof(GmObject))
-                    throw new InvalidOperationException();
+                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the type {emit.GetTop()} {bitwise.Position}"));
                 emit.Call(_gmObjectCasts[typeof(long)]);
             }
 
@@ -868,7 +908,9 @@ namespace TaffyScript.Backend
                     emit.Xor();
                     break;
                 default:
-                    throw new InvalidOperationException();
+                    //Should be impossible.
+                    _errors.Add(new CompileException($"Invalid bitwise operator detected: {bitwise.Value} {bitwise.Position}"));
+                    break;
             }
             emit.ConvertFloat();
         }
@@ -893,7 +935,7 @@ namespace TaffyScript.Backend
         {
             //Due to the way that a switch statements logic gets seperated, the SwitchNode implements
             //the logic for both Default and CaseNodes.
-            throw new NotImplementedException();
+            _errors.Add(new CompileException($"Encountered invalid program {caseNode.Position}"));
         }
 
         public void Visit(ConditionalNode conditionalNode)
@@ -942,14 +984,14 @@ namespace TaffyScript.Backend
                     .StLocal(local);
             }
             else
-                throw new InvalidOperationException();
+                _errors.Add(new NameConflictException($"Tried to overwrite the symbol {symbol} {declare.Position}"));
         }
 
         public void Visit(DefaultNode defaultNode)
         {
             //Due to the way that a switch statements logic gets seperated, the SwitchNode implements
             //the logic for both Default and CaseNodes.
-            throw new NotImplementedException();
+            _errors.Add(new CompileException($"Encountered invalid program {defaultNode.Position}"));
         }
 
         public void Visit(DoNode doNode)
@@ -986,7 +1028,6 @@ namespace TaffyScript.Backend
         public void Visit(EndToken endToken)
         {
             //Empty statement. Means nothing in GM.
-            //throw new NotImplementedException();
         }
 
         public void Visit(EnumNode enumNode)
@@ -999,10 +1040,10 @@ namespace TaffyScript.Backend
                     if (expr.Children[0] is IConstantToken<float> value)
                         current = (long)value.Value;
                     else
-                        throw new InvalidSymbolException("Enum value must be equal to an integer constant.");
+                        _errors.Add(new InvalidSymbolException($"Enum value must be equal to an integer constant {expr.Position}."));
                 }
                 else if (expr.Type != SyntaxType.Declare)
-                    throw new InvalidProgramException($"Encountered error while compiling enum {enumNode.Value}");
+                    _errors.Add(new CompileException($"Encountered error while compiling enum {enumNode.Value} {expr.Position}."));
 
                 _enums.Add(enumNode.Value, expr.Value, current++);
             }
@@ -1025,10 +1066,10 @@ namespace TaffyScript.Backend
                 right = typeof(float);
             }
 
-            TestEquality(equality.Value, left, right);
+            TestEquality(equality.Value, left, right, equality.Position);
         }
 
-        private void TestEquality(string op, Type left, Type right)
+        private void TestEquality(string op, Type left, Type right, TokenPosition pos)
         {
             if (left == typeof(float))
             {
@@ -1049,9 +1090,9 @@ namespace TaffyScript.Backend
                         emit.LdBool(true);
                 }
                 else if (right == typeof(GmObject))
-                    emit.Call(GetOperator(op, left, right));
+                    emit.Call(GetOperator(op, left, right, pos));
                 else
-                    throw new NotImplementedException();
+                    _errors.Add(new CompileException($"Cannot {op} types {left} and {right} {pos}"));
             }
             else if (left == typeof(string))
             {
@@ -1065,14 +1106,14 @@ namespace TaffyScript.Backend
                         emit.LdBool(true);
                 }
                 else if (right == typeof(string) || right == typeof(GmObject))
-                    emit.Call(GetOperator(op, left, right));
+                    emit.Call(GetOperator(op, left, right, pos));
                 else
-                    throw new InvalidOperationException();
+                    _errors.Add(new CompileException($"Cannot {op} types {left} and {right} {pos}"));
             }
             else if (left == typeof(GmObject))
-                emit.Call(GetOperator(op, left, right));
+                emit.Call(GetOperator(op, left, right, pos));
             else
-                throw new InvalidOperationException();
+                _errors.Add(new CompileException($"Cannot {op} types {left} and {right} {pos}"));
         }
 
         public void Visit(ExitToken exitToken)
@@ -1084,12 +1125,12 @@ namespace TaffyScript.Backend
 
         public void Visit(EventNode eventNode)
         {
-            throw new NotImplementedException();
+            _errors.Add(new CompileException($"Encountered invalid program {eventNode.Position}"));
         }
 
         public void Visit(ExplicitArrayAccessNode explicitArrayAccess)
         {
-            throw new NotImplementedException();
+            _errors.Add(new NotImplementedException($"Currently explicit array access is not available {explicitArrayAccess.Position}."));
         }
 
         public void Visit(ForNode forNode)
@@ -1181,7 +1222,7 @@ namespace TaffyScript.Backend
 
         public void Visit(GridAccessNode gridAccess)
         {
-            throw new NotImplementedException();
+            _errors.Add(new NotImplementedException($"Currently grid access is not available {gridAccess.Position}."));
         }
 
         public void Visit(IfNode ifNode)
@@ -1218,7 +1259,7 @@ namespace TaffyScript.Backend
             for (var i = 0; i < args.Length; i++)
             {
                 if (!_gmBasicTypes.TryGetValue(argWrappers[i].Value, out var argType))
-                    throw new InvalidProgramException();
+                    _errors.Add(new CompileException($"Could not import the function {internalName} because one of the arguments was invalid {argWrappers[i].Value} {argWrappers[i].Position}"));
 
                 args[i] = argType;
             }
@@ -1226,7 +1267,11 @@ namespace TaffyScript.Backend
             var typeName = externalName.Remove(externalName.LastIndexOf('.'));
             var methodName = externalName.Substring(typeName.Length + 1);
             var owner = _typeParser.GetType(typeName);
-            var method = GetMethodToImport(owner, methodName, args) ?? throw new InvalidProgramException();
+            var method = GetMethodToImport(owner, methodName, args);
+            if(method == null)
+            {
+                _errors.Add(new CompileException($"Failed to find the import function {externalName} {import.ExternalName.Position}"));
+            }
             if (method.GetCustomAttribute<WeakMethodAttribute>() != null && IsMethodValid(method))
             {
                 _methods.Add(internalName, method);
@@ -1240,7 +1285,7 @@ namespace TaffyScript.Backend
 
         public void Visit(ListAccessNode listAccess)
         {
-            throw new NotImplementedException();
+            _errors.Add(new NotImplementedException($"Currently list access is not available {listAccess.Position}."));
         }
 
         public void Visit(LocalsNode localsNode)
@@ -1264,7 +1309,7 @@ namespace TaffyScript.Backend
             else if (left == typeof(GmObject))
                 emit.Call(_gmObjectCasts[typeof(bool)]);
             else if (left != typeof(bool))
-                throw new InvalidOperationException();
+                _errors.Add(new CompileException($"Encountered invalid syntax {logical.Left.Position}"));
             if (logical.Value == "&&")
             {
                 emit.Dup()
@@ -1287,14 +1332,14 @@ namespace TaffyScript.Backend
             else if (left == typeof(GmObject))
                 emit.Call(_gmObjectCasts[typeof(bool)]);
             else if (left != typeof(bool))
-                throw new InvalidOperationException();
+                _errors.Add(new CompileException($"Encountered invalid syntax {logical.Right.Position}"));
 
             emit.MarkLabel(end);
         }
 
         public void Visit(MapAccessNode mapAccess)
         {
-            throw new NotImplementedException();
+            _errors.Add(new NotImplementedException($"Currently map access is not available {mapAccess.Position}."));
         }
 
         public void Visit(MemberAccessNode memberAccess)
@@ -1306,11 +1351,11 @@ namespace TaffyScript.Backend
                 if (memberAccess.Right is VariableToken enumValue)
                 {
                     if (!_enums.TryGetValue(enumVar.Text, enumValue.Text, out var value))
-                        throw new InvalidOperationException();
+                        _errors.Add(new CompileException($"The enum {enumVar.Text} does not declare value {enumValue.Text} {enumValue.Position}"));
                     emit.LdFloat(value);
                 }
                 else
-                    throw new InvalidOperationException();
+                    _errors.Add(new CompileException($"Invalid enum access syntax {enumVar.Position}"));
             }
             else
             {
@@ -1330,22 +1375,22 @@ namespace TaffyScript.Backend
                     //instead it will set the variable on the first instance of the type.
                     //Alternatively, you might just have it set the variable on all instances of that type,
                     //but that would break GM compatibility.
-                    throw new NotImplementedException();
+                    _errors.Add(new NotImplementedException($"Accessing a variable through a type is not yet supported {memberAccess.Left} {memberAccess.Left.Position}"));
                 }
                 if (memberAccess.Right is VariableToken right)
                 {
                     emit.LdStr(right.Text)
                         .Call(typeof(GmObject).GetMethod("MemberGet", new[] { typeof(string) }));
                 }
-                else if(memberAccess.Right is ReadOnlyToken readOnly)
+                else if (memberAccess.Right is ReadOnlyToken readOnly)
                 {
                     if (readOnly.Text != "id" && readOnly.Text != "self")
-                        throw new InvalidOperationException();
+                        _errors.Add(new NotImplementedException($"Only the read only variables id and self can be accessed from an instance currently {readOnly.Position}"));
                     emit.LdStr("id")
                         .Call(typeof(GmObject).GetMethod("MemberGet", new[] { typeof(string) }));
                 }
                 else
-                    throw new InvalidOperationException();
+                    _errors.Add(new CompileException($"Invalid syntax detected {memberAccess.Position}"));
             }
         }
 
@@ -1372,20 +1417,17 @@ namespace TaffyScript.Backend
                 if (right == typeof(float))
                     emit.Mul();
                 else if (right == typeof(string))
-                    throw new InvalidOperationException($"Cannot {(multiplicative.Value == "*" ? "multiply" : (multiplicative.Value == "/" ? "divide" : "mod"))} float and string");
+                    _errors.Add(new CompileException($"Cannot {multiplicative.Value} types {left} and {right} {multiplicative.Position}"));
                 else if (right == typeof(GmObject))
-                    emit.Call(GetOperator(multiplicative.Value, left, right));
+                    emit.Call(GetOperator(multiplicative.Value, left, right, multiplicative.Position));
                 else
-                    throw new NotImplementedException();
+                    _errors.Add(new CompileException($"Cannot {multiplicative.Value} types {left} and {right} {multiplicative.Position}"));
             }
             else if (left == typeof(string)) {
-                //Todo: Get second value.
-                throw new InvalidOperationException(
-                    $"Cannot {(multiplicative.Value == "*" ? "multiply" : (multiplicative.Value == "/" ? "divide" : "mod"))} string and {(right == typeof(float) ? "float" : right.ToString())}"
-                );
+                _errors.Add(new CompileException($"Cannot {multiplicative.Value} types {left} and {right} {multiplicative.Position}"));
             }
             else if (left == typeof(GmObject))
-                emit.Call(GetOperator(multiplicative.Value, left, right));
+                emit.Call(GetOperator(multiplicative.Value, left, right, multiplicative.Position));
         }
 
         public void Visit(ObjectNode objectNode)
@@ -1454,7 +1496,7 @@ namespace TaffyScript.Backend
                     .LdObj(typeof(GmObject))
                     .StLocal(secret)
                     .LdObj(typeof(GmObject))
-                    .Call(GetOperator(postfix.Value, typeof(GmObject)))
+                    .Call(GetOperator(postfix.Value, typeof(GmObject), postfix.Position))
                     .StObj(typeof(GmObject))
                     .LdLocal(secret);
             }
@@ -1463,7 +1505,7 @@ namespace TaffyScript.Backend
                 if (_table.Defined(variable.Text, out var symbol))
                 {
                     if (symbol.Type != SymbolType.Variable)
-                        throw new InvalidSymbolException();
+                        _errors.Add(new CompileException($"Cannot perform {postfix.Value} on an identifier that is not a variable {postfix.Position}"));
                     var secret = MakeSecret();
                     GetAddressIfPossible(variable);
                     emit.Dup()
@@ -1471,19 +1513,19 @@ namespace TaffyScript.Backend
                         .LdObj(typeof(GmObject))
                         .StLocal(secret)
                         .LdObj(typeof(GmObject))
-                        .Call(GetOperator(postfix.Value, typeof(GmObject)))
+                        .Call(GetOperator(postfix.Value, typeof(GmObject), postfix.Position))
                         .StObj(typeof(GmObject))
                         .LdLocal(secret);
                 }
                 else
-                    throw new InvalidOperationException();
+                    _errors.Add(new CompileException($"Cannot perform {postfix.Value} on an identifier that is not a variable {postfix.Position}"));
             }
             else if (postfix.Child is MemberAccessNode member)
             {
                 member.Left.Accept(this);
                 var top = emit.GetTop();
                 if (top != typeof(GmObject))
-                    throw new InvalidOperationException();
+                    _errors.Add(new CompileException($"Cannot access member on type {top} {member.Left.Position}"));
                 var name = ((ISyntaxToken)member.Right).Text;
                 var secret = MakeSecret();
                 var value = MakeSecret();
@@ -1497,12 +1539,12 @@ namespace TaffyScript.Backend
                     .Call(typeof(GmObject).GetMethod("MemberGet"))
                     .StLocal(value)
                     .Call(typeof(GmObject).GetMethod("MemberGet"))
-                    .Call(GetOperator(postfix.Value, typeof(GmObject)))
+                    .Call(GetOperator(postfix.Value, typeof(GmObject), postfix.Position))
                     .Call(typeof(GmObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }))
                     .LdLocal(value);
             }
             else
-                throw new NotImplementedException();
+                _errors.Add(new CompileException($"Invalid syntax detected {postfix.Child.Position}"));
         }
 
         public void Visit(PrefixNode prefix)
@@ -1513,7 +1555,7 @@ namespace TaffyScript.Backend
                 emit.Dup()
                     .Dup()
                     .LdObj(typeof(GmObject))
-                    .Call(GetOperator(prefix.Value, typeof(GmObject)))
+                    .Call(GetOperator(prefix.Value, typeof(GmObject), prefix.Position))
                     .StObj(typeof(GmObject))
                     .LdObj(typeof(GmObject));
             }
@@ -1522,21 +1564,21 @@ namespace TaffyScript.Backend
                 if (_table.Defined(variable.Text, out var symbol))
                 {
                     if (symbol.Type != SymbolType.Variable)
-                        throw new InvalidSymbolException();
+                        _errors.Add(new CompileException($"Tried to access an identifier that wasn't a variable {prefix.Child.Position}"));
                     variable.Accept(this);
-                    emit.Call(GetOperator(prefix.Value, typeof(GmObject)))
+                    emit.Call(GetOperator(prefix.Value, typeof(GmObject), prefix.Position))
                         .StLocal(_locals[symbol])
                         .LdLocal(_locals[symbol]);
                 }
                 else
-                    throw new InvalidOperationException();
+                    _errors.Add(new CompileException($"Invalid syntax detected {prefix.Child.Position}"));
             }
             else if (prefix.Child is MemberAccessNode member)
             {
                 member.Left.Accept(this);
                 var top = emit.GetTop();
                 if (top != typeof(GmObject))
-                    throw new InvalidOperationException();
+                    _errors.Add(new CompileException($"Invalid syntax detected {prefix.Child.Position}"));
                 var name = ((ISyntaxToken)member.Right).Text;
                 var secret = MakeSecret();
                 emit.StLocal(secret)
@@ -1547,12 +1589,12 @@ namespace TaffyScript.Backend
                     .LdLocalA(secret)
                     .LdStr(name)
                     .Call(typeof(GmObject).GetMethod("MemberGet"))
-                    .Call(GetOperator(prefix.Value, typeof(GmObject)))
+                    .Call(GetOperator(prefix.Value, typeof(GmObject), prefix.Position))
                     .Call(typeof(GmObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }))
                     .Call(typeof(GmObject).GetMethod("MemberGet"));
             }
             else
-                throw new NotImplementedException();
+                _errors.Add(new CompileException($"Invalid syntax detected {prefix.Position}"));
         }
 
         public void Visit(ReadOnlyToken readOnlyToken)
@@ -1578,7 +1620,8 @@ namespace TaffyScript.Backend
                     emit.LdFloat((float)Math.PI);
                     break;
                 default:
-                    throw new NotImplementedException();
+                    _errors.Add(new NotImplementedException($"Currently the readonly value {readOnlyToken.Text} is not implemented {readOnlyToken.Position}"));
+                    break;
             }
         }
 
@@ -1631,16 +1674,17 @@ namespace TaffyScript.Backend
                             emit.Cge();
                             break;
                         default:
-                            throw new NotImplementedException();
+                            _errors.Add(new CompileException($"Cannot {relational.Value} types {left} and {right} {relational.Position}"));
+                            break;
                     }
                 }
                 else if (right == typeof(GmObject))
-                    emit.Call(GetOperator(relational.Value, left, right));
+                    emit.Call(GetOperator(relational.Value, left, right, relational.Position));
             }
             else if (left == typeof(GmObject))
-                emit.Call(GetOperator(relational.Value, left, right));
+                emit.Call(GetOperator(relational.Value, left, right, relational.Position));
             else
-                throw new NotImplementedException();
+                _errors.Add(new CompileException($"Invalid syntax detected {relational.Position}"));
 
             return;
         }
@@ -1662,11 +1706,11 @@ namespace TaffyScript.Backend
                     .Clt();
             }
             else if (top == typeof(GmObject))
-                emit.Call(GetOperator("<", typeof(float), top));
+                emit.Call(GetOperator("<", typeof(float), top, repeat.Body.Position));
             else if (top == typeof(float))
                 emit.Clt();
             else
-                throw new InvalidProgramException();
+                _errors.Add(new CompileException($"Invalid syntax detected {repeat.Condition.Position}"));
             emit.BrFalse(end);
             repeat.Body.Accept(this);
             emit.LdLocal(secret)
@@ -1682,7 +1726,7 @@ namespace TaffyScript.Backend
             returnNode.ReturnValue.Accept(this);
 
             if (!emit.TryGetTop(out var returnType))
-                throw new InvalidProgramException();
+                _errors.Add(new CompileException($"Tried to return without a return value. If this is expected, use exit instead {returnNode.Position}"));
 
             if (returnType != typeof(GmObject))
                 emit.New(_gmConstructors[returnType]);
@@ -1698,9 +1742,9 @@ namespace TaffyScript.Backend
                 //Todo: Process everything before scripts.
                 //      Alternatively, process titles, then go through sequentially.
                 if (child.Type != SyntaxType.Enum && child.Type != SyntaxType.Import && child.Type != SyntaxType.Script && child.Type != SyntaxType.Object)
-                    throw new InvalidProgramException();
-
-                child.Accept(this);
+                    _errors.Add(new CompileException($"Invalid syntax detected {child.Position}"));
+                else
+                    child.Accept(this);
             }
         }
 
@@ -1751,7 +1795,7 @@ namespace TaffyScript.Backend
                 left = typeof(long);
             }
             else if (left == typeof(string))
-                throw new InvalidOperationException("Cannot shift a string.");
+                _errors.Add(new CompileException($"Tried to shift a string {shift.Left.Position}"));
             GetAddressIfPossible(shift.Right);
             var right = emit.GetTop();
             if (right == typeof(float))
@@ -1761,31 +1805,31 @@ namespace TaffyScript.Backend
             }
             else if(right == typeof(GmObject) || right == typeof(GmObject).MakePointerType())
             {
-                CallInstanceMethod(_gmObjectCasts[typeof(int)]);
+                CallInstanceMethod(_gmObjectCasts[typeof(int)], shift.Right.Position);
                 right = typeof(int);
             }
             else
-                throw new InvalidOperationException("Cannot shift by a string.");
+                _errors.Add(new CompileException($"Tried to shift a string {shift.Right.Position}"));
 
             if (left == typeof(long))
             {
                 if (right == typeof(int))
                 {
-                    emit.Call(GetOperator(shift.Value, left, right))
+                    emit.Call(GetOperator(shift.Value, left, right, shift.Position))
                         .ConvertFloat();
                 }
                 else
-                    throw new NotImplementedException();
+                    _errors.Add(new CompileException($"Must shift by a real value {shift.Right.Position}"));
             }
             else if (left == typeof(GmObject))
             {
                 if (right == typeof(int))
-                    emit.Call(GetOperator(shift.Value, left, right));
+                    emit.Call(GetOperator(shift.Value, left, right, shift.Position));
                 else
-                    throw new InvalidOperationException();
+                    _errors.Add(new CompileException($"Must shift by a real value {shift.Right.Position}"));
             }
             else
-                throw new NotImplementedException();
+                _errors.Add(new CompileException($"Invalid syntax detected {shift.Position}"));
         }
 
         public void Visit(SwitchNode switchNode)
@@ -1817,7 +1861,7 @@ namespace TaffyScript.Backend
                         emit.ConvertFloat();
                         right = typeof(float);
                     }
-                    TestEquality("==", left, right);
+                    TestEquality("==", left, right, caseNode.Condition.Position);
                     var isFalse = emit.DefineLabel();
                     emit.BrFalse(isFalse)
                         .Pop(false)
@@ -1846,7 +1890,7 @@ namespace TaffyScript.Backend
                 else if (cases[i] is DefaultNode defaultNode)
                     defaultNode.Expressions.Accept(this);
                 else
-                    throw new InvalidOperationException();
+                    _errors.Add(new CompileException($"Invalid syntax detected {cases[i].Position}"));
             }
 
             emit.MarkLabel(end);
@@ -1874,10 +1918,11 @@ namespace TaffyScript.Backend
                                 emit.LdLocal(local);
                         }
                         else
-                            throw new InvalidOperationException();
+                            _errors.Add(new CompileException($"Tried to reference a non-existant variable {variableToken.Text} {variableToken.Position}"));
                         break;
                     default:
-                        throw new InvalidOperationException();
+                        _errors.Add(new NotImplementedException($"Currently cannot reference indentifier {symbol.Type} by it's raw value."));
+                        break;
                 }
             }
             else
