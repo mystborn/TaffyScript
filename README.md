@@ -5,11 +5,11 @@ which is the scripting language used inside of the game engine Gamemaker.
 
 ## Features
 * Built in C#
-* Compiles into valid .NET assembly
+* Compiles into a valid .NET assembly
 * Dynamic Typing
 * Does not use DLR
 * Accessable from existing .NET projects
-* Import outside .NET methods.
+* Import external .NET methods.
 * Reflection (WIP)
 
 ## Sounds Great! How Can I Get it?
