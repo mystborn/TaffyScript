@@ -8,7 +8,7 @@ namespace GmExtern
 {
     public static partial class Bcl
     {
-        public static Random rng = new Random(123456789);
+        public static Random Rng = new Random(123456789);
 
         [WeakMethod]
         public static GmObject ToString(GmObject[] args)
@@ -178,7 +178,7 @@ namespace GmExtern
         {
             if (args.Length == 0)
                 throw new ArgumentException("There must be at least one argument passed to Choose.");
-            return (args[rng.Next(args.Length)]);
+            return (args[Rng.Next(args.Length)]);
         }
 
         public static float Clamp(float val, float min, float max)

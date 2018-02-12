@@ -42,11 +42,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BaseClassLib\BaseClassLibrary.cs" />
-    <Compile Include="BaseClassLib\Bcl.Grid.cs" />
+    <Compile Include="BaseClassLib\DataStructureDisposedException.cs" />
+    <Compile Include="BaseClassLib\DsList.cs" />
+    <Compile Include="BaseClassLib\DsMap.cs" />
+    <Compile Include="Extensions.cs" />
     <Compile Include="GmInstance.cs" />
     <Compile Include="GmObject.cs" />
     <Compile Include="GmValue.cs" />
-    <Compile Include="Grid.cs" />
+    <Compile Include="BaseClassLib\DsGrid.cs" />
     <Compile Include="InstanceEnumerator.cs" />
     <Compile Include="Exceptions\InvalidGmTypeException.cs" />
     <Compile Include="Exceptions\InvalidInstanceException.cs" />

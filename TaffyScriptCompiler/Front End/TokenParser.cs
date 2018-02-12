@@ -129,9 +129,9 @@ namespace TaffyScript
                             var type = token.Value;
                             if (type == "array")
                                 type = "array1d";
-                            if (type != "object" && type != "instance" && type != "double" && type != "string" && type != "array1d" && type != "array2d")
+                            if (type != "object" && type != "instance" && type != "float" && type != "int" && type != "bool" && type != "string" && type != "array1d" && type != "array2d")
                             {
-                                Throw(new InvalidTokenException(token, "Import type must be one of the following: object, double, string, instance, array1d, array2d"));
+                                Throw(new InvalidTokenException(token, "Import type must be one of the following: object, float, int, bool, string, instance, array1d, array2d "));
                                 node.AddChild(null);
                             }
                             else
@@ -280,6 +280,7 @@ namespace TaffyScript
                     if (paren)
                         Confirm(")");
                     temp.AddChild(BodyStatement());
+                    while (Validate(";")) ;
                     if (Validate("else"))
                         temp.AddChild(BodyStatement());
                     result = temp;
@@ -380,6 +381,8 @@ namespace TaffyScript
         {
             _canAssign++;
             var value = ConditionalExpression();
+            if (value == null)
+                return null;
 
             //value = 10;
             if (_canAssign == 1 && (value.Type.ToString().Contains("Access") || value.Type == SyntaxType.Variable) && IsAssignment())

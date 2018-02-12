@@ -18,7 +18,7 @@ namespace TaffyScript
         }
 
         public InvalidTokenException(Token token, string message)
-            : base(message + GetPosition(token.Position))
+            : base($"{message} {token.Position}")
         {
             Token = token;
         }

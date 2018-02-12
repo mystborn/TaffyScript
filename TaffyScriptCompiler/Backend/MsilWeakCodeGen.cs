@@ -124,7 +124,7 @@ namespace TaffyScript.Backend
         {
             _table = table;
             _isDebug = config.Mode == CompileMode.Debug;
-            _asmName = new AssemblyName(config.Output);
+            _asmName = new AssemblyName(System.IO.Path.GetFileName(config.Output));
             _asm = AppDomain.CurrentDomain.DefineDynamicAssembly(_asmName, AssemblyBuilderAccess.Save);
             CustomAttributeBuilder attrib;
             if (_isDebug)
@@ -406,7 +406,8 @@ namespace TaffyScript.Backend
             _gmBasicTypes = new Dictionary<string, Type>()
             {
                 { "bool", typeof(bool) },
-                { "double", typeof(float) },
+                { "float", typeof(float) },
+                { "int", typeof(int) },
                 { "string", typeof(string) },
                 { "instance", typeof(GmInstance) },
                 { "array1d", typeof(GmObject[]) },

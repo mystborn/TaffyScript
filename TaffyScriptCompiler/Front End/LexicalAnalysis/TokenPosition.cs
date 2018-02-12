@@ -38,7 +38,18 @@ namespace TaffyScript
 
         public override string ToString()
         {
-            return $"TokenPosition: Line: {Line} | Column: {Column} | Index: {Index}";
+            var sb = new StringBuilder();
+            if (File != null)
+            {
+                sb.Append("in file ");
+                sb.Append(File);
+                sb.Append(" ");
+            }
+            sb.Append("at line ");
+            sb.Append(Line);
+            sb.Append(", column ");
+            sb.Append(Column);
+            return sb.ToString();
         }
     }
 }

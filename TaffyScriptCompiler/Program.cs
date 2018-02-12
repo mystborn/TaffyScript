@@ -16,7 +16,7 @@ namespace TaffyScript
     {
         static void Main(string[] args)
         {
-            bool run = false;
+            bool run = true;
             bool isDebug = true;
 
             var options = new OptionSet()
@@ -26,17 +26,21 @@ namespace TaffyScript
             };
 
             var extra = options.Parse(args);
-            var path = extra[0];
+            //var path = extra[0];
 
             Console.WriteLine("Compile Start...");
+
+            var path = @"C:\Users\Chris\Source\GmToSharpSamples\HelloLanguage";
 
             var compiler = new MsilWeakCompiler();
 
             var result = compiler.CompileProject(path);
+            //var result = compiler.CompileCode(Bcl.Generate(), new MsilWeakBuildConfig() { Mode = CompileMode.Debug, Output = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TaffyScript", "Libraries", "taffybcl") });
 
             if (result.Errors.Count == 0)
             {
                 Console.WriteLine("Compile succeeded...");
+                Console.WriteLine($"Output: {result.PathToAssembly}");
                 if (run && result.PathToAssembly.EndsWith(".exe"))
                 {
                     Console.WriteLine("Running...\n");
@@ -50,6 +54,7 @@ namespace TaffyScript
                 foreach (var error in result.Errors)
                     Console.WriteLine(error.Message);
             }
+            //Console.ReadLine();
         }
 
         private static void RunOutput(string location)
@@ -73,13 +78,6 @@ namespace TaffyScript
                 process.BeginErrorReadLine();
                 process.WaitForExit();
             }
-        }
-
-        static void CompileBcl()
-        {
-            var code = Bcl.Generate();
-            var compiler = new MsilWeakCompiler();
-            compiler.CompileCode(code, "gmbcl");
         }
 
         static void WriteSyntax(ISyntaxElement node, int indent)
