@@ -94,6 +94,13 @@ namespace TaffyScript
                     var objName = Confirm("id");
                     _table.EnterNew(objName.Value, SymbolType.Object);
                     var node = _factory.CreateNode(SyntaxType.Object, objName.Value, objName.Position);
+                    if (Validate(":"))
+                    {
+                        var parent = Confirm("id");
+                        node.AddChild(_factory.CreateConstant(ConstantType.String, parent.Value, parent.Position));
+                    }
+                    else
+                        node.AddChild(_factory.CreateConstant(ConstantType.String, "", objName.Position));
                     Confirm("{");
                     while (!Try("}"))
                     {

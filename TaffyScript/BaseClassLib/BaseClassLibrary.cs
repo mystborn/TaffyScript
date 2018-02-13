@@ -97,10 +97,10 @@ namespace GmExtern
         {
             var size = args[0].GetNumAsInt();
             var value = TsObject.Empty();
-            if(args.Length > 1)
+            if (args.Length > 1)
                 value = args[1];
             var result = new TsObject[size];
-            for(var i = 0; i < size; ++i)
+            for (var i = 0; i < size; ++i)
                 result[i] = value;
 
             return new TsObject(result);
@@ -114,7 +114,7 @@ namespace GmExtern
             if (var1.Length != var2.Length)
                 return new TsObject(false);
 
-            for(var i = 0; i < var1.Length; ++i)
+            for (var i = 0; i < var1.Length; ++i)
             {
                 if (var1[i] != var2[i])
                     return new TsObject(false);
@@ -195,5 +195,50 @@ namespace GmExtern
         {
             return (x1 * x2) + (y1 + y2);
         }
+
+        [WeakMethod]
+        public static TsObject EventInherited(TsObject[] args)
+        {
+            var inst = TsObject.Id.Peek().GetInstance();
+            if (inst.Parent != null)
+                if (TsInstance.Events.TryGetValue(inst.Parent, out var events) && events.TryGetValue(TsInstance.EventType.Peek(), out var ev))
+                    ev(inst);
+
+            return TsObject.Empty();
+        }
+
+        public static string EnvironmentGetVariable(string name)
+        {
+            return Environment.GetEnvironmentVariable(name);
+        }
+
+        public static void EventPerform(string name)
+        {
+            var inst = TsObject.Id.Peek().GetInstance();
+            if(TsInstance.Events.TryGetValue(inst.ObjectType, out var events))
+            {
+                if(events.TryGetValue(name, out var toTrigger))
+                {
+                    toTrigger(inst);
+                }
+            }
+            else if(TsInstance.Events.TryGetValue(inst.Parent, out events))
+            {
+                if(events.TryGetValue(name, out var toTrigger))
+                {
+                    toTrigger(inst);
+                }
+            }
+        }
+
+        public static void EventPerformObject(string type, string eventName)
+        {
+            var inst = TsObject.Id.Peek().GetInstance();
+            if(TsInstance.Events.TryGetValue(type, out var events))
+            {
+                if (events.TryGetValue(eventName, out var ev))
+                    ev(inst);
+            }
+        } 
     }
 }

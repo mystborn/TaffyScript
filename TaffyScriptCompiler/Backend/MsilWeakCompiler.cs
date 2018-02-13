@@ -130,7 +130,7 @@ namespace TaffyScript.Backend
 
         private void EnumerateDirectories(string directory, Parser parser, HashSet<string> exclude)
         {
-            foreach (var file in Directory.EnumerateFiles(directory, "*.tf").Where(f => !exclude.Contains(f)))
+            foreach (var file in Directory.EnumerateFiles(directory, "*.tfs").Where(f => !exclude.Contains(f)))
                 parser.ParseFile(file);
 
             foreach (var dir in Directory.EnumerateDirectories(directory))

@@ -31,8 +31,6 @@ namespace TaffyScript
 
             Console.WriteLine("Compile Start...");
 
-            //var path = @"C:\Users\Chris\Source\GmToSharpSamples\HelloLanguage";
-
             var compiler = new MsilWeakCompiler();
             CompilerResult result;
 

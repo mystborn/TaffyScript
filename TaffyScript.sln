@@ -7,8 +7,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaffyScript", "TaffyScript\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaffyScriptCompiler", "TaffyScriptCompiler\TaffyScriptCompiler.csproj", "{4022F406-FCE6-4A8D-B99F-6EF6C406248A}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{3A7E4A0D-43E6-404B-8663-A43E9AE36D36}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

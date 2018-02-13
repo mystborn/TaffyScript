@@ -1805,12 +1805,29 @@ namespace TaffyScript.Backend
                 name = name.TrimStart('.');
             var type = _module.DefineType(name, TypeAttributes.Public);
             _table.Enter(objectNode.Value);
+            var parent = objectNode.Inherits as IConstantToken<string>;
+            if (parent == null)
+                _errors.Add(new CompileException($"Invalid syntax detected {objectNode.Inherits.Position}"));
+
+
             var input = new[] { typeof(TsInstance) };
+            var inherits = typeof(TsInstance).GetField("Inherits");
             var addMethod = typeof(Dictionary<string, InstanceEvent>).GetMethod("Add");
             var objectIds = typeof(TsInstance).GetField("ObjectIndexMapping");
             var events = typeof(TsInstance).GetField("Events");
             var addObjectId = typeof(Dictionary<Type, string>).GetMethod("Add");
+            var eventType = typeof(TsInstance).GetField("EventType");
+            var push = typeof(Stack<string>).GetMethod("Push");
+            var pop = typeof(Stack<string>).GetMethod("Pop");
             var init = ModuleInitializer;
+            if(parent.Value != null)
+            {
+                init.LdFld(inherits)
+                    .LdStr(name)
+                    .LdStr(parent.Value)
+                    .Call(typeof(Dictionary<string, string>).GetMethod("Add"));
+            }
+
             init.LdFld(objectIds)
                 .LdType(type)
                 .Call(typeof(Type).GetMethod("GetTypeFromHandle"))
@@ -1820,7 +1837,7 @@ namespace TaffyScript.Backend
                 .LdStr(name)
                 .New(typeof(Dictionary<string, InstanceEvent>).GetConstructor(Type.EmptyTypes));
 
-            foreach (EventNode ev in objectNode.Children)
+            foreach (EventNode ev in objectNode.Children.Skip(1))
             {
                 var method = type.DefineMethod(ev.Value, MethodAttributes.Public | MethodAttributes.Static, typeof(void), input);
                 emit = new ILEmitter(method, input, _isDebug);
@@ -1828,10 +1845,16 @@ namespace TaffyScript.Backend
                     .LdArg(0)
                     .Call(typeof(TsInstance).GetMethod("get_Id"))
                     .New(_tsConstructors[typeof(float)])
-                    .Call(PushId);
+                    .Call(PushId)
+                    .LdFld(eventType)
+                    .LdStr(ev.Value)
+                    .Call(push);
                 ev.Body.Accept(this);
                 emit.Call(GetIdStack)
                     .Call(PopId)
+                    .Pop()
+                    .LdFld(eventType)
+                    .Call(pop)
                     .Pop()
                     .Ret();
 

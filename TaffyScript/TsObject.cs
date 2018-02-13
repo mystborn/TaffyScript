@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace GmExtern
 {
-
     public struct TsObject
     {
         public const float All = -3f;
         public static Stack<TsObject> Id { get; } = new Stack<TsObject>();
+
         /// <summary>
         /// Global GM object. DO NOT SET.
         /// </summary>
@@ -301,6 +301,20 @@ namespace GmExtern
         public override string ToString()
         {
             return GetValue().ToString();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if(obj != null)
+            {
+                if (obj is string str)
+                    return this == str;
+                else if (obj is float f)
+                    return this == f;
+                else if (obj is TsObject other)
+                    return this == other;
+            }
+            return false;
         }
 
         #region Operators

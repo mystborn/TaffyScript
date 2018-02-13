@@ -21,6 +21,8 @@ namespace GmExtern
         public static Dictionary<Type, string> ObjectIndexMapping = new Dictionary<Type, string>();
         public static Dictionary<string, Dictionary<string, InstanceEvent>> Events = new Dictionary<string, Dictionary<string, InstanceEvent>>();
         public static Dictionary<string, TaffyFunction> Functions = new Dictionary<string, TaffyFunction>();
+        public static Dictionary<string, string> Inherits = new Dictionary<string, string>();
+        public static Stack<string> EventType = new Stack<string>();
 
         public TsObject this[string variableName]
         {
@@ -30,20 +32,36 @@ namespace GmExtern
 
         public float Id { get; }
         public string ObjectType { get; }
+        public string Parent { get; }
 
         private TsInstance(float id, string instanceType)
         {
             Id = id;
             ObjectType = instanceType;
             Pool.Add(id, this);
+
+            // Originally, all of the instance events were added onto the object as strings.
+            // However at this point in time, I've decided that it's too much of a time sink.
+            // This decision is easily reversable if it turns out to be wrong/unneeded.
+            // In the meantime, you can still refer to the event by it's string representation.
+
+            InstanceEvent create = null;
+            if (Inherits.TryGetValue(instanceType, out var parent))
+            {
+                Parent = parent;
+                if (Events.TryGetValue(parent, out var inheritedEvents))
+                    inheritedEvents.TryGetValue("create", out create);
+            }
+            else
+                Parent = null;
+
             if(Events.TryGetValue(instanceType, out var events))
             {
-                foreach (var ev in events.Keys)
-                    _vars.Add(ev, new TsObject(ev));
-
-                if (events.TryGetValue("create", out var create))
-                    create(this);
+                if (events.TryGetValue("create", out var temp))
+                    create = temp;
             }
+
+            create?.Invoke(this);
         }
 
         public static TsObject InstanceCreate(string instanceType)
@@ -61,10 +79,13 @@ namespace GmExtern
 
         public static void InstanceDestroy(float id)
         {
-            Pool.Remove(id);
-            if (Pool.TryGetValue(id, out var inst) && Events.TryGetValue(inst.ObjectType, out var events) && events.TryGetValue("destroy", out var destroy))
+            if(Pool.TryGetValue(id, out var inst))
             {
-                destroy(inst);
+                Pool.Remove(id);
+                if (Events.TryGetValue(inst.ObjectType, out var events) && events.TryGetValue("destroy", out var destroy))
+                    destroy(inst);
+                else if (inst.Parent != null && Events.TryGetValue(inst.Parent, out events) && events.TryGetValue("destroy", out destroy))
+                    destroy(inst);
             }
             _availableIds.Enqueue(id);
         }

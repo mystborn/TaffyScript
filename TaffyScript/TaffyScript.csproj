@@ -7,8 +7,8 @@
     <ProjectGuid>{68399D06-20DF-4CE8-9920-BD82DF2B8F69}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>GmExtern</RootNamespace>
-    <AssemblyName>GmExtern</AssemblyName>
+    <RootNamespace>TaffyScript</RootNamespace>
+    <AssemblyName>TaffyScript</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
