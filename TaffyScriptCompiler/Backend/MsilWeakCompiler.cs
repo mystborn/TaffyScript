@@ -7,12 +7,17 @@ using System.Xml.Serialization;
 
 namespace TaffyScript.Backend
 {
-    public class MsilWeakCompiler
+    public class MsilWeakCompiler : ICompiler
     {
         public MsilWeakCompiler()
         {
         }
 
+        /// <summary>
+        /// Compiles a TaffyScript project.
+        /// </summary>
+        /// <param name="projectDir">The directory of the TaffyScript project.</param>
+        /// <returns></returns>
         public CompilerResult CompileProject(string projectDir)
         {
             if (!Directory.Exists(projectDir))
@@ -65,6 +70,12 @@ namespace TaffyScript.Backend
             return result;
         }
 
+        /// <summary>
+        /// Compiles a string comprised of TaffyScript code using the default settings.
+        /// </summary>
+        /// <param name="code">The TaffyScript code to compile.</param>
+        /// <param name="outputName">The name of the output file. Can be a path.</param>
+        /// <returns></returns>
         public CompilerResult CompileCode(string code, string outputName)
         {
             var config = new BuildConfig()
@@ -75,6 +86,12 @@ namespace TaffyScript.Backend
             return CompileCode(code, config);
         }
 
+        /// <summary>
+        /// Compiles a string comprised of TaffyScript code using the config settings.
+        /// </summary>
+        /// <param name="code">The taffyScript code to compile.</param>
+        /// <param name="config">The config to use.</param>
+        /// <returns></returns>
         public CompilerResult CompileCode(string code, BuildConfig config)
         {
             var dir = Path.GetDirectoryName(config.Output);

@@ -75,7 +75,7 @@
     <Compile Include="Backend\MsilWeakCodeGen.cs" />
     <Compile Include="Backend\NameConflictException.cs" />
     <Compile Include="DotNet\AssemblyLoader.cs" />
-    <Compile Include="Backend\Compiler.cs" />
+    <Compile Include="Backend\ICompiler.cs" />
     <Compile Include="Backend\ILEmitter.cs" />
     <Compile Include="Backend\MsilWeakCompiler.cs" />
     <Compile Include="Front End\LexicalAnalysis\Token.cs" />

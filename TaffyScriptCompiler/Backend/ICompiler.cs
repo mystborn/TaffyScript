@@ -1,14 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Reflection;
-using System.Reflection.Emit;
-using GmExtern;
-
-namespace TaffyScript.Backend
+﻿namespace TaffyScript.Backend
 {
     public interface ICompiler
     {
