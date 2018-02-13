@@ -161,7 +161,7 @@
   <ItemGroup>
     <ProjectReference Include="..\TaffyScript\TaffyScript.csproj">
       <Project>{68399d06-20df-4ce8-9920-bd82df2b8f69}</Project>
-      <Name>GmExtern</Name>
+      <Name>TaffyScript</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
