@@ -14,8 +14,15 @@ namespace TaffyScript.Backend
 {
     internal partial class MsilWeakCodeGen : ISyntaxElementVisitor
     {
+        #region Constants
+
         private const string SpecialImportsFileName = "SpecialImports.resource";
         private const float All = -3f;
+
+        #endregion
+
+        #region Fields
+
         private int _secret = 0;
         private Dictionary<string, ISymbolDocumentWriter> _documents = new Dictionary<string, ISymbolDocumentWriter>();
 
@@ -49,6 +56,21 @@ namespace TaffyScript.Backend
         private HashSet<string> _pendingMethods = new HashSet<string>();
         private System.IO.MemoryStream _stream = null;
         private System.IO.StreamWriter _specialImports = null;
+
+        private string _namespace = "";
+
+        private ILEmitter emit;
+        private Dictionary<ISymbol, LocalBuilder> _locals = new Dictionary<ISymbol, LocalBuilder>();
+        private Stack<Label> _loopStart = new Stack<Label>();
+        private Stack<Label> _loopEnd = new Stack<Label>();
+        private bool _inScript;
+        private bool _needAddress = false;
+        private LocalBuilder _id = null;
+
+        #endregion
+
+        #region Properties
+
         private System.IO.StreamWriter SpecialImports
         {
             get
@@ -106,19 +128,9 @@ namespace TaffyScript.Backend
             }
         }
 
-        private string _namespace = "";
+        #endregion
 
-        //This really shouldn't be a member variable.
-        //But it's really inconvenient to pass it around.
-        //Should only be accessed inside of scripts and object constructor/destructor.
-        private ILEmitter emit;
-        private Dictionary<ISymbol, LocalBuilder> _locals = new Dictionary<ISymbol, LocalBuilder>();
-        private Stack<Label> _loopStart = new Stack<Label>();
-        private Stack<Label> _loopEnd = new Stack<Label>();
-        private bool _inScript;
-        private bool _needAddress = false;
-        private LocalBuilder _id = null;
-
+        #region Public
 
         public MsilWeakCodeGen(SymbolTable table, MsilWeakBuildConfig config)
         {
@@ -210,6 +222,10 @@ namespace TaffyScript.Backend
 
             return new CompilerResult(_asm, System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), _asmName.Name + output));
         }
+
+        #endregion
+
+        #region Helpers
 
         private void FindValidMethods(Assembly asm)
         {
@@ -584,6 +600,8 @@ namespace TaffyScript.Backend
             }
         }
 
+        #endregion
+
         #region Visitor
 
         public void Visit(AdditiveNode additive)
@@ -766,6 +784,43 @@ namespace TaffyScript.Backend
                 argTypes[argTypes.Length - 1] = emit.GetTop();
                 emit.Call(typeof(GmObject).GetMethod("ArraySet", argTypes));
             }
+            //Todo: Optimize DsAccessNodes
+            //If ds.Left is var, use that instead of creating new local.
+            //If ds.Right is constant, use that instead of creating new local.
+            else if(assign.Left is ListAccessNode list)
+            {
+                LoadElementAsInt(list.Left);
+                LoadElementAsInt(list.Right);
+                assign.Right.Accept(this);
+                var top = emit.GetTop();
+                if (top != typeof(GmObject))
+                    emit.New(_gmConstructors[top]);
+                emit.Call(typeof(DsList).GetMethod("DsListStrongSet"));
+            }
+            else if(assign.Left is GridAccessNode grid)
+            {
+                LoadElementAsInt(grid.Left);
+                LoadElementAsInt(grid.X);
+                LoadElementAsInt(grid.Y);
+                assign.Right.Accept(this);
+                var top = emit.GetTop();
+                if (top != typeof(GmObject))
+                    emit.New(_gmConstructors[top]);
+                emit.Call(typeof(DsGrid).GetMethod("DsGridSet"));
+            }
+            else if(assign.Left is MapAccessNode map)
+            {
+                LoadElementAsInt(map.Left);
+                map.Right.Accept(this);
+                var top = emit.GetTop();
+                if (top != typeof(GmObject))
+                    emit.New(_gmConstructors[top]);
+                assign.Right.Accept(this);
+                top = emit.GetTop();
+                if (top != typeof(GmObject))
+                    emit.New(_gmConstructors[top]);
+                emit.Call(typeof(DsMap).GetMethod("DsMapReplace"));
+            }
             else if (assign.Left is VariableToken variable)
             {
                 //Check if the variable is a local variable.
@@ -828,6 +883,30 @@ namespace TaffyScript.Backend
                 emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
                     .StObj(typeof(GmObject));
             }
+            else if (assign.Left is ListAccessNode list)
+            {
+                ListAccessSet(list);
+                emit.Call(typeof(DsList).GetMethod("DsListFindValue"));
+                assign.Right.Accept(this);
+                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
+                    .Call(typeof(DsList).GetMethod("DsListStrongSet"));
+            }
+            else if (assign.Left is GridAccessNode grid)
+            {
+                GridAccessSet(grid);
+                emit.Call(typeof(DsGrid).GetMethod("DsGridGet"));
+                assign.Right.Accept(this);
+                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
+                    .Call(typeof(DsGrid).GetMethod("DsGridSet"));
+            }
+            else if (assign.Left is MapAccessNode map)
+            {
+                MapAccessSet(map);
+                emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"));
+                assign.Right.Accept(this);
+                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
+                    .Call(typeof(DsMap).GetMethod("DsMapReplace"));
+            }
             else if(assign.Left is VariableToken variable)
             {
                 if (_table.Defined(variable.Text, out var symbol))
@@ -862,6 +941,56 @@ namespace TaffyScript.Backend
                 emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
                     .Call(typeof(GmObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }));
             }
+        }
+
+        private void ListAccessSet(ListAccessNode list)
+        {
+            var id = MakeSecret(typeof(int));
+            var index = MakeSecret(typeof(int));
+            LoadElementAsInt(list.Left);
+            emit.StLocal(id);
+            LoadElementAsInt(list.Right);
+            emit.StLocal(index)
+                .LdLocal(id)
+                .LdLocal(index)
+                .LdLocal(id)
+                .LdLocal(index);
+        }
+
+        private void GridAccessSet(GridAccessNode grid)
+        {
+            var id = MakeSecret(typeof(int));
+            var x = MakeSecret(typeof(int));
+            var y = MakeSecret(typeof(int));
+            LoadElementAsInt(grid.Left);
+            emit.StLocal(id);
+            LoadElementAsInt(grid.X);
+            emit.StLocal(x);
+            LoadElementAsInt(grid.Y);
+            emit.StLocal(y)
+                .LdLocal(id)
+                .LdLocal(x)
+                .LdLocal(y)
+                .LdLocal(id)
+                .LdLocal(x)
+                .LdLocal(y);
+        }
+
+        private void MapAccessSet(MapAccessNode map)
+        {
+            var id = MakeSecret(typeof(int));
+            var key = MakeSecret();
+            LoadElementAsInt(map.Left);
+            emit.StLocal(id);
+            map.Right.Accept(this);
+            var top = emit.GetTop();
+            if (top != typeof(GmObject))
+                emit.New(_gmConstructors[top]);
+            emit.StLocal(key);
+            emit.LdLocal(id)
+                .LdLocal(key)
+                .LdLocal(id)
+                .LdLocal(key);
         }
 
         public void Visit(BitwiseNode bitwise)
@@ -1223,7 +1352,10 @@ namespace TaffyScript.Backend
 
         public void Visit(GridAccessNode gridAccess)
         {
-            _errors.Add(new NotImplementedException($"Currently grid access is not available {gridAccess.Position}."));
+            LoadElementAsInt(gridAccess.Left);
+            LoadElementAsInt(gridAccess.X);
+            LoadElementAsInt(gridAccess.Y);
+            emit.Call(typeof(DsGrid).GetMethod("DsGridGet"));
         }
 
         public void Visit(IfNode ifNode)
@@ -1286,7 +1418,29 @@ namespace TaffyScript.Backend
 
         public void Visit(ListAccessNode listAccess)
         {
-            _errors.Add(new NotImplementedException($"Currently list access is not available {listAccess.Position}."));
+            LoadElementAsInt(listAccess.Left);
+            LoadElementAsInt(listAccess.Right);
+            emit.Call(typeof(DsList).GetMethod("DsListFindValue"));
+        }
+
+        private void LoadElementAsInt(ISyntaxElement element)
+        {
+            GetAddressIfPossible(element);
+            var top = emit.GetTop();
+            if (top == typeof(bool))
+                top = typeof(int);
+            else if (top == typeof(float))
+            {
+                emit.ConvertInt(false);
+                top = typeof(int);
+            }
+            else if (top == typeof(GmObject) || top == typeof(GmObject).MakePointerType())
+            {
+                CallInstanceMethod(_gmObjectCasts[typeof(int)], element.Position);
+                top = typeof(int);
+            }
+            else
+                _errors.Add(new CompileException($"Invalid syntax detected {element.Position}"));
         }
 
         public void Visit(LocalsNode localsNode)
@@ -1340,7 +1494,15 @@ namespace TaffyScript.Backend
 
         public void Visit(MapAccessNode mapAccess)
         {
-            _errors.Add(new NotImplementedException($"Currently map access is not available {mapAccess.Position}."));
+            LoadElementAsInt(mapAccess.Left);
+            mapAccess.Right.Accept(this);
+            var top = emit.GetTop();
+            if(top != typeof(GmObject))
+            {
+                emit.New(_gmConstructors[top]);
+                top = typeof(GmObject);
+            }
+            emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"));
         }
 
         public void Visit(MemberAccessNode memberAccess)
@@ -1488,9 +1650,9 @@ namespace TaffyScript.Backend
 
         public void Visit(PostfixNode postfix)
         {
+            var secret = MakeSecret();
             if (postfix.Child is ArrayAccessNode array)
             {
-                var secret = MakeSecret();
                 GetAddressIfPossible(array);
                 emit.Dup()
                     .Dup()
@@ -1501,13 +1663,42 @@ namespace TaffyScript.Backend
                     .StObj(typeof(GmObject))
                     .LdLocal(secret);
             }
+            else if(postfix.Child is ListAccessNode list)
+            {
+                ListAccessSet(list);
+                emit.Call(typeof(DsList).GetMethod("DsListFindValue"))
+                    .StLocal(secret)
+                    .LdLocal(secret)
+                    .Call(GetOperator(postfix.Value, typeof(GmObject), postfix.Position))
+                    .Call(typeof(DsList).GetMethod("DsListStrongSet"))
+                    .LdLocal(secret);
+            }
+            else if(postfix.Child is GridAccessNode grid)
+            {
+                GridAccessSet(grid);
+                emit.Call(typeof(DsGrid).GetMethod("DsGridGet"))
+                    .StLocal(secret)
+                    .LdLocal(secret)
+                    .Call(GetOperator(postfix.Value, typeof(GmObject), postfix.Position))
+                    .Call(typeof(DsGrid).GetMethod("DsGridSet"))
+                    .LdLocal(secret);
+            }
+            else if(postfix.Child is MapAccessNode map)
+            {
+                MapAccessSet(map);
+                emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"))
+                    .StLocal(secret)
+                    .LdLocal(secret)
+                    .Call(GetOperator(postfix.Value, typeof(GmObject), postfix.Position))
+                    .Call(typeof(DsMap).GetMethod("DsMapReplace"))
+                    .LdLocal(secret);
+            }
             else if (postfix.Child is VariableToken variable)
             {
                 if (_table.Defined(variable.Text, out var symbol))
                 {
                     if (symbol.Type != SymbolType.Variable)
                         _errors.Add(new CompileException($"Cannot perform {postfix.Value} on an identifier that is not a variable {postfix.Position}"));
-                    var secret = MakeSecret();
                     GetAddressIfPossible(variable);
                     emit.Dup()
                         .Dup()
@@ -1528,7 +1719,6 @@ namespace TaffyScript.Backend
                 if (top != typeof(GmObject))
                     _errors.Add(new CompileException($"Cannot access member on type {top} {member.Left.Position}"));
                 var name = ((ISyntaxToken)member.Right).Text;
-                var secret = MakeSecret();
                 var value = MakeSecret();
                 emit.StLocal(secret)
                     .LdLocalA(secret)
@@ -1559,6 +1749,27 @@ namespace TaffyScript.Backend
                     .Call(GetOperator(prefix.Value, typeof(GmObject), prefix.Position))
                     .StObj(typeof(GmObject))
                     .LdObj(typeof(GmObject));
+            }
+            else if(prefix.Child is ListAccessNode list)
+            {
+                ListAccessSet(list);
+                emit.Call(typeof(DsList).GetMethod("DsListFindValue"))
+                    .Call(GetOperator(prefix.Value, typeof(GmObject), prefix.Position))
+                    .Call(typeof(DsList).GetMethod("DsListStrongSet"));
+            }
+            else if(prefix.Child is GridAccessNode grid)
+            {
+                GridAccessSet(grid);
+                emit.Call(typeof(DsGrid).GetMethod("DsGridGet"))
+                    .Call(GetOperator(prefix.Value, typeof(GmObject), prefix.Position))
+                    .Call(typeof(DsGrid).GetMethod("DsGridSet"));
+            }
+            else if(prefix.Child is MapAccessNode map)
+            {
+                MapAccessSet(map);
+                emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"))
+                    .Call(GetOperator(prefix.Value, typeof(GmObject), emit.GetTop(), prefix.Position))
+                    .Call(typeof(DsMap).GetMethod("DsMapReplace"));
             }
             else if (prefix.Child is VariableToken variable)
             {
@@ -1739,9 +1950,6 @@ namespace TaffyScript.Backend
         {
             foreach(var child in root.Children)
             {
-                //Todo: Create exception for invalid node type.
-                //Todo: Process everything before scripts.
-                //      Alternatively, process titles, then go through sequentially.
                 if (child.Type != SyntaxType.Enum && child.Type != SyntaxType.Import && child.Type != SyntaxType.Script && child.Type != SyntaxType.Object)
                     _errors.Add(new CompileException($"Invalid syntax detected {child.Position}"));
                 else

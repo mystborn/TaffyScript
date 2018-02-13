@@ -80,7 +80,10 @@ namespace GmExtern
 
         public static GmObject DsListFindValue(int id, int index)
         {
-            return GetList(id)[index];
+            var list = GetList(id);
+            if (index >= list.Count)
+                return GmObject.Empty();
+            return list[index];
         }
 
         public static void DsListInsert(int id, int pos, GmObject val)
@@ -107,6 +110,14 @@ namespace GmExtern
                 list[pos + i - 2] = args[i];
 
             return GmObject.Empty();
+        }
+
+        public static void DsListStrongSet(int id, int pos, GmObject value)
+        {
+            var list = GetList(id);
+            while (list.Count <= pos)
+                list.Add(new GmObject(0));
+            list[pos] = value;
         }
 
         public static void DsListShuffle(int id)

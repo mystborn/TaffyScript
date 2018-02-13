@@ -35,9 +35,7 @@ namespace TaffyScript
         {
             using (_stream = new Tokenizer(code))
             {
-                _stream.ErrorEncountered += (e) => Errors.Add(e);
-                while (!_stream.Finished)
-                    _tree.Root.AddChild(DeclarationOrStatement());
+                Parse(_tree.Root);
             }
         }
 
@@ -47,11 +45,28 @@ namespace TaffyScript
             {
                 using(_stream = new Tokenizer(fs))
                 {
-                    _stream.ErrorEncountered += (e) => Errors.Add(e);
-                    while (!_stream.Finished)
-                        _tree.Root.AddChild(DeclarationOrStatement());
+                    Parse(_tree.Root);
                 }
             }
+        }
+
+        private void Parse(ISyntaxNode root)
+        {
+            //Make sure that enums get processed before anything else.
+            _stream.ErrorEncountered += (e) => Errors.Add(e);
+            var enums = new List<ISyntaxElement>();
+            while (!_stream.Finished)
+            {
+                var child = DeclarationOrStatement();
+                if(child.Type == SyntaxType.Enum)
+                {
+                    enums.Add(child);
+                    child.Parent = root;
+                }
+                else
+                    root.AddChild(child);
+            }
+            root.Children.InsertRange(0, enums);
         }
 
         private ISyntaxElement DeclarationOrStatement()
@@ -96,7 +111,7 @@ namespace TaffyScript
                                 nameNode.AddChild(_factory.CreateConstant(ConstantType.Real, num.Value, num.Position));
                             }
                             else
-                                nameNode = _factory.CreateNode(SyntaxType.Assign, name.Value, name.Position);
+                                nameNode = _factory.CreateNode(SyntaxType.Declare, name.Value, name.Position);
                             node.AddChild(nameNode);
                         }
                         while (Validate(","));

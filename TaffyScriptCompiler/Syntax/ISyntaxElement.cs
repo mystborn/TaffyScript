@@ -10,7 +10,7 @@ namespace TaffyScript.Syntax
     public interface ISyntaxElement
     {
         //Todo: Element should know file pos.
-        SyntaxNode Parent { get; set; }
+        ISyntaxNode Parent { get; set; }
         SyntaxType Type { get; }
         TokenPosition Position { get; }
         bool IsToken { get; }

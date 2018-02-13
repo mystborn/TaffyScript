@@ -18,24 +18,32 @@ namespace TaffyScript
         {
             bool run = true;
             bool isDebug = true;
+            bool generateBcl = false;
 
             var options = new OptionSet()
             {
                 { "r", v => run = v != null },
-                { "mode=", v => isDebug = v == null || v == "release" }
+                { "mode=", v => isDebug = v == null || v == "release" },
+                { "bcl", v => generateBcl = v != null }
             };
 
-            var extra = options.Parse(args);
-            //var path = extra[0];
+            //var extra = options.Parse(args);
 
             Console.WriteLine("Compile Start...");
 
             var path = @"C:\Users\Chris\Source\GmToSharpSamples\HelloLanguage";
 
             var compiler = new MsilWeakCompiler();
+            CompilerResult result;
 
-            var result = compiler.CompileProject(path);
-            //var result = compiler.CompileCode(Bcl.Generate(), new MsilWeakBuildConfig() { Mode = CompileMode.Debug, Output = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TaffyScript", "Libraries", "taffybcl") });
+            if (!generateBcl)
+            {
+
+                //var path = extra[0];
+                result = compiler.CompileProject(path);
+            }
+            else
+                result = compiler.CompileCode(Bcl.Generate(), new MsilWeakBuildConfig() { Mode = CompileMode.Release, Output = Path.Combine(Path.GetDirectoryName(typeof(Program).Assembly.Location), "Libraries", "taffybcl") });
 
             if (result.Errors.Count == 0)
             {
@@ -54,7 +62,6 @@ namespace TaffyScript
                 foreach (var error in result.Errors)
                     Console.WriteLine(error.Message);
             }
-            //Console.ReadLine();
         }
 
         private static void RunOutput(string location)

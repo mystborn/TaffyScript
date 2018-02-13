@@ -8,7 +8,7 @@ namespace TaffyScript.Syntax
 {
     public abstract class SyntaxNode : ISyntaxNode
     {
-        public SyntaxNode Parent { get; set; }
+        public ISyntaxNode Parent { get; set; }
         public string Value { get; } = null;
         public List<ISyntaxElement> Children { get; } = new List<ISyntaxElement>();
         public TokenPosition Position { get; }
@@ -27,19 +27,6 @@ namespace TaffyScript.Syntax
         {
             return Type + (Value == null ? "" : (": " + Value));
         }
-
-        /*public SyntaxToken AddToken(ConstantType type, string value)
-        {
-            var token = SyntaxToken.CreateConstant(type, value, this);
-            Children.Add(token);
-            return token;
-        }
-
-        public void AddToken(SyntaxToken token)
-        {
-            Children.Add(token);
-            token.Parent = this;
-        }*/
 
         public void AddChild(ISyntaxElement child)
         {

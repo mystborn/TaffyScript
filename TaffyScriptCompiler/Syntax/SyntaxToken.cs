@@ -8,7 +8,7 @@ namespace TaffyScript.Syntax
 {
     public abstract class SyntaxToken : ISyntaxToken
     {
-        public SyntaxNode Parent { get; set; }
+        public ISyntaxNode Parent { get; set; }
         public string Text { get; }
         public abstract SyntaxType Type { get; }
         public TokenPosition Position { get; }

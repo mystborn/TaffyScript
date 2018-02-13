@@ -431,7 +431,7 @@ namespace GmExtern
             var dstOffset = ypos * dst._source.GetLength(0) + xpos;
             for (var h = y1; h <= y2; h++)
             {
-                Buffer.BlockCopy(src._source, srcOffset, dst._source, dstOffset, xLength);
+                Array.Copy(src._source, srcOffset, dst._source, dstOffset, xLength);
                 srcOffset += srcXLength;
                 dstOffset += dstXLength;
             }

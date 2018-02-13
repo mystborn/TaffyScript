@@ -18,8 +18,8 @@ namespace TaffyScript.Backend
             if (!Directory.Exists(projectDir))
                 return new CompilerResult(null, null, new DirectoryNotFoundException($"Could not find the project directory {projectDir}"));
 
-            var projectFile = Path.Combine(projectDir, "config.cfg");
-            if (!File.Exists(Path.Combine(projectDir, "config.cfg")))
+            var projectFile = Path.Combine(projectDir, "build.cfg");
+            if (!File.Exists(Path.Combine(projectDir, "build.cfg")))
                 return new CompilerResult(null, null, new FileNotFoundException("Could not find the project file."));
 
             MsilWeakBuildConfig config;
@@ -104,9 +104,7 @@ namespace TaffyScript.Backend
                 CopyFileIfNewer(typeof(GmExtern.GmObject).Assembly.Location, Path.Combine(dir, typeof(GmExtern.GmObject).Assembly.GetName().Name + ".dll"));
                 if (result.PathToAssembly != expectedOutput)
                 {
-                    if (File.Exists(expectedOutput))
-                        File.Delete(expectedOutput);
-                    File.Move(result.PathToAssembly, expectedOutput);
+                    MoveFile(result.PathToAssembly, expectedOutput);
                     return new CompilerResult(result.CompiledAssebmly, expectedOutput, result.Errors.ToArray());
                 }
             }
@@ -130,7 +128,7 @@ namespace TaffyScript.Backend
                 var output = Path.Combine(outputDir, Path.GetFileName(config.References[i]));
                 if (!File.Exists(find))
                 {
-                    find = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TaffyScript", "Libraries", config.References[i]);
+                    find = Path.Combine(Path.GetDirectoryName(GetType().Assembly.Location), "Libraries", config.References[i]);
                     if (!File.Exists(find))
                         errors.Add(new FileNotFoundException($"Could not find the specified reference: {config.References[i]}."));
                     else
@@ -142,8 +140,37 @@ namespace TaffyScript.Backend
             }
         }
 
+        private void MoveFile(string source, string dest)
+        {
+            var ext = Path.GetExtension(source);
+            if(ext == ".dll")
+            {
+                var pdb = Path.Combine(Path.GetDirectoryName(source), Path.GetFileNameWithoutExtension(source) + ".pdb");
+                if (File.Exists(pdb))
+                {
+                    var destPdb = Path.Combine(Path.GetDirectoryName(dest), Path.GetFileNameWithoutExtension(dest) + ".pdb");
+                    MoveFile(pdb, destPdb);
+                }
+            }
+            if (source == dest)
+                return;
+            if (File.Exists(dest))
+                File.Delete(dest);
+            File.Move(source, dest);
+        }
+
         private void CopyFileIfNewer(string source, string dest)
         {
+            var ext = Path.GetExtension(source);
+            if (ext == ".dll")
+            {
+                var pdb = Path.Combine(Path.GetDirectoryName(source), Path.GetFileNameWithoutExtension(source) + ".pdb");
+                if (File.Exists(pdb))
+                {
+                    var destPdb = Path.Combine(Path.GetDirectoryName(dest), Path.GetFileNameWithoutExtension(dest) + ".pdb");
+                    CopyFileIfNewer(pdb, destPdb);
+                }
+            }
             if (source == dest)
                 return;
             if (File.Exists(dest))

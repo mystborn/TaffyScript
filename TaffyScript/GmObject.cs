@@ -208,7 +208,7 @@ namespace GmExtern
             if (index >= arr.Length)
             {
                 var temp = new GmObject[real + 1];
-                Buffer.BlockCopy(arr, 0, temp, 0, arr.Length);
+                Array.Copy(arr, 0, temp, 0, arr.Length);
                 arr = temp;
                 self.StrongValue = temp;
             }
@@ -244,7 +244,7 @@ namespace GmExtern
             if(real1 >= self.StrongValue.Length)
             {
                 var temp = new GmObject[real1 + 1][];
-                Buffer.BlockCopy(self.StrongValue, 0, temp, 0, self.StrongValue.Length);
+                Array.Copy(self.StrongValue, 0, temp, 0, self.StrongValue.Length);
                 self.StrongValue = temp;
             }
             if (self.StrongValue[real1] == null)
@@ -252,7 +252,7 @@ namespace GmExtern
             else if(real2 >= self.StrongValue[real1].Length)
             {
                 var temp = new GmObject[real2 + 1];
-                Buffer.BlockCopy(self.StrongValue[real1], 0, temp, 0, self.StrongValue[real2].Length);
+                Array.Copy(self.StrongValue[real1], 0, temp, 0, self.StrongValue[real2].Length);
                 self.StrongValue[real1] = temp;
             }
             self.StrongValue[real1][real2] = right;
@@ -855,8 +855,9 @@ namespace GmExtern
 
         public static void ConditionalTest()
         {
-            GetId().GetBool();
-            GetId().GetNum();
+            var list = new List<int>();
+            list.Add(1);
+            list[0]++;
         }
 
         #endregion
