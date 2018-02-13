@@ -52,7 +52,7 @@
     <Compile Include="TsValue.cs" />
     <Compile Include="BaseClassLib\DsGrid.cs" />
     <Compile Include="InstanceEnumerator.cs" />
-    <Compile Include="Exceptions\InvalidGmTypeException.cs" />
+    <Compile Include="Exceptions\InvalidTsTypeException.cs" />
     <Compile Include="Exceptions\InvalidInstanceException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VariableType.cs" />
