@@ -3,297 +3,686 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Myst.LexicalAnalysis;
+using TaffyScript.FrontEnd;
+using TaffyScript.Syntax;
 
-namespace GmParser
+namespace TaffyScript
 {
+    /// <summary>
+    /// Parses TaffyScript code and generates an AST based on the input.
+    /// </summary>
     public class Parser
     {
-        private Lexer _lexer;
+        private ISyntaxTree _tree;
+        private Tokenizer _stream;
+        private SymbolTable _table;
+        private ISyntaxElementFactory _factory;
 
+        /// <summary>
+        /// Flag used to determine whether = should mean assignment or equality.
+        /// </summary>
+        private int _canAssign = 0;
+
+        public SymbolTable Table => _table;
+        public ISyntaxTree Tree => _tree;
+        public List<Exception> Errors { get; } = new List<Exception>();
+
+        /// <summary>
+        /// Creates a new TaffyScript parser.
+        /// </summary>
         public Parser()
         {
-            _lexer = InitLexer();
+            _table = new SymbolTable();
+            _tree = new SyntaxTree(_table);
+            _factory = new SyntaxElementFactory();
         }
 
-        public ISyntaxNode ParseCode(string code)
+        /// <summary>
+        /// Parses a string comprised of TaffyScript code.
+        /// </summary>
+        /// <param name="code">The TaffyScript code to parse.</param>
+        public void Parse(string code)
         {
-            var tokens = new Queue<Token>(_lexer.Tokenize(code).Where(t => t.Type != Lexer.EoF));
-            return Statements(tokens);
-        }
-
-        public ISyntaxNode ParseExpression(string expr)
-        {
-            var tokens = new Queue<Token>(_lexer.Tokenize(expr).Where(t => t.Type != Lexer.EoF));
-            return Expression(tokens);
-        }
-
-        #region Expressions
-
-        private ISyntaxNode Expression(Queue<Token> tokens)
-        {
-            SyntaxNode expressions = null;
-            var value = AssignmentExpression(tokens);
-            /*while(Validate(tokens, "comma"))
+            using (_stream = new Tokenizer(code))
             {
-                if (expressions == null)
+                Parse(_tree.Root);
+            }
+        }
+
+        /// <summary>
+        /// Parses a file containing TaffyScript code.
+        /// </summary>
+        /// <param name="file">The file to parse.</param>
+        public void ParseFile(string file)
+        {
+            using (var fs = new System.IO.FileStream(file, System.IO.FileMode.Open))
+            {
+                using(_stream = new Tokenizer(fs))
                 {
-                    expressions = new SyntaxNode("expressions");
-                    expressions.AddChild(value);
+                    Parse(_tree.Root);
                 }
-                expressions.AddChild(AssignmentExpression(tokens));
-            }*/
-            if (expressions != null)
-                return expressions;
-            else
-                return value;
+            }
         }
 
-        private ISyntaxNode AssignmentExpression(Queue<Token> tokens)
+        private void Parse(ISyntaxNode root)
         {
-            var value = ConditionalExpression(tokens);
+            _stream.ErrorEncountered += (e) => Errors.Add(e);
 
-            // Extremely hacky. All of the settable values have Access in their type name,
-            // so we can assign to it as long as that is true.
-            if((value.Type.Contains("Access") || value.Type == "var") && IsAssignment(tokens))
+            var enums = new List<ISyntaxElement>();
+            while (!_stream.Finished)
             {
-                var assign = new SyntaxNode("assign", tokens.Dequeue().Value);
+                var child = Declaration();
+                if(child != null && child.Type == SyntaxType.Enum)
+                {
+                    enums.Add(child);
+                    child.Parent = root;
+                }
+                else
+                    root.AddChild(child);
+            }
+
+            //Make sure that enums get processed before anything else.
+            root.Children.InsertRange(0, enums);
+        }
+
+        private ISyntaxElement Declaration()
+        {
+            switch(_stream.Peek().Type)
+            {
+                case "object":
+                    Confirm("object");
+                    var objName = Confirm("id");
+                    _table.EnterNew(objName.Value, SymbolType.Object);
+                    var node = _factory.CreateNode(SyntaxType.Object, objName.Value, objName.Position);
+                    Confirm("{");
+                    while (!Try("}"))
+                    {
+                        Confirm("event");
+                        var evName = Confirm("id");
+                        _table.AddLeaf(evName.Value, SymbolType.Script, SymbolScope.Member);
+                        var eventNode = _factory.CreateNode(SyntaxType.Event, evName.Value, evName.Position);
+                        eventNode.AddChild(BlockStatement());
+                        node.AddChild(eventNode);
+                    }
+                    Confirm("}");
+                    _table.Exit();
+                    return node;
+                case "enum":
+                    Confirm("enum");
+                    var enumName = Confirm("id");
+                    _table.EnterNew(enumName.Value, SymbolType.Enum);
+                    node = _factory.CreateNode(SyntaxType.Enum, enumName.Value, enumName.Position);
+                    Confirm("{");
+                    if(!Try("}"))
+                    {
+                        do
+                        {
+                            var name = Confirm("id");
+                            _table.AddLeaf(name.Value, SymbolType.Variable, SymbolScope.Member);
+                            ISyntaxNode nameNode;
+                            if (Validate("="))
+                            {
+                                nameNode = _factory.CreateNode(SyntaxType.Assign, name.Value, name.Position);
+                                var num = Confirm("num");
+                                nameNode.AddChild(_factory.CreateConstant(ConstantType.Real, num.Value, num.Position));
+                            }
+                            else
+                                nameNode = _factory.CreateNode(SyntaxType.Declare, name.Value, name.Position);
+                            node.AddChild(nameNode);
+                        }
+                        while (Validate(","));
+                    }
+                    Confirm("}");
+                    _table.Exit();
+                    return node;
+                case "import":
+                    var import = Confirm("import");
+                    node = _factory.CreateNode(SyntaxType.Import, import.Position);
+                    var start = Confirm("id");
+                    var baseType = new StringBuilder(start.Value);
+                    do
+                    {
+                        baseType.Append(Confirm(".").Value);
+                        baseType.Append(Confirm("id").Value);
+                    }
+                    while (Try("."));
+                    node.AddChild(_factory.CreateConstant(ConstantType.String, baseType.ToString(), start.Position));
+                    Confirm("(");
+                    if(!Try(")"))
+                    {
+                        do
+                        {
+                            if (!(Try("id", out var token) || Try("object", out token)))
+                            {
+                                Throw(new InvalidTokenException(_stream.Read()));
+                                continue;
+                            }
+                            var type = token.Value;
+                            if (type == "array")
+                                type = "array1d";
+                            if (type != "object" && type != "instance" && type != "float" && type != "int" && type != "bool" && type != "string" && type != "array1d" && type != "array2d")
+                            {
+                                Throw(new InvalidTokenException(token, "Import type must be one of the following: object, float, int, bool, string, instance, array1d, array2d "));
+                                node.AddChild(null);
+                            }
+                            else
+                                node.AddChild(_factory.CreateConstant(ConstantType.String, type, token.Position));
+                        }
+                        while (Validate(","));
+                    }
+                    Confirm(")");
+                    Confirm("as");
+                    var importName = Confirm("id");
+                    _table.AddLeaf(importName.Value, SymbolType.Script, SymbolScope.Global);
+                    node.AddChild(_factory.CreateConstant(ConstantType.String, importName.Value, importName.Position));
+                    return node;
+                case "script":
+                    Confirm("script");
+                    var scriptName = Confirm("id");
+                    _table.EnterNew(scriptName.Value, SymbolType.Script);
+                    node = _factory.CreateNode(SyntaxType.Script, scriptName.Value, scriptName.Position);
+                    node.AddChild(Statement());
+                    _table.Exit();
+                    return node;
+                case ";":
+                    Confirm(";");
+                    return null;
+                default:
+                    Throw(new InvalidTokenException(_stream.Peek(), $"Expected declaration, got {_stream.Read().Type}"));
+                    return null;
+            }
+        }
+
+        private ISyntaxElement Statement()
+        {
+            if (Try("local", out var localToken))
+            {
+                var locals = _factory.CreateNode(SyntaxType.Locals, localToken.Position);
+                do
+                {
+                    var localName = Confirm("id");
+                    if (!_table.Defined(localName.Value, out var symbol))
+                        _table.AddLeaf(localName.Value, SymbolType.Variable, SymbolScope.Local);
+                    else if (symbol.Type != SymbolType.Variable)
+                        Throw(new InvalidTokenException(localName, $"Id already defined for higher priority type: {localName.Value} = {symbol.Type}"));
+                    
+                    if (Try("=", out var equalToken))
+                    {
+                        var id = _factory.CreateToken(SyntaxType.Variable, localName.Value, localToken.Position);
+                        var assign = _factory.CreateNode(SyntaxType.Assign, "=", equalToken.Position);
+                        assign.AddChild(id);
+                        assign.AddChild(Expression());
+                        locals.AddChild(assign);
+                    }
+                    else
+                    {
+                        var declare = _factory.CreateNode(SyntaxType.Declare, localName.Value, localName.Position);
+                        locals.AddChild(declare);
+                    }
+                }
+                while (Validate(","));
+                return locals;
+            }
+            else
+                return EmbeddedStatement();
+        }
+
+        private ISyntaxElement EmbeddedStatement()
+        {
+            ISyntaxElement result;
+            if (Try("{"))
+                result = BlockStatement();
+            else
+                result = SimpleStatement();
+            return result;
+        }
+
+        private ISyntaxElement SimpleStatement()
+        {
+            var type = _stream.Peek();
+            ISyntaxElement result;
+            switch (type.Value)
+            {
+                case ";":
+                    Confirm(";");
+                    result = null;
+                    break;
+                case "break":
+                    result = _factory.CreateToken(SyntaxType.Break, Confirm("break").Value, type.Position);
+                    break;
+                case "continue":
+                    result = _factory.CreateToken(SyntaxType.Continue, Confirm("continue").Value, type.Position);
+                    break;
+                case "exit":
+                    result = _factory.CreateToken(SyntaxType.Exit, Confirm("exit").Value, type.Position);
+                    break;
+                case "return":
+                    Confirm("return");
+                    var temp = _factory.CreateNode(SyntaxType.Return, type.Position);
+                    temp.AddChild(Expression());
+                    result = temp;
+                    break;
+                case "repeat":
+                    Confirm("repeat");
+                    temp = _factory.CreateNode(SyntaxType.Repeat, type.Position);
+                    var paren = Validate("(");
+                    temp.AddChild(Expression());
+                    if (paren)
+                        Confirm(")");
+                    temp.AddChild(BodyStatement());
+                    result = temp;
+                    break;
+                case "while":
+                    Confirm("while");
+                    temp = _factory.CreateNode(SyntaxType.While, type.Position);
+                    paren = Validate("(");
+                    temp.AddChild(Expression());
+                    if (paren)
+                        Confirm(")");
+                    temp.AddChild(BodyStatement());
+                    result = temp;
+                    break;
+                case "with":
+                    Confirm("with");
+                    temp = _factory.CreateNode(SyntaxType.With, type.Position);
+                    paren = Validate("(");
+                    temp.AddChild(Expression());
+                    if (paren)
+                        Confirm(")");
+                    temp.AddChild(BodyStatement());
+                    result = temp;
+                    break;
+                case "do":
+                    Confirm("do");
+                    temp = _factory.CreateNode(SyntaxType.Do, type.Position);
+                    temp.AddChild(BodyStatement());
+                    Confirm("until");
+                    paren = Validate("(");
+                    temp.AddChild(Expression());
+                    if (paren)
+                        Confirm(")");
+                    result = temp;
+                    break;
+                case "if":
+                    Confirm("if");
+                    temp = _factory.CreateNode(SyntaxType.If, type.Position);
+                    paren = Validate("(");
+                    temp.AddChild(Expression());
+                    if (paren)
+                        Confirm(")");
+                    temp.AddChild(BodyStatement());
+                    while (Validate(";")) ;
+                    if (Validate("else"))
+                        temp.AddChild(BodyStatement());
+                    result = temp;
+                    break;
+                case "for":
+                    Confirm("for");
+                    Confirm("(");
+                    temp = _factory.CreateNode(SyntaxType.For, type.Position);
+                    if (!Try(";"))
+                        temp.AddChild(BodyStatement());
+                    else
+                        temp.AddChild(_factory.CreateNode(SyntaxType.Block, type.Position));
+                    Confirm(";");
+                    if (Try(";"))
+                        Throw(new InvalidTokenException(_stream.Peek(), "Expected expression in for declaration"));
+                    else
+                        temp.AddChild(Expression());
+                    Confirm(";");
+                    temp.AddChild(BodyStatement());
+                    Confirm(")");
+                    temp.AddChild(BodyStatement());
+                    result = temp;
+                    break;
+                case "switch":
+                    Confirm("switch");
+                    temp = _factory.CreateNode(SyntaxType.Switch, type.Position);
+                    paren = Validate("(");
+                    temp.AddChild(Expression());
+                    if (paren)
+                        Confirm(")");
+                    Confirm("{");
+                    ISyntaxNode caseNode;
+                    while(!Try("}"))
+                    {
+                        if (Try("case", out var caseToken))
+                        {
+                            caseNode = _factory.CreateNode(SyntaxType.Case, caseToken.Position);
+                            caseNode.AddChild(Expression());
+                        }
+                        else if (Try("default", out var defaultToken))
+                            caseNode = _factory.CreateNode(SyntaxType.Default, defaultToken.Position);
+                        else
+                        {
+                            Throw(new InvalidTokenException(_stream.Peek(), $"Expected case declaration, got {_stream.Read().Value}"));
+                            continue;
+                        }
+                        var blockStart = Confirm(":");
+                        var block = _factory.CreateNode(SyntaxType.Block, blockStart.Position);
+                        while (!Try("case") && !Try("default") && !Try("}"))
+                            block.AddChild(Statement());
+                        caseNode.AddChild(block);
+                        temp.AddChild(caseNode);
+                    }
+                    Confirm("}");
+                    result = temp;
+                    break;
+                default:
+                    result = Expression();
+                    break;
+            }
+
+            return result;
+        }
+
+        private ISyntaxElement BlockStatement()
+        {
+            var blockStart = Confirm("{");
+            var result = _factory.CreateNode(SyntaxType.Block, blockStart.Position);
+            while (!_stream.Finished && !Try("}"))
+                result.AddChild(Statement());
+
+            Confirm("}");
+            return result;
+        }
+
+        private ISyntaxElement BodyStatement()
+        {
+            ISyntaxElement body;
+            if (Try("{"))
+                body = BlockStatement();
+            else
+            {
+                var child = Statement();
+                var temp = _factory.CreateNode(SyntaxType.Block, child.Position);
+                temp.AddChild(child);
+                body = temp;
+            }
+            return body;
+        }
+
+        private ISyntaxElement Expression()
+        {
+            var value = AssignmentExpression();
+            return value;
+        }
+
+        private ISyntaxElement AssignmentExpression()
+        {
+            // This is used to determine what = means.
+            // If this is the first pass through this method, it is an assignment.
+            // Otherwise, it should be equivalent to ==.
+            // This behaviour was defined by Gamemaker and is stupid, 
+            // but it's kept in order to improve backwards compatibilty.
+            _canAssign++;
+
+            var value = ConditionalExpression();
+            if (value == null)
+                return null;
+
+            // This statement is a really hacky.
+            // The only types that can be assigned to have Access in their name or are a variable.
+            // If the SyntaxType enum is ever changed, this could break.
+            if (_canAssign == 1 && (value.Type.ToString().Contains("Access") || value.Type == SyntaxType.Variable) && IsAssignment())
+            {
+                var next = _stream.Read();
+                var assign = _factory.CreateNode(SyntaxType.Assign, next.Value, next.Position);
                 assign.AddChild(value);
-                assign.AddChild(AssignmentExpression(tokens));
+                assign.AddChild(AssignmentExpression());
                 value = assign;
             }
+            --_canAssign;
             return value;
         }
 
-        private ISyntaxNode ConditionalExpression(Queue<Token> tokens)
+        private ISyntaxElement ConditionalExpression()
         {
-            var value = LogicalOrExpression(tokens);
-            if(Validate(tokens, "question"))
+            
+            var value = LogicalOrExpression();
+
+            //Example: true == false ? "hello" : "henlo"
+            if (Try("?", out var token))
             {
-                var conditional = new SyntaxNode("conditional");
+                var conditional = _factory.CreateNode(SyntaxType.Conditional, token.Position);
                 conditional.AddChild(value);
-                conditional.AddChild(AssignmentExpression(tokens));
-                Confirm(tokens, "colon");
-                conditional.AddChild(AssignmentExpression(tokens));
+                conditional.AddChild(AssignmentExpression());
+                Confirm(":");
+                conditional.AddChild(AssignmentExpression());
                 value = conditional;
             }
+
             return value;
         }
 
-        private ISyntaxNode LogicalOrExpression(Queue<Token> tokens)
+        private ISyntaxElement LogicalOrExpression()
         {
-            var value = LogicalAndExpression(tokens);
-            while(Try(tokens, "lor", out var token))
+            var value = LogicalAndExpression();
+            while(Try("||", out var token))
             {
-                var or = new SyntaxNode("logical", token.Value);
+                var or = _factory.CreateNode(SyntaxType.Logical, token.Value, token.Position);
                 or.AddChild(value);
-                or.AddChild(LogicalAndExpression(tokens));
+                or.AddChild(LogicalAndExpression());
                 value = or;
             }
-
             return value;
         }
 
-        private ISyntaxNode LogicalAndExpression(Queue<Token> tokens)
+        private ISyntaxElement LogicalAndExpression()
         {
-            var value = BitwiseOrExpression(tokens);
-            while (Try(tokens, "land", out var token))
+            var value = BitwiseOrExpression();
+            while (Try("&&", out var token))
             {
-                var and = new SyntaxNode("logical", token.Value);
+                var and = _factory.CreateNode(SyntaxType.Logical, token.Value, token.Position);
                 and.AddChild(value);
-                and.AddChild(BitwiseOrExpression(tokens));
+                and.AddChild(BitwiseOrExpression());
                 value = and;
             }
-
             return value;
         }
 
-        private ISyntaxNode BitwiseOrExpression(Queue<Token> tokens)
+        private ISyntaxElement BitwiseOrExpression()
         {
-            var value = BitwiseXorExpression(tokens);
-            while (Try(tokens, "bor", out var token))
+            var value = BitwiseXorExpression();
+            while (Try("|", out var token))
             {
-                var or = new SyntaxNode("bitwise", token.Value);
+                var or = _factory.CreateNode(SyntaxType.Bitwise, token.Value, token.Position);
                 or.AddChild(value);
-                or.AddChild(BitwiseXorExpression(tokens));
+                or.AddChild(BitwiseXorExpression());
                 value = or;
             }
-
             return value;
         }
 
-        private ISyntaxNode BitwiseXorExpression(Queue<Token> tokens)
+        private ISyntaxElement BitwiseXorExpression()
         {
-            var value = BitwiseAndExpression(tokens);
-            while (Try(tokens, "xor", out var token))
+            var value = BitwiseAndExpression();
+            while (Try("^", out var token))
             {
-                var xor = new SyntaxNode("bitwise", token.Value);
+                var xor = _factory.CreateNode(SyntaxType.Bitwise, token.Value, token.Position);
                 xor.AddChild(value);
-                xor.AddChild(BitwiseAndExpression(tokens));
+                xor.AddChild(BitwiseAndExpression());
                 value = xor;
             }
-
             return value;
         }
 
-        private ISyntaxNode BitwiseAndExpression(Queue<Token> tokens)
+        private ISyntaxElement BitwiseAndExpression()
         {
-            var value = EqualityExpression(tokens);
-            while (Try(tokens, "band", out var token))
+            var value = EqualityExpression();
+            while (Try("&", out var token))
             {
-                var and = new SyntaxNode("bitwise", token.Value);
+                var and = _factory.CreateNode(SyntaxType.Bitwise, token.Value, token.Position);
                 and.AddChild(value);
-                and.AddChild(EqualityExpression(tokens));
+                and.AddChild(EqualityExpression());
                 value = and;
             }
-
             return value;
         }
 
-        private ISyntaxNode EqualityExpression(Queue<Token> tokens)
+        private ISyntaxElement EqualityExpression()
         {
-            var value = RelationalExpression(tokens);
-            while(Try(tokens, "eq", out var token) || Try(tokens, "neq", out token))
+            var value = RelationalExpression();
+
+            while(Try("==", out var token) || Try("!=", out token) || (_canAssign > 1 && Try("=", out token)))
             {
-                var equal = new SyntaxNode("equality", token.Value);
+                var op = token.Value == "=" ? "==" : token.Value;
+                var equal = _factory.CreateNode(SyntaxType.Equality, op, token.Position);
                 equal.AddChild(value);
-                equal.AddChild(RelationalExpression(tokens));
+                equal.AddChild(RelationalExpression());
                 value = equal;
             }
+
             return value;
         }
 
-        private ISyntaxNode RelationalExpression(Queue<Token> tokens)
+        private ISyntaxElement RelationalExpression()
         {
-            var value = ShiftExpression(tokens);
-            while (Try(tokens, "lt", out var token) || Try(tokens, "lte", out token) || Try(tokens, "gt", out token) || Try(tokens, "gte", out token))
+            var value = ShiftExpression();
+
+            while(Try("<", out var token) || Try("<=", out token) || Try(">", out token) || Try(">=", out token))
             {
-                var compare = new SyntaxNode("compare", token.Value);
+                var compare = _factory.CreateNode(SyntaxType.Relational, token.Value, token.Position);
                 compare.AddChild(value);
-                compare.AddChild(ShiftExpression(tokens));
+                compare.AddChild(ShiftExpression());
                 value = compare;
             }
 
             return value;
         }
 
-        private ISyntaxNode ShiftExpression(Queue<Token> tokens)
+        private ISyntaxElement ShiftExpression()
         {
-            var value = AdditiveExpression(tokens);
-            while(Try(tokens, "lshift", out var token) || Try(tokens, "rshift", out token))
+            var value = AdditiveExpression();
+
+            while(Try("<<", out var token) || Try(">>", out token))
             {
-                var shift = new SyntaxNode("shift", token.Value);
+                var shift = _factory.CreateNode(SyntaxType.Shift, token.Value, token.Position);
                 shift.AddChild(value);
-                shift.AddChild(AdditiveExpression(tokens));
+                shift.AddChild(AdditiveExpression());
                 value = shift;
             }
+
             return value;
         }
 
-        private ISyntaxNode AdditiveExpression(Queue<Token> tokens)
+        private ISyntaxElement AdditiveExpression()
         {
-            var value = MultiplicativeExpression(tokens);
-            while(Try(tokens, "add", out var token) || Try(tokens, "sub", out token))
+            var value = MultiplicativeExpression();
+
+            while (Try("+", out var token) || Try("-", out token))
             {
-                var add = new SyntaxNode("additive", token.Value);
+                var add = _factory.CreateNode(SyntaxType.Additive, token.Value, token.Position);
                 add.AddChild(value);
-                add.AddChild(MultiplicativeExpression(tokens));
+                add.AddChild(MultiplicativeExpression());
                 value = add;
             }
+
             return value;
         }
 
-        private ISyntaxNode MultiplicativeExpression(Queue<Token> tokens)
+        private ISyntaxElement MultiplicativeExpression()
         {
-            var value = UnaryExpression(tokens);
-            while (Try(tokens, "mul", out var token) || Try(tokens, "div", out token) || Try(tokens, "mod", out token))
+            var value = UnaryExpression();
+
+            while (Try("*", out var token) || Try("/", out token) || Try("%", out token))
             {
-                var mul = new SyntaxNode("multiplicative", token.Value);
+                var mul = _factory.CreateNode(SyntaxType.Multiplicative, token.Value, token.Position);
                 mul.AddChild(value);
-                mul.AddChild(UnaryExpression(tokens));
+                mul.AddChild(UnaryExpression());
                 value = mul;
             }
+
             return value;
         }
 
-        private ISyntaxNode UnaryExpression(Queue<Token> tokens)
+        private ISyntaxElement UnaryExpression()
         {
-            ISyntaxNode node = null;
-            //Prefix Operators
-            if (Try(tokens, "add", out var token) || Try(tokens, "sub", out token) || Try(tokens, "not", out token) ||
-                  Try(tokens, "complement", out token) || Try(tokens, "increment", out token) || Try(tokens, "decrement", out token))
+            if (Try("+", out var token) || Try("-", out token) || Try("!", out token) ||
+                Try("~", out token) || Try("++", out token) || Try("--", out token))
             {
-                var unary = new SyntaxNode("unary", token.Value);
-                unary.AddChild(UnaryExpression(tokens));
-                node = unary;
+                var prefix = _factory.CreateNode(SyntaxType.Prefix, token.Value, token.Position);
+                prefix.AddChild(UnaryExpression());
+                return prefix;
             }
             else
-                node = PrimaryExpression(tokens);
-
-            return node;
+                return PrimaryExpression();
         }
 
-        private ISyntaxNode PrimaryExpression(Queue<Token> tokens)
+        private ISyntaxElement PrimaryExpression()
         {
-            var value = PrimaryExpressionStart(tokens);
-            if(Try(tokens, "oparen", out var paren))
+            var value = PrimaryExpressionStart();
+            if (value == null)
+                return null;
+
+            if(Try("(", out var paren))
             {
-                if (value.Type != "var")
-                    throw new InvalidTokenException(paren, "Invalid identifier for method call.");
-                var method = new SyntaxNode("methodCall");
-                method.AddChild(value);
-                while(!Try(tokens, "cparen"))
+                if (value.Type != SyntaxType.Variable)
                 {
-                    method.AddChild(Expression(tokens));
-                    Validate(tokens, "comma");
+                    Throw(new InvalidTokenException(paren, "Invalid identifier for a function call."));
+                    return null;
                 }
-                Confirm(tokens, "cparen");
-                value = method;
+                var function = _factory.CreateNode(SyntaxType.FunctionCall, ((SyntaxToken)value).Text, value.Position);
+                if(!Try(")"))
+                {
+                    do
+                    {
+                        function.AddChild(Expression());
+                    }
+                    while (Validate(","));
+                }
+                Confirm(")");
+                value = function;
             }
             bool wasAccessor = false;
-            while (true)
+            while(true)
             {
-                if (Validate(tokens, "dot"))
+                if (Validate("."))
                 {
-                    if (!Try(tokens, "id", out var next))
-                        next = Confirm(tokens, "this");
-                    var temp = new SyntaxNode("memberAccess");
+                    if (!Try("id", out var next))
+                    {
+                        Throw(new InvalidTokenException(next, "The value after a period in an access expression must be a variable."));
+                        return null;
+                    }
+                    var temp = _factory.CreateNode(SyntaxType.MemberAccess, value.Position);
                     temp.AddChild(value);
-                    temp.AddChild(new SyntaxToken("var", next.Value));
+                    temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
                     value = temp;
                     wasAccessor = false;
                 }
-                else if (Validate(tokens, "obracket"))
+                else if (Try("[", out var accessToken))
                 {
                     if (wasAccessor)
-                        throw new InvalidProgramException("Cannot have two accessors in a row.");
-                    SyntaxNode temp;
-                    if (Validate(tokens, "bor"))
-                        temp = new SyntaxNode("listAccess");
-                    else if (Validate(tokens, "sharp"))
-                        temp = new SyntaxNode("gridAccess");
-                    else if (Validate(tokens, "question"))
-                        temp = new SyntaxNode("mapAccess");
-                    else if (Validate(tokens, "at"))
-                        temp = new SyntaxNode("arrayExplicitAccess");
+                    {
+                        Throw(new InvalidTokenException(accessToken, "Cannot have two accessors in a row."));
+                    }
+                    ISyntaxNode access;
+                    if (Validate("|"))
+                        access = _factory.CreateNode(SyntaxType.ListAccess, value.Position);
+                    else if (Validate("#"))
+                        access = _factory.CreateNode(SyntaxType.GridAccess, value.Position);
+                    else if (Validate("?"))
+                        access = _factory.CreateNode(SyntaxType.MapAccess, value.Position);
+                    else if (Validate("@"))
+                        access = _factory.CreateNode(SyntaxType.ExplicitArrayAccess, value.Position);
                     else
-                        temp = new SyntaxNode("arrayAccess");
+                        access = _factory.CreateNode(SyntaxType.ArrayAccess, value.Position);
 
-                    temp.AddChild(value);
-                    temp.AddChild(Expression(tokens));
-                    if (Validate(tokens, "comma"))
-                        temp.AddChild(Expression(tokens));
-                    Confirm(tokens, "cbracket");
-                    value = temp;
+                    access.AddChild(value);
+                    access.AddChild(Expression());
+                    if (Validate(","))
+                        access.AddChild(Expression());
+                    Confirm("]");
+                    value = access;
 
                     wasAccessor = true;
                 }
                 else
                     break;
             }
-            if(Try(tokens, "increment", out var post) || Try(tokens, "decrement", out post))
+            if(Try("++", out var token) || Try("--", out token))
             {
-                var postfix = new SyntaxNode("postfix", post.Value);
+                var postfix = _factory.CreateNode(SyntaxType.Postfix, token.Value, value.Position);
                 postfix.AddChild(value);
                 value = postfix;
             }
@@ -301,432 +690,139 @@ namespace GmParser
             return value;
         }
 
-        private ISyntaxNode PrimaryExpressionStart(Queue<Token> tokens)
+        private ISyntaxElement PrimaryExpressionStart()
         {
-            if (IsLiteral(tokens))
-                return Literal(tokens);
-            else if (Try(tokens, "id", out var id))
-                return new SyntaxToken("var", id.Value);
-            else if (Validate(tokens, "oparen"))
+            if (IsConstant())
+                return Constant();
+            else if (Try("readonly", out var token))
+                return _factory.CreateToken(SyntaxType.ReadOnlyValue, token.Value, token.Position);
+            else if (Try("argument", out token))
             {
-                var value = Expression(tokens);
-                Confirm(tokens, "cparen");
+                var arg = _factory.CreateNode(SyntaxType.ArgumentAccess, token.Position);
+                if (token.Value != "argument")
+                    arg.AddChild(_factory.CreateConstant(ConstantType.Real, token.Value.Remove(0, 8),
+                        new TokenPosition(token.Position.Index + 8, token.Position.Line, token.Position.Column + 8, token.Position.File)));
+                else
+                {
+                    Confirm("[");
+                    arg.AddChild(Expression());
+                    Confirm("]");
+                }
+                return arg;
+            }
+            else if (Try("id", out token))
+            {
+                if (!_table.Defined(token.Value, out _))
+                    _table.AddPending(token.Value);
+                return _factory.CreateToken(SyntaxType.Variable, token.Value, token.Position);
+            }
+            else if (Validate("("))
+            {
+                var value = Expression();
+                Confirm(")");
                 return value;
             }
-            else if (Try(tokens, "this", out var token))
-                return new SyntaxToken("this", token.Value);
-            else if (Validate(tokens, "obracket"))
+            else if (Try("[", out token))
             {
-                var array = new SyntaxNode("array");
-                while (!Try(tokens, "cbracket"))
+                var array = _factory.CreateNode(SyntaxType.ArrayLiteral, token.Position);
+                while (!Try("]"))
                 {
-                    array.AddChild(Expression(tokens));
-                    Validate(tokens, "comma");
+                    array.AddChild(Expression());
+                    Validate(",");
                 }
+                Confirm("]");
                 return array;
             }
             else
-                throw new InvalidProgramException();
-        }
-
-        #endregion
-
-        #region Statements
-
-        /// <summary>
-        /// Temporary entry point.
-        /// </summary>
-        /// <param name="tokens"></param>
-        /// <returns></returns>
-        private ISyntaxNode Statements(Queue<Token> tokens)
-        {
-            var statements = new SyntaxNode("statements");
-            while (tokens.Count > 0)
-                statements.AddChild(Statement(tokens));
-
-            return statements;
-        }
-
-        private ISyntaxNode Statement(Queue<Token> tokens)
-        {
-            if (Try(tokens, "local") /*|| Try(tokens, "id")*/)
-                return VariableDeclaration(tokens);
-            else
-                return EmbeddedStatement(tokens);
-        }
-
-        private ISyntaxNode VariableDeclaration(Queue<Token> tokens)
-        {
-            //members must be set
-            /*if (Try(tokens, "id", out var member))
             {
-                Confirm(tokens, "assign");
-                var node = new SyntaxNode("assign");
-                node.AddChild(new SyntaxToken("var", member.Value));
-                node.AddChild(Expression(tokens));
-                return node;
+                Throw(new InvalidTokenException(_stream.Read()));
+                return null;
             }
-            //locals can be set or declared
-            else*/ if (Validate(tokens, "local"))
-            {
-                var node = new SyntaxNode("locals");
-                do
-                {
-                    var id = new SyntaxToken("var", Confirm(tokens, "id").Value);
-                    if (Validate(tokens, "assign"))
-                    {
-                        var temp = new SyntaxNode("assign");
-                        temp.AddChild(id);
-                        temp.AddChild(Expression(tokens));
-                        node.AddChild(temp);
-                    }
-                    else
-                    {
-                        var temp = new SyntaxNode("declare");
-                        temp.AddChild(id);
-                        node.AddChild(temp);
-                    }
-                }
-                while (Validate(tokens, "comma"));
-                return node;
-            }
-            else
-                throw new InvalidTokenException(tokens.Peek());
         }
 
-        private ISyntaxNode EmbeddedStatement(Queue<Token> tokens)
+        private bool Try(string next)
         {
-            if (Try(tokens, "obrace"))
-                return BlockStatement(tokens);
-            else
-                return SimpleStatement(tokens);
-        }
-
-        private ISyntaxNode SimpleStatement(Queue<Token> tokens)
-        {
-            //Can't dequeue in case of expression.
-            var type = tokens.Peek().Type;
-            ISyntaxNode result;
-            switch(type)
-            {
-                //Technically valid statement.
-                //Does nothing. Should be culled.
-                case "end":
-                    result = new SyntaxToken("end", Confirm(tokens, "end").Value);
-                    break;
-                case "if":
-                    Confirm(tokens, "if");
-                    var temp = new SyntaxNode("if");
-                    var paren = Validate(tokens, "oparen");
-                    temp.AddChild(Expression(tokens));
-                    if (paren)
-                        Confirm(tokens, "cparen");
-                    temp.AddChild(EmbeddedStatement(tokens));
-                    if (Validate(tokens, "else"))
-                        temp.AddChild(EmbeddedStatement(tokens));
-                    result = temp;
-                    break;
-                case "switch":
-                    Confirm(tokens, "switch");
-                    temp = new SyntaxNode("switch");
-                    paren = Validate(tokens, "oparen");
-                    temp.AddChild(Expression(tokens));
-                    if (paren)
-                        Confirm(tokens, "cparen");
-                    Confirm(tokens, "obrace");
-                    SyntaxNode caseNode;
-                    while(!Try(tokens, "cbrace"))
-                    {
-                        if (Try(tokens, "case", out var caseType) || Try(tokens, "default", out caseType))
-                        {
-                            caseNode = new SyntaxNode(caseType.Type);
-                            while (!Try(tokens, "case") && !Try(tokens, "default"))
-                                caseNode.AddChild(Statement(tokens));
-                            temp.AddChild(caseNode);
-                        }
-                        else
-                            throw new InvalidTokenException(tokens.Peek());
-                    }
-                    Confirm(tokens, "cbrace");
-                    result = temp;
-                    break;
-                case "while":
-                    Confirm(tokens, "while");
-                    temp = new SyntaxNode("while");
-                    paren = Validate(tokens, "oparen");
-                    temp.AddChild(Expression(tokens));
-                    if (paren)
-                        Confirm(tokens, "cparen");
-                    temp.AddChild(EmbeddedStatement(tokens));
-                    result = temp;
-                    break;
-                case "with":
-                    Confirm(tokens, "with");
-                    temp = new SyntaxNode("with");
-                    paren = Validate(tokens, "oparen");
-                    temp.AddChild(Expression(tokens));
-                    if (paren)
-                        Confirm(tokens, "cparen");
-                    temp.AddChild(EmbeddedStatement(tokens));
-                    result = temp;
-                    break;
-                case "do":
-                    Confirm(tokens, "do");
-                    temp = new SyntaxNode("do");
-                    temp.AddChild(EmbeddedStatement(tokens));
-                    Confirm(tokens, "until");
-                    paren = Validate(tokens, "oparen");
-                    temp.AddChild(Expression(tokens));
-                    if (paren)
-                        Confirm(tokens, "cparen");
-                    result = temp;
-                    break;
-                case "for":
-                    Confirm(tokens, "for");
-                    Confirm(tokens, "oparen");
-                    temp = new SyntaxNode("for");
-                    // gamemaker does not require a for initializer,
-                    // but it does require a bool expression and for iterator
-                    var init = new SyntaxNode("forInit");
-                    if (!Try(tokens, "end"))
-                        init.AddChild(Statement(tokens));
-                    temp.AddChild(init);
-                    Confirm(tokens, "end");
-                    if (Try(tokens, "end"))
-                        throw new InvalidTokenException(tokens.Peek(), "Expected expression in for block");
-                    temp.AddChild(Expression(tokens));
-                    Confirm(tokens, "end");
-                    temp.AddChild(EmbeddedStatement(tokens));
-                    Confirm(tokens, "cparen");
-                    temp.AddChild(EmbeddedStatement(tokens));
-                    result = temp;
-                    break;
-                case "break":
-                    result = new SyntaxToken("break", Confirm(tokens, "break").Value);
-                    break;
-                case "continue":
-                    result = new SyntaxToken("continue", Confirm(tokens, "continue").Value);
-                    break;
-                case "exit":
-                    result = new SyntaxToken("exit", Confirm(tokens, "exit").Value);
-                    break;
-                case "return":
-                    Confirm(tokens, "return");
-                    temp = new SyntaxNode("return");
-                    temp.AddChild(Expression(tokens));
-                    result = temp;
-                    break;
-                default:
-                    result = Expression(tokens);
-                    break;
-            }
-
-            return result;
-        }
-
-        private ISyntaxNode BlockStatement(Queue<Token> tokens)
-        {
-            Confirm(tokens, "obrace");
-            var result = new SyntaxNode("block");
-            while (!Try(tokens, "cbrace"))
-                result.AddChild(Statement(tokens));
-
-            //Make sure we didn't just run out of tokens.
-            Confirm(tokens, "cbrace");
-            return result;
-        }
-
-        #endregion
-
-        #region Helpers
-
-        private SyntaxToken Literal(Queue<Token> tokens)
-        {
-            if (Try(tokens, "num"))
-                return Number(tokens);
-            else if (Try(tokens, "bool"))
-                return Bool(tokens);
-            else if (Try(tokens, "string"))
-                return String(tokens);
-            else
-                throw new InvalidTokenException(tokens.Peek(), $"Expected a literal, got {tokens.Peek().Type}");
-        }
-
-        private SyntaxToken Bool(Queue<Token> tokens)
-        {
-            var token = Confirm(tokens, "bool");
-            return new SyntaxToken("bool", token.Value);
-        }
-
-        private SyntaxToken String(Queue<Token> tokens)
-        {
-            var token = Confirm(tokens, "string");
-            return new SyntaxToken("string", token.Value);
-        }
-
-        private SyntaxToken Number(Queue<Token> tokens)
-        {
-            if(tokens.Peek().Type == "num")
-            {
-                var value = tokens.Dequeue().Value;
-                if (value.StartsWith("0x"))
-                    value.Remove(0, 2);
-                return new SyntaxToken("number", value);
-            }
-            throw new InvalidTokenException(tokens.Peek(), $"Expected number, got {tokens.Peek().Type}");
-        }
-
-        private bool Try(Queue<Token> tokens, string next)
-        {
-            if (tokens.Count > 0 && tokens.Peek().Type != next)
+            if (_stream.Finished || _stream.Peek().Type != next)
                 return false;
             return true;
         }
 
-        private bool Try(Queue<Token> tokens, string next, out Token result)
+        private bool Try(string next, out Token result)
         {
             result = default(Token);
-            if (tokens.Count <= 0 || tokens.Peek().Type != next)
+            if (_stream.Finished || _stream.Peek().Type != next)
                 return false;
 
-            result = tokens.Dequeue();
+            result = _stream.Read();
             return true;
         }
 
-        private bool Validate(Queue<Token> tokens, string next)
+        private bool Validate(string next)
         {
-            if(tokens.Count > 0 && tokens.Peek().Type == next)
+            if(!_stream.Finished && _stream.Peek().Type == next)
             {
-                tokens.Dequeue();
+                _stream.Read();
                 return true;
             }
-
             return false;
         }
 
-        private bool Expect(Queue<Token> tokens, string next)
+        private Token Confirm(string next)
         {
-            if (tokens.Peek().Type != next)
-                throw new InvalidTokenException(tokens.Peek(), $"Expected {next}, got {tokens.Peek().Type}");
-            return true;
-        }
-
-        private Token Confirm(Queue<Token> tokens, string next)
-        {
-            var result = tokens.Dequeue();
-            if(result.Type != next)
-                throw new InvalidTokenException(tokens.Peek(), $"Expected {next}, got {tokens.Peek().Type}");
+            if (_stream.Finished)
+            {
+                Throw(new System.IO.EndOfStreamException($"Expected {next}, reached the end of file instead."));
+                return null;
+            }
+            var result = _stream.Read();
+            if (result.Type != next)
+                Throw(new InvalidTokenException(result, $"Expected {next}, got {result.Type}"));
             return result;
         }
 
-        private bool IsLiteral(Queue<Token> tokens)
+        private bool IsConstant()
         {
-            var type = tokens.Peek().Type;
+            var type = _stream.Peek().Type;
             return type == "num" || type == "string" || type == "bool";
         }
 
-        private bool IsLiteral(ISyntaxNode node)
+        private bool IsConstant(ISyntaxElement element)
         {
-            if(node is SyntaxToken token)
-                return token.Type == "number" || token.Type == "bool" || token.Type == "string";
-            return false;
+            return element.Type == SyntaxType.Constant;
         }
 
-        private bool IsAssignment(Queue<Token> tokens)
+        private ISyntaxToken Constant()
         {
-            var type = tokens.Peek().Type;
-            return type == "assign" ||
-                   type == "addAssign" ||
-                   type == "subAssign" ||
-                   type == "mulAssign" ||
-                   type == "divAssign" ||
-                   type == "modAssign" ||
-                   type == "andAssign" ||
-                   type == "xorAssign" ||
-                   type == "orAssign";
+            if (Try("num", out var token))
+                return _factory.CreateConstant(ConstantType.Real, token.Value, token.Position);
+            else if (Try("string", out token))
+                return _factory.CreateConstant(ConstantType.String, token.Value.Trim('"', '\''),
+                    new TokenPosition(token.Position.Index + 1, token.Position.Line, token.Position.Column + 1, token.Position.File));
+            else if (Try("bool", out token))
+                return _factory.CreateConstant(ConstantType.Bool, token.Value, token.Position);
+            else
+                Throw(new InvalidTokenException(_stream.Peek(), $"Expected literal, got {_stream.Peek().Type}"));
+
+            return null;
         }
 
-        #endregion
-
-        #region Lexer
-
-        private static Lexer InitLexer()
+        private bool IsAssignment()
         {
-            // Todo:
-            // self/id/this
-
-            var lexer = new Lexer();
-            lexer.AddDefinition(new TokenDefinition("true|false", "bool"));
-            lexer.AddDefinition(new TokenDefinition("var", "local"));
-            lexer.AddDefinition(new TokenDefinition("break", "break"));
-            lexer.AddDefinition(new TokenDefinition("continue", "continue"));
-            lexer.AddDefinition(new TokenDefinition("while", "while"));
-            lexer.AddDefinition(new TokenDefinition("do", "do"));
-            lexer.AddDefinition(new TokenDefinition("until", "until"));
-            lexer.AddDefinition(new TokenDefinition("if", "if"));
-            lexer.AddDefinition(new TokenDefinition("else", "else"));
-            lexer.AddDefinition(new TokenDefinition("for", "for"));
-            lexer.AddDefinition(new TokenDefinition("noone", "noone"));
-            lexer.AddDefinition(new TokenDefinition("return", "return"));
-            lexer.AddDefinition(new TokenDefinition("exit", "exit"));
-            lexer.AddDefinition(new TokenDefinition("switch", "switch"));
-            lexer.AddDefinition(new TokenDefinition("case", "case"));
-            lexer.AddDefinition(new TokenDefinition("default", "default"));
-            lexer.AddDefinition(new TokenDefinition("continue", "continue"));
-            lexer.AddDefinition(new TokenDefinition("enum", "enum"));
-            lexer.AddDefinition(new TokenDefinition("with", "with"));
-            lexer.AddDefinition(new TokenDefinition("this|self|id", "this"));
-            lexer.AddDefinition(new TokenDefinition(";", "end"));
-            lexer.AddDefinition(new TokenDefinition("||", "lor"));
-            lexer.AddDefinition(new TokenDefinition("&&", "land"));
-            lexer.AddDefinition(new TokenDefinition("!=|<>", "neq"));
-            lexer.AddDefinition(new TokenDefinition("==", "eq"));
-            lexer.AddDefinition(new TokenDefinition("<=", "lte"));
-            lexer.AddDefinition(new TokenDefinition(">=", "gte"));
-            lexer.AddDefinition(new TokenDefinition("<", "lt"));
-            lexer.AddDefinition(new TokenDefinition(">", "gt"));
-            lexer.AddDefinition(new TokenDefinition("!", "not"));
-            lexer.AddDefinition(new TokenDefinition("~", "complement"));
-            lexer.AddDefinition(new TokenDefinition(@"\^", "xor"));
-            lexer.AddDefinition(new TokenDefinition("|", "bor"));
-            lexer.AddDefinition(new TokenDefinition("&", "band"));
-            lexer.AddDefinition(new TokenDefinition("<<", "lshift"));
-            lexer.AddDefinition(new TokenDefinition(">>", "rshift"));
-            lexer.AddDefinition(new TokenDefinition(@"\(", "oparen"));
-            lexer.AddDefinition(new TokenDefinition(@"\)", "cparen"));
-            lexer.AddDefinition(new TokenDefinition(@"\[", "obracket"));
-            lexer.AddDefinition(new TokenDefinition(@"\]", "cbracket"));
-            lexer.AddDefinition(new TokenDefinition(@"\{", "obrace"));
-            lexer.AddDefinition(new TokenDefinition(@"\}", "cbrace"));
-            lexer.AddDefinition(new TokenDefinition(@"/\*(?i).*?\*/(?-i)", "multicomment", true));
-            lexer.AddDefinition(new TokenDefinition(@"//.*?\n", "singlecomment", true));
-            lexer.AddDefinition(new TokenDefinition(@"\.", "dot"));
-            lexer.AddDefinition(new TokenDefinition("(?i)(\".*?\")|('.*?')(?-i)", "string"));
-            lexer.AddDefinition(new TokenDefinition("=", "assign"));
-            lexer.AddDefinition(new TokenDefinition(@"\+\+", "increment"));
-            lexer.AddDefinition(new TokenDefinition("--", "decrement"));
-            lexer.AddDefinition(new TokenDefinition(@"\+=", "addAssign"));
-            lexer.AddDefinition(new TokenDefinition("-=", "subAssign"));
-            lexer.AddDefinition(new TokenDefinition(@"\*=", "mulAssign"));
-            lexer.AddDefinition(new TokenDefinition("/=", "divAssign"));
-            lexer.AddDefinition(new TokenDefinition("%=", "modAssign"));
-            lexer.AddDefinition(new TokenDefinition(@"\+", "add"));
-            lexer.AddDefinition(new TokenDefinition("-", "sub"));
-            lexer.AddDefinition(new TokenDefinition(@"\*", "mul"));
-            lexer.AddDefinition(new TokenDefinition("/", "div"));
-            lexer.AddDefinition(new TokenDefinition("%", "mod"));
-
-            //In GM "_" is a valid variable name O_O
-            lexer.AddDefinition(new TokenDefinition("(_)|(_*[a-zA-Z][_a-zA-Z0-9]*)", "id"));
-            lexer.AddDefinition(new TokenDefinition(@"(0x[0-9a-fA-F]+)|([0-9]*(\.[0-9]+)?)", "num"));
-            lexer.AddDefinition(new TokenDefinition(",", "comma"));
-            lexer.AddDefinition(new TokenDefinition(@"\?", "question"));
-            lexer.AddDefinition(new TokenDefinition("#", "sharp"));
-
-
-            return lexer;
+            var type = _stream.Peek().Type;
+            return type == "=" ||
+                   type == "+=" ||
+                   type == "-=" ||
+                   type == "*=" ||
+                   type == "/=" ||
+                   type == "%=" ||
+                   type == "&=" ||
+                   type == "^=" ||
+                   type == "|=";
         }
 
-        #endregion
+        private void Throw(Exception exception)
+        {
+            Errors.Add(exception);
+        }
     }
 }

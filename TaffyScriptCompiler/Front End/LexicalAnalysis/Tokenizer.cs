@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace TaffyScript.FrontEnd
 {
-    //Todo: Finish custom tokenizer.
-    //Reason: Less memory consumption. Possibly speed increase.
-    //Priority: Mid
+    // This class uses many switch statements and a few goto statements in an effort to be as swift as possible.
+
+    /// <summary>
+    /// Used to convert TaffyScript code into a stream of <see cref="Token"/>s that can be consumed by a TokenParser.
+    /// </summary>
     public class Tokenizer : IDisposable
     {
         private TextReader _reader;
@@ -19,20 +19,34 @@ namespace TaffyScript.FrontEnd
         private bool _finished;
         private char _current;
         private HashSet<char> _whitespace;
-        private HashSet<string> _validArgNumbers;
         private Dictionary<string, string> _definitions;
         private Token _token;
         private string _fname = null;
 
+        /// <summary>
+        /// Determines whether the current document has been fully read.
+        /// </summary>
         public bool Finished => _current == '\0';
+
+        /// <summary>
+        /// Gets invoked when an error occurs during the lexical analysis phase.
+        /// </summary>
         public Action<Exception> ErrorEncountered;
 
+        /// <summary>
+        /// Creates a Tokenizer using a string as the input code.
+        /// </summary>
+        /// <param name="input">The code to convert into a stream of <see cref="Token"/>s.</param>
         public Tokenizer(string input)
         {
             _reader = new StringReader(input);
             Init();
         }
 
+        /// <summary>
+        /// Creates a Tokenizer using a <see cref="FileStream"/> as the input code.
+        /// </summary>
+        /// <param name="stream">The code to convert into a stream of <see cref="Token"/>s.</param>
         public Tokenizer(FileStream stream)
         {
             _fname = stream.Name;
@@ -42,7 +56,11 @@ namespace TaffyScript.FrontEnd
 
         private void Init()
         {
+            // Defines the whitespace characters that should be ignored.
             _whitespace = new HashSet<char>() { '\r', '\t', '\v', '\f', ' ', '\n' };
+            
+            // Defines the language keywords and other constructs.
+            // Strings, numbers, and identifiers get processed under a special case.
             _definitions = new Dictionary<string, string>()
             {
                 { "true", "bool" },
@@ -66,6 +84,7 @@ namespace TaffyScript.FrontEnd
                 { "with", "with" },
                 { "import", "import" },
                 { "script", "script" },
+                { "argument", "argument" },
                 { "argument_count", "readonly" },
                 { "all", "readonly" },
                 { "noone", "readonly" },
@@ -120,36 +139,28 @@ namespace TaffyScript.FrontEnd
                 { "#", "#" },
                 { ":", ":" },
             };
-            _validArgNumbers = new HashSet<string>()
-            {
-                "0",
-                "1",
-                "2",
-                "3",
-                "4",
-                "5",
-                "6",
-                "7",
-                "8",
-                "9",
-                "10",
-                "11",
-                "12",
-                "13",
-                "14",
-                "15"
-            };
-            for(var i = 0; i < 16; i++)
+            for (var i = 0; i < 16; i++)
                 _definitions.Add($"argument{i}", "argument");
+
+            // Set _current to the first character. Needed to prevent an error when callinf ReadNext for the first time.
+            TryReadNext();
+
+            // Set the first token.
             ReadWhiteSpace();
             Advance();
         }
 
+        /// <summary>
+        /// Gets the next <see cref="Token"/> without reading it.
+        /// </summary>
         public Token Peek()
         {
             return _token;
         }
 
+        /// <summary>
+        /// Reads the next token.
+        /// </summary>
         public Token Read()
         {
             if (_finished)
@@ -162,6 +173,9 @@ namespace TaffyScript.FrontEnd
             return current;
         }
 
+        /// <summary>
+        /// Reads the next token and returns its value.
+        /// </summary>
         public string ReadValue()
         {
             if (_finished)
@@ -174,18 +188,14 @@ namespace TaffyScript.FrontEnd
             return current.Value;
         }
 
+        /// <summary>
+        /// Advances the stream to the next token.
+        /// </summary>
         private void Advance()
         {
             var next = ReadNext();
             var pos = new TokenPosition(_index - next.Length, _line, _column - next.Length, _fname);
-            if(next == "argument")
-            {
-                var num = ReadNumber(true);
-                if (num.Length > 0 && !_validArgNumbers.Contains(num))
-                    throw new UnrecognizedTokenException(num[num.Length -1], new TokenPosition(_index, _line, _column, _fname));
-                _token = new Token("argument", next + num, pos);
-            }
-            else if (_definitions.TryGetValue(next, out var def))
+            if (_definitions.TryGetValue(next, out var def))
                 _token = new Token(def, next, pos);
             else
             {
@@ -278,10 +288,10 @@ namespace TaffyScript.FrontEnd
  
         private string ReadNext()
         {
-            if (_current == '\0')
-                TryReadNext();
             StringBuilder sb = new StringBuilder(new string(_current, 1));
             var value = _current;
+
+            // If we've reached the end of the stream, return the final character by itself. Otherwise try and get the rest of the string.
             if (!TryReadNext())
                 return sb.ToString();
 
@@ -343,11 +353,13 @@ namespace TaffyScript.FrontEnd
                     sb.Append(ReadCharacters());
                     break;
                 case '0':
+                    //Reads a hex number.
                     if (_current == 'x')
                     {
                         sb.Append(_current);
                         TryReadNext();
                         sb.Append(ReadHexNumber());
+                        //There must be at least one character after the x in a hex number.
                         if (sb.Length == 2)
                             ErrorEncountered?.Invoke(new UnrecognizedTokenException(_current, new TokenPosition(_index, _line, _column, _fname)));
                         return sb.ToString();
@@ -367,6 +379,7 @@ namespace TaffyScript.FrontEnd
                     sb.Append(ReadNumber(false));
                     break;
                 case '.':
+                    //Floating point number with no preceding value.
                     sb.Append(ReadNumber(true));
                     break;
                 case '|':
@@ -679,6 +692,10 @@ namespace TaffyScript.FrontEnd
             return value;
         }
 
+        /// <summary>
+        /// Helper method for {operator}= tokens. i.e. +=, -=, etc.
+        /// </summary>
+        /// <returns></returns>
         private string ReadAssignment()
         {
             if(_current == '=')

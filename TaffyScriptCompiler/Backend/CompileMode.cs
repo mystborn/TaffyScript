@@ -11,10 +11,4 @@ namespace TaffyScript.Backend
         Debug,
         Release
     }
-
-    public enum Cpu
-    {
-        x86,
-        x64
-    }
 }

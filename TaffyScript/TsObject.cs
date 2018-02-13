@@ -7,63 +7,63 @@ using System.Threading.Tasks;
 namespace GmExtern
 {
 
-    public struct GmObject
+    public struct TsObject
     {
         public const float All = -3f;
-        public static Stack<GmObject> Id { get; } = new Stack<GmObject>();
+        public static Stack<TsObject> Id { get; } = new Stack<TsObject>();
         /// <summary>
         /// Global GM object. DO NOT SET.
         /// </summary>
-        public static GmObject Global = GmInstance.InitGlobal();
+        public static TsObject Global = TsInstance.InitGlobal();
 
         public VariableType Type { get; private set; }
-        public IGmValue Value { get; private set; }
+        public ITsValue Value { get; private set; }
 
-        private GmObject(VariableType type, IGmValue value)
+        private TsObject(VariableType type, ITsValue value)
         {
             Type = type;
             Value = value;
         }
 
-        public GmObject(bool value)
+        public TsObject(bool value)
         {
             Type = VariableType.Real;
-            Value = new GmValue<float>(value ? 1 : 0);
+            Value = new TsValue<float>(value ? 1 : 0);
         }
 
-        public GmObject(int value)
+        public TsObject(int value)
         {
             Type = VariableType.Real;
-            Value = new GmValue<float>(value);
+            Value = new TsValue<float>(value);
         }
 
-        public GmObject(float value)
+        public TsObject(float value)
         {
             Type = VariableType.Real;
-            Value = new GmValue<float>(value);
+            Value = new TsValue<float>(value);
         }
 
-        public GmObject(string value)
+        public TsObject(string value)
         {
             Type = VariableType.String;
-            Value = new GmValue<string>(value);
+            Value = new TsValue<string>(value);
         }
 
-        public GmObject(GmObject[] array)
+        public TsObject(TsObject[] array)
         {
             Type = VariableType.Array1;
-            Value = new GmValueArray<GmObject[]>(array);
+            Value = new TsValueArray<TsObject[]>(array);
         }
 
-        public GmObject(GmObject[][] array)
+        public TsObject(TsObject[][] array)
         {
             Type = VariableType.Array2;
-            Value = new GmValueArray<GmObject[][]>(array);
+            Value = new TsValueArray<TsObject[][]>(array);
         }
 
-        public static GmObject Empty()
+        public static TsObject Empty()
         {
-            return new GmObject(VariableType.Null, new GmValue<object>(null));
+            return new TsObject(VariableType.Null, new TsValue<object>(null));
         }
 
         #region Raw Values
@@ -73,8 +73,8 @@ namespace GmExtern
             if (Type == VariableType.Null)
                 return 0;
             if (Type != VariableType.Real)
-                throw new InvalidGmTypeException($"Variable is supposed to be of type Real, is {Type} instead.");
-            return ((GmValue<float>)Value).StrongValue;
+                throw new InvalidTsTypeException($"Variable is supposed to be of type Real, is {Type} instead.");
+            return ((TsValue<float>)Value).StrongValue;
         }
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace GmExtern
 
         public float GetNumUnchecked()
         {
-            return ((GmValue<float>)Value).StrongValue;
+            return ((TsValue<float>)Value).StrongValue;
         }
 
         public string GetString()
@@ -104,13 +104,13 @@ namespace GmExtern
             if (Type == VariableType.Null)
                 return "";
             if (Type != VariableType.String)
-                throw new InvalidGmTypeException($"Variable is supposed to be of type Real, is {Type} instead.");
-            return ((GmValue<string>)Value).StrongValue;
+                throw new InvalidTsTypeException($"Variable is supposed to be of type Real, is {Type} instead.");
+            return ((TsValue<string>)Value).StrongValue;
         }
 
         public string GetStringUnchecked()
         {
-            return ((GmValue<string>)Value).StrongValue;
+            return ((TsValue<string>)Value).StrongValue;
         }
 
         public bool GetBool()
@@ -118,25 +118,25 @@ namespace GmExtern
             return GetNum() >= .5f;
         }
 
-        public GmInstance GetInstance()
+        public TsInstance GetInstance()
         {
-            if (!GmInstance.TryGet(GetNum(), out var inst))
+            if (!TsInstance.TryGet(GetNum(), out var inst))
                 throw new InvalidInstanceException();
             return inst;
         }
 
-        public GmObject[] GetArray1D()
+        public TsObject[] GetArray1D()
         {
             if (Type != VariableType.Array1)
-                throw new InvalidGmTypeException($"Variable is supposed to be of type Array1D, is {Type} instead.");
-            return ((GmValueArray<GmObject[]>)Value).StrongValue;
+                throw new InvalidTsTypeException($"Variable is supposed to be of type Array1D, is {Type} instead.");
+            return ((TsValueArray<TsObject[]>)Value).StrongValue;
         }
 
-        public GmObject[][] GetArray2D()
+        public TsObject[][] GetArray2D()
         {
             if (Type != VariableType.Array2)
-                throw new InvalidGmTypeException($"Variable is supposed to be of type Array2D, is {Type} instead.");
-            return ((GmValueArray<GmObject[][]>)Value).StrongValue;
+                throw new InvalidTsTypeException($"Variable is supposed to be of type Array2D, is {Type} instead.");
+            return ((TsValueArray<TsObject[][]>)Value).StrongValue;
         }
 
         public object GetValue()
@@ -150,35 +150,35 @@ namespace GmExtern
 
         #region Member Access
 
-        public static GmObject GetId()
+        public static TsObject GetId()
         {
             return Id.Peek();
         }
 
         public void MemberSet(string name, float value)
         {
-            if (!GmInstance.TryGet(GetNum(), out var inst))
+            if (!TsInstance.TryGet(GetNum(), out var inst))
                 throw new InvalidInstanceException();
-            inst[name] = new GmObject(value);
+            inst[name] = new TsObject(value);
         }
 
         public void MemberSet(string name, string value)
         {
-            if (!GmInstance.TryGet(GetNum(), out var inst))
+            if (!TsInstance.TryGet(GetNum(), out var inst))
                 throw new InvalidInstanceException();
-            inst[name] = new GmObject(value);
+            inst[name] = new TsObject(value);
         }
 
-        public void MemberSet(string name, GmObject value)
+        public void MemberSet(string name, TsObject value)
         {
-            if (!GmInstance.TryGet(GetNum(), out var inst))
+            if (!TsInstance.TryGet(GetNum(), out var inst))
                 throw new InvalidInstanceException();
             inst[name] = value;
         }
 
-        public GmObject MemberGet(string name)
+        public TsObject MemberGet(string name)
         {
-            if (!GmInstance.TryGet(GetNum(), out var inst))
+            if (!TsInstance.TryGet(GetNum(), out var inst))
                 throw new InvalidInstanceException();
             return inst[name];
         }
@@ -187,10 +187,10 @@ namespace GmExtern
 
         #region Array Access
 
-        public void ArraySet(GmObject index, GmObject right)
+        public void ArraySet(TsObject index, TsObject right)
             => ArraySet(index.GetNum(), right);
 
-        public void ArraySet(float index, GmObject right)
+        public void ArraySet(float index, TsObject right)
         {
             var real = (int)index;
             if (real < 0)
@@ -198,16 +198,16 @@ namespace GmExtern
             if (Type != VariableType.Array1)
             {
                 Type = VariableType.Array1;
-                var temp = new GmObject[real + 1];
+                var temp = new TsObject[real + 1];
                 temp[real] = right;
-                Value = new GmValueArray<GmObject[]>(temp);
+                Value = new TsValueArray<TsObject[]>(temp);
                 return;
             }
-            var self = (GmValueArray<GmObject[]>)Value;
+            var self = (TsValueArray<TsObject[]>)Value;
             var arr = self.StrongValue;
             if (index >= arr.Length)
             {
-                var temp = new GmObject[real + 1];
+                var temp = new TsObject[real + 1];
                 Array.Copy(arr, 0, temp, 0, arr.Length);
                 arr = temp;
                 self.StrongValue = temp;
@@ -215,16 +215,16 @@ namespace GmExtern
             arr[real] = right;
         }
 
-        public void ArraySet(GmObject index1, GmObject index2, GmObject right)
+        public void ArraySet(TsObject index1, TsObject index2, TsObject right)
             => ArraySet(index1.GetNum(), index2.GetNum(), right);
 
-        public void ArraySet(float index1, GmObject index2, GmObject right)
+        public void ArraySet(float index1, TsObject index2, TsObject right)
             => ArraySet(index1, index2.GetNum(), right);
 
-        public void ArraySet(GmObject index1, float index2, GmObject right)
+        public void ArraySet(TsObject index1, float index2, TsObject right)
             => ArraySet(index1.GetNum(), index2, right);
 
-        public void ArraySet(float index1, float index2, GmObject right)
+        public void ArraySet(float index1, float index2, TsObject right)
         {
             int real1 = (int)index1;
             int real2 = (int)index2;
@@ -233,35 +233,35 @@ namespace GmExtern
             if (Type != VariableType.Array2)
             {
                 Type = VariableType.Array2;
-                var temp = new GmObject[real1 + 1][];
-                var inner = new GmObject[real2 + 1];
+                var temp = new TsObject[real1 + 1][];
+                var inner = new TsObject[real2 + 1];
                 inner[real2] = right;
                 temp[real1] = inner;
-                Value = new GmValueArray<GmObject[][]>(temp);
+                Value = new TsValueArray<TsObject[][]>(temp);
                 return;
             }
-            var self = (GmValueArray<GmObject[][]>)Value;
+            var self = (TsValueArray<TsObject[][]>)Value;
             if(real1 >= self.StrongValue.Length)
             {
-                var temp = new GmObject[real1 + 1][];
+                var temp = new TsObject[real1 + 1][];
                 Array.Copy(self.StrongValue, 0, temp, 0, self.StrongValue.Length);
                 self.StrongValue = temp;
             }
             if (self.StrongValue[real1] == null)
-                self.StrongValue[real1] = new GmObject[real2 + 1];
+                self.StrongValue[real1] = new TsObject[real2 + 1];
             else if(real2 >= self.StrongValue[real1].Length)
             {
-                var temp = new GmObject[real2 + 1];
+                var temp = new TsObject[real2 + 1];
                 Array.Copy(self.StrongValue[real1], 0, temp, 0, self.StrongValue[real2].Length);
                 self.StrongValue[real1] = temp;
             }
             self.StrongValue[real1][real2] = right;
         }
 
-        public GmObject ArrayGet(GmObject index)
+        public TsObject ArrayGet(TsObject index)
             => ArrayGet(index.GetNum());
 
-        public GmObject ArrayGet(float index)
+        public TsObject ArrayGet(float index)
         {
             var real = (int)index;
             var arr = GetArray1D();
@@ -270,16 +270,16 @@ namespace GmExtern
             return arr[real];
         }
 
-        public GmObject ArrayGet(GmObject index1, GmObject index2)
+        public TsObject ArrayGet(TsObject index1, TsObject index2)
             => ArrayGet((float)index1, (float)index2);
 
-        public GmObject ArrayGet(GmObject index1, float index2)
+        public TsObject ArrayGet(TsObject index1, float index2)
             => ArrayGet((float)index1, index2);
 
-        public GmObject ArrayGet(float index1, GmObject index2)
+        public TsObject ArrayGet(float index1, TsObject index2)
             => ArrayGet(index1, (float)index2);
 
-        public GmObject ArrayGet(float index1, float index2)
+        public TsObject ArrayGet(float index1, float index2)
         {
             var real1 = (int)index1;
             var real2 = (int)index2;
@@ -305,282 +305,282 @@ namespace GmExtern
 
         #region Operators
 
-        public static explicit operator float(GmObject right)
+        public static explicit operator float(TsObject right)
         {
             return right.GetNum();
         }
 
-        public static explicit operator int(GmObject right)
+        public static explicit operator int(TsObject right)
         {
             return (int)right.GetNum();
         }
 
-        public static explicit operator string(GmObject right)
+        public static explicit operator string(TsObject right)
         {
             return right.GetString();
         }
 
-        public static explicit operator bool(GmObject right)
+        public static explicit operator bool(TsObject right)
         {
             return right.GetBool();
         }
 
-        public static explicit operator GmObject(float right)
+        public static explicit operator TsObject(float right)
         {
-            return new GmObject(right);
+            return new TsObject(right);
         }
 
-        public static explicit operator GmObject(int right)
+        public static explicit operator TsObject(int right)
         {
-            return new GmObject(right);
+            return new TsObject(right);
         }
 
-        public static explicit operator GmObject(string right)
+        public static explicit operator TsObject(string right)
         {
-            return new GmObject(right);
+            return new TsObject(right);
         }
 
-        public static explicit operator GmObject(bool right)
+        public static explicit operator TsObject(bool right)
         {
-            return new GmObject(right);
+            return new TsObject(right);
         }
 
-        public static GmObject operator +(GmObject obj)
+        public static TsObject operator +(TsObject obj)
         {
-            return new GmObject(+obj.GetNum());
+            return new TsObject(+obj.GetNum());
         }
 
-        public static GmObject operator -(GmObject obj)
+        public static TsObject operator -(TsObject obj)
         {
-            return new GmObject(-obj.GetNum());
+            return new TsObject(-obj.GetNum());
         }
 
-        public static GmObject operator !(GmObject obj)
+        public static TsObject operator !(TsObject obj)
         {
-            return new GmObject(!obj.GetBool());
+            return new TsObject(!obj.GetBool());
         }
 
-        public static GmObject operator ~(GmObject obj)
+        public static TsObject operator ~(TsObject obj)
         {
-            return new GmObject(~(int)obj.GetNum());
+            return new TsObject(~(int)obj.GetNum());
         }
 
-        public static GmObject operator ++(GmObject obj)
+        public static TsObject operator ++(TsObject obj)
         {
-            return new GmObject(obj.GetNum() + 1f);
+            return new TsObject(obj.GetNum() + 1f);
         }
 
-        public static GmObject operator --(GmObject obj)
+        public static TsObject operator --(TsObject obj)
         {
-            return new GmObject(obj.GetNum() - 1f);
+            return new TsObject(obj.GetNum() - 1f);
         }
 
-        public static bool operator true(GmObject obj) => obj.GetBool();
+        public static bool operator true(TsObject obj) => obj.GetBool();
 
-        public static bool operator false(GmObject obj) => !obj.GetBool();
+        public static bool operator false(TsObject obj) => !obj.GetBool();
 
-        public static GmObject operator +(GmObject left, GmObject right)
+        public static TsObject operator +(TsObject left, TsObject right)
         {
             if (left.Type == right.Type)
             {
                 if (left.Type == VariableType.Real)
-                    return new GmObject(left.GetNum() + right.GetNum());
+                    return new TsObject(left.GetNum() + right.GetNum());
                 else if (left.Type == VariableType.String)
-                    return new GmObject(left.GetString() + right.GetString());
+                    return new TsObject(left.GetString() + right.GetString());
             }
             throw new InvalidOperationException($"Cannot add {left.Type} and {right.Type} together.");
         }
 
-        public static GmObject operator +(GmObject left, float right)
+        public static TsObject operator +(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot add {left.Type} and Real together.");
-            return new GmObject(left.GetNum() + right);
+            return new TsObject(left.GetNum() + right);
         }
 
-        public static GmObject operator +(float left, GmObject right)
+        public static TsObject operator +(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot add Real and {right.Type} together.");
-            return new GmObject(left + right.GetNum());
+            return new TsObject(left + right.GetNum());
         }
 
-        public static GmObject operator +(GmObject left, string right)
+        public static TsObject operator +(TsObject left, string right)
         {
             if (left.Type != VariableType.String)
                 throw new InvalidOperationException($"Cannot add {left.Type} and String together.");
-            return new GmObject(left.GetString() + right);
+            return new TsObject(left.GetString() + right);
         }
 
-        public static GmObject operator +(string left, GmObject right)
+        public static TsObject operator +(string left, TsObject right)
         {
             if (right.Type != VariableType.String)
                 throw new InvalidOperationException($"Cannot add String and {right.Type} together.");
-            return new GmObject(left + right.GetString());
+            return new TsObject(left + right.GetString());
         }
 
-        public static GmObject operator -(GmObject left, GmObject right)
+        public static TsObject operator -(TsObject left, TsObject right)
         {
             if (left.Type == VariableType.Real && right.Type == VariableType.Real)
-                return new GmObject(left.GetNum() - right.GetNum());
+                return new TsObject(left.GetNum() - right.GetNum());
             throw new InvalidOperationException($"Cannot subtract {left.Type} and {right.Type}.");
         }
 
-        public static GmObject operator -(GmObject left, float right)
+        public static TsObject operator -(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot subtract {left.Type} and Real together.");
-            return new GmObject(left.GetNum() - right);
+            return new TsObject(left.GetNum() - right);
         }
 
-        public static GmObject operator -(float left, GmObject right)
+        public static TsObject operator -(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot subtract Real and {right.Type} together.");
-            return new GmObject(left - right.GetNum());
+            return new TsObject(left - right.GetNum());
         }
 
-        public static GmObject operator *(GmObject left, GmObject right)
+        public static TsObject operator *(TsObject left, TsObject right)
         {
             if (left.Type == VariableType.Real && right.Type == VariableType.Real)
-                return new GmObject(left.GetNum() * right.GetNum());
+                return new TsObject(left.GetNum() * right.GetNum());
             throw new InvalidOperationException($"Cannot multiply {left.Type} and {right.Type}.");
         }
 
-        public static GmObject operator *(GmObject left, float right)
+        public static TsObject operator *(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot multiply {left.Type} and Real together.");
-            return new GmObject(left.GetNum() * right);
+            return new TsObject(left.GetNum() * right);
         }
 
-        public static GmObject operator *(float left, GmObject right)
+        public static TsObject operator *(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot multiply Real and {right.Type} together.");
-            return new GmObject(left * right.GetNum());
+            return new TsObject(left * right.GetNum());
         }
 
-        public static GmObject operator /(GmObject left, GmObject right)
+        public static TsObject operator /(TsObject left, TsObject right)
         {
             if (left.Type == VariableType.Real && right.Type == VariableType.Real)
-                return new GmObject(left.GetNum() / right.GetNum());
+                return new TsObject(left.GetNum() / right.GetNum());
             throw new InvalidOperationException($"Cannot divide {left.Type} and {right.Type}.");
         }
 
-        public static GmObject operator /(GmObject left, float right)
+        public static TsObject operator /(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot divide {left.Type} and Real together.");
-            return new GmObject(left.GetNum() / right);
+            return new TsObject(left.GetNum() / right);
         }
 
-        public static GmObject operator /(float left, GmObject right)
+        public static TsObject operator /(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot divide Real and {right.Type} together.");
-            return new GmObject(left / right.GetNum());
+            return new TsObject(left / right.GetNum());
         }
 
-        public static GmObject operator %(GmObject left, GmObject right)
+        public static TsObject operator %(TsObject left, TsObject right)
         {
             if (left.Type == VariableType.Real && right.Type == VariableType.Real)
-                return new GmObject(left.GetNum() % right.GetNum());
+                return new TsObject(left.GetNum() % right.GetNum());
             throw new InvalidOperationException($"Cannot modulo {left.Type} and {right.Type}.");
         }
 
-        public static GmObject operator %(GmObject left, float right)
+        public static TsObject operator %(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot modulo {left.Type} and Real together.");
-            return new GmObject(left.GetNum() % right);
+            return new TsObject(left.GetNum() % right);
         }
 
-        public static GmObject operator %(float left, GmObject right)
+        public static TsObject operator %(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot modulo Real and {right.Type} together.");
-            return new GmObject(left % right.GetNum());
+            return new TsObject(left % right.GetNum());
         }
 
-        public static GmObject operator &(GmObject left, GmObject right)
+        public static TsObject operator &(TsObject left, TsObject right)
         {
             if (left.Type != VariableType.Real || right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot & {left.Type} and {right.Type}.");
-            return new GmObject(Convert.ToInt32(left.GetNum()) & Convert.ToInt32(right.GetNum()));
+            return new TsObject(Convert.ToInt32(left.GetNum()) & Convert.ToInt32(right.GetNum()));
         }
 
-        public static GmObject operator &(GmObject left, float right)
+        public static TsObject operator &(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot & {left.Type} and Real together.");
-            return new GmObject(Convert.ToInt32(left.GetNum()) & Convert.ToInt32(right));
+            return new TsObject(Convert.ToInt32(left.GetNum()) & Convert.ToInt32(right));
         }
 
-        public static GmObject operator &(float left, GmObject right)
+        public static TsObject operator &(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot & Real and {right.Type} together.");
-            return new GmObject(Convert.ToInt32(left) & Convert.ToInt32(right.GetNum()));
+            return new TsObject(Convert.ToInt32(left) & Convert.ToInt32(right.GetNum()));
         }
 
-        public static GmObject operator |(GmObject left, GmObject right)
+        public static TsObject operator |(TsObject left, TsObject right)
         {
             if (left.Type != VariableType.Real || right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot | {left.Type} and {right.Type}.");
-            return new GmObject(Convert.ToInt32(left.GetNum()) | Convert.ToInt32(right.GetNum()));
+            return new TsObject(Convert.ToInt32(left.GetNum()) | Convert.ToInt32(right.GetNum()));
         }
 
-        public static GmObject operator |(GmObject left, float right)
+        public static TsObject operator |(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot | {left.Type} and Real together.");
-            return new GmObject(Convert.ToInt32(left.GetNum()) | Convert.ToInt32(right));
+            return new TsObject(Convert.ToInt32(left.GetNum()) | Convert.ToInt32(right));
         }
 
-        public static GmObject operator |(float left, GmObject right)
+        public static TsObject operator |(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot | Real and {right.Type} together.");
-            return new GmObject(Convert.ToInt32(left) | Convert.ToInt32(right.GetNum()));
+            return new TsObject(Convert.ToInt32(left) | Convert.ToInt32(right.GetNum()));
         }
 
-        public static GmObject operator ^(GmObject left, GmObject right)
+        public static TsObject operator ^(TsObject left, TsObject right)
         {
             if (left.Type != VariableType.Real || right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot ^ {left.Type} and {right.Type}.");
-            return new GmObject(Convert.ToInt32(left.GetNum()) ^ Convert.ToInt32(right.GetNum()));
+            return new TsObject(Convert.ToInt32(left.GetNum()) ^ Convert.ToInt32(right.GetNum()));
         }
 
-        public static GmObject operator ^(GmObject left, float right)
+        public static TsObject operator ^(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot ^ {left.Type} and Real together.");
-            return new GmObject(Convert.ToInt32(left.GetNum()) ^ Convert.ToInt32(right));
+            return new TsObject(Convert.ToInt32(left.GetNum()) ^ Convert.ToInt32(right));
         }
 
-        public static GmObject operator ^(float left, GmObject right)
+        public static TsObject operator ^(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot ^ Real and {right.Type} together.");
-            return new GmObject(Convert.ToInt32(left) ^ Convert.ToInt32(right.GetNum()));
+            return new TsObject(Convert.ToInt32(left) ^ Convert.ToInt32(right.GetNum()));
         }
 
-        public static GmObject operator <<(GmObject left, int right)
+        public static TsObject operator <<(TsObject left, int right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot & {left.Type} and Real together.");
-            return new GmObject(Convert.ToInt32(left.GetNum()) << right);
+            return new TsObject(Convert.ToInt32(left.GetNum()) << right);
         }
 
-        public static GmObject operator >>(GmObject left, int right)
+        public static TsObject operator >>(TsObject left, int right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot & {left.Type} and Real together.");
-            return new GmObject(Convert.ToInt32(left.GetNum()) >> right);
+            return new TsObject(Convert.ToInt32(left.GetNum()) >> right);
         }
 
-        public static bool operator ==(GmObject left, GmObject right)
+        public static bool operator ==(TsObject left, TsObject right)
         {
             if (left.Type != right.Type)
                 return false;
@@ -597,7 +597,7 @@ namespace GmExtern
             }
         }
 
-        public static bool operator ==(GmObject left, float right)
+        public static bool operator ==(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
                 return false;
@@ -605,7 +605,7 @@ namespace GmExtern
             return left.GetNumUnchecked() == right;
         }
 
-        public static bool operator ==(float left, GmObject right)
+        public static bool operator ==(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 return false;
@@ -613,7 +613,7 @@ namespace GmExtern
             return right.GetNumUnchecked() == left;
         }
 
-        public static bool operator ==(GmObject left, string right)
+        public static bool operator ==(TsObject left, string right)
         {
             if (left.Type != VariableType.String)
                 return false;
@@ -621,7 +621,7 @@ namespace GmExtern
             return left.GetStringUnchecked() == right;
         }
 
-        public static bool operator ==(string left, GmObject right)
+        public static bool operator ==(string left, TsObject right)
         {
             if (right.Type != VariableType.String)
                 return false;
@@ -629,7 +629,7 @@ namespace GmExtern
             return right.GetStringUnchecked() == left;
         }
 
-        public static bool operator !=(GmObject left, GmObject right)
+        public static bool operator !=(TsObject left, TsObject right)
         {
             if (left.Type != right.Type)
                 return true;
@@ -646,7 +646,7 @@ namespace GmExtern
             }
         }
 
-        public static bool operator !=(GmObject left, float right)
+        public static bool operator !=(TsObject left, float right)
         {
             if (left.Type == VariableType.Real)
                 return false;
@@ -654,7 +654,7 @@ namespace GmExtern
             return left.GetNumUnchecked() != right;
         }
 
-        public static bool operator !=(float left, GmObject right)
+        public static bool operator !=(float left, TsObject right)
         {
             if (right.Type == VariableType.Real)
                 return false;
@@ -662,7 +662,7 @@ namespace GmExtern
             return right.GetNumUnchecked() != left;
         }
 
-        public static bool operator !=(GmObject left, string right)
+        public static bool operator !=(TsObject left, string right)
         {
             if (left.Type == VariableType.String)
                 return false;
@@ -670,7 +670,7 @@ namespace GmExtern
             return left.GetStringUnchecked() != right;
         }
 
-        public static bool operator !=(string left, GmObject right)
+        public static bool operator !=(string left, TsObject right)
         {
             if (right.Type == VariableType.String)
                 return false;
@@ -678,7 +678,7 @@ namespace GmExtern
             return right.GetStringUnchecked() != left;
         }
 
-        public static bool operator <(GmObject left, GmObject right)
+        public static bool operator <(TsObject left, TsObject right)
         {
             if (left.Type == VariableType.Real)
             {
@@ -693,35 +693,35 @@ namespace GmExtern
                 return left.GetHashCode() < right.GetHashCode();
         }
 
-        public static bool operator <(GmObject left, float right)
+        public static bool operator <(TsObject left, float right)
         {
             if (left.Type == VariableType.Real)
                 return left.GetNumUnchecked() < right;
             return left.GetHashCode() < right;
         }
 
-        public static bool operator <(float left, GmObject right)
+        public static bool operator <(float left, TsObject right)
         {
             if (right.Type == VariableType.Real)
                 return left < right.GetNumUnchecked();
             return left < right.GetHashCode();
         }
 
-        public static bool operator <(GmObject left, string right)
+        public static bool operator <(TsObject left, string right)
         {
             if (left.Type == VariableType.Real)
                 return left.GetNumUnchecked() < right.GetHashCode();
             return left.GetHashCode() < right.GetHashCode();
         }
 
-        public static bool operator <(string left, GmObject right)
+        public static bool operator <(string left, TsObject right)
         {
             if (right.Type == VariableType.Real)
                 return left.GetHashCode() < right.GetNumUnchecked();
             return left.GetHashCode() < right.GetHashCode();
         }
 
-        public static bool operator >(GmObject left, GmObject right)
+        public static bool operator >(TsObject left, TsObject right)
         {
             if (left.Type == VariableType.Real)
             {
@@ -736,80 +736,80 @@ namespace GmExtern
                 return left.GetHashCode() > right.GetHashCode();
         }
 
-        public static bool operator >(GmObject left, float right)
+        public static bool operator >(TsObject left, float right)
         {
             if (left.Type == VariableType.Real)
                 return left.GetNumUnchecked() > right;
             return left.GetHashCode() > right;
         }
 
-        public static bool operator >(float left, GmObject right)
+        public static bool operator >(float left, TsObject right)
         {
             if (right.Type == VariableType.Real)
                 return left > right.GetNumUnchecked();
             return left > right.GetHashCode();
         }
 
-        public static bool operator >(GmObject left, string right)
+        public static bool operator >(TsObject left, string right)
         {
             if (left.Type == VariableType.Real)
                 return left.GetNumUnchecked() > right.GetHashCode();
             return left.GetHashCode() > right.GetHashCode();
         }
 
-        public static bool operator >(string left, GmObject right)
+        public static bool operator >(string left, TsObject right)
         {
             if (right.Type == VariableType.Real)
                 return left.GetHashCode() > right.GetNumUnchecked();
             return left.GetHashCode() > right.GetHashCode();
         }
 
-        public static bool operator <=(GmObject left, GmObject right)
+        public static bool operator <=(TsObject left, TsObject right)
         {
             return left == right || left < right;
         }
 
-        public static bool operator <=(GmObject left, float right)
+        public static bool operator <=(TsObject left, float right)
         {
             return left == right || left < right;
         }
 
-        public static bool operator <=(float left, GmObject right)
+        public static bool operator <=(float left, TsObject right)
         {
             return left == right || left < right;
         }
 
-        public static bool operator <=(GmObject left, string right)
+        public static bool operator <=(TsObject left, string right)
         {
             return left == right || left < right;
         }
 
-        public static bool operator <=(string left, GmObject right)
+        public static bool operator <=(string left, TsObject right)
         {
             return left == right || left < right;
         }
 
-        public static bool operator >=(GmObject left, GmObject right)
+        public static bool operator >=(TsObject left, TsObject right)
         {
             return left == right || left > right;
         }
 
-        public static bool operator >=(GmObject left, float right)
+        public static bool operator >=(TsObject left, float right)
         {
             return left == right || left > right;
         }
 
-        public static bool operator >=(float left, GmObject right)
+        public static bool operator >=(float left, TsObject right)
         {
             return left == right || left > right;
         }
 
-        public static bool operator >=(GmObject left, string right)
+        public static bool operator >=(TsObject left, string right)
         {
             return left == right || left > right;
         }
 
-        public static bool operator >=(string left, GmObject right)
+        public static bool operator >=(string left, TsObject right)
         {
             return left == right || left > right;
         }
@@ -848,7 +848,7 @@ namespace GmExtern
             return obj.ToString();
         }
 
-        public static void ShowDebugMessage(GmInstance obj)
+        public static void ShowDebugMessage(TsInstance obj)
         {
             Console.WriteLine(obj);
         }

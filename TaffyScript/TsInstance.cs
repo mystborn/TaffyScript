@@ -6,23 +6,23 @@ using System.Threading.Tasks;
 
 namespace GmExtern
 {
-    public delegate void InstanceEvent(GmInstance inst);
-    public delegate GmObject TaffyFunction(GmObject[] args);
+    public delegate void InstanceEvent(TsInstance inst);
+    public delegate TsObject TaffyFunction(TsObject[] args);
 
-    public class GmInstance
+    public class TsInstance
     {
         const float Start = 100000f;
 
-        private static Dictionary<float, GmInstance> Pool { get; } = new Dictionary<float, GmInstance>();
+        private static Dictionary<float, TsInstance> Pool { get; } = new Dictionary<float, TsInstance>();
         private static Queue<float> _availableIds { get; } = new Queue<float>();
 
-        private Dictionary<string, GmObject> _vars = new Dictionary<string, GmObject>();
+        private Dictionary<string, TsObject> _vars = new Dictionary<string, TsObject>();
 
         public static Dictionary<Type, string> ObjectIndexMapping = new Dictionary<Type, string>();
         public static Dictionary<string, Dictionary<string, InstanceEvent>> Events = new Dictionary<string, Dictionary<string, InstanceEvent>>();
         public static Dictionary<string, TaffyFunction> Functions = new Dictionary<string, TaffyFunction>();
 
-        public GmObject this[string variableName]
+        public TsObject this[string variableName]
         {
             get => _vars[variableName];
             set => _vars[variableName] = value;
@@ -31,7 +31,7 @@ namespace GmExtern
         public float Id { get; }
         public string ObjectType { get; }
 
-        private GmInstance(float id, string instanceType)
+        private TsInstance(float id, string instanceType)
         {
             Id = id;
             ObjectType = instanceType;
@@ -39,14 +39,14 @@ namespace GmExtern
             if(Events.TryGetValue(instanceType, out var events))
             {
                 foreach (var ev in events.Keys)
-                    _vars.Add(ev, new GmObject(ev));
+                    _vars.Add(ev, new TsObject(ev));
 
                 if (events.TryGetValue("create", out var create))
                     create(this);
             }
         }
 
-        public static GmObject InstanceCreate(string instanceType)
+        public static TsObject InstanceCreate(string instanceType)
         {
             float id;
             if (_availableIds.Count == 0)
@@ -54,9 +54,9 @@ namespace GmExtern
             else
                 id = _availableIds.Dequeue();
 
-            new GmInstance(id, instanceType);
+            new TsInstance(id, instanceType);
 
-            return new GmObject(id);
+            return new TsObject(id);
         }
 
         public static void InstanceDestroy(float id)
@@ -74,30 +74,30 @@ namespace GmExtern
             return Pool.ContainsKey(id);
         }
 
-        public static bool TryGet(float id, out GmInstance inst)
+        public static bool TryGet(float id, out TsInstance inst)
         {
             return Pool.TryGetValue(id, out inst);
         }
 
-        public static IEnumerable<GmObject> Instances()
+        public static IEnumerable<TsObject> Instances()
         {
             foreach (var inst in Pool.Keys)
             {
-                yield return new GmObject(inst);
+                yield return new TsObject(inst);
             }
         }
 
-        public static IEnumerable<GmObject> Instances(string type)
+        public static IEnumerable<TsObject> Instances(string type)
         {
             foreach (var inst in Pool.Values)
                 if (inst.ObjectType == type)
-                    yield return new GmObject(inst.Id);
+                    yield return new TsObject(inst.Id);
         }
 
-        internal static GmObject InitGlobal()
+        internal static TsObject InitGlobal()
         {
-            var global = new GmInstance(-5f, "");
-            return new GmObject(-5f);
+            var global = new TsInstance(-5f, "");
+            return new TsObject(-5f);
         }
     }
 }

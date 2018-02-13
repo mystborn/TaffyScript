@@ -47,9 +47,9 @@
     <Compile Include="BaseClassLib\DsList.cs" />
     <Compile Include="BaseClassLib\DsMap.cs" />
     <Compile Include="Extensions.cs" />
-    <Compile Include="GmInstance.cs" />
-    <Compile Include="GmObject.cs" />
-    <Compile Include="GmValue.cs" />
+    <Compile Include="TsInstance.cs" />
+    <Compile Include="TsObject.cs" />
+    <Compile Include="TsValue.cs" />
     <Compile Include="BaseClassLib\DsGrid.cs" />
     <Compile Include="InstanceEnumerator.cs" />
     <Compile Include="Exceptions\InvalidGmTypeException.cs" />

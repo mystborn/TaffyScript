@@ -12,18 +12,35 @@ using Myst.Collections;
 
 namespace TaffyScript.Backend
 {
+    /// <summary>
+    /// Generates an assembly based off of an abstract syntax tree.
+    /// </summary>
     internal partial class MsilWeakCodeGen : ISyntaxElementVisitor
     {
         #region Constants
 
+        /// <summary>
+        /// Special file name that will be stored in the output assembly manifest that contains a list of imported methods with the <see cref="WeakMethodAttribute"/>.
+        /// </summary>
         private const string SpecialImportsFileName = "SpecialImports.resource";
+
+        /// <summary>
+        /// The value of the keyword all.
+        /// </summary>
         private const float All = -3f;
 
         #endregion
 
         #region Fields
 
+        /// <summary>
+        /// Whenever a local variable needs to be created by the compiler, it uses this number to create it, and then increments this to avoid naming conflicts.
+        /// </summary>
         private int _secret = 0;
+
+        /// <summary>
+        /// If the compiler is in debug mode, this will be used to write symbol information. Currently the only symbols written are method calls to help with debugging.
+        /// </summary>
         private Dictionary<string, ISymbolDocumentWriter> _documents = new Dictionary<string, ISymbolDocumentWriter>();
 
         private readonly bool _isDebug;
@@ -37,40 +54,131 @@ namespace TaffyScript.Backend
         private SymbolTable _table;
         private readonly Dictionary<string, MethodInfo> _methods = new Dictionary<string, MethodInfo>();
         private readonly LookupTable<string, string, long> _enums = new LookupTable<string, string, long>();
-        //private readonly BindingFlags _methodFlags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
         private readonly BindingFlags _methodFlags = BindingFlags.Public | BindingFlags.Static;
         private readonly Dictionary<string, TypeBuilder> _baseTypes = new Dictionary<string, TypeBuilder>();
 
+        /// <summary>
+        /// Keeps a list of any errors encountered during the compile.
+        /// </summary>
         private List<Exception> _errors = new List<Exception>();
-        private Dictionary<Type, MethodInfo> _gmObjectCasts;
-        private Dictionary<Type, ConstructorInfo> _gmConstructors;
-        private Dictionary<string, Type> _gmBasicTypes;
+
+        /// <summary>
+        /// Methods used to convert a <see cref="TsObject"/> to another type.
+        /// </summary>
+        private Dictionary<Type, MethodInfo> _tsObjectCasts;
+
+        /// <summary>
+        /// <see cref="TsObject"/> constructors that take a single argument.
+        /// </summary>
+        private Dictionary<Type, ConstructorInfo> _tsConstructors;
+
+        /// <summary>
+        /// Defines the native types that TaffyScript supports.
+        /// </summary>
+        private Dictionary<string, Type> _tsBasicTypes;
+
+        /// <summary>
+        /// Should not be used directly.
+        /// </summary>
         private MethodInfo _getEmptyObject;
+
+        /// <summary>
+        /// Should not be used directly.
+        /// </summary>
         private MethodInfo _getId;
+
+        /// <summary>
+        /// Should not be used directly.
+        /// </summary>
         private MethodInfo _getIdStack;
+
+        /// <summary>
+        /// Should not be used directly.
+        /// </summary>
         private MethodInfo _pushId;
+
+        /// <summary>
+        /// Should not be used directly.
+        /// </summary>
         private MethodInfo _popId;
+
+        /// <summary>
+        /// Used to memoize unary operaters.
+        /// </summary>
         private LookupTable<string, Type, MethodInfo> _unaryOps = new LookupTable<string, Type, MethodInfo>();
+
+        /// <summary>
+        /// Used to memoize binary operators.
+        /// </summary>
         private Dictionary<string, LookupTable<Type, Type, MethodInfo>> _binaryOps = new Dictionary<string, LookupTable<Type, Type, MethodInfo>>();
+
+        /// <summary>
+        /// Converts an operator to its implementation name. + -> op_Addition
+        /// </summary>
         private Dictionary<string, string> _operators;
-        private HashSet<string> _pendingMethods = new HashSet<string>();
+
+        /// <summary>
+        /// Maintains a collection of methods that haven't been found.
+        /// </summary>
+        private Dictionary<string, TokenPosition> _pendingMethods = new Dictionary<string, TokenPosition>();
+        
+        /// <summary>
+        /// Do not use. Backing stream of SpecialImports.
+        /// </summary>
         private System.IO.MemoryStream _stream = null;
+
+        /// <summary>
+        /// Do not use directly.
+        /// </summary>
         private System.IO.StreamWriter _specialImports = null;
 
+        /// <summary>
+        /// Currently this will always be an empty string, but when namespaces/modules are implemented, this will contain the name of the current namespace.
+        /// </summary>
         private string _namespace = "";
 
+        /// <summary>
+        /// The ILEmitter of the current script or event.
+        /// </summary>
         private ILEmitter emit;
+
+        /// <summary>
+        /// The local variables in the current scope.
+        /// </summary>
         private Dictionary<ISymbol, LocalBuilder> _locals = new Dictionary<ISymbol, LocalBuilder>();
+
+        /// <summary>
+        /// The top value contains the position of the current loops start.
+        /// </summary>
         private Stack<Label> _loopStart = new Stack<Label>();
+
+        /// <summary>
+        /// The top value contains the position of the current loops end.
+        /// </summary>
         private Stack<Label> _loopEnd = new Stack<Label>();
+
+        /// <summary>
+        /// Determines whether the compiler is currently in a script.
+        /// </summary>
         private bool _inScript;
+
+        /// <summary>
+        /// Determines if the current element should emit an address if possible.
+        /// </summary>
         private bool _needAddress = false;
+
+        /// <summary>
+        /// Should not be used directly.
+        /// </summary>
         private LocalBuilder _id = null;
 
         #endregion
 
         #region Properties
 
+        /// <summary>
+        /// Gets the StreamWriter used to write any special imports into the assembly manifest.
+        /// </summary>
         private System.IO.StreamWriter SpecialImports
         {
             get
@@ -84,6 +192,9 @@ namespace TaffyScript.Backend
             }
         }
 
+        /// <summary>
+        /// Gets the ILEmitter for the module initializer method.
+        /// </summary>
         private ILEmitter ModuleInitializer
         {
             get
@@ -98,32 +209,41 @@ namespace TaffyScript.Backend
             }
         }
 
+        /// <summary>
+        /// Gets a method that represents getting the static Id stack from the <see cref="TsObject"/> class.
+        /// </summary>
         private MethodInfo GetIdStack
         {
             get
             {
                 if(_getIdStack == null)
-                    _getIdStack = typeof(GmObject).GetMethod("get_Id");
+                    _getIdStack = typeof(TsObject).GetMethod("get_Id");
                 return _getIdStack;
             }
         }
 
+        /// <summary>
+        /// Gets a method that represents <see cref="Stack{T}.Push(T)"/> where T is <see cref="TsObject"/>.
+        /// </summary>
         private MethodInfo PushId
         {
             get
             {
                 if (_pushId == null)
-                    _pushId = typeof(Stack<GmObject>).GetMethod("Push");
+                    _pushId = typeof(Stack<TsObject>).GetMethod("Push");
                 return _pushId;
             }
         }
 
+        /// <summary>
+        /// Gets a method that represents <see cref="Stack{T}.Pop(T)"/> where T is <see cref="TsObject"/>.
+        /// </summary>
         private MethodInfo PopId
         {
             get
             {
                 if (_popId == null)
-                    _popId = typeof(Stack<GmObject>).GetMethod("Pop");
+                    _popId = typeof(Stack<TsObject>).GetMethod("Pop");
                 return _popId;
             }
         }
@@ -132,60 +252,57 @@ namespace TaffyScript.Backend
 
         #region Public
 
-        public MsilWeakCodeGen(SymbolTable table, MsilWeakBuildConfig config)
+        /// <summary>
+        /// Initializes a new code generator that will emit weakly typed MSIL.
+        /// </summary>
+        /// <param name="table">The symbols defined for this code generator.</param>
+        /// <param name="config">The build config used when creating the final assembly.</param>
+        public MsilWeakCodeGen(SymbolTable table, BuildConfig config)
         {
             _table = table;
             _isDebug = config.Mode == CompileMode.Debug;
             _asmName = new AssemblyName(System.IO.Path.GetFileName(config.Output));
             _asm = AppDomain.CurrentDomain.DefineDynamicAssembly(_asmName, AssemblyBuilderAccess.Save);
+
             CustomAttributeBuilder attrib;
             if (_isDebug)
             {
+                // If running in debug mode, this will allow you to step through the assembly using a debugger.
+                // It also might be necessary in order to read debug symbols?
                 var aType = typeof(DebuggableAttribute);
                 var ctor = aType.GetConstructor(new[] { typeof(DebuggableAttribute.DebuggingModes) });
                 attrib = new CustomAttributeBuilder(ctor, new object[] { DebuggableAttribute.DebuggingModes.DisableOptimizations | DebuggableAttribute.DebuggingModes.Default });
                 _asm.SetCustomAttribute(attrib);
             }
+
             _assemblyLoader = new DotNetAssemblyLoader();
             _typeParser = new DotNetTypeParser(_assemblyLoader);
-            _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(GmObject)));
+
+            // Initialize the basic assemblies needed to compile.
+            _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(TsObject)));
             _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(Console)));
 
+            // Initialize all specified references.
             foreach (var asm in config.References.Select(s => _assemblyLoader.LoadAssembly(s)))
             {
                 if(asm.GetCustomAttribute<WeakLibraryAttribute>() != null)
                 {
                     FindValidMethods(asm);
-                    var resources = asm.GetManifestResourceNames();
-                    if (resources.Contains(SpecialImportsFileName))
-                    {
-                        using (var stream = asm.GetManifestResourceStream(SpecialImportsFileName))
-                        {
-                            using (var reader = new System.IO.StreamReader(stream))
-                            {
-                                while (!reader.EndOfStream)
-                                {
-                                    var line = reader.ReadLine();
-                                    var input = line.Split(':');
-                                    var external = input[1];
-                                    var owner = external.Remove(external.LastIndexOf('.'));
-                                    var methodName = external.Substring(owner.Length + 1);
-                                    var type = _typeParser.GetType(owner);
-                                    var method = GetMethodToImport(type, methodName, new[] { typeof(GmObject[]) });
-                                    _methods[input[0]] = method;
-                                }
-                            }
-                        }
-                    }
+                    ReadResources(asm);
                 }
             }
-            InitGmMethods();
+            
+            //Initializes methods relating to TsObjects.
+            InitTsMethods();
+
+            //Marks this assembly as weakly typed.
             attrib = new CustomAttributeBuilder(typeof(WeakLibraryAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
             _asm.SetCustomAttribute(attrib);
         }
 
         public CompilerResult CompileTree(ISyntaxTree tree)
         {
+            //If a main script was defined, output an exe. Otherwise outputs a dll.
             var output = ".dll";
             if (_table.Defined("main", out var symbol) && symbol.Type == SymbolType.Script)
                 output = ".exe";
@@ -193,18 +310,25 @@ namespace TaffyScript.Backend
             _module = _asm.DefineDynamicModule(_asmName.Name, _asmName.Name + output, _isDebug);
 
             tree.Root.Accept(this);
+
+            foreach (var pending in _pendingMethods)
+                _errors.Add(new CompileException($"Could not find function {pending.Key} {pending.Value}"));
+
             if (_errors.Count != 0)
                 return new CompilerResult(_errors);
 
+            //Finalize any types that were created.
             foreach (var type in _baseTypes.Values)
                 type.CreateType();
 
+            //Write any special imports to the module manifest.
             if (_specialImports != null)
             {
                 _specialImports.Flush();
                 _module.DefineManifestResource(SpecialImportsFileName, _stream, ResourceAttributes.Public);
             }
 
+            //If there is a module initializer, finalize it.
             if (_moduleInitializer != null)
             {
                 _moduleInitializer.Ret();
@@ -212,6 +336,8 @@ namespace TaffyScript.Backend
             }
 
             _asm.Save(_asmName.Name + output);
+
+            //Dispose any dynamic resources.
             if (_specialImports != null)
             {
                 _specialImports.Dispose();
@@ -227,6 +353,10 @@ namespace TaffyScript.Backend
 
         #region Helpers
 
+        /// <summary>
+        /// Finds all methods in an assembly marked with the <see cref="WeakMethodAttribute"/> and makes them usable.
+        /// </summary>
+        /// <param name="asm"></param>
         private void FindValidMethods(Assembly asm)
         {
             foreach(var type in asm.ExportedTypes)
@@ -250,25 +380,69 @@ namespace TaffyScript.Backend
             }
         }
 
+        /// <summary>
+        /// Reads any special methods stored in an assembly's manifest and makes them usable.
+        /// </summary>
+        /// <param name="asm"></param>
+        private void ReadResources(Assembly asm)
+        {
+            var resources = asm.GetManifestResourceNames();
+            if (resources.Contains(SpecialImportsFileName))
+            {
+                using (var stream = asm.GetManifestResourceStream(SpecialImportsFileName))
+                {
+                    using (var reader = new System.IO.StreamReader(stream))
+                    {
+                        while (!reader.EndOfStream)
+                        {
+                            var line = reader.ReadLine();
+                            var input = line.Split(':');
+                            var external = input[1];
+                            var owner = external.Remove(external.LastIndexOf('.'));
+                            var methodName = external.Substring(owner.Length + 1);
+                            var type = _typeParser.GetType(owner);
+                            var method = GetMethodToImport(type, methodName, new[] { typeof(TsObject[]) });
+                            _methods[input[0]] = method;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Determines if a method has the signature TsObject MethodName(TsObject[]) and is therefore callable by TaffyScript.
+        /// </summary>
+        /// <param name="method"></param>
+        /// <returns></returns>
         private bool IsMethodValid(MethodInfo method)
         {
-            if (method.ReturnType != typeof(GmObject))
+            if (method.ReturnType != typeof(TsObject))
                 return false;
 
             var args = method.GetParameters();
-            if (args.Length != 1 || args[0].ParameterType != typeof(GmObject[]))
+            if (args.Length != 1 || args[0].ParameterType != typeof(TsObject[]))
                 return false;
 
             return true;
         }
 
+        /// <summary>
+        /// Helper method to find a method on the specified type.
+        /// </summary>
         private MethodInfo GetMethodToImport(Type owner, string name, Type[] argTypes)
         {
             return owner.GetMethod(name, _methodFlags, null, argTypes, null);
         }
-
+        
+        /// <summary>
+        /// Starts a TaffyScript method.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
         private MethodBuilder StartMethod(string name)
         {
+            // If the method is encountered before it's created, a blank MethodBuilder is created.
+            // If this happens, use that to generate the method.
             if (_methods.TryGetValue(name, out var result))
             {
                 //Todo: Define name conflict exception
@@ -282,13 +456,17 @@ namespace TaffyScript.Backend
                 _errors.Add(new CompileException($"Tried to call an undefined function: {name}"));
                 return null;
             }
-            var mb = GetBaseType().DefineMethod(name, MethodAttributes.Public | MethodAttributes.Static, typeof(GmObject), new[] { typeof(GmObject[]) });
+            var mb = GetBaseType().DefineMethod(name, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), new[] { typeof(TsObject[]) });
             if (_isDebug)
                 mb.DefineParameter(1, ParameterAttributes.None, "__args_");
             _methods.Add(name, mb);
             return mb;
         }
 
+        /// <summary>
+        /// Gets the base type for this namespace.
+        /// </summary>
+        /// <returns></returns>
         private TypeBuilder GetBaseType()
         {
             if(!_baseTypes.TryGetValue(_namespace, out var type))
@@ -302,10 +480,15 @@ namespace TaffyScript.Backend
             return type;
         }
 
+        /// <summary>
+        /// Helper method to wrap an imported method in a valid TaffyScript method.
+        /// </summary>
+        /// <param name="method"></param>
+        /// <param name="importName"></param>
         private void GenerateWeakMethodForImport(MethodInfo method, string importName)
         {
             var mb = StartMethod(importName);
-            var emit = new ILEmitter(mb, new[] { typeof(GmObject[]) }, _isDebug);
+            var emit = new ILEmitter(mb, new[] { typeof(TsObject[]) }, _isDebug);
             var paramArray = method.GetParameters();
             var paramTypes = new Type[paramArray.Length];
             for (var i = 0; i < paramArray.Length; ++i)
@@ -315,37 +498,41 @@ namespace TaffyScript.Backend
             {
                 emit.LdArg(0)
                     .LdInt(i);
-                //Only cast the the GmObject if needed.
+                //Only cast the the TsObject if needed.
                 if (paramTypes[i] == typeof(object))
                 {
-                    emit.LdElem(typeof(GmObject))
-                        .Box(typeof(GmObject));
+                    emit.LdElem(typeof(TsObject))
+                        .Box(typeof(TsObject));
                 }
-                else if (paramTypes[i] != typeof(GmObject))
+                else if (paramTypes[i] != typeof(TsObject))
                 {
-                    emit.LdElemA(typeof(GmObject))
-                        .Call(_gmObjectCasts[paramTypes[i]]);
+                    emit.LdElemA(typeof(TsObject))
+                        .Call(_tsObjectCasts[paramTypes[i]]);
                 }
                 else
-                    emit.LdElem(typeof(GmObject));
+                    emit.LdElem(typeof(TsObject));
             }
             emit.Call(method);
             if (method.ReturnType == typeof(void))
                 emit.Call(_getEmptyObject);
-            else if (_gmConstructors.TryGetValue(method.ReturnType, out var init))
+            else if (_tsConstructors.TryGetValue(method.ReturnType, out var init))
                 emit.New(init);
-            else if (method.ReturnType != typeof(GmObject))
+            else if (method.ReturnType != typeof(TsObject))
                 _errors.Add(new InvalidProgramException("Imported method had an invalid return type."));
 
             emit.Ret();
         }
 
+        /// <summary>
+        /// Generates an entry point from a TaffyScript method.
+        /// </summary>
+        /// <param name="entry"></param>
         private void GenerateEntryPoint(MethodInfo entry)
         {
             var input = new[] { typeof(string[]) };
             var method = GetBaseType().DefineMethod("Main", MethodAttributes.Public | MethodAttributes.Static, typeof(void), input);
             var emit = new ILEmitter(method, input, _isDebug);
-            var args = emit.DeclareLocal(typeof(GmObject[]), "args");
+            var args = emit.DeclareLocal(typeof(TsObject[]), "args");
             var i = emit.DeclareLocal(typeof(int), "i");
             var count = emit.DeclareLocal(typeof(int), "count");
             var start = emit.DefineLabel();
@@ -354,10 +541,10 @@ namespace TaffyScript.Backend
             //public static void Main(string[] arg1)
             //{
             //    var count = arg1.Length;
-            //    var args = new GmObject[count];
+            //    var args = new TsObject[count];
             //    for(var i = 0; i < count; i++)
             //    {
-            //        args[i] = new GmObject(arg1[i])
+            //        args[i] = new TsObject(arg1[i])
             //    }
             //    main(args);
             //}
@@ -365,7 +552,7 @@ namespace TaffyScript.Backend
                 .LdLen()
                 .Dup()
                 .StLocal(count)
-                .NewArr(typeof(GmObject))
+                .NewArr(typeof(TsObject))
                 .StLocal(args)
                 .LdInt(0)
                 .StLocal(i)
@@ -378,8 +565,8 @@ namespace TaffyScript.Backend
                 .LdArg(0)
                 .LdLocal(i)
                 .LdElem(typeof(string))
-                .New(_gmConstructors[typeof(string)])
-                .StElem(typeof(GmObject))
+                .New(_tsConstructors[typeof(string)])
+                .StElem(typeof(TsObject))
                 .LdLocal(i)
                 .LdInt(1)
                 .Add()
@@ -387,48 +574,51 @@ namespace TaffyScript.Backend
                 .Br(start)
                 .MarkLabel(end)
                 .LdLocal(args)
-                .Call(entry, 1, typeof(GmObject))
+                .Call(entry, 1, typeof(TsObject))
                 .Pop()
                 .Ret();
 
             _asm.SetEntryPoint(method);
         }
 
-        private void InitGmMethods()
+        /// <summary>
+        /// Initializes any needed variables relating to <see cref="TsObject"/>s.
+        /// </summary>
+        private void InitTsMethods()
         {
-            var objType = typeof(GmObject);
-            _gmObjectCasts = new Dictionary<Type, MethodInfo>()
+            var objType = typeof(TsObject);
+            _tsObjectCasts = new Dictionary<Type, MethodInfo>()
             {
                 { typeof(string), objType.GetMethod("GetString") },
                 { typeof(float), objType.GetMethod("GetNum") },
                 { typeof(int), objType.GetMethod("GetNumAsInt") },
                 { typeof(long), objType.GetMethod("GetNumAsLong") },
                 { typeof(bool), objType.GetMethod("GetBool") },
-                { typeof(GmInstance), objType.GetMethod("GetInstance") },
-                { typeof(GmObject[]), objType.GetMethod("GetArray1D") },
-                { typeof(GmObject[][]), objType.GetMethod("GetArray2D") }
+                { typeof(TsInstance), objType.GetMethod("GetInstance") },
+                { typeof(TsObject[]), objType.GetMethod("GetArray1D") },
+                { typeof(TsObject[][]), objType.GetMethod("GetArray2D") }
             };
 
-            _gmConstructors = new Dictionary<Type, ConstructorInfo>()
+            _tsConstructors = new Dictionary<Type, ConstructorInfo>()
             {
                 { typeof(bool), objType.GetConstructor(new[] { typeof(bool) }) },
                 { typeof(int), objType.GetConstructor(new[] { typeof(int) }) },
                 { typeof(float), objType.GetConstructor(new[] { typeof(float) }) },
                 { typeof(string), objType.GetConstructor(new[] { typeof(string) }) },
-                { typeof(GmObject[]), objType.GetConstructor(new[] { typeof(GmObject[]) }) },
-                { typeof(GmObject[][]), objType.GetConstructor(new[] { typeof(GmObject[][]) }) },
+                { typeof(TsObject[]), objType.GetConstructor(new[] { typeof(TsObject[]) }) },
+                { typeof(TsObject[][]), objType.GetConstructor(new[] { typeof(TsObject[][]) }) },
             };
 
-            _gmBasicTypes = new Dictionary<string, Type>()
+            _tsBasicTypes = new Dictionary<string, Type>()
             {
                 { "bool", typeof(bool) },
                 { "float", typeof(float) },
                 { "int", typeof(int) },
                 { "string", typeof(string) },
-                { "instance", typeof(GmInstance) },
-                { "array1d", typeof(GmObject[]) },
-                { "array2d", typeof(GmObject[][]) },
-                { "object", typeof(GmObject) }
+                { "instance", typeof(TsInstance) },
+                { "array1d", typeof(TsObject[]) },
+                { "array2d", typeof(TsObject[][]) },
+                { "object", typeof(TsObject) }
             };
 
             _operators = new Dictionary<string, string>()
@@ -527,31 +717,30 @@ namespace TaffyScript.Backend
             return method;
         }
 
-        private MethodInfo GetOperator(string op, Type[] types, TokenPosition pos)
-        {
-            if (types.Length == 1)
-                return GetOperator(op, types[0], pos);
-            else if (types.Length == 2)
-                return GetOperator(op, types[0], types[1], pos);
-            else
-            {
-                //This doesn't specify a token position, but it also should never be encountered.
-                _errors.Add(new CompileException($"Operator {op} does not exist for the type(s) {string.Join(" and ", types.ToList())} {pos}."));
-                return null;
-            }
-        }
-
+        /// <summary>
+        /// Creates a secret <see cref="TsObject"/> local variable.
+        /// </summary>
+        /// <returns></returns>
         private LocalBuilder MakeSecret()
         {
             var name = $"__0secret{_secret++}";
-            return emit.DeclareLocal(typeof(GmObject), name);
+            return emit.DeclareLocal(typeof(TsObject), name);
         }
 
+        /// <summary>
+        /// Creates a secret variable of the given type.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         private LocalBuilder MakeSecret(Type type)
         {
             return emit.DeclareLocal(type, $"__0secret_{_secret++}");
         }
 
+        /// <summary>
+        /// Loads the address of an element if possible, otherwise it loads the value.
+        /// </summary>
+        /// <param name="element"></param>
         private void GetAddressIfPossible(ISyntaxElement element)
         {
             if (element.Type == SyntaxType.Variable || element.Type == SyntaxType.ArrayAccess || element.Type == SyntaxType.ReadOnlyValue)
@@ -564,17 +753,22 @@ namespace TaffyScript.Backend
                 element.Accept(this);
         }
 
+        /// <summary>
+        /// Calls a <see cref="TsObject"/> instance method that takes 0 arguments.
+        /// </summary>
+        /// <param name="method"></param>
+        /// <param name="pos"></param>
         private void CallInstanceMethod(MethodInfo method, TokenPosition pos)
         {
             var top = emit.GetTop();
-            if (top == typeof(GmObject))
+            if (top == typeof(TsObject))
             {
                 var secret = MakeSecret();
                 emit.StLocal(secret)
                     .LdLocalA(secret)
                     .Call(method);
             }
-            else if (top == typeof(GmObject).MakePointerType())
+            else if (top == typeof(TsObject).MakePointerType())
                 emit.Call(method);
             else
                 _errors.Add(new CompileException($"Something went wrong {pos}"));
@@ -587,6 +781,17 @@ namespace TaffyScript.Backend
             return _id;
         }
 
+        /// <summary>
+        /// If the compiler is in debug mode, marks a sequence point in the IL stream.
+        /// <para>
+        /// Currently this is only called before methods, and it makes the console show better information when an exception is thrown.
+        /// </para>
+        /// </summary>
+        /// <param name="file"></param>
+        /// <param name="startLine"></param>
+        /// <param name="startColumn"></param>
+        /// <param name="endLine"></param>
+        /// <param name="endColumn"></param>
         private void MarkSequencePoint(string file, int startLine, int startColumn, int endLine, int endColumn)
         {
             if(_isDebug && file != null)
@@ -635,7 +840,7 @@ namespace TaffyScript.Backend
                     _errors.Add(new CompileException($"Cannot {additive.Value} types {left} and {right}"));
                     return;
                 }
-                else if (right == typeof(GmObject))
+                else if (right == typeof(TsObject))
                     emit.Call(GetOperator(additive.Value, left, right, additive.Position));
                 else
                 {
@@ -657,10 +862,10 @@ namespace TaffyScript.Backend
                 }
                 else if(right == typeof(string))
                     emit.Call(typeof(string).GetMethod("Concat", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(string), typeof(string) }, null));
-                else if(right == typeof(GmObject))
+                else if(right == typeof(TsObject))
                     emit.Call(GetOperator(additive.Value, left, right, additive.Position));
             }
-            else if(left == typeof(GmObject))
+            else if(left == typeof(TsObject))
             {
                 var method = GetOperator(additive.Value, left, right, additive.Position);
                 emit.Call(method);
@@ -680,22 +885,22 @@ namespace TaffyScript.Backend
                 var type = emit.GetTop();
                 if (type == typeof(float))
                     emit.ConvertInt(false);
-                else if (type == typeof(GmObject))
+                else if (type == typeof(TsObject))
                 {
                     var secret = MakeSecret();
                     emit.StLocal(secret)
                         .LdLocalA(secret)
-                        .Call(_gmObjectCasts[typeof(int)]);
+                        .Call(_tsObjectCasts[typeof(int)]);
                 }
-                else if (type == typeof(GmObject).MakePointerType())
-                    emit.Call(_gmObjectCasts[typeof(int)]);
+                else if (type == typeof(TsObject).MakePointerType())
+                    emit.Call(_tsObjectCasts[typeof(int)]);
                 else if (type != typeof(int))
                     _errors.Add(new CompileException($"Invalid argument access {argumentAccess.Position}"));
             }
             if (_needAddress)
-                emit.LdElemA(typeof(GmObject));
+                emit.LdElemA(typeof(TsObject));
             else
-                emit.LdElem(typeof(GmObject));
+                emit.LdElem(typeof(TsObject));
         }
 
         public void Visit(ArrayAccessNode arrayAccess)
@@ -703,41 +908,41 @@ namespace TaffyScript.Backend
             var address = _needAddress;
             _needAddress = false;
             GetAddressIfPossible(arrayAccess.Left);
-            CallInstanceMethod(_gmObjectCasts[arrayAccess.Children.Count == 2 ? typeof(GmObject[]) : typeof(GmObject[][])], arrayAccess.Position);
+            CallInstanceMethod(_tsObjectCasts[arrayAccess.Children.Count == 2 ? typeof(TsObject[]) : typeof(TsObject[][])], arrayAccess.Position);
             GetAddressIfPossible(arrayAccess.Children[1]);
             var top = emit.GetTop();
             if (top == typeof(float))
                 emit.ConvertInt(false);
             else if (top != typeof(int) || top != typeof(bool))
-                CallInstanceMethod(_gmObjectCasts[typeof(int)], arrayAccess.Position);
+                CallInstanceMethod(_tsObjectCasts[typeof(int)], arrayAccess.Position);
             if(arrayAccess.Children.Count == 2)
             {
                 if (address)
-                    emit.LdElemA(typeof(GmObject));
+                    emit.LdElemA(typeof(TsObject));
                 else
-                    emit.LdElem(typeof(GmObject));
+                    emit.LdElem(typeof(TsObject));
             }
             else
             {
-                emit.LdElem(typeof(GmObject[]));
+                emit.LdElem(typeof(TsObject[]));
                 GetAddressIfPossible(arrayAccess.Children[2]);
                 top = emit.GetTop();
                 if (top == typeof(float))
                     emit.ConvertInt(false);
                 else if (top != typeof(int) || top != typeof(bool))
-                    CallInstanceMethod(_gmObjectCasts[typeof(int)], arrayAccess.Position);
+                    CallInstanceMethod(_tsObjectCasts[typeof(int)], arrayAccess.Position);
 
                 if (address)
-                    emit.LdElemA(typeof(GmObject));
+                    emit.LdElemA(typeof(TsObject));
                 else
-                    emit.LdElem(typeof(GmObject));
+                    emit.LdElem(typeof(TsObject));
             }
         }
 
         public void Visit(ArrayLiteralNode arrayLiteral)
         {
             emit.LdInt(arrayLiteral.Children.Count)
-                .NewArr(typeof(GmObject));
+                .NewArr(typeof(TsObject));
             for (var i = 0; i < arrayLiteral.Children.Count; i++)
             {
                 emit.Dup()
@@ -745,11 +950,11 @@ namespace TaffyScript.Backend
 
                 arrayLiteral.Children[i].Accept(this);
                 var type = emit.GetTop();
-                if (type != typeof(GmObject))
-                    emit.New(_gmConstructors[type]);
-                emit.StElem(typeof(GmObject));
+                if (type != typeof(TsObject))
+                    emit.New(_tsConstructors[type]);
+                emit.StElem(typeof(TsObject));
             }
-            emit.New(_gmConstructors[typeof(GmObject[])]);
+            emit.New(_tsConstructors[typeof(TsObject[])]);
         }
 
         public void Visit(AssignNode assign)
@@ -764,7 +969,7 @@ namespace TaffyScript.Backend
             {
                 //Here we have to resize the array if needed, so more work needs to be done.
                 GetAddressIfPossible(array.Left);
-                if (emit.GetTop() == typeof(GmObject))
+                if (emit.GetTop() == typeof(TsObject))
                 {
                     var secret = MakeSecret();
                     emit.StLocal(secret)
@@ -779,10 +984,10 @@ namespace TaffyScript.Backend
                 }
                 assign.Right.Accept(this);
                 var top = emit.GetTop();
-                if (top != typeof(GmObject))
-                    emit.New(_gmConstructors[top]);
+                if (top != typeof(TsObject))
+                    emit.New(_tsConstructors[top]);
                 argTypes[argTypes.Length - 1] = emit.GetTop();
-                emit.Call(typeof(GmObject).GetMethod("ArraySet", argTypes));
+                emit.Call(typeof(TsObject).GetMethod("ArraySet", argTypes));
             }
             //Todo: Optimize DsAccessNodes
             //If ds.Left is var, use that instead of creating new local.
@@ -793,8 +998,8 @@ namespace TaffyScript.Backend
                 LoadElementAsInt(list.Right);
                 assign.Right.Accept(this);
                 var top = emit.GetTop();
-                if (top != typeof(GmObject))
-                    emit.New(_gmConstructors[top]);
+                if (top != typeof(TsObject))
+                    emit.New(_tsConstructors[top]);
                 emit.Call(typeof(DsList).GetMethod("DsListStrongSet"));
             }
             else if(assign.Left is GridAccessNode grid)
@@ -804,8 +1009,8 @@ namespace TaffyScript.Backend
                 LoadElementAsInt(grid.Y);
                 assign.Right.Accept(this);
                 var top = emit.GetTop();
-                if (top != typeof(GmObject))
-                    emit.New(_gmConstructors[top]);
+                if (top != typeof(TsObject))
+                    emit.New(_tsConstructors[top]);
                 emit.Call(typeof(DsGrid).GetMethod("DsGridSet"));
             }
             else if(assign.Left is MapAccessNode map)
@@ -813,12 +1018,12 @@ namespace TaffyScript.Backend
                 LoadElementAsInt(map.Left);
                 map.Right.Accept(this);
                 var top = emit.GetTop();
-                if (top != typeof(GmObject))
-                    emit.New(_gmConstructors[top]);
+                if (top != typeof(TsObject))
+                    emit.New(_tsConstructors[top]);
                 assign.Right.Accept(this);
                 top = emit.GetTop();
-                if (top != typeof(GmObject))
-                    emit.New(_gmConstructors[top]);
+                if (top != typeof(TsObject))
+                    emit.New(_tsConstructors[top]);
                 emit.Call(typeof(DsMap).GetMethod("DsMapReplace"));
             }
             else if (assign.Left is VariableToken variable)
@@ -832,8 +1037,8 @@ namespace TaffyScript.Backend
 
                     assign.Right.Accept(this);
                     var result = emit.GetTop();
-                    if (result != typeof(GmObject))
-                        emit.New(_gmConstructors[result]);
+                    if (result != typeof(TsObject))
+                        emit.New(_tsConstructors[result]);
                     emit.StLocal(_locals[symbol]);
                 }
                 else
@@ -845,14 +1050,14 @@ namespace TaffyScript.Backend
                         .LdStr(variable.Text);
                     assign.Right.Accept(this);
                     var argTypes = new[] { typeof(string), emit.GetTop() };
-                    emit.Call(typeof(GmObject).GetMethod("MemberSet", BindingFlags.Public | BindingFlags.Instance, null, argTypes, null));
+                    emit.Call(typeof(TsObject).GetMethod("MemberSet", BindingFlags.Public | BindingFlags.Instance, null, argTypes, null));
                 }
             }
             else if (assign.Left is MemberAccessNode member)
             {
                 GetAddressIfPossible(member.Left);
                 var top = emit.GetTop();
-                if (top == typeof(GmObject))
+                if (top == typeof(TsObject))
                 {
                     var secret = MakeSecret();
                     emit.StLocal(secret)
@@ -861,7 +1066,7 @@ namespace TaffyScript.Backend
                 emit.LdStr(((ISyntaxToken)member.Right).Text);
                 assign.Right.Accept(this);
                 var argTypes = new[] { typeof(string), emit.GetTop() };
-                emit.Call(typeof(GmObject).GetMethod("MemberSet", BindingFlags.Public | BindingFlags.Instance, null, argTypes, null));
+                emit.Call(typeof(TsObject).GetMethod("MemberSet", BindingFlags.Public | BindingFlags.Instance, null, argTypes, null));
             }
             else
                 _errors.Add(new CompileException($"This assignment is not yet supported {assign.Position}"));
@@ -878,17 +1083,17 @@ namespace TaffyScript.Backend
                 //the the data pointed to by that address.
                 GetAddressIfPossible(array);
                 emit.Dup()
-                    .LdObj(typeof(GmObject));
+                    .LdObj(typeof(TsObject));
                 assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
-                    .StObj(typeof(GmObject));
+                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
+                    .StObj(typeof(TsObject));
             }
             else if (assign.Left is ListAccessNode list)
             {
                 ListAccessSet(list);
                 emit.Call(typeof(DsList).GetMethod("DsListFindValue"));
                 assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
+                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
                     .Call(typeof(DsList).GetMethod("DsListStrongSet"));
             }
             else if (assign.Left is GridAccessNode grid)
@@ -896,7 +1101,7 @@ namespace TaffyScript.Backend
                 GridAccessSet(grid);
                 emit.Call(typeof(DsGrid).GetMethod("DsGridGet"));
                 assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
+                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
                     .Call(typeof(DsGrid).GetMethod("DsGridSet"));
             }
             else if (assign.Left is MapAccessNode map)
@@ -904,7 +1109,7 @@ namespace TaffyScript.Backend
                 MapAccessSet(map);
                 emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"));
                 assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
+                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
                     .Call(typeof(DsMap).GetMethod("DsMapReplace"));
             }
             else if(assign.Left is VariableToken variable)
@@ -915,10 +1120,10 @@ namespace TaffyScript.Backend
                         _errors.Add(new CompileException($"Cannot assign to the value {symbol.Name} {variable.Position}"));
                     GetAddressIfPossible(assign.Left);
                     emit.Dup()
-                        .LdObj(typeof(GmObject));
+                        .LdObj(typeof(TsObject));
                     assign.Right.Accept(this);
-                    emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
-                        .StObj(typeof(GmObject));
+                    emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
+                        .StObj(typeof(TsObject));
                 }
                 else
                     _errors.Add(new CompileException($"This assignment is not yet supported {assign.Position}"));
@@ -927,7 +1132,7 @@ namespace TaffyScript.Backend
             {
                 member.Left.Accept(this);
                 var top = emit.GetTop();
-                if (top != typeof(GmObject))
+                if (top != typeof(TsObject))
                     _errors.Add(new CompileException($"Invalid syntax detected {member.Position}"));
                 var name = ((ISyntaxToken)member.Right).Text;
                 var secret = MakeSecret();
@@ -936,10 +1141,10 @@ namespace TaffyScript.Backend
                     .LdStr(name)
                     .LdLocalA(secret)
                     .LdStr(name)
-                    .Call(typeof(GmObject).GetMethod("MemberGet"));
+                    .Call(typeof(TsObject).GetMethod("MemberGet"));
                 assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(GmObject), emit.GetTop(), assign.Position))
-                    .Call(typeof(GmObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }));
+                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
+                    .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }));
             }
         }
 
@@ -984,8 +1189,8 @@ namespace TaffyScript.Backend
             emit.StLocal(id);
             map.Right.Accept(this);
             var top = emit.GetTop();
-            if (top != typeof(GmObject))
-                emit.New(_gmConstructors[top]);
+            if (top != typeof(TsObject))
+                emit.New(_tsConstructors[top]);
             emit.StLocal(key);
             emit.LdLocal(id)
                 .LdLocal(key)
@@ -1006,9 +1211,9 @@ namespace TaffyScript.Backend
             else
             {
                 bitwise.Left.Accept(this);
-                if (emit.GetTop() != typeof(GmObject))
+                if (emit.GetTop() != typeof(TsObject))
                     _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the type {emit.GetTop()} {bitwise.Position}"));
-                emit.Call(_gmObjectCasts[typeof(long)]);
+                emit.Call(_tsObjectCasts[typeof(long)]);
             }
             if(bitwise.Right.Type == SyntaxType.Constant)
             {
@@ -1021,9 +1226,9 @@ namespace TaffyScript.Backend
             else
             {
                 bitwise.Right.Accept(this);
-                if (!emit.TryGetTop(out var top) || top != typeof(GmObject))
+                if (!emit.TryGetTop(out var top) || top != typeof(TsObject))
                     _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the type {emit.GetTop()} {bitwise.Position}"));
-                emit.Call(_gmObjectCasts[typeof(long)]);
+                emit.Call(_tsObjectCasts[typeof(long)]);
             }
 
             switch(bitwise.Value)
@@ -1140,8 +1345,8 @@ namespace TaffyScript.Backend
             var type = emit.GetTop();
             if (type == typeof(float))
                 emit.ConvertInt(false);
-            else if (type == typeof(GmObject))
-                emit.Call(_gmObjectCasts[typeof(bool)]);
+            else if (type == typeof(TsObject))
+                emit.Call(_tsObjectCasts[typeof(bool)]);
             else if(type == typeof(string))
             {
                 //All string should eval to false.
@@ -1219,7 +1424,7 @@ namespace TaffyScript.Backend
                     else
                         emit.LdBool(true);
                 }
-                else if (right == typeof(GmObject))
+                else if (right == typeof(TsObject))
                     emit.Call(GetOperator(op, left, right, pos));
                 else
                     _errors.Add(new CompileException($"Cannot {op} types {left} and {right} {pos}"));
@@ -1235,12 +1440,12 @@ namespace TaffyScript.Backend
                     else
                         emit.LdBool(true);
                 }
-                else if (right == typeof(string) || right == typeof(GmObject))
+                else if (right == typeof(string) || right == typeof(TsObject))
                     emit.Call(GetOperator(op, left, right, pos));
                 else
                     _errors.Add(new CompileException($"Cannot {op} types {left} and {right} {pos}"));
             }
-            else if (left == typeof(GmObject))
+            else if (left == typeof(TsObject))
                 emit.Call(GetOperator(op, left, right, pos));
             else
                 _errors.Add(new CompileException($"Cannot {op} types {left} and {right} {pos}"));
@@ -1288,12 +1493,12 @@ namespace TaffyScript.Backend
         public void Visit(FunctionCallNode functionCall)
         {
             //All methods callable from GML should have the same sig:
-            //GmObject func_name(GmObject[]);
+            //TsObject func_name(TsObject[]);
             var name = functionCall.Value;
             if (!_methods.TryGetValue(name, out var method))
             {
                 method = StartMethod(name);
-                _pendingMethods.Add(name);
+                _pendingMethods.Add(name, functionCall.Position);
             }
 
             if (_isDebug && functionCall.Position.File != null)
@@ -1332,7 +1537,7 @@ namespace TaffyScript.Backend
             }
 
             emit.LdInt(functionCall.Children.Count)
-                .NewArr(typeof(GmObject));
+                .NewArr(typeof(TsObject));
 
             for(var i = 0; i < functionCall.Children.Count; ++i)
             {
@@ -1341,13 +1546,13 @@ namespace TaffyScript.Backend
 
                 functionCall.Children[i].Accept(this);
                 var top = emit.GetTop();
-                if(top != typeof(GmObject))
-                    emit.New(_gmConstructors[top]);
+                if(top != typeof(TsObject))
+                    emit.New(_tsConstructors[top]);
 
-                emit.StElem(typeof(GmObject));
+                emit.StElem(typeof(TsObject));
             }
             //The argument array should still be on top.
-            emit.Call(method, 1, typeof(GmObject));
+            emit.Call(method, 1, typeof(TsObject));
         }
 
         public void Visit(GridAccessNode gridAccess)
@@ -1391,7 +1596,7 @@ namespace TaffyScript.Backend
 
             for (var i = 0; i < args.Length; i++)
             {
-                if (!_gmBasicTypes.TryGetValue(argWrappers[i].Value, out var argType))
+                if (!_tsBasicTypes.TryGetValue(argWrappers[i].Value, out var argType))
                     _errors.Add(new CompileException($"Could not import the function {internalName} because one of the arguments was invalid {argWrappers[i].Value} {argWrappers[i].Position}"));
 
                 args[i] = argType;
@@ -1434,9 +1639,9 @@ namespace TaffyScript.Backend
                 emit.ConvertInt(false);
                 top = typeof(int);
             }
-            else if (top == typeof(GmObject) || top == typeof(GmObject).MakePointerType())
+            else if (top == typeof(TsObject) || top == typeof(TsObject).MakePointerType())
             {
-                CallInstanceMethod(_gmObjectCasts[typeof(int)], element.Position);
+                CallInstanceMethod(_tsObjectCasts[typeof(int)], element.Position);
                 top = typeof(int);
             }
             else
@@ -1461,8 +1666,8 @@ namespace TaffyScript.Backend
                 emit.Pop().LdInt(0);
             else if (left == typeof(float))
                 emit.LdFloat(.5f).Cge();
-            else if (left == typeof(GmObject))
-                emit.Call(_gmObjectCasts[typeof(bool)]);
+            else if (left == typeof(TsObject))
+                emit.Call(_tsObjectCasts[typeof(bool)]);
             else if (left != typeof(bool))
                 _errors.Add(new CompileException($"Encountered invalid syntax {logical.Left.Position}"));
             if (logical.Value == "&&")
@@ -1484,8 +1689,8 @@ namespace TaffyScript.Backend
                 emit.Pop().LdInt(0);
             else if (left == typeof(float))
                 emit.LdFloat(.5f).Cge();
-            else if (left == typeof(GmObject))
-                emit.Call(_gmObjectCasts[typeof(bool)]);
+            else if (left == typeof(TsObject))
+                emit.Call(_tsObjectCasts[typeof(bool)]);
             else if (left != typeof(bool))
                 _errors.Add(new CompileException($"Encountered invalid syntax {logical.Right.Position}"));
 
@@ -1497,10 +1702,10 @@ namespace TaffyScript.Backend
             LoadElementAsInt(mapAccess.Left);
             mapAccess.Right.Accept(this);
             var top = emit.GetTop();
-            if(top != typeof(GmObject))
+            if(top != typeof(TsObject))
             {
-                emit.New(_gmConstructors[top]);
-                top = typeof(GmObject);
+                emit.New(_tsConstructors[top]);
+                top = typeof(TsObject);
             }
             emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"));
         }
@@ -1524,13 +1729,13 @@ namespace TaffyScript.Backend
             {
                 GetAddressIfPossible(memberAccess.Left);
                 var left = emit.GetTop();
-                if(left == typeof(GmObject))
+                if(left == typeof(TsObject))
                 {
                     var secret = MakeSecret();
                     emit.StLocal(secret)
                         .LdLocalA(secret);
                 }
-                else if(left != typeof(GmObject).MakePointerType())
+                else if(left != typeof(TsObject).MakePointerType())
                 {
 
                     //Todo: MemberAccess class variables.
@@ -1543,14 +1748,14 @@ namespace TaffyScript.Backend
                 if (memberAccess.Right is VariableToken right)
                 {
                     emit.LdStr(right.Text)
-                        .Call(typeof(GmObject).GetMethod("MemberGet", new[] { typeof(string) }));
+                        .Call(typeof(TsObject).GetMethod("MemberGet", new[] { typeof(string) }));
                 }
                 else if (memberAccess.Right is ReadOnlyToken readOnly)
                 {
                     if (readOnly.Text != "id" && readOnly.Text != "self")
                         _errors.Add(new NotImplementedException($"Only the read only variables id and self can be accessed from an instance currently {readOnly.Position}"));
                     emit.LdStr("id")
-                        .Call(typeof(GmObject).GetMethod("MemberGet", new[] { typeof(string) }));
+                        .Call(typeof(TsObject).GetMethod("MemberGet", new[] { typeof(string) }));
                 }
                 else
                     _errors.Add(new CompileException($"Invalid syntax detected {memberAccess.Position}"));
@@ -1581,7 +1786,7 @@ namespace TaffyScript.Backend
                     emit.Mul();
                 else if (right == typeof(string))
                     _errors.Add(new CompileException($"Cannot {multiplicative.Value} types {left} and {right} {multiplicative.Position}"));
-                else if (right == typeof(GmObject))
+                else if (right == typeof(TsObject))
                     emit.Call(GetOperator(multiplicative.Value, left, right, multiplicative.Position));
                 else
                     _errors.Add(new CompileException($"Cannot {multiplicative.Value} types {left} and {right} {multiplicative.Position}"));
@@ -1589,7 +1794,7 @@ namespace TaffyScript.Backend
             else if (left == typeof(string)) {
                 _errors.Add(new CompileException($"Cannot {multiplicative.Value} types {left} and {right} {multiplicative.Position}"));
             }
-            else if (left == typeof(GmObject))
+            else if (left == typeof(TsObject))
                 emit.Call(GetOperator(multiplicative.Value, left, right, multiplicative.Position));
         }
 
@@ -1600,10 +1805,10 @@ namespace TaffyScript.Backend
                 name = name.TrimStart('.');
             var type = _module.DefineType(name, TypeAttributes.Public);
             _table.Enter(objectNode.Value);
-            var input = new[] { typeof(GmInstance) };
+            var input = new[] { typeof(TsInstance) };
             var addMethod = typeof(Dictionary<string, InstanceEvent>).GetMethod("Add");
-            var objectIds = typeof(GmInstance).GetField("ObjectIndexMapping");
-            var events = typeof(GmInstance).GetField("Events");
+            var objectIds = typeof(TsInstance).GetField("ObjectIndexMapping");
+            var events = typeof(TsInstance).GetField("Events");
             var addObjectId = typeof(Dictionary<Type, string>).GetMethod("Add");
             var init = ModuleInitializer;
             init.LdFld(objectIds)
@@ -1621,8 +1826,8 @@ namespace TaffyScript.Backend
                 emit = new ILEmitter(method, input, _isDebug);
                 emit.Call(GetIdStack)
                     .LdArg(0)
-                    .Call(typeof(GmInstance).GetMethod("get_Id"))
-                    .New(_gmConstructors[typeof(float)])
+                    .Call(typeof(TsInstance).GetMethod("get_Id"))
+                    .New(_tsConstructors[typeof(float)])
                     .Call(PushId);
                 ev.Body.Accept(this);
                 emit.Call(GetIdStack)
@@ -1656,11 +1861,11 @@ namespace TaffyScript.Backend
                 GetAddressIfPossible(array);
                 emit.Dup()
                     .Dup()
-                    .LdObj(typeof(GmObject))
+                    .LdObj(typeof(TsObject))
                     .StLocal(secret)
-                    .LdObj(typeof(GmObject))
-                    .Call(GetOperator(postfix.Value, typeof(GmObject), postfix.Position))
-                    .StObj(typeof(GmObject))
+                    .LdObj(typeof(TsObject))
+                    .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                    .StObj(typeof(TsObject))
                     .LdLocal(secret);
             }
             else if(postfix.Child is ListAccessNode list)
@@ -1669,7 +1874,7 @@ namespace TaffyScript.Backend
                 emit.Call(typeof(DsList).GetMethod("DsListFindValue"))
                     .StLocal(secret)
                     .LdLocal(secret)
-                    .Call(GetOperator(postfix.Value, typeof(GmObject), postfix.Position))
+                    .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
                     .Call(typeof(DsList).GetMethod("DsListStrongSet"))
                     .LdLocal(secret);
             }
@@ -1679,7 +1884,7 @@ namespace TaffyScript.Backend
                 emit.Call(typeof(DsGrid).GetMethod("DsGridGet"))
                     .StLocal(secret)
                     .LdLocal(secret)
-                    .Call(GetOperator(postfix.Value, typeof(GmObject), postfix.Position))
+                    .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
                     .Call(typeof(DsGrid).GetMethod("DsGridSet"))
                     .LdLocal(secret);
             }
@@ -1689,7 +1894,7 @@ namespace TaffyScript.Backend
                 emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"))
                     .StLocal(secret)
                     .LdLocal(secret)
-                    .Call(GetOperator(postfix.Value, typeof(GmObject), postfix.Position))
+                    .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
                     .Call(typeof(DsMap).GetMethod("DsMapReplace"))
                     .LdLocal(secret);
             }
@@ -1702,11 +1907,11 @@ namespace TaffyScript.Backend
                     GetAddressIfPossible(variable);
                     emit.Dup()
                         .Dup()
-                        .LdObj(typeof(GmObject))
+                        .LdObj(typeof(TsObject))
                         .StLocal(secret)
-                        .LdObj(typeof(GmObject))
-                        .Call(GetOperator(postfix.Value, typeof(GmObject), postfix.Position))
-                        .StObj(typeof(GmObject))
+                        .LdObj(typeof(TsObject))
+                        .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                        .StObj(typeof(TsObject))
                         .LdLocal(secret);
                 }
                 else
@@ -1716,7 +1921,7 @@ namespace TaffyScript.Backend
             {
                 member.Left.Accept(this);
                 var top = emit.GetTop();
-                if (top != typeof(GmObject))
+                if (top != typeof(TsObject))
                     _errors.Add(new CompileException($"Cannot access member on type {top} {member.Left.Position}"));
                 var name = ((ISyntaxToken)member.Right).Text;
                 var value = MakeSecret();
@@ -1727,11 +1932,11 @@ namespace TaffyScript.Backend
                     .LdStr(name)
                     .LdLocalA(secret)
                     .LdStr(name)
-                    .Call(typeof(GmObject).GetMethod("MemberGet"))
+                    .Call(typeof(TsObject).GetMethod("MemberGet"))
                     .StLocal(value)
-                    .Call(typeof(GmObject).GetMethod("MemberGet"))
-                    .Call(GetOperator(postfix.Value, typeof(GmObject), postfix.Position))
-                    .Call(typeof(GmObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }))
+                    .Call(typeof(TsObject).GetMethod("MemberGet"))
+                    .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                    .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }))
                     .LdLocal(value);
             }
             else
@@ -1745,30 +1950,30 @@ namespace TaffyScript.Backend
                 GetAddressIfPossible(array);
                 emit.Dup()
                     .Dup()
-                    .LdObj(typeof(GmObject))
-                    .Call(GetOperator(prefix.Value, typeof(GmObject), prefix.Position))
-                    .StObj(typeof(GmObject))
-                    .LdObj(typeof(GmObject));
+                    .LdObj(typeof(TsObject))
+                    .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                    .StObj(typeof(TsObject))
+                    .LdObj(typeof(TsObject));
             }
             else if(prefix.Child is ListAccessNode list)
             {
                 ListAccessSet(list);
                 emit.Call(typeof(DsList).GetMethod("DsListFindValue"))
-                    .Call(GetOperator(prefix.Value, typeof(GmObject), prefix.Position))
+                    .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
                     .Call(typeof(DsList).GetMethod("DsListStrongSet"));
             }
             else if(prefix.Child is GridAccessNode grid)
             {
                 GridAccessSet(grid);
                 emit.Call(typeof(DsGrid).GetMethod("DsGridGet"))
-                    .Call(GetOperator(prefix.Value, typeof(GmObject), prefix.Position))
+                    .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
                     .Call(typeof(DsGrid).GetMethod("DsGridSet"));
             }
             else if(prefix.Child is MapAccessNode map)
             {
                 MapAccessSet(map);
                 emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"))
-                    .Call(GetOperator(prefix.Value, typeof(GmObject), emit.GetTop(), prefix.Position))
+                    .Call(GetOperator(prefix.Value, typeof(TsObject), emit.GetTop(), prefix.Position))
                     .Call(typeof(DsMap).GetMethod("DsMapReplace"));
             }
             else if (prefix.Child is VariableToken variable)
@@ -1778,7 +1983,7 @@ namespace TaffyScript.Backend
                     if (symbol.Type != SymbolType.Variable)
                         _errors.Add(new CompileException($"Tried to access an identifier that wasn't a variable {prefix.Child.Position}"));
                     variable.Accept(this);
-                    emit.Call(GetOperator(prefix.Value, typeof(GmObject), prefix.Position))
+                    emit.Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
                         .StLocal(_locals[symbol])
                         .LdLocal(_locals[symbol]);
                 }
@@ -1789,7 +1994,7 @@ namespace TaffyScript.Backend
             {
                 member.Left.Accept(this);
                 var top = emit.GetTop();
-                if (top != typeof(GmObject))
+                if (top != typeof(TsObject))
                     _errors.Add(new CompileException($"Invalid syntax detected {prefix.Child.Position}"));
                 var name = ((ISyntaxToken)member.Right).Text;
                 var secret = MakeSecret();
@@ -1800,10 +2005,10 @@ namespace TaffyScript.Backend
                     .LdStr(name)
                     .LdLocalA(secret)
                     .LdStr(name)
-                    .Call(typeof(GmObject).GetMethod("MemberGet"))
-                    .Call(GetOperator(prefix.Value, typeof(GmObject), prefix.Position))
-                    .Call(typeof(GmObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }))
-                    .Call(typeof(GmObject).GetMethod("MemberGet"));
+                    .Call(typeof(TsObject).GetMethod("MemberGet"))
+                    .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                    .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }))
+                    .Call(typeof(TsObject).GetMethod("MemberGet"));
             }
             else
                 _errors.Add(new CompileException($"Invalid syntax detected {prefix.Position}"));
@@ -1824,9 +2029,9 @@ namespace TaffyScript.Backend
                     break;
                 case "global":
                     if (_needAddress)
-                        emit.LdFldA(typeof(GmObject).GetField("Global"));
+                        emit.LdFldA(typeof(TsObject).GetField("Global"));
                     else
-                        emit.LdFld(typeof(GmObject).GetField("Global"));
+                        emit.LdFld(typeof(TsObject).GetField("Global"));
                     break;
                 case "pi":
                     emit.LdFloat((float)Math.PI);
@@ -1890,10 +2095,10 @@ namespace TaffyScript.Backend
                             break;
                     }
                 }
-                else if (right == typeof(GmObject))
+                else if (right == typeof(TsObject))
                     emit.Call(GetOperator(relational.Value, left, right, relational.Position));
             }
-            else if (left == typeof(GmObject))
+            else if (left == typeof(TsObject))
                 emit.Call(GetOperator(relational.Value, left, right, relational.Position));
             else
                 _errors.Add(new CompileException($"Invalid syntax detected {relational.Position}"));
@@ -1917,7 +2122,7 @@ namespace TaffyScript.Backend
                 emit.ConvertFloat()
                     .Clt();
             }
-            else if (top == typeof(GmObject))
+            else if (top == typeof(TsObject))
                 emit.Call(GetOperator("<", typeof(float), top, repeat.Body.Position));
             else if (top == typeof(float))
                 emit.Clt();
@@ -1940,8 +2145,8 @@ namespace TaffyScript.Backend
             if (!emit.TryGetTop(out var returnType))
                 _errors.Add(new CompileException($"Tried to return without a return value. If this is expected, use exit instead {returnNode.Position}"));
 
-            if (returnType != typeof(GmObject))
-                emit.New(_gmConstructors[returnType]);
+            if (returnType != typeof(TsObject))
+                emit.New(_tsConstructors[returnType]);
 
             emit.Ret();
         }
@@ -1963,11 +2168,11 @@ namespace TaffyScript.Backend
             _pendingMethods.Remove(name);
             _table.Enter(name);
             var mb = StartMethod(name);
-            emit = new ILEmitter(mb, new[] { typeof(GmObject[]) }, _isDebug);
+            emit = new ILEmitter(mb, new[] { typeof(TsObject[]) }, _isDebug);
             _locals = new Dictionary<ISymbol, LocalBuilder>();
             _inScript = true;
             foreach (var symbol in _table.Symbols.Where(s => s.Type == SymbolType.Variable))
-                _locals.Add(symbol, emit.DeclareLocal(typeof(GmObject), symbol.Name));
+                _locals.Add(symbol, emit.DeclareLocal(typeof(TsObject), symbol.Name));
 
             script.Body.Accept(this);
             
@@ -1983,7 +2188,7 @@ namespace TaffyScript.Backend
             _id = null;
 
             var init = ModuleInitializer;
-            init.LdFld(typeof(GmInstance).GetField("Functions"))
+            init.LdFld(typeof(TsInstance).GetField("Functions"))
                 .LdStr(name)
                 .LdNull()
                 .LdFtn(mb)
@@ -2012,9 +2217,9 @@ namespace TaffyScript.Backend
                 emit.ConvertInt(true);
                 right = typeof(int);
             }
-            else if(right == typeof(GmObject) || right == typeof(GmObject).MakePointerType())
+            else if(right == typeof(TsObject) || right == typeof(TsObject).MakePointerType())
             {
-                CallInstanceMethod(_gmObjectCasts[typeof(int)], shift.Right.Position);
+                CallInstanceMethod(_tsObjectCasts[typeof(int)], shift.Right.Position);
                 right = typeof(int);
             }
             else
@@ -2030,7 +2235,7 @@ namespace TaffyScript.Backend
                 else
                     _errors.Add(new CompileException($"Must shift by a real value {shift.Right.Position}"));
             }
-            else if (left == typeof(GmObject))
+            else if (left == typeof(TsObject))
             {
                 if (right == typeof(int))
                     emit.Call(GetOperator(shift.Value, left, right, shift.Position));
@@ -2142,7 +2347,7 @@ namespace TaffyScript.Backend
                     .StLocal(id)
                     .LdLocalA(id)
                     .LdStr(variableToken.Text)
-                    .Call(typeof(GmObject).GetMethod("MemberGet", new[] { typeof(string) }));
+                    .Call(typeof(TsObject).GetMethod("MemberGet", new[] { typeof(string) }));
             }
         }
 
@@ -2165,13 +2370,13 @@ namespace TaffyScript.Backend
             var top = emit.GetTop();
             if(top == typeof(int) || top == typeof(bool))
             {
-                emit.New(_gmConstructors[typeof(int)]);
-                top = typeof(GmObject);
+                emit.New(_tsConstructors[typeof(int)]);
+                top = typeof(TsObject);
             }
             if(top == typeof(float))
             {
-                emit.New(_gmConstructors[typeof(float)]);
-                top = typeof(GmObject);
+                emit.New(_tsConstructors[typeof(float)]);
+                top = typeof(TsObject);
             }
             var start = emit.DefineLabel();
             var end = emit.DefineLabel();

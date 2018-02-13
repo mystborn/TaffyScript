@@ -8,11 +8,11 @@ namespace GmExtern
 {
     public static class DsList
     {
-        private readonly static List<List<GmObject>> _lists = new List<List<GmObject>>();
+        private readonly static List<List<TsObject>> _lists = new List<List<TsObject>>();
         private readonly static Queue<int> _listSlots = new Queue<int>();
 
         [WeakMethod]
-        public static GmObject DsListAdd(GmObject[] args)
+        public static TsObject DsListAdd(TsObject[] args)
         {
             if (args.Length < 2)
                 throw new ArgumentNullException("When calling ds_list_add, at least 2 arguments must be provided.");
@@ -20,7 +20,7 @@ namespace GmExtern
             for (var i = 1; i < args.Length; i++)
                 list.Add(args[i]);
 
-            return GmObject.Empty();
+            return TsObject.Empty();
         }
 
         public static void DsListClear(int id)
@@ -42,12 +42,12 @@ namespace GmExtern
             if(_listSlots.Count == 0)
             {
                 index = _listSlots.Count;
-                _lists.Add(new List<GmObject>());
+                _lists.Add(new List<TsObject>());
             }
             else
             {
                 index = _listSlots.Dequeue();
-                _lists[index] = new List<GmObject>();
+                _lists[index] = new List<TsObject>();
             }
             return index;
         }
@@ -73,31 +73,31 @@ namespace GmExtern
             return GetList(id).Count == 0;
         }
 
-        public static int DsListFindIndex(int id, GmObject value)
+        public static int DsListFindIndex(int id, TsObject value)
         {
             return GetList(id).FindIndex(v => v == value);
         }
 
-        public static GmObject DsListFindValue(int id, int index)
+        public static TsObject DsListFindValue(int id, int index)
         {
             var list = GetList(id);
             if (index >= list.Count)
-                return GmObject.Empty();
+                return TsObject.Empty();
             return list[index];
         }
 
-        public static void DsListInsert(int id, int pos, GmObject val)
+        public static void DsListInsert(int id, int pos, TsObject val)
         {
             GetList(id).Insert(pos, val);
         }
 
-        public static void DsListReplace(int id, int pos, GmObject val)
+        public static void DsListReplace(int id, int pos, TsObject val)
         {
             GetList(id)[pos] = val;
         }
 
         [WeakMethod]
-        public static GmObject DsListSet(GmObject[] args)
+        public static TsObject DsListSet(TsObject[] args)
         {
             if (args.Length < 3)
                 throw new ArgumentException("When calling ds_list_set, at least 3 arguments must be provided.");
@@ -105,18 +105,18 @@ namespace GmExtern
             var pos = args[1].GetNumAsInt();
             var length = pos + args.Length - 2;
             while (list.Count <= length)
-                list.Add(new GmObject(0));
+                list.Add(new TsObject(0));
             for (var i = 2; i < args.Length; i++)
                 list[pos + i - 2] = args[i];
 
-            return GmObject.Empty();
+            return TsObject.Empty();
         }
 
-        public static void DsListStrongSet(int id, int pos, GmObject value)
+        public static void DsListStrongSet(int id, int pos, TsObject value)
         {
             var list = GetList(id);
             while (list.Count <= pos)
-                list.Add(new GmObject(0));
+                list.Add(new TsObject(0));
             list[pos] = value;
         }
 
@@ -135,7 +135,7 @@ namespace GmExtern
             GetList(id).Sort();
         }
 
-        private static List<GmObject> GetList(int id)
+        private static List<TsObject> GetList(int id)
         {
             if (id < 0 || id >= _lists.Count || _lists[id] == null)
                 throw new ArgumentOutOfRangeException("index");

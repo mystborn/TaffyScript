@@ -8,6 +8,23 @@ using System.Reflection.Emit;
 
 namespace TaffyScript.Backend
 {
+    // This class is extremely useful.
+    // A) It emits OpCodes in a functional way,
+    //    returning itself whenever possible.
+    // B) It provides strongly typed intructions.
+    // C) It will choose the right instruction for the input, making optimizations easy.
+    // D) Keeps a Stack of types that will correspond to the types on the Evaluation Stack.
+    //    Unfortunately this functionality isn't perfect (due to branch instructions), but it's very close.
+    //    Almost all TaffyScript constructs maintain the stack purity, excluding switch statements.
+    //    Those must be handled by the CodeGen, but it isn't that hard. 
+
+    // If you have a question about any of the methods, almost all of them correspond with an OpCode.
+    // Make sure to check the Microsoft docs on those to find your answer.
+    // If you have further questions, feel free to ask on the Github or on my Discord: https://discord.gg/9Sy9DnD
+
+    /// <summary>
+    /// Helper class for emitting MSIL instructions.
+    /// </summary>
     public class ILEmitter
     {
         private ILGenerator _generator;

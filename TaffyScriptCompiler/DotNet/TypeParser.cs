@@ -7,12 +7,24 @@ using System.Text.RegularExpressions;
 
 namespace TaffyScript.DotNet
 {
+    // This class is primarily used when trying to find the declaring type of an imported method.
+
+    /// <summary>
+    /// Parses .NET Type names.
+    /// </summary>
     public class DotNetTypeParser
     {
+        // This regex can be used to break a Type name into parts.
+        // Base - The basic type name.
+        // Generic - Any Generic parameters. For example, the type int and string in Dictionary<int, string>.
+        // Rank - Gets the array specifier and rank.
         private Regex _typeRegex = new Regex(@"(?<Base>[a-zA-Z_][a-zA-Z0-9_.]*)\s*(\<(?<Generic>(\s*,?\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(\<.+\>)?(\[(\s*,)*\s*\])?)+)\>)?\s*(?<Rank>\[(\s*,)*\s*\])?", RegexOptions.Compiled);
         private Dictionary<string, Type> _typeNames = new Dictionary<string, Type>();
         private DotNetAssemblyLoader _assemblies;
 
+        /// <summary>
+        /// Gets the currently defined Type names.
+        /// </summary>
         public Dictionary<string, Type> TypeNames => _typeNames;
 
         public DotNetTypeParser(DotNetAssemblyLoader assemblyLoader)
@@ -27,6 +39,10 @@ namespace TaffyScript.DotNet
 
             if (TypeAlreadyDefined(typeName, out var type))
                 return type;
+
+            // If the type has not already been found,
+            // Recursively use _typeRegex to determine the type.
+            // (It's only recursive on types with a generic parameter. i.e. List<int>).
 
             var match = _typeRegex.Match(typeName);
             var basic = match.Groups["Base"].Value.Replace(" ", "");
@@ -66,6 +82,11 @@ namespace TaffyScript.DotNet
             else throw new InvalidOperationException($"The type {typeName} could not be found.");
         }
 
+        /// <summary>
+        /// Attempts to find a type using the given name.
+        /// </summary>
+        /// <param name="typeName">The name of the type to find.</param>
+        /// <param name="type">The type, if it was found.</param>
         public bool TryGetTypeName(string typeName, out Type type)
         {
             if (TypeAlreadyDefined(typeName, out type))
@@ -115,6 +136,9 @@ namespace TaffyScript.DotNet
             return false;
         }
 
+        /// <summary>
+        /// Initializes the .NET alias names. Note that this only initializes the c# type aliases.
+        /// </summary>
         private void InitTypes()
         {
             TypeDef(typeof(Char), "char");

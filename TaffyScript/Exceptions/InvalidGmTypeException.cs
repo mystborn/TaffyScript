@@ -6,14 +6,14 @@ using System.Threading.Tasks;
 
 namespace GmExtern
 {
-    public class InvalidGmTypeException : Exception
+    public class InvalidTsTypeException : Exception
     {
-        public InvalidGmTypeException(string message)
+        public InvalidTsTypeException(string message)
             : base(message)
         {
         }
 
-        public InvalidGmTypeException(string message, Exception innerException)
+        public InvalidTsTypeException(string message, Exception innerException)
             : base(message, innerException)
         {
         }

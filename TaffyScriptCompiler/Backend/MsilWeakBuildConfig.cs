@@ -8,7 +8,7 @@ using System.Xml.Serialization;
 namespace TaffyScript.Backend
 {
     [XmlRoot(ElementName = "Build")]
-    public class MsilWeakBuildConfig
+    public class BuildConfig
     {
         public string Output { get; set; }
 

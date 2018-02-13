@@ -21,6 +21,11 @@ namespace TaffyScript.Syntax
                         var temp = value.Remove(0, 2);
                         real = int.Parse(temp, System.Globalization.NumberStyles.HexNumber);
                     }
+                    else if (value.StartsWith("?"))
+                    {
+                        var temp = value.Remove(0, 1);
+                        real = int.Parse(temp, System.Globalization.NumberStyles.HexNumber);
+                    }
                     else
                         real = float.Parse(value);
                     return new ConstantToken<float>(value, position, type, real);

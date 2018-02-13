@@ -67,7 +67,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Backend\Bcl.cs" />
+    <Compile Include="Backend\BaseClassLibrary.cs" />
     <Compile Include="Backend\CompileException.cs" />
     <Compile Include="Backend\CompileMode.cs" />
     <Compile Include="Backend\CompilerResult.cs" />
@@ -78,19 +78,18 @@
     <Compile Include="Backend\Compiler.cs" />
     <Compile Include="Backend\ILEmitter.cs" />
     <Compile Include="Backend\MsilWeakCompiler.cs" />
-    <Compile Include="Extensions.cs" />
     <Compile Include="Front End\LexicalAnalysis\Token.cs" />
     <Compile Include="Front End\LexicalAnalysis\Tokenizer.cs" />
     <Compile Include="Front End\LexicalAnalysis\TokenPosition.cs" />
     <Compile Include="Front End\LexicalAnalysis\UnrecognizedTokenException.cs" />
     <Compile Include="Symbols\InvalidSymbolException.cs" />
     <Compile Include="Symbols\ISymbol.cs" />
-    <Compile Include="Symbols\Symbol.cs" />
+    <Compile Include="Symbols\SymbolLeaf.cs" />
     <Compile Include="Symbols\SymbolNode.cs" />
     <Compile Include="Symbols\SymbolScope.cs" />
     <Compile Include="Symbols\SymbolTable.cs" />
     <Compile Include="Front End\InvalidTokenException.cs" />
-    <Compile Include="Front End\TokenParser.cs" />
+    <Compile Include="Front End\Parser.cs" />
     <Compile Include="Symbols\SymbolType.cs" />
     <Compile Include="Syntax\Concrete\AdditiveNode.cs" />
     <Compile Include="Syntax\Concrete\ArgumentAccess.cs" />

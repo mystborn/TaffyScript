@@ -8,10 +8,10 @@ namespace GmExtern
 {
     public class DsMap
     {
-        private readonly static List<Dictionary<GmObject, GmObject>> _maps = new List<Dictionary<GmObject, GmObject>>();
+        private readonly static List<Dictionary<TsObject, TsObject>> _maps = new List<Dictionary<TsObject, TsObject>>();
         private readonly static Queue<int> _mapSlots = new Queue<int>();
 
-        public static bool DsMapAdd(int id, GmObject key, GmObject value)
+        public static bool DsMapAdd(int id, TsObject key, TsObject value)
         {
             var map = GetMap(id);
             if (map.ContainsKey(key))
@@ -41,17 +41,17 @@ namespace GmExtern
             if (_mapSlots.Count == 0)
             {
                 index = _mapSlots.Count;
-                _maps.Add(new Dictionary<GmObject, GmObject>());
+                _maps.Add(new Dictionary<TsObject, TsObject>());
             }
             else
             {
                 index = _mapSlots.Dequeue();
-                _maps[index] = new Dictionary<GmObject, GmObject>();
+                _maps[index] = new Dictionary<TsObject, TsObject>();
             }
             return index;
         }
 
-        public static void DsMapDelete(int id, GmObject key)
+        public static void DsMapDelete(int id, TsObject key)
         {
             GetMap(id).Remove(key);
         }
@@ -72,24 +72,24 @@ namespace GmExtern
             return GetMap(id).Count == 0;
         }
 
-        public static bool DsMapExists(int id, GmObject key)
+        public static bool DsMapExists(int id, TsObject key)
         {
             return GetMap(id).ContainsKey(key);
         }
 
-        public static GmObject DsMapFindValue(int id, GmObject key)
+        public static TsObject DsMapFindValue(int id, TsObject key)
         {
             if (GetMap(id).TryGetValue(key, out var result))
                 return result;
-            return GmObject.Empty();
+            return TsObject.Empty();
         }
 
-        public static GmObject[] DsMapKeys(int id)
+        public static TsObject[] DsMapKeys(int id)
         {
             return GetMap(id).Keys.ToArray();
         }
 
-        public static void DsMapReplace(int id, GmObject key, GmObject value)
+        public static void DsMapReplace(int id, TsObject key, TsObject value)
         {
             GetMap(id)[key] = value;
         }
@@ -99,7 +99,7 @@ namespace GmExtern
             return GetMap(id).Count;
         }
 
-        private static Dictionary<GmObject, GmObject> GetMap(int id)
+        private static Dictionary<TsObject, TsObject> GetMap(int id)
         {
             if (id < 0 || id >= _maps.Count || _maps[id] == null)
                 throw new ArgumentOutOfRangeException("index");

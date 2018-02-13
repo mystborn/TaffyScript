@@ -11,9 +11,9 @@ namespace GmExtern
         private readonly static List<DsGrid> _grids = new List<DsGrid>();
         private readonly static Queue<int> _gridSlots = new Queue<int>();
 
-        private GmObject[,] _source;
+        private TsObject[,] _source;
 
-        public GmObject this[int x, int y]
+        public TsObject this[int x, int y]
         {
             get => _source[x, y];
             set => _source[x, y] = value;
@@ -21,15 +21,15 @@ namespace GmExtern
 
         private DsGrid(int width, int height)
         {
-            _source = new GmObject[width, height];
+            _source = new TsObject[width, height];
         }
 
-        public static void DsGridAdd(int index, int x, int y, GmObject value)
+        public static void DsGridAdd(int index, int x, int y, TsObject value)
         {
             GetGrid(index)[x, y] += value;
         }
 
-        public static void DsGridAddDisk(int index, int xm, int ym, int r, GmObject obj)
+        public static void DsGridAddDisk(int index, int xm, int ym, int r, TsObject obj)
         {
             GetGrid(index).OverDisk(xm, ym, r, (w, h, g) => g[w, h] += obj);
         }
@@ -63,12 +63,12 @@ namespace GmExtern
             }
         }
 
-        public static void DsGridAddRegion(int index, int x1, int y1, int x2, int y2, GmObject value)
+        public static void DsGridAddRegion(int index, int x1, int y1, int x2, int y2, TsObject value)
         {
             GetGrid(index).OverRegion(x1, y1, x2, y2, (w, h, g) => g[w, h] += value);
         }
 
-        public static void DsGridClear(int index, GmObject value)
+        public static void DsGridClear(int index, TsObject value)
         {
             var grid = GetGrid(index)._source;
             for(var w = 0; w < grid.GetLength(0); w++)
@@ -124,15 +124,15 @@ namespace GmExtern
             _gridSlots.Enqueue(index);
         }
 
-        public static GmObject DsGridGet(int index, int x, int y)
+        public static TsObject DsGridGet(int index, int x, int y)
         {
             return GetGrid(index)[x, y];
         }
 
-        public static GmObject DsGridGetDiskMax(int index, int xm, int ym, int r)
+        public static TsObject DsGridGetDiskMax(int index, int xm, int ym, int r)
         {
             bool set = false;
-            GmObject i = GmObject.Empty();
+            TsObject i = TsObject.Empty();
             GetGrid(index).OverDisk(xm, ym, r, (w, h, g) =>
             {
                 if (!set)
@@ -147,9 +147,9 @@ namespace GmExtern
             return i;
         }
 
-        public static GmObject DsGridGetDiskMean(int index, int xm, int ym, int r)
+        public static TsObject DsGridGetDiskMean(int index, int xm, int ym, int r)
         {
-            var mean = new GmObject(0);
+            var mean = new TsObject(0);
             var iter = 0;
             GetGrid(index).OverDisk(xm, ym, r, (w, h, g) =>
             {
@@ -159,10 +159,10 @@ namespace GmExtern
             return mean / iter;
         }
 
-        public static GmObject DsGridGetDiskMin(int index, int xm, int ym, int r)
+        public static TsObject DsGridGetDiskMin(int index, int xm, int ym, int r)
         {
             bool set = false;
-            GmObject i = GmObject.Empty();
+            TsObject i = TsObject.Empty();
             GetGrid(index).OverDisk(xm, ym, r, (w, h, g) =>
             {
                 if (!set)
@@ -177,9 +177,9 @@ namespace GmExtern
             return i;
         }
 
-        public static GmObject DsGridGetDiskSum(int index, int xm, int ym, int r)
+        public static TsObject DsGridGetDiskSum(int index, int xm, int ym, int r)
         {
-            var mean = new GmObject(0);
+            var mean = new TsObject(0);
             GetGrid(index).OverDisk(xm, ym, r, (w, h, g) =>
             {
                 mean += g[w, h];
@@ -187,10 +187,10 @@ namespace GmExtern
             return mean;
         }
 
-        public static GmObject DsGridGetMax(int index, int x1, int y1, int x2, int y2)
+        public static TsObject DsGridGetMax(int index, int x1, int y1, int x2, int y2)
         {
             bool set = false;
-            GmObject i = GmObject.Empty();
+            TsObject i = TsObject.Empty();
             GetGrid(index).OverRegion(x1, y1, x2, y2, (w, h, g) =>
             {
                 if (!set)
@@ -205,9 +205,9 @@ namespace GmExtern
             return i;
         }
 
-        public static GmObject DsGridGetMean(int index, int x1, int y1, int x2, int y2)
+        public static TsObject DsGridGetMean(int index, int x1, int y1, int x2, int y2)
         {
-            var mean = new GmObject(0);
+            var mean = new TsObject(0);
             var iter = 0;
             GetGrid(index).OverRegion(x1, y1, x2, y2, (w, h, g) =>
             {
@@ -217,10 +217,10 @@ namespace GmExtern
             return mean / iter;
         }
 
-        public static GmObject DsGridGetMin(int index, int x1, int y1, int x2, int y2)
+        public static TsObject DsGridGetMin(int index, int x1, int y1, int x2, int y2)
         {
             bool set = false;
-            GmObject i = GmObject.Empty();
+            TsObject i = TsObject.Empty();
             GetGrid(index).OverRegion(x1, y1, x2, y2, (w, h, g) =>
             {
                 if (!set)
@@ -235,9 +235,9 @@ namespace GmExtern
             return i;
         }
 
-        public static GmObject DsGridGetSum(int index, int x1, int y1, int x2, int y2)
+        public static TsObject DsGridGetSum(int index, int x1, int y1, int x2, int y2)
         {
-            var mean = new GmObject(0);
+            var mean = new TsObject(0);
             GetGrid(index).OverRegion(x1, y1, x2, y2, (w, h, g) =>
             {
                 mean += g[w, h];
@@ -250,12 +250,12 @@ namespace GmExtern
             return GetGrid(index)._source.GetLength(1);
         }
 
-        public static void DsGridMultiply(int index, int x, int y, GmObject value)
+        public static void DsGridMultiply(int index, int x, int y, TsObject value)
         {
             GetGrid(index)[x, y] *= value;
         }
 
-        public static void DsGridMultiplyDisk(int index, int xm, int ym, int r, GmObject obj)
+        public static void DsGridMultiplyDisk(int index, int xm, int ym, int r, TsObject obj)
         {
             GetGrid(index).OverDisk(xm, ym, r, (w, h, g) => g[w, h] *= obj);
         }
@@ -289,7 +289,7 @@ namespace GmExtern
             }
         }
 
-        public static void DsGridMultiplyRegion(int index, int x1, int y1, int x2, int y2, GmObject value)
+        public static void DsGridMultiplyRegion(int index, int x1, int y1, int x2, int y2, TsObject value)
         {
             GetGrid(index).OverRegion(x1, y1, x2, y2, (w, h, g) => g[w, h] *= value);
         }
@@ -306,7 +306,7 @@ namespace GmExtern
             var xLength = Math.Max(w, src._source.GetLength(0));
             var yLength = Math.Min(h, src._source.GetLength(1));
             DsGridSetGridRegion(temp, src, 0, 0,xLength - 1, yLength - 1, 0, 0);
-            var zero = new GmObject(0);
+            var zero = new TsObject(0);
             for(var width = xLength; width < w; width++)
             {
                 for(var height = yLength; height < h; height++)
@@ -317,12 +317,12 @@ namespace GmExtern
             _grids[index] = temp;
         }
 
-        public static void DsGridSet(int index, int x, int y, GmObject value)
+        public static void DsGridSet(int index, int x, int y, TsObject value)
         {
             GetGrid(index)[x, y] = value;
         }
 
-        public static void DsGridSetDisk(int index, int xm, int ym, int r, GmObject obj)
+        public static void DsGridSetDisk(int index, int xm, int ym, int r, TsObject obj)
         {
             GetGrid(index).OverDisk(xm, ym, r, (w, h, g) => g[w, h] = obj);
         }
@@ -334,7 +334,7 @@ namespace GmExtern
             DsGridSetGridRegion(dest, src, x1, y1, x2, y2, xpos, ypos);
         }
 
-        public static void DsGridSetRegion(int index, int x1, int y1, int x2, int y2, GmObject value)
+        public static void DsGridSetRegion(int index, int x1, int y1, int x2, int y2, TsObject value)
         {
             GetGrid(index).OverRegion(x1, y1, x2, y2, (w, h, g) => g[w, h] = value);
         }
@@ -351,7 +351,7 @@ namespace GmExtern
                 throw new ArgumentOutOfRangeException(nameof(column));
 
             var height = src.GetLength(1);
-            var temp = new GmObject[height];
+            var temp = new TsObject[height];
             for (var i = 0; i < height; i++)
                 temp[i] = src[column, i];
 
@@ -360,12 +360,12 @@ namespace GmExtern
                 src[column, i] = temp[i];
         }
 
-        public static bool DsGridValueDiskExists(int index, int xm, int ym, int r, GmObject val)
+        public static bool DsGridValueDiskExists(int index, int xm, int ym, int r, TsObject val)
         {
             return GetGrid(index).InDisk(xm, ym, r, val);
         }
 
-        public static int DsGridValueDiskX(int index, int xm, int ym, int r, GmObject val)
+        public static int DsGridValueDiskX(int index, int xm, int ym, int r, TsObject val)
         {
             var grid = GetGrid(index);
             if(grid.InDisk(xm, ym, r, val, out var result, (w, h) => w))
@@ -373,7 +373,7 @@ namespace GmExtern
             return 0;
         }
 
-        public static int DsGridValueDiskY(int index, int xm, int ym, int r, GmObject val)
+        public static int DsGridValueDiskY(int index, int xm, int ym, int r, TsObject val)
         {
             var grid = GetGrid(index);
             if (grid.InDisk(xm, ym, r, val, out var result, (w, h) => h))
@@ -381,12 +381,12 @@ namespace GmExtern
             return 0;
         }
 
-        public static bool DsGridValueExists(int index, int x1, int y1, int x2, int y2, GmObject val)
+        public static bool DsGridValueExists(int index, int x1, int y1, int x2, int y2, TsObject val)
         {
             return GetGrid(index).InRegion(x1, y1, x2, y2, val);
         }
 
-        public static int DsGridValueX(int index, int x1, int y1, int x2, int y2, GmObject val)
+        public static int DsGridValueX(int index, int x1, int y1, int x2, int y2, TsObject val)
         {
             var grid = GetGrid(index);
             if (grid.InRegion(x1, y1, x2, y2, val, out var result, (w, h) => w))
@@ -394,7 +394,7 @@ namespace GmExtern
             return 0;
         }
 
-        public static int DsGridValueY(int index, int x1, int y1, int x2, int y2, GmObject val)
+        public static int DsGridValueY(int index, int x1, int y1, int x2, int y2, TsObject val)
         {
             var grid = GetGrid(index);
             if (grid.InRegion(x1, y1, x2, y2, val, out var result, (w, h) => h))
@@ -479,7 +479,7 @@ namespace GmExtern
                         action(w + x, h + y, this);
         }
 
-        public bool InDisk(int xm, int ym, int radius, GmObject val)
+        public bool InDisk(int xm, int ym, int radius, TsObject val)
         {
             var xEnd = xm + radius;
             var yEnd = xm + radius;
@@ -508,7 +508,7 @@ namespace GmExtern
             return false;
         }
 
-        public bool InDisk<T>(int xm, int ym, int radius, GmObject val, out T result, Func<int, int, T> setter)
+        public bool InDisk<T>(int xm, int ym, int radius, TsObject val, out T result, Func<int, int, T> setter)
         {
             var xEnd = xm + radius;
             var yEnd = xm + radius;
@@ -541,7 +541,7 @@ namespace GmExtern
             return false;
         }
 
-        public bool InRegion(int x1, int y1, int x2, int y2, GmObject val)
+        public bool InRegion(int x1, int y1, int x2, int y2, TsObject val)
         {
             if (x1 < 0)
                 throw new ArgumentOutOfRangeException("x1");
@@ -560,7 +560,7 @@ namespace GmExtern
             return false;
         }
 
-        public bool InRegion<T>(int x1, int y1, int x2, int y2, GmObject val, out T result, Func<int, int, T> setter)
+        public bool InRegion<T>(int x1, int y1, int x2, int y2, TsObject val, out T result, Func<int, int, T> setter)
         {
             if (x1 < 0)
                 throw new ArgumentOutOfRangeException("x1");

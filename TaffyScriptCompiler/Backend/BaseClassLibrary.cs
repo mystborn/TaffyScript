@@ -6,8 +6,15 @@ using System.Threading.Tasks;
 
 namespace TaffyScript.Backend
 {
-    public class Bcl
+    /// <summary>
+    /// Helper class used to generate the BCL of TaffyScript.
+    /// </summary>
+    public static class BaseClassLibrary
     {
+        /// <summary>
+        /// Generates the TaffyScript base class library as a string.
+        /// </summary>
+        /// <returns></returns>
         public static string Generate()
         {
             var sb = new StringBuilder();
@@ -106,8 +113,8 @@ namespace TaffyScript.Backend
             sb.AppendLine("import DsMap.DsMapReplace(int, object, object) as ds_map_replace");
             sb.AppendLine("import DsMap.DsMapSize(int) as ds_map_size");
 
-            sb.AppendLine("import GmInstance.InstanceCreate(string) as instance_create");
-            sb.AppendLine("import GmInstance.InstanceDestroy(float) as instance_destroy");
+            sb.AppendLine("import TsInstance.InstanceCreate(string) as instance_create");
+            sb.AppendLine("import TsInstance.InstanceDestroy(float) as instance_destroy");
 
             return sb.ToString();
         }

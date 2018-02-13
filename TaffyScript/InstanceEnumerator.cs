@@ -7,36 +7,36 @@ using System.Threading.Tasks;
 
 namespace GmExtern
 {
-    public struct InstanceEnumerator : IEnumerator<GmObject>
+    public struct InstanceEnumerator : IEnumerator<TsObject>
     {
-        private IEnumerator<GmObject> _backingEnumerator;
+        private IEnumerator<TsObject> _backingEnumerator;
 
         object IEnumerator.Current => _backingEnumerator.Current;
 
-        public GmObject Current => _backingEnumerator.Current;
+        public TsObject Current => _backingEnumerator.Current;
 
-        public InstanceEnumerator(GmObject obj)
+        public InstanceEnumerator(TsObject obj)
         {
             if (obj.Type == VariableType.Real)
             {
-                var val = ((GmValue<float>)obj.Value).StrongValue;
-                if (val == GmObject.All)
-                    _backingEnumerator = GmInstance.Instances().GetEnumerator();
+                var val = ((TsValue<float>)obj.Value).StrongValue;
+                if (val == TsObject.All)
+                    _backingEnumerator = TsInstance.Instances().GetEnumerator();
                 else
-                    _backingEnumerator = new List<GmObject>() { obj }.GetEnumerator();
+                    _backingEnumerator = new List<TsObject>() { obj }.GetEnumerator();
             }
             else if (obj.Type == VariableType.String)
-                _backingEnumerator = GmInstance.Instances(((GmValue<string>)obj.Value).StrongValue).GetEnumerator();
+                _backingEnumerator = TsInstance.Instances(((TsValue<string>)obj.Value).StrongValue).GetEnumerator();
             else
                 throw new InvalidOperationException("Can only enumerate on a string or real");
         }
 
         public InstanceEnumerator(float value)
         {
-            if (value == GmObject.All)
-                _backingEnumerator = GmInstance.Instances().GetEnumerator();
+            if (value == TsObject.All)
+                _backingEnumerator = TsInstance.Instances().GetEnumerator();
             else
-                _backingEnumerator = new List<GmObject>() { new GmObject(value) }.GetEnumerator();
+                _backingEnumerator = new List<TsObject>() { new TsObject(value) }.GetEnumerator();
         }
 
         public bool MoveNext()
@@ -46,7 +46,7 @@ namespace GmExtern
             {
                 result = _backingEnumerator.MoveNext();
             }
-            while (result == true && !GmInstance.InstanceExists(((GmValue<float>)_backingEnumerator.Current.Value).StrongValue));
+            while (result == true && !TsInstance.InstanceExists(((TsValue<float>)_backingEnumerator.Current.Value).StrongValue));
             return result;
         }
 

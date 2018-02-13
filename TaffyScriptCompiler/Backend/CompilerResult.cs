@@ -9,8 +9,19 @@ namespace TaffyScript.Backend
 {
     public class CompilerResult
     {
+        /// <summary>
+        /// If the compile was successful, contains the output assembly.
+        /// </summary>
         public Assembly CompiledAssebmly { get; }
+
+        /// <summary>
+        /// If the compile failed, contains a list of the encountered errors.
+        /// </summary>
         public List<Exception> Errors { get; }
+
+        /// <summary>
+        /// If the compile was successful, contains the path to the output assembly.
+        /// </summary>
         public string PathToAssembly { get; }
 
         public CompilerResult(Assembly asm, string path, params Exception[] errors)

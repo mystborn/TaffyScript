@@ -22,11 +22,11 @@ namespace TaffyScript.Backend
             if (!File.Exists(Path.Combine(projectDir, "build.cfg")))
                 return new CompilerResult(null, null, new FileNotFoundException("Could not find the project file."));
 
-            MsilWeakBuildConfig config;
+            BuildConfig config;
             using(var sr = new StreamReader(projectFile))
             {
-                var cereal = new XmlSerializer(typeof(MsilWeakBuildConfig));
-                config = (MsilWeakBuildConfig)cereal.Deserialize(sr);
+                var cereal = new XmlSerializer(typeof(BuildConfig));
+                config = (BuildConfig)cereal.Deserialize(sr);
             }
 
             var dir = Path.Combine(projectDir, Path.GetDirectoryName(config.Output));
@@ -53,7 +53,7 @@ namespace TaffyScript.Backend
             else
             {
                 expectedOutput += Path.GetExtension(result.PathToAssembly);
-                CopyFileIfNewer(typeof(GmExtern.GmObject).Assembly.Location, Path.Combine(dir, typeof(GmExtern.GmObject).Assembly.GetName().Name + ".dll"));
+                CopyFileIfNewer(typeof(GmExtern.TsObject).Assembly.Location, Path.Combine(dir, typeof(GmExtern.TsObject).Assembly.GetName().Name + ".dll"));
                 if (result.PathToAssembly != expectedOutput)
                 {
                     if (File.Exists(expectedOutput))
@@ -67,7 +67,7 @@ namespace TaffyScript.Backend
 
         public CompilerResult CompileCode(string code, string outputName)
         {
-            var config = new MsilWeakBuildConfig()
+            var config = new BuildConfig()
             {
                 Mode = CompileMode.Debug,
                 Output = outputName
@@ -75,7 +75,7 @@ namespace TaffyScript.Backend
             return CompileCode(code, config);
         }
 
-        public CompilerResult CompileCode(string code, MsilWeakBuildConfig config)
+        public CompilerResult CompileCode(string code, BuildConfig config)
         {
             var dir = Path.GetDirectoryName(config.Output);
             if (!Directory.Exists(dir))
@@ -101,7 +101,7 @@ namespace TaffyScript.Backend
             else
             {
                 expectedOutput += Path.GetExtension(result.PathToAssembly);
-                CopyFileIfNewer(typeof(GmExtern.GmObject).Assembly.Location, Path.Combine(dir, typeof(GmExtern.GmObject).Assembly.GetName().Name + ".dll"));
+                CopyFileIfNewer(typeof(GmExtern.TsObject).Assembly.Location, Path.Combine(dir, typeof(GmExtern.TsObject).Assembly.GetName().Name + ".dll"));
                 if (result.PathToAssembly != expectedOutput)
                 {
                     MoveFile(result.PathToAssembly, expectedOutput);
@@ -120,7 +120,7 @@ namespace TaffyScript.Backend
                 EnumerateDirectories(dir, parser, exclude);
         }
 
-        private void VerifyReferencesExists(string projectDir, string outputDir, MsilWeakBuildConfig config, List<Exception> errors)
+        private void VerifyReferencesExists(string projectDir, string outputDir, BuildConfig config, List<Exception> errors)
         {
             for (var i = 0; i < config.References.Count; i++)
             {

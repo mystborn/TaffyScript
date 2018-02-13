@@ -6,22 +6,22 @@ using System.Threading.Tasks;
 
 namespace GmExtern
 {
-    public interface IGmValue
+    public interface ITsValue
     {
         object WeakValue { get; }
     }
 
-    public interface IGmValue<T> : IGmValue
+    public interface ITsValue<T> : ITsValue
     {
         T StrongValue { get; }
     }
 
-    public struct GmValue<T> : IGmValue
+    public struct TsValue<T> : ITsValue
     {
         public T StrongValue { get; }
         public object WeakValue => StrongValue;
 
-        public GmValue(T value)
+        public TsValue(T value)
         {
             StrongValue = value;
         }
@@ -32,12 +32,12 @@ namespace GmExtern
         }
     }
 
-    public class GmValueArray<T> : IGmValue<T>
+    public class TsValueArray<T> : ITsValue<T>
     {
         public T StrongValue { get; set; }
         public object WeakValue => StrongValue;
 
-        public GmValueArray(T value)
+        public TsValueArray(T value)
         {
             StrongValue = value;
         }

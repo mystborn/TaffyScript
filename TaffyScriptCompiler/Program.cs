@@ -27,11 +27,11 @@ namespace TaffyScript
                 { "bcl", v => generateBcl = v != null }
             };
 
-            //var extra = options.Parse(args);
+            var extra = options.Parse(args);
 
             Console.WriteLine("Compile Start...");
 
-            var path = @"C:\Users\Chris\Source\GmToSharpSamples\HelloLanguage";
+            //var path = @"C:\Users\Chris\Source\GmToSharpSamples\HelloLanguage";
 
             var compiler = new MsilWeakCompiler();
             CompilerResult result;
@@ -39,11 +39,11 @@ namespace TaffyScript
             if (!generateBcl)
             {
 
-                //var path = extra[0];
+                var path = extra[0];
                 result = compiler.CompileProject(path);
             }
             else
-                result = compiler.CompileCode(Bcl.Generate(), new MsilWeakBuildConfig() { Mode = CompileMode.Release, Output = Path.Combine(Path.GetDirectoryName(typeof(Program).Assembly.Location), "Libraries", "taffybcl") });
+                result = compiler.CompileCode(BaseClassLibrary.Generate(), new BuildConfig() { Mode = CompileMode.Release, Output = Path.Combine(Path.GetDirectoryName(typeof(Program).Assembly.Location), "Libraries", "taffybcl") });
 
             if (result.Errors.Count == 0)
             {
