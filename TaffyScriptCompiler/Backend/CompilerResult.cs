@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
 
-namespace TaffyScript.Backend
+namespace TaffyScriptCompiler.Backend
 {
     public class CompilerResult
     {

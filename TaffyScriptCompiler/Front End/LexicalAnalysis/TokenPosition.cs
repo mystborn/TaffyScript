@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TaffyScript
+namespace TaffyScriptCompiler
 {
     /// <summary>
     /// Represents a position within a document/stream where a <see cref="Token"/> was found.

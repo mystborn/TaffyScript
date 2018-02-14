@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TaffyScript.Backend
+namespace TaffyScriptCompiler.Backend
 {
     public class CompileException : Exception
     {

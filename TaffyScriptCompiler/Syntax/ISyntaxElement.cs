@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TaffyScript.FrontEnd;
+using TaffyScriptCompiler.FrontEnd;
 
-namespace TaffyScript.Syntax
+namespace TaffyScriptCompiler.Syntax
 {
     public interface ISyntaxElement
     {

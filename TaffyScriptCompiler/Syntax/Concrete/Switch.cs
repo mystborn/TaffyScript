@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
-namespace TaffyScript.Syntax
+namespace TaffyScriptCompiler.Syntax
 {
     public class SwitchNode : SyntaxNode
     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace TaffyScript.FrontEnd
+namespace TaffyScriptCompiler.FrontEnd
 {
     // This class uses many switch statements and a few goto statements in an effort to be as swift as possible.
 
@@ -219,6 +219,18 @@ namespace TaffyScript.FrontEnd
                         _token = new Token("string", next, pos);
                         break;
                     case '/':
+                        ReadWhiteSpace();
+                        if (!_finished)
+                            Advance();
+                        else
+                            _current = '\0';
+                        break;
+                    case '*':
+                        ReadWhiteSpace();
+                        if (!_finished)
+                            Advance();
+                        else
+                            _current = '\0';
                         Advance();
                         break;
                     case 'a':
@@ -471,20 +483,27 @@ namespace TaffyScript.FrontEnd
                         }
                         while (end != '\n');
                     }
-                    else if (_column == '*')
+                    else if (_current == '*')
                     {
                         sb.Append(_current);
                         char end = _current;
                         do
                         {
-                            prev = _current;
-                            end = ReadAny();
+                            if (_finished)
+                            {
+                                _current = '\0';
+                                goto End;
+                            }
+                            prev = ReadAny();
+                            end = _current;
                             sb.Append(end);
                         }
-                        while (prev != '*' && end != '/');
+                        while (prev != '*' || end != '/');
+                        TryReadNext();
                     }
                     else
                         sb.Append(ReadAssignment());
+                    End:
                     break;
                 case '?':
                     sb.Append(ReadHexNumber());

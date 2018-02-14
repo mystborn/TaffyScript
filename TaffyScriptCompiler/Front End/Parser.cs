@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TaffyScript.FrontEnd;
-using TaffyScript.Syntax;
+using TaffyScriptCompiler.FrontEnd;
+using TaffyScriptCompiler.Syntax;
 
-namespace TaffyScript
+namespace TaffyScriptCompiler
 {
     /// <summary>
     /// Parses TaffyScript code and generates an AST based on the input.

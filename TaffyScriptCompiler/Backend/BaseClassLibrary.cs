@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TaffyScript.Backend
+namespace TaffyScriptCompiler.Backend
 {
     /// <summary>
     /// Helper class used to generate the BCL of TaffyScript.
@@ -112,12 +112,13 @@ namespace TaffyScript.Backend
             sb.AppendLine("import DsMap.DsMapKeys(int) as ds_map_keys");
             sb.AppendLine("import DsMap.DsMapReplace(int, object, object) as ds_map_replace");
             sb.AppendLine("import DsMap.DsMapSize(int) as ds_map_size");
-            sb.AppendLine("import Bcl.EnvironmentGetVariable as environment_get_variable");
-            sb.AppendLine("")
+            sb.AppendLine("import Bcl.EnvironmentGetVariable(string) as environment_get_variable");
+            sb.AppendLine("import Bcl.EventInherited(array) as event_inherited");
+            sb.AppendLine("import Bcl.EventPerform(string) as event_perform");
+            sb.AppendLine("import Bcl.EventPerformObject(string, string) as event_perform_object");
 
             sb.AppendLine("import TsInstance.InstanceCreate(string) as instance_create");
             sb.AppendLine("import TsInstance.InstanceDestroy(float) as instance_destroy");
-            sb.AppendLine("import Bcl.EventInherited(array) as event_inherited");
 
             return sb.ToString();
         }

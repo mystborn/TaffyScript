@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GmExtern
+namespace TaffyScript
 {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public class WeakMethodAttribute : Attribute

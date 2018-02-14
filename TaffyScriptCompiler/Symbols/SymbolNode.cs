@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace TaffyScript
+namespace TaffyScriptCompiler
 {
     public class SymbolNode : ISymbol
     {

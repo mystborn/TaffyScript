@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TaffyScript.FrontEnd
+namespace TaffyScriptCompiler.FrontEnd
 {
     /// <summary>
     /// This exception is thrown when a lexer or tokenizer encounters an undefined token.

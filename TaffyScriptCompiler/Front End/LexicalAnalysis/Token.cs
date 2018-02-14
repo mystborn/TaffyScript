@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TaffyScript.FrontEnd
+namespace TaffyScriptCompiler.FrontEnd
 {
     public class Token
     {

@@ -1,4 +1,4 @@
-﻿namespace TaffyScript.Backend
+﻿namespace TaffyScriptCompiler.Backend
 {
     public interface ICompiler
     {

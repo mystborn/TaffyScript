@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TaffyScript
+namespace TaffyScriptCompiler
 {
     public class SymbolLeaf : ISymbol
     {

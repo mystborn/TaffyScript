@@ -5,12 +5,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using GmExtern;
-using TaffyScript.DotNet;
-using TaffyScript.Syntax;
+using TaffyScript;
+using TaffyScriptCompiler.DotNet;
+using TaffyScriptCompiler.Syntax;
 using Myst.Collections;
 
-namespace TaffyScript.Backend
+namespace TaffyScriptCompiler.Backend
 {
     /// <summary>
     /// Generates an assembly based off of an abstract syntax tree.
@@ -629,6 +629,7 @@ namespace TaffyScript.Backend
                 { "--", "op_Decrement" },
                 { "/", "op_Division" },
                 { "==", "op_Equality" },
+                { "!=", "op_Inequality" },
                 { "^", "op_ExclusiveOr" },
                 { "explicit", "op_Explicit" },
                 { "false", "op_False" },
@@ -743,7 +744,8 @@ namespace TaffyScript.Backend
         /// <param name="element"></param>
         private void GetAddressIfPossible(ISyntaxElement element)
         {
-            if (element.Type == SyntaxType.Variable || element.Type == SyntaxType.ArrayAccess || element.Type == SyntaxType.ReadOnlyValue)
+            if (element.Type == SyntaxType.Variable || element.Type == SyntaxType.ArrayAccess || element.Type == SyntaxType.ReadOnlyValue ||
+                element.Type == SyntaxType.ArgumentAccess)
             {
                 _needAddress = true;
                 element.Accept(this);
@@ -964,8 +966,16 @@ namespace TaffyScript.Backend
                 ProcessAssignExtra(assign);
                 return;
             }
-
-            if (assign.Left is ArrayAccessNode array)
+            if(assign.Left is ArgumentAccessNode arg)
+            {
+                GetAddressIfPossible(arg);
+                assign.Right.Accept(this);
+                var top = emit.GetTop();
+                if (top != typeof(TsObject))
+                    emit.New(_tsConstructors[top]);
+                emit.StObj(typeof(TsObject));
+            }
+            else if (assign.Left is ArrayAccessNode array)
             {
                 //Here we have to resize the array if needed, so more work needs to be done.
                 GetAddressIfPossible(array.Left);
@@ -1076,12 +1086,12 @@ namespace TaffyScript.Backend
         private void ProcessAssignExtra(AssignNode assign)
         {
             var op = assign.Value.Replace("=", "");
-            if (assign.Left is ArrayAccessNode array)
+            if (assign.Left.Type == SyntaxType.ArrayAccess || assign.Left.Type == SyntaxType.ArgumentAccess)
             {
                 //Because this has to access the array location,
                 //we can safely just get the address of the array elem and overwrite
                 //the the data pointed to by that address.
-                GetAddressIfPossible(array);
+                GetAddressIfPossible(assign.Left);
                 emit.Dup()
                     .LdObj(typeof(TsObject));
                 assign.Right.Accept(this);
@@ -1210,11 +1220,13 @@ namespace TaffyScript.Backend
             }
             else
             {
-                bitwise.Left.Accept(this);
-                if (emit.GetTop() != typeof(TsObject))
+                GetAddressIfPossible(bitwise.Left);
+                var top = emit.GetTop();
+                if (top != typeof(TsObject) && top != typeof(TsObject).MakePointerType())
                     _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the type {emit.GetTop()} {bitwise.Position}"));
                 emit.Call(_tsObjectCasts[typeof(long)]);
             }
+
             if(bitwise.Right.Type == SyntaxType.Constant)
             {
                 var rightConst = bitwise.Right as IConstantToken<float>;
@@ -1225,9 +1237,10 @@ namespace TaffyScript.Backend
             }
             else
             {
-                bitwise.Right.Accept(this);
-                if (!emit.TryGetTop(out var top) || top != typeof(TsObject))
-                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the type {emit.GetTop()} {bitwise.Position}"));
+                GetAddressIfPossible(bitwise.Right);
+                var top = emit.GetTop();
+                if (top != typeof(TsObject) && top != typeof(TsObject).MakePointerType())
+                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the type {top} {bitwise.Position}"));
                 emit.Call(_tsObjectCasts[typeof(long)]);
             }
 
@@ -1275,19 +1288,40 @@ namespace TaffyScript.Backend
 
         public void Visit(ConditionalNode conditionalNode)
         {
-            var test = conditionalNode.Children[0];
-            var left = conditionalNode.Children[1];
-            var right = conditionalNode.Children[2];
-            
-            conditionalNode.Test.Accept(this);
+            GetAddressIfPossible(conditionalNode.Test);
+            var top = emit.GetTop();
+            if (top == typeof(TsObject) || top == typeof(TsObject).MakePointerType())
+                CallInstanceMethod(_tsObjectCasts[typeof(bool)], conditionalNode.Test.Position);
+            else if (top == typeof(float))
+                emit.ConvertInt(false);
+            else
+                _errors.Add(new CompileException($"Detected invalid syntax {conditionalNode.Test.Parent}"));
             var brFalse = emit.DefineLabel();
             var brFinal = emit.DefineLabel();
             emit.BrFalse(brFalse);
+
+            // We convert the result of the expression into a TsObject
+            // in order to get a unified output. Otherwise, the program could have
+            // undefined behaviour.
+
             conditionalNode.Left.Accept(this);
+            top = emit.GetTop();
+            if (top != typeof(TsObject))
+                emit.New(_tsConstructors[top]);
+
             emit.Br(brFinal)
                 .MarkLabel(brFalse);
+
             conditionalNode.Right.Accept(this);
+            top = emit.GetTop();
+            if (top != typeof(TsObject))
+                emit.New(_tsConstructors[top]);
+
+            // This unbalances the execution stack.
+            // Maunually pop the top value off the stack.
+
             emit.MarkLabel(brFinal);
+            emit.PopTop();
         }
 
         public void Visit(IConstantToken constantToken)
@@ -1659,15 +1693,14 @@ namespace TaffyScript.Backend
             //Strings are falsy values
             //Otherwise, convert the value into a bool and compare bools.
             var end = emit.DefineLabel();
-
-            logical.Left.Accept(this);
+            GetAddressIfPossible(logical.Left);
             var left = emit.GetTop();
             if (left == typeof(string))
                 emit.Pop().LdInt(0);
             else if (left == typeof(float))
                 emit.LdFloat(.5f).Cge();
-            else if (left == typeof(TsObject))
-                emit.Call(_tsObjectCasts[typeof(bool)]);
+            else if (left == typeof(TsObject) || left == typeof(TsObject).MakePointerType())
+                CallInstanceMethod(_tsObjectCasts[typeof(bool)], logical.Left.Position);
             else if (left != typeof(bool))
                 _errors.Add(new CompileException($"Encountered invalid syntax {logical.Left.Position}"));
             if (logical.Value == "&&")
@@ -1683,15 +1716,15 @@ namespace TaffyScript.Backend
                     .Pop();
             }
 
-            logical.Right.Accept(this);
+            GetAddressIfPossible(logical.Right);
             var right = emit.GetTop();
             if (right == typeof(string))
                 emit.Pop().LdInt(0);
-            else if (left == typeof(float))
+            else if (right == typeof(float))
                 emit.LdFloat(.5f).Cge();
-            else if (left == typeof(TsObject))
-                emit.Call(_tsObjectCasts[typeof(bool)]);
-            else if (left != typeof(bool))
+            else if (right == typeof(TsObject) || right == typeof(TsObject).MakePointerType())
+                CallInstanceMethod(_tsObjectCasts[typeof(bool)], logical.Right.Position);
+            else if (right != typeof(bool))
                 _errors.Add(new CompileException($"Encountered invalid syntax {logical.Right.Position}"));
 
             emit.MarkLabel(end);
@@ -1879,9 +1912,9 @@ namespace TaffyScript.Backend
         public void Visit(PostfixNode postfix)
         {
             var secret = MakeSecret();
-            if (postfix.Child is ArrayAccessNode array)
+            if (postfix.Child.Type == SyntaxType.ArrayAccess || postfix.Child.Type == SyntaxType.ArgumentAccess)
             {
-                GetAddressIfPossible(array);
+                GetAddressIfPossible(postfix.Child);
                 emit.Dup()
                     .Dup()
                     .LdObj(typeof(TsObject))
@@ -1968,73 +2001,82 @@ namespace TaffyScript.Backend
 
         public void Visit(PrefixNode prefix)
         {
-            if (prefix.Child is ArrayAccessNode array)
+            //These operators need special handling
+            if (prefix.Value == "++" || prefix.Value == "--")
             {
-                GetAddressIfPossible(array);
-                emit.Dup()
-                    .Dup()
-                    .LdObj(typeof(TsObject))
-                    .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
-                    .StObj(typeof(TsObject))
-                    .LdObj(typeof(TsObject));
-            }
-            else if(prefix.Child is ListAccessNode list)
-            {
-                ListAccessSet(list);
-                emit.Call(typeof(DsList).GetMethod("DsListFindValue"))
-                    .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
-                    .Call(typeof(DsList).GetMethod("DsListStrongSet"));
-            }
-            else if(prefix.Child is GridAccessNode grid)
-            {
-                GridAccessSet(grid);
-                emit.Call(typeof(DsGrid).GetMethod("DsGridGet"))
-                    .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
-                    .Call(typeof(DsGrid).GetMethod("DsGridSet"));
-            }
-            else if(prefix.Child is MapAccessNode map)
-            {
-                MapAccessSet(map);
-                emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"))
-                    .Call(GetOperator(prefix.Value, typeof(TsObject), emit.GetTop(), prefix.Position))
-                    .Call(typeof(DsMap).GetMethod("DsMapReplace"));
-            }
-            else if (prefix.Child is VariableToken variable)
-            {
-                if (_table.Defined(variable.Text, out var symbol))
+                if (prefix.Child.Type == SyntaxType.ArrayAccess || prefix.Child.Type == SyntaxType.ArgumentAccess)
                 {
-                    if (symbol.Type != SymbolType.Variable)
-                        _errors.Add(new CompileException($"Tried to access an identifier that wasn't a variable {prefix.Child.Position}"));
-                    variable.Accept(this);
-                    emit.Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
-                        .StLocal(_locals[symbol])
-                        .LdLocal(_locals[symbol]);
+                    GetAddressIfPossible(prefix.Child);
+                    emit.Dup()
+                        .Dup()
+                        .LdObj(typeof(TsObject))
+                        .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                        .StObj(typeof(TsObject))
+                        .LdObj(typeof(TsObject));
+                }
+                else if (prefix.Child is ListAccessNode list)
+                {
+                    ListAccessSet(list);
+                    emit.Call(typeof(DsList).GetMethod("DsListFindValue"))
+                        .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                        .Call(typeof(DsList).GetMethod("DsListStrongSet"));
+                }
+                else if (prefix.Child is GridAccessNode grid)
+                {
+                    GridAccessSet(grid);
+                    emit.Call(typeof(DsGrid).GetMethod("DsGridGet"))
+                        .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                        .Call(typeof(DsGrid).GetMethod("DsGridSet"));
+                }
+                else if (prefix.Child is MapAccessNode map)
+                {
+                    MapAccessSet(map);
+                    emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"))
+                        .Call(GetOperator(prefix.Value, typeof(TsObject), emit.GetTop(), prefix.Position))
+                        .Call(typeof(DsMap).GetMethod("DsMapReplace"));
+                }
+                else if (prefix.Child is VariableToken variable)
+                {
+                    if (_table.Defined(variable.Text, out var symbol))
+                    {
+                        if (symbol.Type != SymbolType.Variable)
+                            _errors.Add(new CompileException($"Tried to access an identifier that wasn't a variable {prefix.Child.Position}"));
+                        variable.Accept(this);
+                        emit.Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                            .StLocal(_locals[symbol])
+                            .LdLocal(_locals[symbol]);
+                    }
+                    else
+                        _errors.Add(new CompileException($"Invalid syntax detected {prefix.Child.Position}"));
+                }
+                else if (prefix.Child is MemberAccessNode member)
+                {
+                    member.Left.Accept(this);
+                    var top = emit.GetTop();
+                    if (top != typeof(TsObject))
+                        _errors.Add(new CompileException($"Invalid syntax detected {prefix.Child.Position}"));
+                    var name = ((ISyntaxToken)member.Right).Text;
+                    var secret = MakeSecret();
+                    emit.StLocal(secret)
+                        .LdLocalA(secret)
+                        .LdStr(name)
+                        .LdLocalA(secret)
+                        .LdStr(name)
+                        .LdLocalA(secret)
+                        .LdStr(name)
+                        .Call(typeof(TsObject).GetMethod("MemberGet"))
+                        .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                        .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }))
+                        .Call(typeof(TsObject).GetMethod("MemberGet"));
                 }
                 else
-                    _errors.Add(new CompileException($"Invalid syntax detected {prefix.Child.Position}"));
-            }
-            else if (prefix.Child is MemberAccessNode member)
-            {
-                member.Left.Accept(this);
-                var top = emit.GetTop();
-                if (top != typeof(TsObject))
-                    _errors.Add(new CompileException($"Invalid syntax detected {prefix.Child.Position}"));
-                var name = ((ISyntaxToken)member.Right).Text;
-                var secret = MakeSecret();
-                emit.StLocal(secret)
-                    .LdLocalA(secret)
-                    .LdStr(name)
-                    .LdLocalA(secret)
-                    .LdStr(name)
-                    .LdLocalA(secret)
-                    .LdStr(name)
-                    .Call(typeof(TsObject).GetMethod("MemberGet"))
-                    .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
-                    .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }))
-                    .Call(typeof(TsObject).GetMethod("MemberGet"));
+                    _errors.Add(new CompileException($"Invalid syntax detected {prefix.Position}"));
             }
             else
-                _errors.Add(new CompileException($"Invalid syntax detected {prefix.Position}"));
+            {
+                prefix.Child.Accept(this);
+                emit.Call(GetOperator(prefix.Value, emit.GetTop(), prefix.Position));
+            }
         }
 
         public void Visit(ReadOnlyToken readOnlyToken)
@@ -2168,7 +2210,7 @@ namespace TaffyScript.Backend
             if (!emit.TryGetTop(out var returnType))
                 _errors.Add(new CompileException($"Tried to return without a return value. If this is expected, use exit instead {returnNode.Position}"));
 
-            if (returnType != typeof(TsObject))
+            if (returnType != null && returnType != typeof(TsObject))
                 emit.New(_tsConstructors[returnType]);
 
             emit.Ret();

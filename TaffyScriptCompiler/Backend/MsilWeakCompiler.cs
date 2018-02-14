@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Xml.Serialization;
 
-namespace TaffyScript.Backend
+namespace TaffyScriptCompiler.Backend
 {
     public class MsilWeakCompiler : ICompiler
     {
@@ -58,7 +58,7 @@ namespace TaffyScript.Backend
             else
             {
                 expectedOutput += Path.GetExtension(result.PathToAssembly);
-                CopyFileIfNewer(typeof(GmExtern.TsObject).Assembly.Location, Path.Combine(dir, typeof(GmExtern.TsObject).Assembly.GetName().Name + ".dll"));
+                CopyFileIfNewer(typeof(TaffyScript.TsObject).Assembly.Location, Path.Combine(dir, typeof(TaffyScript.TsObject).Assembly.GetName().Name + ".dll"));
                 if (result.PathToAssembly != expectedOutput)
                 {
                     if (File.Exists(expectedOutput))
@@ -89,7 +89,7 @@ namespace TaffyScript.Backend
         /// <summary>
         /// Compiles a string comprised of TaffyScript code using the config settings.
         /// </summary>
-        /// <param name="code">The taffyScript code to compile.</param>
+        /// <param name="code">The TaffyScript code to compile.</param>
         /// <param name="config">The config to use.</param>
         /// <returns></returns>
         public CompilerResult CompileCode(string code, BuildConfig config)
@@ -118,7 +118,7 @@ namespace TaffyScript.Backend
             else
             {
                 expectedOutput += Path.GetExtension(result.PathToAssembly);
-                CopyFileIfNewer(typeof(GmExtern.TsObject).Assembly.Location, Path.Combine(dir, typeof(GmExtern.TsObject).Assembly.GetName().Name + ".dll"));
+                CopyFileIfNewer(typeof(TaffyScript.TsObject).Assembly.Location, Path.Combine(dir, typeof(TaffyScript.TsObject).Assembly.GetName().Name + ".dll"));
                 if (result.PathToAssembly != expectedOutput)
                 {
                     MoveFile(result.PathToAssembly, expectedOutput);

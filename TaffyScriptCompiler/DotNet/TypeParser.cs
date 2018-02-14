@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 
-namespace TaffyScript.DotNet
+namespace TaffyScriptCompiler.DotNet
 {
     // This class is primarily used when trying to find the declaring type of an imported method.
 

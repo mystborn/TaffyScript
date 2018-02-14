@@ -1,4 +1,4 @@
-﻿namespace TaffyScript.Syntax
+﻿namespace TaffyScriptCompiler.Syntax
 {
     public class ConstantToken<T> : SyntaxToken, IConstantToken<T>
     {

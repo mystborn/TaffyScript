@@ -1,4 +1,4 @@
-﻿namespace TaffyScript
+﻿namespace TaffyScriptCompiler
 {
     public interface ISymbol
     {

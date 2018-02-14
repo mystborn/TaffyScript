@@ -1,4 +1,4 @@
-﻿namespace TaffyScript.Syntax
+﻿namespace TaffyScriptCompiler.Syntax
 {
     public class EndToken : SyntaxToken
     {

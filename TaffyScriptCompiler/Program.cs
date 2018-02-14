@@ -5,18 +5,18 @@ using System.Linq;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using TaffyScript.FrontEnd;
-using TaffyScript.Backend;
-using TaffyScript.Syntax;
+using TaffyScriptCompiler.FrontEnd;
+using TaffyScriptCompiler.Backend;
+using TaffyScriptCompiler.Syntax;
 using NDesk.Options;
 
-namespace TaffyScript
+namespace TaffyScriptCompiler
 {
     class Program
     {
         static void Main(string[] args)
         {
-            bool run = true;
+            bool run = false;
             bool isDebug = true;
             bool generateBcl = false;
 
@@ -28,6 +28,7 @@ namespace TaffyScript
             };
 
             var extra = options.Parse(args);
+            //var path = @"C:\Users\Chris\Source\GmToSharpSamples\Tests";
 
             Console.WriteLine("Compile Start...");
 

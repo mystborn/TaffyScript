@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GmExtern
+namespace TaffyScript
 {
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false)]
     public class WeakLibraryAttribute : Attribute

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace TaffyScript.Syntax
+namespace TaffyScriptCompiler.Syntax
 {
     public class ImportNode : SyntaxNode
     {

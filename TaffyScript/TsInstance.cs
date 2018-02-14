@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GmExtern
+namespace TaffyScript
 {
     public delegate void InstanceEvent(TsInstance inst);
     public delegate TsObject TaffyFunction(TsObject[] args);

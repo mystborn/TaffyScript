@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Reflection;
 using System.Reflection.Emit;
 
-namespace TaffyScript.Backend
+namespace TaffyScriptCompiler.Backend
 {
     // This class is extremely useful.
     // A) It emits OpCodes in a functional way,
@@ -165,6 +165,8 @@ namespace TaffyScript.Backend
 
         public ILEmitter Call(MethodInfo method)
         {
+            if (method == null)
+                return this;
             var length = method.GetParameters().Length;
             if (!method.IsStatic)
                 length += 1;
@@ -759,6 +761,12 @@ namespace TaffyScript.Backend
             if (_types.Count == 0)
                 throw new IndexOutOfRangeException();
             return _types.Peek();
+        }
+
+        public ILEmitter PopTop()
+        {
+            _types.Pop();
+            return this;
         }
 
         public bool TryGetTop(out Type top)
