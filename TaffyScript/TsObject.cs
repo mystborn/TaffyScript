@@ -11,11 +11,6 @@ namespace TaffyScript
         public const float All = -3f;
         public static Stack<TsObject> Id { get; } = new Stack<TsObject>();
 
-        /// <summary>
-        /// Global GM object. DO NOT SET.
-        /// </summary>
-        public static TsObject Global = TsInstance.InitGlobal();
-
         public VariableType Type { get; private set; }
         public ITsValue Value { get; private set; }
 
@@ -104,7 +99,7 @@ namespace TaffyScript
             if (Type == VariableType.Null)
                 return "";
             if (Type != VariableType.String)
-                throw new InvalidTsTypeException($"Variable is supposed to be of type Real, is {Type} instead.");
+                throw new InvalidTsTypeException($"Variable is supposed to be of type String, is {Type} instead.");
             return ((TsValue<string>)Value).StrongValue;
         }
 
@@ -869,9 +864,8 @@ namespace TaffyScript
 
         public static void ConditionalTest()
         {
-            var list = new List<int>();
-            list.Add(1);
-            list[0]++;
+            float f = -1;
+            var result = +f;
         }
 
         #endregion

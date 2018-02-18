@@ -37,7 +37,6 @@ namespace TaffyScriptCompiler
 
             if (!generateBcl)
             {
-
                 var path = extra[0];
                 result = compiler.CompileProject(path);
             }

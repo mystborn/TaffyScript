@@ -106,10 +106,11 @@ namespace TaffyScriptCompiler
                     {
                         Confirm("event");
                         var evName = Confirm("id");
-                        _table.AddLeaf(evName.Value, SymbolType.Script, SymbolScope.Member);
+                        _table.EnterNew(evName.Value, SymbolType.Script);
                         var eventNode = _factory.CreateNode(SyntaxType.Event, evName.Value, evName.Position);
                         eventNode.AddChild(BlockStatement());
                         node.AddChild(eventNode);
+                        _table.Exit();
                     }
                     Confirm("}");
                     _table.Exit();

@@ -92,6 +92,7 @@ namespace TaffyScriptCompiler.FrontEnd
                 { "self", "readonly" },
                 { "pi", "readonly" },
                 { "global", "readonly" },
+                { "instance_count", "readonly" },
                 { "object", "object" },
                 { "event", "event" },
                 { "as", "as" },

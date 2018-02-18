@@ -591,6 +591,12 @@ namespace TaffyScriptCompiler.Backend
             return this;
         }
 
+        public ILEmitter Neg()
+        {
+            _generator.Emit(OpCodes.Neg);
+            return this;
+        }
+
         public ILEmitter Neq()
         {
             _types.Pop();

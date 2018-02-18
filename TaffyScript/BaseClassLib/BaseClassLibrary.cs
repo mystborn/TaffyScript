@@ -239,6 +239,41 @@ namespace TaffyScript
                 if (events.TryGetValue(eventName, out var ev))
                     ev(inst);
             }
-        } 
+        }
+
+        public static bool IsUndefined(TsObject value)
+        {
+            if (value.Type == VariableType.Null)
+                return true;
+            return false;
+        }
+
+        public static void ShowError(string message, bool throws)
+        {
+            var error = new UserDefinedException(message);
+            if (throws)
+                throw error;
+            else
+                Console.WriteLine(error);
+        }
+
+        [WeakMethod]
+        public static TsObject ScriptExecute(TsObject[] args)
+        {
+            if (args.Length < 1)
+                throw new ArgumentException("You must pass at least a script name to script_execute.");
+            var name = args[0].GetString();
+            if (!TsInstance.Functions.TryGetValue(name, out var function))
+                throw new ArgumentException($"Tried to execute a non-existant function: {name}");
+            var parameters = new TsObject[args.Length - 1];
+            if (parameters.Length != 0)
+                Array.Copy(args, 1, parameters, 0, parameters.Length);
+            return function(parameters);
+        }
+
+        public static bool ScriptExists(string name)
+        {
+            return TsInstance.Functions.ContainsKey(name);
+        }
     }
 }

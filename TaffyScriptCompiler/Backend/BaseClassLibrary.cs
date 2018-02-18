@@ -119,6 +119,11 @@ namespace TaffyScriptCompiler.Backend
 
             sb.AppendLine("import TsInstance.InstanceCreate(string) as instance_create");
             sb.AppendLine("import TsInstance.InstanceDestroy(float) as instance_destroy");
+            sb.AppendLine("import TsInstance.InstanceExists(float) as instance_exists");
+            sb.AppendLine("import Bcl.IsUndefined(object) as is_undefined");
+            sb.AppendLine("import Bcl.ShowError(string, bool) as show_error");
+            sb.AppendLine("import Bcl.ScriptExecute(array) as script_execute");
+            sb.AppendLine("import Bcl.ScriptExists(string) as script_exists");
 
             return sb.ToString();
         }
