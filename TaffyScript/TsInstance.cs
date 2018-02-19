@@ -40,38 +40,13 @@ namespace TaffyScript
         public string ObjectType { get; private set; }
         public string Parent { get; private set; }
 
-        private TsInstance(float id, string instanceType)
+        private TsInstance(float id, string instanceType, bool performEvent = true)
         {
-            Id = id;
-            ObjectType = instanceType;
-            Pool.Add(id, this);
-
             // Originally, all of the instance events were added onto the object as strings.
             // However at this point in time, I've decided that it's too much of a time sink.
             // This decision is easily reversable if it turns out to be wrong/unneeded.
             // In the meantime, you can still refer to the event by it's string representation.
 
-            InstanceEvent create = null;
-            if (Inherits.TryGetValue(instanceType, out var parent))
-            {
-                Parent = parent;
-                if (Events.TryGetValue(parent, out var inheritedEvents))
-                    inheritedEvents.TryGetValue(CreateEvent, out create);
-            }
-            else
-                Parent = null;
-
-            if(Events.TryGetValue(instanceType, out var events))
-            {
-                if (events.TryGetValue(CreateEvent, out var temp))
-                    create = temp;
-            }
-
-            create?.Invoke(this);
-        }
-
-        private TsInstance(float id, string instanceType, bool performEvent)
-        {
             Id = id;
             ObjectType = instanceType;
             Pool.Add(id, this);
@@ -80,20 +55,70 @@ namespace TaffyScript
 
         private void Init(bool performEvent)
         {
-            InstanceEvent create = null;
             if (Inherits.TryGetValue(ObjectType, out var parent))
-            {
                 Parent = parent;
-                if (performEvent && Events.TryGetValue(parent, out var inheritedEvents))
-                    inheritedEvents.TryGetValue(CreateEvent, out create);
-            }
             else
                 Parent = null;
 
-            if (performEvent && Events.TryGetValue(ObjectType, out var events) && events.TryGetValue(CreateEvent, out var temp))
-                create = temp;
+            if (performEvent && TryGetEvent(CreateEvent, out var create))
+                create(this);
+        }
 
-            create?.Invoke(this);
+        private bool TryGetEvent(string name, out InstanceEvent instanceEvent)
+        {
+            var inst = ObjectType;
+            do
+            {
+                if (Events.TryGetValue(inst, out var events) && events.TryGetValue(name, out instanceEvent))
+                {
+                    if (inst != ObjectType)
+                    {
+                        if (!Events.TryGetValue(ObjectType, out events))
+                        {
+                            events = new Dictionary<string, InstanceEvent>();
+                            Events.Add(ObjectType, events);
+                        }
+                        events.Add(name, instanceEvent);
+                    }
+                    return true;
+                }
+                Inherits.TryGetValue(inst, out inst);
+            }
+            while (inst != null);
+
+            instanceEvent = null;
+            return false;
+        }
+
+        public static bool TryGetEvent(string type, string name, out InstanceEvent instanceEvent)
+        {
+            if (type == null)
+            {
+                instanceEvent = null;
+                return false;
+            }
+            var origin = type;
+            do
+            {
+                if (Events.TryGetValue(type, out var events) && events.TryGetValue(name, out instanceEvent))
+                {
+                    if (type != origin)
+                    {
+                        if (!Events.TryGetValue(origin, out events))
+                        {
+                            events = new Dictionary<string, InstanceEvent>();
+                            Events.Add(origin, events);
+                        }
+                        events.Add(name, instanceEvent);
+                    }
+                    return true;
+                }
+                Inherits.TryGetValue(type, out type);
+            }
+            while (type != null);
+
+            instanceEvent = null;
+            return false;
         }
 
         private static float GetNext()
@@ -108,28 +133,11 @@ namespace TaffyScript
         {
             var id = TsObject.Id.Peek();
             Pool.TryGetValue(id.GetNum(), out var inst);
-            if (performEvents)
-            {
-                if (Events.TryGetValue(inst.ObjectType, out var events) && events.TryGetValue(DestroyEvent, out var destroy))
-                    destroy(inst);
-                else if (inst.Parent != null && Events.TryGetValue(inst.Parent, out events) && events.TryGetValue(DestroyEvent, out destroy))
-                    destroy(inst);
-            }
-            inst.ObjectType = newObj;
-            InstanceEvent create = null;
-            if (Inherits.TryGetValue(newObj, out var parent))
-            {
-                inst.Parent = parent;
-                if (performEvents && Events.TryGetValue(parent, out var inheritedEvents))
-                    inheritedEvents.TryGetValue(CreateEvent, out create);
-            }
-            if (performEvents)
-            {
-                if (Events.TryGetValue(newObj, out var newEvents) && newEvents.TryGetValue(CreateEvent, out var temp))
-                    create = temp;
+            if (performEvents && inst.TryGetEvent(DestroyEvent, out var destroy))
+                destroy(inst);
 
-                create?.Invoke(inst);
-            }
+            inst.ObjectType = newObj;
+            inst.Init(performEvents);
         }
 
         public static float InstanceCopy(bool performEvents)
@@ -157,9 +165,7 @@ namespace TaffyScript
             if(Pool.TryGetValue(id, out var inst))
             {
                 Pool.Remove(id);
-                if (Events.TryGetValue(inst.ObjectType, out var events) && events.TryGetValue("destroy", out var destroy))
-                    destroy(inst);
-                else if (inst.Parent != null && Events.TryGetValue(inst.Parent, out events) && events.TryGetValue("destroy", out destroy))
+                if (inst.TryGetEvent(DestroyEvent, out var destroy))
                     destroy(inst);
             }
             _availableIds.Enqueue(id);
@@ -168,6 +174,43 @@ namespace TaffyScript
         public static bool InstanceExists(float id)
         {
             return Pool.ContainsKey(id);
+        }
+
+        public static TsObject InstanceFind(string obj, int n)
+        {
+            var i = 0;
+            foreach(var inst in Instances(obj))
+            {
+                if (i++ == n)
+                    return inst;
+            }
+            return TsObject.NooneObject();
+        }
+
+        public static int InstanceNumber(string obj)
+        {
+            return Instances(obj).Count();
+        }
+
+        public static string ObjectGetName(TsInstance inst)
+        {
+            return inst.ObjectType;
+        }
+
+        public static string ObjectGetParent(TsInstance inst)
+        {
+            if (Inherits.TryGetValue(inst.ObjectType, out var parent))
+                return parent;
+            else
+                return "";
+        }
+
+        public static bool ObjectIsAncestor(string obj, string par)
+        {
+            if (Inherits.TryGetValue(obj, out var test))
+                return test == par;
+
+            return false;
         }
 
         public static bool TryGet(float id, out TsInstance inst)

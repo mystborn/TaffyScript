@@ -9,6 +9,7 @@ namespace TaffyScript
     public struct TsObject
     {
         public const float All = -3f;
+        public const float Noone = -4f;
         public static Stack<TsObject> Id { get; } = new Stack<TsObject>();
 
         public VariableType Type { get; private set; }
@@ -59,6 +60,11 @@ namespace TaffyScript
         public static TsObject Empty()
         {
             return new TsObject(VariableType.Null, new TsValue<object>(null));
+        }
+
+        public static TsObject NooneObject()
+        {
+            return new TsObject(Noone);
         }
 
         #region Raw Values
@@ -852,14 +858,24 @@ namespace TaffyScript
 
         #region Base Class Library
 
-        public static string ToString(object obj)
+        public static bool IsArray(TsObject obj)
         {
-            return obj.ToString();
+            return obj.Type == VariableType.Array1 || obj.Type == VariableType.Array2;
         }
 
-        public static void ShowDebugMessage(TsInstance obj)
+        public static bool IsReal(TsObject obj)
         {
-            Console.WriteLine(obj);
+            return obj.Type == VariableType.Real;
+        }
+
+        public static bool IsString(TsObject obj)
+        {
+            return obj.Type == VariableType.String;
+        }
+
+        public static bool IsUndefined(TsObject obj)
+        {
+            return obj.Type == VariableType.Null;
         }
 
         public static void ConditionalTest()

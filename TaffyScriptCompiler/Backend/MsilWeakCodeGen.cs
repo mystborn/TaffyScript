@@ -471,7 +471,6 @@ namespace TaffyScriptCompiler.Backend
             // If this happens, use that to generate the method.
             if (_methods.TryGetValue(name, out var result))
             {
-                //Todo: Define name conflict exception
                 var m = result as MethodBuilder;
                 if (m == null)
                     _errors.Add(new NameConflictException($"Function with name {name} is already defined by {m.GetModule()}"));
@@ -1176,7 +1175,6 @@ namespace TaffyScriptCompiler.Backend
             }
             else
                 _errors.Add(new CompileException($"This assignment is not yet supported {assign.Position}"));
-            //Todo: Finish assignments
         }
 
         private void ProcessAssignExtra(AssignNode assign)
@@ -1826,6 +1824,7 @@ namespace TaffyScriptCompiler.Backend
             if(method == null)
             {
                 _errors.Add(new CompileException($"Failed to find the import function {externalName} {import.ExternalName.Position}"));
+                return;
             }
             if (method.GetCustomAttribute<WeakMethodAttribute>() != null && IsMethodValid(method))
             {

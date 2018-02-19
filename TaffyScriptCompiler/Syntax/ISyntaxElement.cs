@@ -9,7 +9,6 @@ namespace TaffyScriptCompiler.Syntax
 {
     public interface ISyntaxElement
     {
-        //Todo: Element should know file pos.
         ISyntaxNode Parent { get; set; }
         SyntaxType Type { get; }
         TokenPosition Position { get; }

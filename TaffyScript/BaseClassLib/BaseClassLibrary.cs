@@ -9,6 +9,7 @@ namespace TaffyScript
     public static partial class Bcl
     {
         public static Random Rng = new Random(123456789);
+        public static int RandomSeed { get; private set; } = 123456789;
 
         [WeakMethod]
         public static TsObject ToString(TsObject[] args)
@@ -200,9 +201,8 @@ namespace TaffyScript
         public static TsObject EventInherited(TsObject[] args)
         {
             var inst = TsObject.Id.Peek().GetInstance();
-            if (inst.Parent != null)
-                if (TsInstance.Events.TryGetValue(inst.Parent, out var events) && events.TryGetValue(TsInstance.EventType.Peek(), out var ev))
-                    ev(inst);
+            if (TsInstance.TryGetEvent(inst.Parent, TsInstance.EventType.Peek(), out var ev))
+                ev(inst);
 
             return TsObject.Empty();
         }
@@ -215,46 +215,117 @@ namespace TaffyScript
         public static void EventPerform(string name)
         {
             var inst = TsObject.Id.Peek().GetInstance();
-            if(TsInstance.Events.TryGetValue(inst.ObjectType, out var events))
-            {
-                if(events.TryGetValue(name, out var toTrigger))
-                {
-                    toTrigger(inst);
-                }
-            }
-            else if(TsInstance.Events.TryGetValue(inst.Parent, out events))
-            {
-                if(events.TryGetValue(name, out var toTrigger))
-                {
-                    toTrigger(inst);
-                }
-            }
+            if (TsInstance.TryGetEvent(inst.ObjectType, name, out var ev))
+                ev(inst);
         }
 
         public static void EventPerformObject(string type, string eventName)
         {
             var inst = TsObject.Id.Peek().GetInstance();
-            if(TsInstance.Events.TryGetValue(type, out var events))
+            if (TsInstance.TryGetEvent(type, eventName, out var ev))
+                ev(inst);
+        }
+
+        public static float Exp(float n)
+        {
+            return (float)Math.Exp(n);
+        }
+
+        public static float Floor(float n)
+        {
+            return (float)Math.Floor(n);
+        }
+
+        public static float Ln(float n)
+        {
+            return (float)Math.Log(n);
+        }
+
+        public static float Log10(float n)
+        {
+            return (float)Math.Log10(n);
+        }
+
+        public static float Log2(float val)
+        {
+            return (float)Math.Log(val, 2);
+        }
+
+        public static float LogN(float n, float val)
+        {
+            return (float)Math.Log(val, n);
+        }
+
+        [WeakMethod]
+        public static TsObject Max(TsObject[] args)
+        {
+            if (args.Length == 0)
+                throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
+            var max = args[0].GetNum();
+            for(var i = 1; i < args.Length; i++)
             {
-                if (events.TryGetValue(eventName, out var ev))
-                    ev(inst);
+                var num = args[i].GetNum();
+                if (num > max)
+                    max = num;
             }
+            return new TsObject(max);
         }
 
-        public static bool IsUndefined(TsObject value)
+        [WeakMethod]
+        public static TsObject Min(TsObject[] args)
         {
-            if (value.Type == VariableType.Null)
-                return true;
-            return false;
+            if (args.Length == 0)
+                throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
+            var min = args[0].GetNum();
+            for (var i = 1; i < args.Length; i++)
+            {
+                var num = args[i].GetNum();
+                if (num < min)
+                    min = num;
+            }
+            return new TsObject(min);
         }
 
-        public static void ShowError(string message, bool throws)
+        public static float Random(float n)
         {
-            var error = new UserDefinedException(message);
-            if (throws)
-                throw error;
-            else
-                Console.WriteLine(error);
+            return (float)Rng.NextDouble() * n;
+        }
+
+        public static int RandomGetSeed()
+        {
+            return RandomSeed;
+        }
+
+        public static float RandomRange(float min, float max)
+        {
+            return (float)Rng.NextDouble() * (max - min) + min;
+        }
+
+        public static void RandomSetSeed(int seed)
+        {
+            Rng = new Random(seed);
+            RandomSeed = seed;
+        }
+
+        public static int Randomise()
+        {
+            int seed;
+            unchecked
+            {
+                seed = (int)DateTimeOffset.Now.Ticks;
+            }
+            RandomSetSeed(seed);
+            return seed;
+        }
+
+        public static float Real(string str)
+        {
+            return float.Parse(str);
+        }
+
+        public static float Round(float n)
+        {
+            return (float)Math.Round(n);
         }
 
         [WeakMethod]
@@ -274,6 +345,168 @@ namespace TaffyScript
         public static bool ScriptExists(string name)
         {
             return TsInstance.Functions.ContainsKey(name);
+        }
+
+        public static void ShowError(string message, bool throws)
+        {
+            var error = new UserDefinedException(message);
+            if (throws)
+                throw error;
+            else
+                Console.WriteLine(error);
+        }
+
+        public static float Sign(float n)
+        {
+            return Math.Sign(n);
+        }
+
+        public static float Square(float n)
+        {
+            return n * n;
+        }
+
+        public static float Sqrt(float n)
+        {
+            return (float)Math.Sqrt(n);
+        }
+
+        public static int StringByteAt(string str, int index)
+        {
+            var bytes = Encoding.UTF8.GetBytes(str);
+            if (index >= bytes.Length)
+                return -1;
+
+            return bytes[index];
+        }
+
+        public static int StringByteLength(string str)
+        {
+            return Encoding.UTF8.GetByteCount(str);
+        }
+
+        public static string StringCharAt(string str, int index)
+        {
+            if (index >= str.Length)
+                return "";
+            return str[index].ToString();
+        }
+
+        public static string StringCopy(string str, int index, int count)
+        {
+            return str.Substring(index, count);
+        }
+
+        public static int StringCount(string subString, string str)
+        {
+            // Code found here:
+            // https://stackoverflow.com/questions/541954/how-would-you-count-occurrences-of-a-string-within-a-string
+            return (str.Length - str.Replace(subString, "").Length) / subString.Length;
+        }
+
+        public static string StringDelete(string str, int index, int count)
+        {
+            return str.Remove(index, count);
+        }
+
+        public static string StringDigits(string str)
+        {
+            //Test with regex to see if that's faster.
+            //return System.Text.RegularExpressions.Regex.Replace(str, @"[^\d]", "");
+            var sb = new StringBuilder();
+            for(var i = 0; i < str.Length; i++)
+            {
+                //Good ol fashioned C trick.
+                if (str[i] >= '0' && str[i] <= '9')
+                    sb.Append(str[i]);
+            }
+            return sb.ToString();
+        }
+
+        public static string StringInsert(string subString, string str, int index)
+        {
+            return str.Insert(index, subString);
+        }
+
+        public static int StringLength(string str)
+        {
+            return str.Length;
+        }
+
+        public static string StringLetters(string str)
+        {
+            //Test with regex to see if that's faster.
+            //return System.Text.RegularExpressions.Regex.Replace(str, @"[^a-zA-Z]", "");
+            var sb = new StringBuilder();
+            for (var i = 0; i < str.Length; i++)
+            {
+                if ((str[i] >= 'a' && str[i] <= 'z') || (str[i] >= 'A' && str[i] <= 'Z'))
+                    sb.Append(str[i]);
+            }
+            return sb.ToString();
+        }
+
+        public static string StringLettersDigits(string str)
+        {
+            //Test with regex to see if that's faster.
+            //return System.Text.RegularExpressions.Regex.Replace(str, @"[^a-zA-Z\d]", "");
+            var sb = new StringBuilder();
+            for (var i = 0; i < str.Length; i++)
+            {
+                if ((str[i] >= 'a' && str[i] <= 'z') || (str[i] >= 'A' && str[i] <= 'Z') || (str[i] >= '0' && str[i] <= '9'))
+                    sb.Append(str[i]);
+            }
+            return sb.ToString();
+        }
+
+        public static string StringLower(string str)
+        {
+            return str.ToLower();
+        }
+
+        public static int StringOrdAt(string str, int index)
+        {
+            return str[index];
+        }
+
+        public static int StringPos(string subString, string str)
+        {
+            return str.IndexOf(subString);
+        }
+
+        public static string StringRepeat(string str, int count)
+        {
+            var sb = new StringBuilder();
+            for (var i = 0; i < count; i++)
+                sb.Append(str);
+
+            return sb.ToString();
+        }
+
+        public static string StringReplace(string str, string subString, string newString)
+        {
+            var index = str.IndexOf(subString);
+            if(index != -1)
+                return str.Substring(0, index) + newString + str.Substring(index + subString.Length);
+
+            return str;
+        }
+
+        public static string StringReplaceAll(string str, string subString, string newString)
+        {
+            return str.Replace(subString, newString);
+        }
+
+        public static string StringSetByte(string str, int pos, int value)
+        {
+            var bytes = Encoding.UTF8.GetBytes(str);
+            bytes[pos] = (byte)value;
+            return Encoding.UTF8.GetString(bytes);
+        }
+
+        public static string StringUpper(string str)
+        {
+            return str.ToUpper();
         }
     }
 }

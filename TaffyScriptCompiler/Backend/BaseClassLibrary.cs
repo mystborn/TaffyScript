@@ -18,8 +18,6 @@ namespace TaffyScriptCompiler.Backend
         public static string Generate()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("import Bcl.ToString(array) as string;");
-            sb.AppendLine("import System.Console.WriteLine(object) as show_debug_message;");
 
             sb.AppendLine("import Math.Abs(float) as abs;");
             sb.AppendLine("import Bcl.AngleDifference(array) as angle_difference;");
@@ -117,13 +115,67 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import Bcl.EventPerform(string) as event_perform");
             sb.AppendLine("import Bcl.EventPerformObject(string, string) as event_perform_object");
 
+            sb.AppendLine("import Bcl.Floor(float) as floor");
+
+            sb.AppendLine("import TsInstance.InstanceChange(string, bool) as instance_change");
+            sb.AppendLine("import TsInstance.InstanceCopy(bool) as instance_copy");
             sb.AppendLine("import TsInstance.InstanceCreate(string) as instance_create");
             sb.AppendLine("import TsInstance.InstanceDestroy(float) as instance_destroy");
             sb.AppendLine("import TsInstance.InstanceExists(float) as instance_exists");
-            sb.AppendLine("import Bcl.IsUndefined(object) as is_undefined");
-            sb.AppendLine("import Bcl.ShowError(string, bool) as show_error");
+            sb.AppendLine("import TsInstance.InstanceFind(string, int) as instance_find");
+            sb.AppendLine("import TsInstance.InstanceNumber(string) as instance_number");
+
+            sb.AppendLine("import TsObject.IsArray(object) as is_array");
+            sb.AppendLine("import TsObject.IsReal(object) as is_real");
+            sb.AppendLine("import TsObject.IsString(object) as is_string");
+            sb.AppendLine("import TsObject.IsUndefined(object) as is_undefined");
+
+            //Todo: lengthdir, lerp
+
+            sb.AppendLine("import Bcl.Ln(float) as ln");
+            sb.AppendLine("import Bcl.Log10(float) as log10");
+            sb.AppendLine("import Bcl.Log2(float) as log2");
+            sb.AppendLine("import Bcl.LogN(float, float) as logn");
+            sb.AppendLine("import Bcl.Max(array) as max");
+            sb.AppendLine("import Bcl.Min(array) as min");
+
+            sb.AppendLine("import Bcl.Random(float) as random");
+            sb.AppendLine("import Bcl.RandomGetSeed() as random_get_seed");
+            sb.AppendLine("import Bcl.RandomRange(float, float) as random_range");
+            sb.AppendLine("import Bcl.RandomSetSeed(int) as random_set_seed");
+            sb.AppendLine("import Bcl.Randomise() as randomise");
+
+            sb.AppendLine("import Bcl.Real(string) as real");
+            sb.AppendLine("import Bcl.Round(float) as round");
+
+            //Todo: Networking Funtions
+            //Todo: radtodeg
+
             sb.AppendLine("import Bcl.ScriptExecute(array) as script_execute");
             sb.AppendLine("import Bcl.ScriptExists(string) as script_exists");
+            sb.AppendLine("import Bcl.ShowError(string, bool) as show_error");
+            sb.AppendLine("import System.Console.WriteLine(object) as show_debug_message;");
+
+            sb.AppendLine("import Bcl.ToString(array) as string;");
+            sb.AppendLine("import Bcl.StringByteAt(string, int) as string_byte_at");
+            sb.AppendLine("import Bcl.StringByteLength(string) as string_byte_length");
+            sb.AppendLine("import Bcl.StringCharAt(string, int) as string_char_at");
+            sb.AppendLine("import Bcl.StringCopy(string, int, int) as string_copy");
+            sb.AppendLine("import Bcl.StringCount(string, string) as string_count");
+            sb.AppendLine("import Bcl.StringDelete(string, int, int) as string_delete");
+            sb.AppendLine("import Bcl.StringDigits(string) as string_digits");
+            sb.AppendLine("import Bcl.StringInsert(string, string, int) as string_insert");
+            sb.AppendLine("import Bcl.StringLength(string) as string_length");
+            sb.AppendLine("import Bcl.StringLetters(string) as string_letters");
+            sb.AppendLine("import Bcl.StringLettersDigits(string) as string_lettersdigits");
+            sb.AppendLine("import Bcl.StringLower(string) as string_lower");
+            sb.AppendLine("import Bcl.StringOrdAt(string, int) as string_ord_at");
+            sb.AppendLine("import Bcl.StringPos(string, string) as string_pos");
+            sb.AppendLine("import Bcl.StringRepeat(string, int) as string_repeat");
+            sb.AppendLine("import Bcl.StringReplace(string, string, string) as string_replace");
+            sb.AppendLine("import Bcl.StringReplaceAll(string, string, string) as string_replace_all");
+            sb.AppendLine("import Bcl.StringSetByte(string, int, int) as string_set_byte");
+            sb.AppendLine("import Bcl.StringUpper(string) as string_upper");
 
             return sb.ToString();
         }
