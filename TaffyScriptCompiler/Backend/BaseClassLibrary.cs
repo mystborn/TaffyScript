@@ -39,10 +39,17 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import Bcl.Choose(array) as choose");
             sb.AppendLine("import Bcl.Clamp(float, float, float) as clamp");
             sb.AppendLine("import Bcl.CodeIsCompiled() as code_is_compiled");
+
             //Todo: colour_get_hsv
             //Todo: d-trig funcs
             //Todo: datetime handling.
-            //Todo: File-Handling
+
+            sb.AppendLine("import Directory.CreateDirectory(string) as directory_create");
+            sb.AppendLine("import FileHandling.DirectoryDestroy(string) as directory_destroy");
+            sb.AppendLine("import Directory.Exists(string) as directory_exists");
+
+
+            //Todo: File-Handling.
             sb.AppendLine("import Bcl.DotProduct(float, float, float, float) as dot_product");
 
             sb.AppendLine("import DsGrid.DsGridAdd(int, int, int, object) as ds_grid_add");
@@ -110,6 +117,7 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import DsMap.DsMapKeys(int) as ds_map_keys");
             sb.AppendLine("import DsMap.DsMapReplace(int, object, object) as ds_map_replace");
             sb.AppendLine("import DsMap.DsMapSize(int) as ds_map_size");
+
             sb.AppendLine("import Bcl.EnvironmentGetVariable(string) as environment_get_variable");
             sb.AppendLine("import Bcl.EventInherited(array) as event_inherited");
             sb.AppendLine("import Bcl.EventPerform(string) as event_perform");
@@ -148,7 +156,7 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import Bcl.Real(string) as real");
             sb.AppendLine("import Bcl.Round(float) as round");
 
-            //Todo: Networking Funtions
+            //Todo: Networking Funtions (Maybe?)
             //Todo: radtodeg
 
             sb.AppendLine("import Bcl.ScriptExecute(array) as script_execute");
@@ -176,6 +184,17 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import Bcl.StringReplaceAll(string, string, string) as string_replace_all");
             sb.AppendLine("import Bcl.StringSetByte(string, int, int) as string_set_byte");
             sb.AppendLine("import Bcl.StringUpper(string) as string_upper");
+
+            sb.AppendLine("import TsObject.Typeof(object) as typeof");
+
+            sb.AppendLine("import TsInstance.VariableGlobalExists(string) as variable_global_exists");
+            sb.AppendLine("import TsInstance.VariableGlobalGet(string) as variable_global_get");
+            sb.AppendLine("import TsInstance.VariableGlobalGetNames() as variable_global_get_names");
+            sb.AppendLine("import TsInstance.VariableGlobalSet(string, object) as variable_global_set");
+            sb.AppendLine("import TsInstance.VariableInstanceExists(instance, string) as variable_instance_exists");
+            sb.AppendLine("import TsInstance.VariableInstanceGet(instance, string) as variable_instance_get");
+            sb.AppendLine("import TsInstance.VariableInstanceGetNames(instance) as variable_instance_get_names");
+            sb.AppendLine("import TsInstance.VariableInstanceSet(instance, string, object) as variable_instance_set");
 
             return sb.ToString();
         }

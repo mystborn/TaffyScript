@@ -121,7 +121,7 @@ namespace TaffyScript
 
         public TsInstance GetInstance()
         {
-            if (!TsInstance.TryGet(GetNum(), out var inst))
+            if (!TsInstance.TryGetInstance(GetNum(), out var inst))
                 throw new InvalidInstanceException();
             return inst;
         }
@@ -158,28 +158,28 @@ namespace TaffyScript
 
         public void MemberSet(string name, float value)
         {
-            if (!TsInstance.TryGet(GetNum(), out var inst))
+            if (!TsInstance.TryGetInstance(GetNum(), out var inst))
                 throw new InvalidInstanceException();
             inst[name] = new TsObject(value);
         }
 
         public void MemberSet(string name, string value)
         {
-            if (!TsInstance.TryGet(GetNum(), out var inst))
+            if (!TsInstance.TryGetInstance(GetNum(), out var inst))
                 throw new InvalidInstanceException();
             inst[name] = new TsObject(value);
         }
 
         public void MemberSet(string name, TsObject value)
         {
-            if (!TsInstance.TryGet(GetNum(), out var inst))
+            if (!TsInstance.TryGetInstance(GetNum(), out var inst))
                 throw new InvalidInstanceException();
             inst[name] = value;
         }
 
         public TsObject MemberGet(string name)
         {
-            if (!TsInstance.TryGet(GetNum(), out var inst))
+            if (!TsInstance.TryGetInstance(GetNum(), out var inst))
                 throw new InvalidInstanceException();
             return inst[name];
         }
@@ -876,6 +876,24 @@ namespace TaffyScript
         public static bool IsUndefined(TsObject obj)
         {
             return obj.Type == VariableType.Null;
+        }
+
+        public static string Typeof(TsObject obj)
+        {
+            switch(obj.Type)
+            {
+                case VariableType.Array1:
+                case VariableType.Array2:
+                    return "array";
+                case VariableType.Null:
+                    return "undefined";
+                case VariableType.Real:
+                    return "real";
+                case VariableType.String:
+                    return "string";
+                default:
+                    return "unknown";
+            }
         }
 
         public static void ConditionalTest()

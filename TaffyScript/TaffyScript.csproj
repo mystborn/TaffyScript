@@ -46,6 +46,7 @@
     <Compile Include="BaseClassLib\DataStructureDisposedException.cs" />
     <Compile Include="BaseClassLib\DsList.cs" />
     <Compile Include="BaseClassLib\DsMap.cs" />
+    <Compile Include="BaseClassLib\FileHandling.cs" />
     <Compile Include="Exceptions\UserDefinedException.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="TsInstance.cs" />

@@ -40,7 +40,7 @@ namespace TaffyScript
             int index;
             if (_mapSlots.Count == 0)
             {
-                index = _mapSlots.Count;
+                index = _maps.Count;
                 _maps.Add(new Dictionary<TsObject, TsObject>());
             }
             else

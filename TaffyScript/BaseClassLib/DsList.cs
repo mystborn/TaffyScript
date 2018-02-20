@@ -41,7 +41,7 @@ namespace TaffyScript
             int index;
             if(_listSlots.Count == 0)
             {
-                index = _listSlots.Count;
+                index = _lists.Count;
                 _lists.Add(new List<TsObject>());
             }
             else

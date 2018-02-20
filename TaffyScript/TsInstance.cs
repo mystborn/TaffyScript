@@ -207,13 +207,72 @@ namespace TaffyScript
 
         public static bool ObjectIsAncestor(string obj, string par)
         {
-            if (Inherits.TryGetValue(obj, out var test))
-                return test == par;
+            while(Inherits.TryGetValue(obj, out var inherit))
+            {
+                if (inherit == par)
+                    return true;
+                obj = inherit;
+            }
 
             return false;
         }
 
-        public static bool TryGet(float id, out TsInstance inst)
+        public static bool VariableGlobalExists(string name)
+        {
+            return Global._vars.ContainsKey(name);
+        }
+
+        public static TsObject VariableGlobalGet(string name)
+        {
+            if (Global._vars.TryGetValue(name, out var result))
+                return result;
+            return TsObject.Empty();
+        }
+
+        public static TsObject[] VariableGlobalGetNames()
+        {
+            var arr = new TsObject[Global._vars.Count];
+            int i = 0;
+            foreach (var value in Global._vars.Values)
+                arr[i++] = value;
+
+            return arr;
+        }
+
+        public static void VariableGlobalSet(string name, TsObject value)
+        {
+            Global._vars[name] = value;
+        }
+
+        public static bool VariableInstanceExists(TsInstance inst, string name)
+        {
+            return inst._vars.ContainsKey(name);
+        }
+
+        public static TsObject VariableInstanceGet(TsInstance inst, string name)
+        {
+            if (inst._vars.TryGetValue(name, out var result))
+                return result;
+
+            return TsObject.Empty();
+        }
+
+        public static TsObject[] VariableInstanceGetNames(TsInstance inst)
+        {
+            var arr = new TsObject[inst._vars.Count];
+            var i = 0;
+            foreach (var value in inst._vars.Values)
+                arr[i++] = value;
+
+            return arr;
+        }
+
+        public static void VariableInstanceSet(TsInstance inst, string name, TsObject value)
+        {
+            inst._vars[name] = value;
+        }
+
+        public static bool TryGetInstance(float id, out TsInstance inst)
         {
             return Pool.TryGetValue(id, out inst);
         }

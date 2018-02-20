@@ -295,6 +295,10 @@ namespace TaffyScriptCompiler.Backend
                     FindValidMethods(asm);
                     ReadResources(asm);
                 }
+                else
+                {
+                    FindEnums(asm);
+                }
             }
             
             //Initializes methods relating to TsObjects.
@@ -379,6 +383,40 @@ namespace TaffyScriptCompiler.Backend
 
         #region Helpers
 
+        private void FindEnums(Assembly asm)
+        {
+            foreach(var type in asm.ExportedTypes.Where(t => t.IsEnum))
+            {
+                var name = type.Name;
+
+                _table.EnterNew(name, SymbolType.Enum);
+
+                var names = Enum.GetNames(type);
+                var values = Enum.GetValues(type);
+                for (var i = 0; i < names.Length; i++)
+                    _enums.Add(name, names[i], Convert.ToInt64(values.GetValue(i)));
+
+                _table.Exit();
+
+                // This is the code to use when namespaces are added.
+                // No support for that quite yet.
+                /*
+                var parts = type.FullName.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
+                for (var i = 0; i < parts.Length; i++)
+                    _table.EnterNew(parts[i], i < parts.Length - 1 ? SymbolType.Namespace : SymbolType.Enum);
+
+                var name = parts[parts.Length - 1];
+                var names = Enum.GetNames(type);
+                var values = Enum.GetValues(type);
+                for(var i = 0; i < names.Length; i++)
+                    _enums.Add(name, names[i], Convert.ToInt64(values.GetValue(i)));
+
+                for (var i = 0; i < parts.Length; i++)
+                    _table.Exit();
+                */
+            }
+        }
+
         /// <summary>
         /// Finds all methods in an assembly marked with the <see cref="WeakMethodAttribute"/> and makes them usable.
         /// </summary>
@@ -391,9 +429,39 @@ namespace TaffyScriptCompiler.Backend
                 {
                     var parts = type.FullName.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
                     for(var i = 0; i < parts.Length; i++)
-                        _table.EnterNew(parts[i], i == parts.Length - 1 ? SymbolType.Namespace : SymbolType.Object);
+                        _table.EnterNew(parts[i], i < parts.Length - 1 ? SymbolType.Namespace : SymbolType.Object);
                     for (var i = 0; i < parts.Length; i++)
                         _table.Exit();
+                }
+                else if(type.IsEnum)
+                {
+                    var name = type.Name;
+
+                    _table.EnterNew(name, SymbolType.Enum);
+
+                    var names = Enum.GetNames(type);
+                    var values = Enum.GetValues(type);
+                    for (var i = 0; i < names.Length; i++)
+                        _enums.Add(name, names[i], Convert.ToInt64(values.GetValue(i)));
+
+                    _table.Exit();
+
+                    // This is the code to use when namespaces are added.
+                    // No support for that quite yet.
+                    /*
+                    var parts = type.FullName.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
+                    for (var i = 0; i < parts.Length; i++)
+                        _table.EnterNew(parts[i], i < parts.Length - 1 ? SymbolType.Namespace : SymbolType.Enum);
+
+                    var name = parts[parts.Length - 1];
+                    var names = Enum.GetNames(type);
+                    var values = Enum.GetValues(type);
+                    for(var i = 0; i < names.Length; i++)
+                        _enums.Add(name, names[i], Convert.ToInt64(values.GetValue(i)));
+
+                    for (var i = 0; i < parts.Length; i++)
+                        _table.Exit();
+                    */
                 }
                 else
                 {
@@ -1579,6 +1647,10 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(EnumNode enumNode)
         {
+            //Todo: Implement Namespace with EnumNode
+            var name = enumNode.Value;
+            var type = _module.DefineEnum(name, TypeAttributes.Public, typeof(long));
+
             long current = 0;
             foreach (ISyntaxNode expr in enumNode.Children)
             {
@@ -1592,8 +1664,11 @@ namespace TaffyScriptCompiler.Backend
                 else if (expr.Type != SyntaxType.Declare)
                     _errors.Add(new CompileException($"Encountered error while compiling enum {enumNode.Value} {expr.Position}."));
 
-                _enums.Add(enumNode.Value, expr.Value, current++);
+                _enums.Add(enumNode.Value, expr.Value, current);
+                type.DefineLiteral(expr.Value, current++);
             }
+
+            type.CreateType();
         }
 
         public void Visit(EqualityNode equality)
@@ -2351,6 +2426,9 @@ namespace TaffyScriptCompiler.Backend
                     emit.LdFld(typeof(TsInstance).GetField("Pool", BindingFlags.Static | BindingFlags.NonPublic))
                         .Call(typeof(Dictionary<float, TsInstance>).GetMethod("get_Count"))
                         .ConvertFloat();
+                    break;
+                case "noone":
+                    emit.LdFloat(-4f);
                     break;
                 default:
                     _errors.Add(new NotImplementedException($"Currently the readonly value {readOnlyToken.Text} is not implemented {readOnlyToken.Position}"));

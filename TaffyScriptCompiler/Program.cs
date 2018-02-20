@@ -27,8 +27,8 @@ namespace TaffyScriptCompiler
                 { "bcl", v => generateBcl = v != null }
             };
 
-            var extra = options.Parse(args);
-            //var path = @"C:\Users\Chris\Source\GmToSharpSamples\Tests";
+            //var extra = options.Parse(args);
+            var path = @"C:\Users\Chris\Source\GmToSharpSamples\GameBase";
 
             Console.WriteLine("Compile Start...");
 
@@ -37,7 +37,7 @@ namespace TaffyScriptCompiler
 
             if (!generateBcl)
             {
-                var path = extra[0];
+                //var path = extra[0];
                 result = compiler.CompileProject(path);
             }
             else
