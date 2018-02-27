@@ -28,7 +28,7 @@ namespace TaffyScriptCompiler
             };
 
             var extra = options.Parse(args);
-            //var path = @"C:\Users\Chris\Source\GmToSharpSamples\GameBase";
+            //var path = @"C:\Users\Chris\Source\GmToSharpSamples\HelloLanguage";
 
             Console.WriteLine("Compile Start...");
 

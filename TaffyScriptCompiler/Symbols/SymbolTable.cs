@@ -113,13 +113,13 @@ namespace TaffyScriptCompiler
         /// <param name="symbol">The symbol, it's defined.</param>
         public bool Defined(string name, out ISymbol symbol)
         {
-            var current = new Stack<SymbolNode>(_current);
+            var current = new Queue<SymbolNode>(_current);
             symbol = default(ISymbol);
             while(current.Count != 0)
             {
                 if(current.Peek().Children.TryGetValue(name, out symbol))
                     return true;
-                current.Pop();
+                current.Dequeue();
             }
             return false;
         }

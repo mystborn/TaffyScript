@@ -6,9 +6,9 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using TaffyScript;
+using TaffyScript.Collections;
 using TaffyScriptCompiler.DotNet;
 using TaffyScriptCompiler.Syntax;
-using Myst.Collections;
 
 namespace TaffyScriptCompiler.Backend
 {
@@ -47,7 +47,7 @@ namespace TaffyScriptCompiler.Backend
         private readonly AssemblyName _asmName;
         private readonly AssemblyBuilder _asm;
         private ModuleBuilder _module;
-        private ILEmitter _moduleInitializer = null;
+        private ILEmitter _initializer = null;
         private readonly DotNetAssemblyLoader _assemblyLoader;
         private readonly DotNetTypeParser _typeParser;
 
@@ -212,19 +212,21 @@ namespace TaffyScriptCompiler.Backend
         }
 
         /// <summary>
-        /// Gets the ILEmitter for the module initializer method.
+        /// Gets the ILEmitter for the initializer method.
         /// </summary>
-        private ILEmitter ModuleInitializer
+        private ILEmitter Initializer
         {
             get
             {
-                if (_moduleInitializer == null)
+                if (_initializer == null)
                 {
-                    var attribs = MethodAttributes.Static | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName;
-                    var input = new Type[] { };
-                    _moduleInitializer = new ILEmitter(_module.DefineGlobalMethod(".cctor", attribs, typeof(void), input), input);
+                    var asm = _asmName.Name;
+                    var name = $"{asm}.{asm}_Initializer";
+                    var type = _module.DefineType(name, TypeAttributes.Public);
+                    _initializer = new ILEmitter(type.DefineMethod("Initialize", MethodAttributes.Public | MethodAttributes.Static, typeof(void), Type.EmptyTypes), Type.EmptyTypes);
+                    _baseTypes.Add(name, type);
                 }
-                return _moduleInitializer;
+                return _initializer;
             }
         }
 
@@ -334,15 +336,17 @@ namespace TaffyScriptCompiler.Backend
 
             if(output == ".exe")
             {
-                var init = ModuleInitializer;
-                foreach (var asm in _assemblyLoader.LoadedAssemblies.Values)
+                var init = Initializer;
+                foreach (var asm in _assemblyLoader.LoadedAssemblies.Values.Where(a => a.GetCustomAttribute<WeakLibraryAttribute>() != null))
                 {
-                    var first = asm.ExportedTypes.FirstOrDefault();
+                    var name = asm.GetName().Name;
+                    init.Call(asm.GetType($"{name}.{name}_Initializer").GetMethod("Initialize"));
+                    /*var first = asm.ExportedTypes.FirstOrDefault();
                     if (first != null)
                         init.LdType(first)
                             .Call(typeof(Type).GetMethod("GetTypeFromHandle"))
                             .Call(typeof(Type).GetMethod("get_FullName"))
-                            .Pop();
+                            .Pop();*/
                 }
             }
 
@@ -361,6 +365,8 @@ namespace TaffyScriptCompiler.Backend
             if (_errors.Count != 0)
                 return new CompilerResult(_errors);
 
+            Initializer.Ret();
+
             //Finalize any types that were created.
             foreach (var type in _baseTypes.Values)
                 type.CreateType();
@@ -370,13 +376,6 @@ namespace TaffyScriptCompiler.Backend
             {
                 _specialImports.Flush();
                 _module.DefineManifestResource(SpecialImportsFileName, _stream, ResourceAttributes.Public);
-            }
-
-            //If there is a module initializer, finalize it.
-            if (_moduleInitializer != null)
-            {
-                _moduleInitializer.Ret();
-                _module.CreateGlobalFunctions();
             }
 
             _asm.Save(_asmName.Name + output);
@@ -581,16 +580,16 @@ namespace TaffyScriptCompiler.Backend
             emit.Call(method);
             if (method.ReturnType == typeof(void))
                 emit.Call(_getEmptyObject);
-            else if (_tsConstructors.TryGetValue(method.ReturnType, out var init))
-                emit.New(init);
+            else if (_tsConstructors.TryGetValue(method.ReturnType, out var ctor))
+                emit.New(ctor);
             else if (method.ReturnType != typeof(TsObject))
                 _errors.Add(new InvalidProgramException($"Imported method {importName} had an invalid return type {method.ReturnType}."));
 
             emit.Ret();
-
-            var mdInit = ModuleInitializer;
-            mdInit.LdFld(typeof(TsInstance).GetField("Functions"))
-                .LdStr(importName)
+            var name = $"{_namespace}.{importName}".TrimStart('.');
+            var init = Initializer;
+            init.LdFld(typeof(TsInstance).GetField("Functions"))
+                .LdStr(name)
                 .LdNull()
                 .LdFtn(mb)
                 .New(typeof(TaffyFunction).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
@@ -943,7 +942,48 @@ namespace TaffyScriptCompiler.Backend
 
         private ISyntaxElement ResolveNamespace(MemberAccessNode node)
         {
-            while(node.Left is ISyntaxToken token && _table.Defined(token.Text, out var symbol) && symbol.Type == SymbolType.Namespace)
+            if (node.Left is ISyntaxToken token && _table.Defined(token.Text, out var symbol) && symbol.Type == SymbolType.Namespace)
+            {
+                _table.Enter(symbol.Name);
+                _resolveNamespace = symbol.Name;
+                return node.Right;
+            }
+            else if (node.Left is MemberAccessNode)
+            {
+                var ns = new Stack<ISyntaxToken>();
+                var result = node.Right;
+                var start = node;
+                while (node.Left is MemberAccessNode member)
+                {
+                    node = member;
+                    if (node.Right is ISyntaxToken id)
+                        ns.Push(id);
+                    else
+                        _errors.Add(new CompileException($"Invalid syntax detected {node.Right.Position}"));
+                }
+
+                if (node.Left is ISyntaxToken left)
+                    ns.Push(left);
+                else
+                    _errors.Add(new CompileException($"Invalid syntax detected {node.Left.Position}"));
+
+                var sb = new System.Text.StringBuilder();
+                while (ns.Count > 0)
+                {
+                    var top = ns.Pop();
+                    sb.Append(top.Text);
+                    sb.Append(".");
+                    if (_table.Defined(top.Text, out symbol) && symbol.Type == SymbolType.Namespace)
+                        _table.Enter(top.Text);
+                    else
+                        _errors.Add(new CompileException($"Invalid syntax detected {top.Position}"));
+                }
+                _resolveNamespace = sb.ToString().TrimEnd('.');
+                return result;
+            }
+            else
+                return node;
+            /*while(node.Left is ISyntaxToken token && _table.Defined(token.Text, out var symbol) && symbol.Type == SymbolType.Namespace)
             {
                 _table.Enter(symbol.Name);
                 if (_resolveNamespace == "")
@@ -954,13 +994,13 @@ namespace TaffyScriptCompiler.Backend
                     node = member;
                 else
                     return node.Right;
-            }
-            return node;
+            }*/
         }
 
         private void UnresolveNamespace()
         {
             _table.ExitNamespace(_resolveNamespace);
+            _resolveNamespace = "";
         }
 
         private SymbolTable CopyTable(SymbolTable table)
@@ -994,14 +1034,14 @@ namespace TaffyScriptCompiler.Backend
 
         private string GetAssetNamespace(ISymbol symbol)
         {
-            var ns = "";
+            var sb = new System.Text.StringBuilder("");
             var parent = symbol.Parent;
             while (parent != null && parent.Type == SymbolType.Namespace)
             {
-                ns += parent.Name;
+                sb.Insert(0, parent.Name + ".");
                 parent = parent.Parent;
             }
-            return ns;
+            return sb.ToString().TrimEnd('.');
         }
 
         #endregion
@@ -1840,7 +1880,6 @@ namespace TaffyScriptCompiler.Backend
             var name = functionCall.Value;
             if(!_table.Defined(name, out var symbol))
             {
-                //Console.WriteLine(_table.Defined("string", out _));
                 _errors.Add(new CompileException($"Tried to call non-existant script: {name} {functionCall.Position}"));
                 emit.Call(_getEmptyObject);
                 return;
@@ -1981,9 +2020,10 @@ namespace TaffyScriptCompiler.Backend
                 SpecialImports.Write(internalName);
                 SpecialImports.Write(':');
                 SpecialImports.WriteLine(externalName);
-                var init = ModuleInitializer;
+                var init = Initializer;
+                var name = $"{_namespace}.{internalName}".TrimStart('.');
                 init.LdFld(typeof(TsInstance).GetField("Functions"))
-                    .LdStr(internalName)
+                    .LdStr(name)
                     .LdNull()
                     .LdFtn(method)
                     .New(typeof(TaffyFunction).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
@@ -2091,6 +2131,7 @@ namespace TaffyScriptCompiler.Backend
                 else
                 {
                     resolved.Accept(this);
+                    return;
                 }
             }
             //If left is enum name, find it in _enums.
@@ -2222,9 +2263,18 @@ namespace TaffyScriptCompiler.Backend
                 name = name.TrimStart('.');
             var type = _module.DefineType(name, TypeAttributes.Public);
             _table.Enter(objectNode.Value);
-            var parent = objectNode.Inherits as IConstantToken<string>;
-            if (parent == null)
+            var parentNode = objectNode.Inherits as IConstantToken<string>;
+            if (parentNode == null)
                 _errors.Add(new CompileException($"Invalid syntax detected {objectNode.Inherits.Position}"));
+            string parent = null;
+            if(parentNode.Value != null && _table.Defined(parentNode.Value, out var symbol))
+            {
+                if (symbol.Type == SymbolType.Object)
+                    parent = $"{GetAssetNamespace(symbol)}.{symbol.Name}".TrimStart('.');
+                else
+                    _errors.Add(new CompileException($"Tried to inherit from non object identifier {objectNode.Inherits.Position}"));
+            }
+
 
 
             var input = new[] { typeof(TsInstance) };
@@ -2236,13 +2286,13 @@ namespace TaffyScriptCompiler.Backend
             var eventType = typeof(TsInstance).GetField("EventType");
             var push = typeof(Stack<string>).GetMethod("Push");
             var pop = typeof(Stack<string>).GetMethod("Pop");
-            var init = ModuleInitializer;
+            var init = Initializer;
 
-            if(parent.Value != null)
+            if(parent != null)
             {
                 init.LdFld(inherits)
                     .LdStr(name)
-                    .LdStr(parent.Value)
+                    .LdStr(parent)
                     .Call(typeof(Dictionary<string, string>).GetMethod("Add"));
             }
 
@@ -2682,7 +2732,9 @@ namespace TaffyScriptCompiler.Backend
             _inScript = false;
             ScriptEnd();
 
-            var init = ModuleInitializer;
+            name = $"{_namespace}.{name}".TrimStart('.');
+
+            var init = Initializer;
             init.LdFld(typeof(TsInstance).GetField("Functions"))
                 .LdStr(name)
                 .LdNull()
@@ -2825,13 +2877,14 @@ namespace TaffyScriptCompiler.Backend
         public void Visit(VariableToken variableToken)
         {
             var name = variableToken.Text;
-            if(_table.Defined(name, out var symbol))
+            if (_table.Defined(name, out var symbol))
             {
-                UnresolveNamespace();
                 switch(symbol.Type)
                 {
                     case SymbolType.Object:
                     case SymbolType.Script:
+                        
+                        UnresolveNamespace();
                         var ns = GetAssetNamespace(symbol);
                         if (ns != "")
                             name = $"{ns}.{name}";
