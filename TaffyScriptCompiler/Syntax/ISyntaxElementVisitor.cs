@@ -12,9 +12,11 @@ namespace TaffyScriptCompiler.Syntax
         void Visit(AssignNode assign);
         void Visit(ReadOnlyToken readOnlyToken);
         void Visit(ExitToken exitToken);
+        void Visit(NamespaceNode namespaceNode);
         void Visit(ObjectNode objectNode);
         void Visit(EventNode eventNode);
         void Visit(ContinueToken continueToken);
+        void Visit(UsingsNode usingsNode);
         void Visit(BreakToken breakToken);
         void Visit(RepeatNode repeatNode);
         void Visit(EndToken endToken);

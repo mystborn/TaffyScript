@@ -121,6 +121,7 @@
     <Compile Include="Syntax\Concrete\MapAccess.cs" />
     <Compile Include="Syntax\Concrete\MemberAccess.cs" />
     <Compile Include="Syntax\Concrete\Multiplicative.cs" />
+    <Compile Include="Syntax\Concrete\NamespaceNode.cs" />
     <Compile Include="Syntax\Concrete\ObjectNode.cs" />
     <Compile Include="Syntax\Concrete\Postfix.cs" />
     <Compile Include="Syntax\Concrete\Prefix.cs" />
@@ -131,6 +132,7 @@
     <Compile Include="Syntax\Concrete\Script.cs" />
     <Compile Include="Syntax\Concrete\Shift.cs" />
     <Compile Include="Syntax\Concrete\Switch.cs" />
+    <Compile Include="Syntax\Concrete\UsingsNode.cs" />
     <Compile Include="Syntax\Concrete\VariableToken.cs" />
     <Compile Include="Syntax\Concrete\While.cs" />
     <Compile Include="Syntax\Concrete\With.cs" />

@@ -28,29 +28,25 @@ namespace TaffyScriptCompiler.Backend
     public class ILEmitter
     {
         private ILGenerator _generator;
-        private bool _isDebug;
         private Stack<Type> _types = new Stack<Type>();
         private Type[] _paramTypes;
 
-        public ILEmitter(MethodBuilder builder, Type[] input, bool isDebug)
+        public ILEmitter(MethodBuilder builder, Type[] input)
         {
             _generator = builder.GetILGenerator();
-            _isDebug = isDebug;
             _paramTypes = input;
         }
 
-        public ILEmitter(ConstructorBuilder builder, Type[] input, bool isDebug)
+        public ILEmitter(ConstructorBuilder builder, Type[] input)
         {
             _generator = builder.GetILGenerator();
-            _isDebug = isDebug;
             _paramTypes = input;
         }
 
         public LocalBuilder DeclareLocal(Type type, string name)
         {
             var local = _generator.DeclareLocal(type);
-            if(_isDebug)
-                local.SetLocalSymInfo(name);
+            local.SetLocalSymInfo(name);
             return local;
         }
 

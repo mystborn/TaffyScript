@@ -48,6 +48,8 @@ namespace TaffyScriptCompiler
         ArgumentAccess,
         Object,
         Event,
+        Usings,
+        Namespace,
 
         //Token
         Constant,

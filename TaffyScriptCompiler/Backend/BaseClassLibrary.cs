@@ -44,9 +44,9 @@ namespace TaffyScriptCompiler.Backend
             //Todo: d-trig funcs
             //Todo: datetime handling.
 
-            sb.AppendLine("import Directory.CreateDirectory(string) as directory_create");
-            sb.AppendLine("import FileHandling.DirectoryDestroy(string) as directory_destroy");
-            sb.AppendLine("import Directory.Exists(string) as directory_exists");
+            //sb.AppendLine("import Directory.CreateDirectory(string) as directory_create");
+            //sb.AppendLine("import FileHandling.DirectoryDestroy(string) as directory_destroy");
+            //sb.AppendLine("import Directory.Exists(string) as directory_exists");
 
 
             //Todo: File-Handling.

@@ -52,7 +52,12 @@ namespace TaffyScriptCompiler.Backend
         private readonly DotNetTypeParser _typeParser;
 
         private SymbolTable _table;
-        private readonly Dictionary<string, MethodInfo> _methods = new Dictionary<string, MethodInfo>();
+        // private readonly Dictionary<string, MethodInfo> _methods = new Dictionary<string, MethodInfo>();
+
+        /// <summary>
+        /// Row=Namespace, Col=MethodName, Value=MethodInfo
+        /// </summary>
+        private readonly LookupTable<string, string, MethodInfo> _methods = new LookupTable<string, string, MethodInfo>();
         private readonly LookupTable<string, string, long> _enums = new LookupTable<string, string, long>();
         private readonly BindingFlags _methodFlags = BindingFlags.Public | BindingFlags.Static;
         private readonly Dictionary<string, TypeBuilder> _baseTypes = new Dictionary<string, TypeBuilder>();
@@ -61,6 +66,11 @@ namespace TaffyScriptCompiler.Backend
         /// Keeps a list of any errors encountered during the compile.
         /// </summary>
         private List<Exception> _errors = new List<Exception>();
+
+        /// <summary>
+        /// Keeps a list of any warnings the compiler generates.
+        /// </summary>
+        private List<string> _warnings = new List<string>();
 
         /// <summary>
         /// Methods used to convert a <see cref="TsObject"/> to another type.
@@ -121,6 +131,8 @@ namespace TaffyScriptCompiler.Backend
         /// Maintains a collection of methods that haven't been found.
         /// </summary>
         private Dictionary<string, TokenPosition> _pendingMethods = new Dictionary<string, TokenPosition>();
+
+        private HashSet<SyntaxType> _declarationTypes;
         
         /// <summary>
         /// Do not use. Backing stream of SpecialImports.
@@ -177,6 +189,8 @@ namespace TaffyScriptCompiler.Backend
         /// </summary>
         private Dictionary<Type, Stack<LocalBuilder>> _secrets = new Dictionary<Type, Stack<LocalBuilder>>();
 
+        private string _resolveNamespace = "";
+
         #endregion
 
         #region Properties
@@ -208,7 +222,7 @@ namespace TaffyScriptCompiler.Backend
                 {
                     var attribs = MethodAttributes.Static | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName;
                     var input = new Type[] { };
-                    _moduleInitializer = new ILEmitter(_module.DefineGlobalMethod(".cctor", attribs, typeof(void), input), input, _isDebug);
+                    _moduleInitializer = new ILEmitter(_module.DefineGlobalMethod(".cctor", attribs, typeof(void), input), input);
                 }
                 return _moduleInitializer;
             }
@@ -292,12 +306,12 @@ namespace TaffyScriptCompiler.Backend
             {
                 if(asm.GetCustomAttribute<WeakLibraryAttribute>() != null)
                 {
-                    FindValidMethods(asm);
+                    ProcessWeakAssembly(asm);
                     ReadResources(asm);
                 }
                 else
                 {
-                    FindEnums(asm);
+                    ProcessStrongAssembly(asm);
                 }
             }
             
@@ -316,7 +330,7 @@ namespace TaffyScriptCompiler.Backend
             if (_table.Defined("main", out var symbol) && symbol.Type == SymbolType.Script)
                 output = ".exe";
 
-            _module = _asm.DefineDynamicModule(_asmName.Name, _asmName.Name + output, _isDebug);
+            _module = _asm.DefineDynamicModule(_asmName.Name, _asmName.Name + output, true);
 
             if(output == ".exe")
             {
@@ -383,95 +397,56 @@ namespace TaffyScriptCompiler.Backend
 
         #region Helpers
 
-        private void FindEnums(Assembly asm)
+        private void ProcessStrongAssembly(Assembly asm)
         {
             foreach(var type in asm.ExportedTypes.Where(t => t.IsEnum))
             {
-                var name = type.Name;
-
-                _table.EnterNew(name, SymbolType.Enum);
-
-                var names = Enum.GetNames(type);
-                var values = Enum.GetValues(type);
-                for (var i = 0; i < names.Length; i++)
-                    _enums.Add(name, names[i], Convert.ToInt64(values.GetValue(i)));
-
-                _table.Exit();
-
-                // This is the code to use when namespaces are added.
-                // No support for that quite yet.
-                /*
-                var parts = type.FullName.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
-                for (var i = 0; i < parts.Length; i++)
-                    _table.EnterNew(parts[i], i < parts.Length - 1 ? SymbolType.Namespace : SymbolType.Enum);
-
-                var name = parts[parts.Length - 1];
-                var names = Enum.GetNames(type);
-                var values = Enum.GetValues(type);
-                for(var i = 0; i < names.Length; i++)
-                    _enums.Add(name, names[i], Convert.ToInt64(values.GetValue(i)));
-
-                for (var i = 0; i < parts.Length; i++)
-                    _table.Exit();
-                */
+                ProcessEnum(type);
             }
         }
-
-        /// <summary>
-        /// Finds all methods in an assembly marked with the <see cref="WeakMethodAttribute"/> and makes them usable.
-        /// </summary>
-        /// <param name="asm"></param>
-        private void FindValidMethods(Assembly asm)
+        
+        private void ProcessWeakAssembly(Assembly asm)
         {
             foreach(var type in asm.ExportedTypes)
             {
                 if (type.GetCustomAttribute<WeakObjectAttribute>() != null)
                 {
-                    var parts = type.FullName.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
-                    for(var i = 0; i < parts.Length; i++)
-                        _table.EnterNew(parts[i], i < parts.Length - 1 ? SymbolType.Namespace : SymbolType.Object);
-                    for (var i = 0; i < parts.Length; i++)
-                        _table.Exit();
+                    var count = _table.EnterNamespace(type.Namespace);
+                    _table.TryCreate(type.Name, SymbolType.Object);
+                    _table.Exit(count);
                 }
                 else if(type.IsEnum)
                 {
-                    var name = type.Name;
-
-                    _table.EnterNew(name, SymbolType.Enum);
-
-                    var names = Enum.GetNames(type);
-                    var values = Enum.GetValues(type);
-                    for (var i = 0; i < names.Length; i++)
-                        _enums.Add(name, names[i], Convert.ToInt64(values.GetValue(i)));
-
-                    _table.Exit();
-
-                    // This is the code to use when namespaces are added.
-                    // No support for that quite yet.
-                    /*
-                    var parts = type.FullName.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
-                    for (var i = 0; i < parts.Length; i++)
-                        _table.EnterNew(parts[i], i < parts.Length - 1 ? SymbolType.Namespace : SymbolType.Enum);
-
-                    var name = parts[parts.Length - 1];
-                    var names = Enum.GetNames(type);
-                    var values = Enum.GetValues(type);
-                    for(var i = 0; i < names.Length; i++)
-                        _enums.Add(name, names[i], Convert.ToInt64(values.GetValue(i)));
-
-                    for (var i = 0; i < parts.Length; i++)
-                        _table.Exit();
-                    */
+                    ProcessEnum(type);
                 }
-                else
+                else if(type.GetCustomAttribute<WeakBaseTypeAttribute>() != null)
                 {
+                    var count = _table.EnterNamespace(type.Namespace);
                     foreach (var method in type.GetMethods(_methodFlags).Where(mi => IsMethodValid(mi)))
                     {
-                        _methods.Add(method.Name, method);
+                        _methods.Add(type.Namespace ?? "", method.Name, method);
                         _table.AddLeaf(method.Name, SymbolType.Script, SymbolScope.Global);
                     }
+                    _table.Exit(count);
                 }
             }
+        }
+
+        private void ProcessEnum(Type enumType)
+        {
+            var count = _table.EnterNamespace(enumType.Namespace);
+            var name = enumType.Name;
+            if(_table.TryCreate(name, SymbolType.Enum))
+            {
+                _table.Enter(name);
+                var names = Enum.GetNames(enumType);
+                var values = Enum.GetValues(enumType);
+                for (var i = 0; i < names.Length; i++)
+                    _enums.Add(name, names[i], Convert.ToInt64(values.GetValue(i)));
+                _table.Exit();
+            }
+
+            _table.Exit(count);
         }
 
         /// <summary>
@@ -491,12 +466,13 @@ namespace TaffyScriptCompiler.Backend
                         {
                             var line = reader.ReadLine();
                             var input = line.Split(':');
-                            var external = input[1];
+                            var external = input[2];
                             var owner = external.Remove(external.LastIndexOf('.'));
                             var methodName = external.Substring(owner.Length + 1);
                             var type = _typeParser.GetType(owner);
                             var method = GetMethodToImport(type, methodName, new[] { typeof(TsObject[]) });
-                            _methods[input[0]] = method;
+                            _table.AddLeaf(input[1], SymbolType.Script, SymbolScope.Global);
+                            _methods[input[0], input[1]] = method;
                         }
                     }
                 }
@@ -533,15 +509,15 @@ namespace TaffyScriptCompiler.Backend
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        private MethodBuilder StartMethod(string name)
+        private MethodBuilder StartMethod(string name, string ns)
         {
             // If the method is encountered before it's created, a blank MethodBuilder is created.
             // If this happens, use that to generate the method.
-            if (_methods.TryGetValue(name, out var result))
+            if (_methods.TryGetValue(ns, name, out var result))
             {
                 var m = result as MethodBuilder;
                 if (m == null)
-                    _errors.Add(new NameConflictException($"Function with name {name} is already defined by {m.GetModule()}"));
+                    _errors.Add(new NameConflictException($"Function with name {name} is already defined by {m?.GetModule().ToString() ?? "<Unknown Module>"}"));
                 return m;
             }
             if (!_table.Defined(name, out var symbol) || symbol.Type != SymbolType.Script)
@@ -549,26 +525,23 @@ namespace TaffyScriptCompiler.Backend
                 _errors.Add(new CompileException($"Tried to call an undefined function: {name}"));
                 return null;
             }
-            var mb = GetBaseType().DefineMethod(name, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), new[] { typeof(TsObject[]) });
-            if (_isDebug)
-                mb.DefineParameter(1, ParameterAttributes.None, "__args_");
-            _methods.Add(name, mb);
+            var mb = GetBaseType(GetAssetNamespace(symbol)).DefineMethod(name, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), new[] { typeof(TsObject[]) });
+            mb.DefineParameter(1, ParameterAttributes.None, "__args_");
+            _methods.Add(ns, name, mb);
             return mb;
         }
 
-        /// <summary>
-        /// Gets the base type for this namespace.
-        /// </summary>
-        /// <returns></returns>
-        private TypeBuilder GetBaseType()
+        private TypeBuilder GetBaseType(string ns)
         {
-            if(!_baseTypes.TryGetValue(_namespace, out var type))
+            if (!_baseTypes.TryGetValue(ns, out var type))
             {
-                var name = $"{_namespace}.BasicType";
+                var name = $"{ns}.BasicType";
                 if (name.StartsWith("."))
                     name = name.TrimStart('.');
                 type = _module.DefineType(name, TypeAttributes.Public);
-                _baseTypes.Add(_namespace, type);
+                var attrib = new CustomAttributeBuilder(typeof(WeakBaseTypeAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
+                type.SetCustomAttribute(attrib);
+                _baseTypes.Add(ns, type);
             }
             return type;
         }
@@ -580,8 +553,8 @@ namespace TaffyScriptCompiler.Backend
         /// <param name="importName"></param>
         private void GenerateWeakMethodForImport(MethodInfo method, string importName)
         {
-            var mb = StartMethod(importName);
-            var emit = new ILEmitter(mb, new[] { typeof(TsObject[]) }, _isDebug);
+            var mb = StartMethod(importName, _namespace);
+            var emit = new ILEmitter(mb, new[] { typeof(TsObject[]) });
             var paramArray = method.GetParameters();
             var paramTypes = new Type[paramArray.Length];
             for (var i = 0; i < paramArray.Length; ++i)
@@ -611,7 +584,7 @@ namespace TaffyScriptCompiler.Backend
             else if (_tsConstructors.TryGetValue(method.ReturnType, out var init))
                 emit.New(init);
             else if (method.ReturnType != typeof(TsObject))
-                _errors.Add(new InvalidProgramException("Imported method had an invalid return type."));
+                _errors.Add(new InvalidProgramException($"Imported method {importName} had an invalid return type {method.ReturnType}."));
 
             emit.Ret();
 
@@ -631,8 +604,8 @@ namespace TaffyScriptCompiler.Backend
         private void GenerateEntryPoint(MethodInfo entry)
         {
             var input = new[] { typeof(string[]) };
-            var method = GetBaseType().DefineMethod("Main", MethodAttributes.Public | MethodAttributes.Static, typeof(void), input);
-            var emit = new ILEmitter(method, input, _isDebug);
+            var method = GetBaseType(_asmName.Name).DefineMethod("Main", MethodAttributes.Public | MethodAttributes.Static, typeof(void), input);
+            var emit = new ILEmitter(method, input);
             var args = emit.DeclareLocal(typeof(TsObject[]), "args");
             var i = emit.DeclareLocal(typeof(int), "i");
             var count = emit.DeclareLocal(typeof(int), "count");
@@ -747,6 +720,15 @@ namespace TaffyScriptCompiler.Backend
                 { ">>", "op_RightShift" },
                 { "-", "op_Subtraction" },
                 { "true", "op_True" }
+            };
+
+            _declarationTypes = new HashSet<SyntaxType>()
+            {
+                SyntaxType.Enum,
+                SyntaxType.Import,
+                SyntaxType.Namespace,
+                SyntaxType.Object,
+                SyntaxType.Script
             };
 
             var table = new LookupTable<Type, Type, MethodInfo>();
@@ -911,17 +893,26 @@ namespace TaffyScriptCompiler.Backend
 
         private void ScriptStart(string scriptName, MethodBuilder method, Type[] args)
         {
-            emit = new ILEmitter(method, args, _isDebug);
+            emit = new ILEmitter(method, args);
             _table.Enter(scriptName);
-            foreach (var symbol in _table.Symbols)
-                _locals.Add(symbol, emit.DeclareLocal(typeof(TsObject), symbol.Name));
+            var locals = new List<ISymbol>(_table.Symbols);
+            _table.Exit();
+            foreach(var local in locals)
+            {
+                //Raise local variables up one level.
+                _table.AddChild(local);
+                _locals.Add(local, emit.DeclareLocal(typeof(TsObject), local.Name));
+            }
+            /*foreach (var symbol in _table.Symbols)
+                _locals.Add(symbol, emit.DeclareLocal(typeof(TsObject), symbol.Name));*/
         }
 
         private void ScriptEnd()
         {
+            foreach (var local in _locals.Keys)
+                _table.Undefine(local.Name);
             _locals.Clear();
             _secrets.Clear();
-            _table.Exit();
             _id = null;
         }
 
@@ -948,6 +939,69 @@ namespace TaffyScriptCompiler.Backend
                 _secrets.Add(local.LocalType, locals);
             }
             locals.Push(local);
+        }
+
+        private ISyntaxElement ResolveNamespace(MemberAccessNode node)
+        {
+            while(node.Left is ISyntaxToken token && _table.Defined(token.Text, out var symbol) && symbol.Type == SymbolType.Namespace)
+            {
+                _table.Enter(symbol.Name);
+                if (_resolveNamespace == "")
+                    _resolveNamespace += symbol.Name;
+                else
+                    _resolveNamespace += "." + symbol.Name;
+                if (node.Right is MemberAccessNode member)
+                    node = member;
+                else
+                    return node.Right;
+            }
+            return node;
+        }
+
+        private void UnresolveNamespace()
+        {
+            _table.ExitNamespace(_resolveNamespace);
+        }
+
+        private SymbolTable CopyTable(SymbolTable table)
+        {
+            var copy = new SymbolTable();
+            foreach (var symbol in table.Symbols)
+                copy.AddChild(symbol);
+
+            return copy;
+        }
+
+        private void CopyTable(SymbolTable src, SymbolTable dest, TokenPosition position)
+        {
+            foreach (var symbol in src.Symbols)
+            {
+                if (!dest.AddChild(symbol))
+                    _warnings.Add($"Encountered name conflict {position}");
+            }
+        }
+
+        private void AcceptDeclarations(ISyntaxNode block)
+        {
+            foreach(var child in block.Children)
+            {
+                if (!_declarationTypes.Contains(child.Type))
+                    _errors.Add(new CompileException($"Encountered invalid declaration {child.Position}"));
+                else
+                    child.Accept(this);
+            }
+        }
+
+        private string GetAssetNamespace(ISymbol symbol)
+        {
+            var ns = "";
+            var parent = symbol.Parent;
+            while (parent != null && parent.Type == SymbolType.Namespace)
+            {
+                ns += parent.Name;
+                parent = parent.Parent;
+            }
+            return ns;
         }
 
         #endregion
@@ -1235,6 +1289,8 @@ namespace TaffyScriptCompiler.Backend
                             .LdLocalA(secret);
                         FreeLocal(secret);
                     }
+                    else if (top != typeof(TsObject).MakePointerType())
+                        _errors.Add(new CompileException($"Invalid syntax detected {member.Left.Position}"));
                     emit.LdStr(((ISyntaxToken)member.Right).Text);
                     assign.Right.Accept(this);
                     var argTypes = new[] { typeof(string), emit.GetTop() };
@@ -1435,10 +1491,10 @@ namespace TaffyScriptCompiler.Backend
             }
             else
             {
-                memberAccess.Right.Accept(this);
+                memberAccess.Left.Accept(this);
                 var top = emit.GetTop();
                 if (top != typeof(TsObject))
-                    _errors.Add(new CompileException($"Invalid syntax detected {memberAccess.Right.Position}"));
+                    _errors.Add(new CompileException($"Invalid syntax detected {memberAccess.Left.Position}"));
                 var secret = GetLocal();
                 emit.StLocal(secret);
 
@@ -1782,11 +1838,27 @@ namespace TaffyScriptCompiler.Backend
             //All methods callable from GML should have the same sig:
             //TsObject func_name(TsObject[]);
             var name = functionCall.Value;
-            if (!_methods.TryGetValue(name, out var method))
+            if(!_table.Defined(name, out var symbol))
             {
-                method = StartMethod(name);
+                //Console.WriteLine(_table.Defined("string", out _));
+                _errors.Add(new CompileException($"Tried to call non-existant script: {name} {functionCall.Position}"));
+                emit.Call(_getEmptyObject);
+                return;
+            }
+            if(symbol.Type != SymbolType.Script)
+            {
+                _errors.Add(new CompileException($"Tried to call something that wasn't a script. Check for name conflict {functionCall.Position}"));
+                emit.Call(_getEmptyObject);
+                return;
+            }
+            var ns = GetAssetNamespace(symbol);
+            if (!_methods.TryGetValue(ns, name, out var method))
+            {
+                method = StartMethod(name, ns);
                 _pendingMethods.Add(name, functionCall.Position);
             }
+
+            UnresolveNamespace();
 
             if (_isDebug && functionCall.Position.File != null)
             {
@@ -1903,7 +1975,9 @@ namespace TaffyScriptCompiler.Backend
             }
             if (method.GetCustomAttribute<WeakMethodAttribute>() != null && IsMethodValid(method))
             {
-                _methods.Add(internalName, method);
+                _methods.Add(_namespace, internalName, method);
+                SpecialImports.Write(_namespace);
+                SpecialImports.Write(":");
                 SpecialImports.Write(internalName);
                 SpecialImports.Write(':');
                 SpecialImports.WriteLine(externalName);
@@ -2009,6 +2083,16 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(MemberAccessNode memberAccess)
         {
+            var resolved = ResolveNamespace(memberAccess);
+            if(_resolveNamespace != "")
+            {
+                if (resolved is MemberAccessNode member)
+                    memberAccess = member;
+                else
+                {
+                    resolved.Accept(this);
+                }
+            }
             //If left is enum name, find it in _enums.
             //Otherwise, Accept left, and call member access on right.
             if (memberAccess.Left is VariableToken enumVar && _table.Defined(enumVar.Text, out var symbol) && symbol.Type == SymbolType.Enum)
@@ -2024,6 +2108,8 @@ namespace TaffyScriptCompiler.Backend
             }
             else if(memberAccess.Left is ReadOnlyToken read)
             {
+                if (_resolveNamespace != "")
+                    _errors.Add(new CompileException($"Invalid syntax detected {read.Position}"));
                 if (read.Text != "global")
                     _errors.Add(new CompileException($"Tried to access a variable in a read-only value that wasn't an instance {read.Position}"));
                 else
@@ -2040,6 +2126,8 @@ namespace TaffyScriptCompiler.Backend
             }
             else
             {
+                if (_resolveNamespace != "")
+                    _errors.Add(new CompileException($"Invalid syntax detected {memberAccess.Left}"));
                 GetAddressIfPossible(memberAccess.Left);
                 var left = emit.GetTop();
                 if(left == typeof(TsObject))
@@ -2074,6 +2162,7 @@ namespace TaffyScriptCompiler.Backend
                 else
                     _errors.Add(new CompileException($"Invalid syntax detected {memberAccess.Position}"));
             }
+            UnresolveNamespace();
         }
 
         public void Visit(MultiplicativeNode multiplicative)
@@ -2112,6 +2201,20 @@ namespace TaffyScriptCompiler.Backend
                 emit.Call(GetOperator(multiplicative.Value, left, right, multiplicative.Position));
         }
 
+        public void Visit(NamespaceNode namespaceNode)
+        {
+            var parent = _namespace;
+            _namespace = namespaceNode.Value;
+            _table.EnterNamespace(_namespace);
+            var temp = _table;
+            _table = CopyTable(_table);
+            temp.ExitNamespace(_namespace);
+            CopyTable(temp, _table, namespaceNode.Position);
+            AcceptDeclarations(namespaceNode);
+            _namespace = parent;
+            _table = temp;
+        }
+
         public void Visit(ObjectNode objectNode)
         {
             var name = $"{_namespace}.{objectNode.Value}";
@@ -2127,9 +2230,9 @@ namespace TaffyScriptCompiler.Backend
             var input = new[] { typeof(TsInstance) };
             var inherits = typeof(TsInstance).GetField("Inherits");
             var addMethod = typeof(Dictionary<string, InstanceEvent>).GetMethod("Add");
-            var objectIds = typeof(TsInstance).GetField("ObjectIndexMapping");
+            //var objectIds = typeof(TsInstance).GetField("ObjectIndexMapping");
             var events = typeof(TsInstance).GetField("Events");
-            var addObjectId = typeof(Dictionary<Type, string>).GetMethod("Add");
+            //var addObjectId = typeof(Dictionary<Type, string>).GetMethod("Add");
             var eventType = typeof(TsInstance).GetField("EventType");
             var push = typeof(Stack<string>).GetMethod("Push");
             var pop = typeof(Stack<string>).GetMethod("Pop");
@@ -2143,11 +2246,15 @@ namespace TaffyScriptCompiler.Backend
                     .Call(typeof(Dictionary<string, string>).GetMethod("Add"));
             }
 
-            init.LdFld(objectIds)
+            init.Call(typeof(TsInstance).GetMethod("get_Types"))
+                .LdStr(name)
+                .Call(typeof(List<string>).GetMethod("Add"))
+
+            /*init.LdFld(objectIds)
                 .LdType(type)
                 .Call(typeof(Type).GetMethod("GetTypeFromHandle"))
                 .LdStr(name)
-                .Call(addObjectId)
+                .Call(addObjectId)*/
                 .LdFld(events)
                 .LdStr(name)
                 .New(typeof(Dictionary<string, InstanceEvent>).GetConstructor(Type.EmptyTypes));
@@ -2551,10 +2658,7 @@ namespace TaffyScriptCompiler.Backend
         {
             foreach(var child in root.Children)
             {
-                if (child.Type != SyntaxType.Enum && child.Type != SyntaxType.Import && child.Type != SyntaxType.Script && child.Type != SyntaxType.Object)
-                    _errors.Add(new CompileException($"Invalid syntax detected {child.Position}"));
-                else
-                    child.Accept(this);
+                child.Accept(this);
             }
         }
 
@@ -2562,10 +2666,10 @@ namespace TaffyScriptCompiler.Backend
         {
             var name = script.Value;
             _pendingMethods.Remove(name);
-            var mb = StartMethod(name);
+            var mb = StartMethod(name, _namespace);
             _inScript = true;
             ScriptStart(name, mb, new[] { typeof(TsObject[]) });
-
+            
             script.Body.Accept(this);
             
             if (!emit.TryGetTop(out _))
@@ -2703,15 +2807,34 @@ namespace TaffyScriptCompiler.Backend
             _loopEnd.Pop();
         }
 
+        public void Visit(UsingsNode usings)
+        {
+            var temp = _table;
+            _table = CopyTable(temp);
+
+            foreach (var ns in usings.Modules)
+            {
+                var count = temp.EnterNamespace(ns.Text);
+                CopyTable(temp, _table, ns.Position);
+                temp.Exit(count);
+            }
+            AcceptDeclarations(usings.Declarations);
+            _table = temp;
+        }
+
         public void Visit(VariableToken variableToken)
         {
             var name = variableToken.Text;
             if(_table.Defined(name, out var symbol))
             {
+                UnresolveNamespace();
                 switch(symbol.Type)
                 {
                     case SymbolType.Object:
                     case SymbolType.Script:
+                        var ns = GetAssetNamespace(symbol);
+                        if (ns != "")
+                            name = $"{ns}.{name}";
                         emit.LdStr(name);
                         break;
                     case SymbolType.Variable:

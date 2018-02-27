@@ -4,14 +4,13 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{68399D06-20DF-4CE8-9920-BD82DF2B8F69}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <ProjectGuid>{73A009B5-7EB4-4E4A-ACDF-C209B98B2948}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>TaffyScript</RootNamespace>
-    <AssemblyName>TaffyScript</AssemblyName>
+    <RootNamespace>TaffyScriptIde</RootNamespace>
+    <AssemblyName>TaffyScriptIde</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -21,7 +20,6 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -31,7 +29,13 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
   <ItemGroup>
+    <Reference Include="gdk-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f, processorArchitecture=MSIL" />
+    <Reference Include="glib-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f" />
+    <Reference Include="gtk-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f, processorArchitecture=MSIL" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -42,26 +46,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Attributes\WeakBaseTypeAttribute.cs" />
-    <Compile Include="BaseClassLib\BaseClassLibrary.cs" />
-    <Compile Include="BaseClassLib\DataStructureDisposedException.cs" />
-    <Compile Include="BaseClassLib\DsList.cs" />
-    <Compile Include="BaseClassLib\DsMap.cs" />
-    <Compile Include="BaseClassLib\FileHandling.cs" />
-    <Compile Include="Exceptions\UserDefinedException.cs" />
-    <Compile Include="Extensions.cs" />
-    <Compile Include="TsInstance.cs" />
-    <Compile Include="TsObject.cs" />
-    <Compile Include="TsValue.cs" />
-    <Compile Include="BaseClassLib\DsGrid.cs" />
-    <Compile Include="InstanceEnumerator.cs" />
-    <Compile Include="Exceptions\InvalidTsTypeException.cs" />
-    <Compile Include="Exceptions\InvalidInstanceException.cs" />
+    <Compile Include="Ide.cs" />
+    <Compile Include="IdeWindow.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="VariableType.cs" />
-    <Compile Include="Attributes\WeakLibraryAttribute.cs" />
-    <Compile Include="Attributes\WeakMethodAttribute.cs" />
-    <Compile Include="Attributes\WeakObjectAttribute.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\Owl.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -95,6 +95,8 @@ namespace TaffyScriptCompiler.FrontEnd
                 { "instance_count", "readonly" },
                 { "object", "object" },
                 { "event", "event" },
+                { "using", "using" },
+                { "namespace", "namespace" },
                 { "as", "as" },
                 { "and", "&&" },
                 { "or", "||" },

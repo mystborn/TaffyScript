@@ -29,5 +29,10 @@ namespace TaffyScriptCompiler
         {
             Pending.Add(name);
         }
+
+        public override string ToString()
+        {
+            return $"SymbolNode {Type} {Name}";
+        }
     }
 }

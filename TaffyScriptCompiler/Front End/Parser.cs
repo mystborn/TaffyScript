@@ -68,27 +68,78 @@ namespace TaffyScriptCompiler
         {
             _stream.ErrorEncountered += (e) => Errors.Add(e);
 
+            root.AddChild(Usings());
+        }
+
+        private ISyntaxElement Usings()
+        {
+            ISyntaxNode node = null;
+            while(Try("using", out var token))
+            {
+                if (node == null)
+                    node = _factory.CreateNode(SyntaxType.Usings, token.Position);
+                var ns = GetNamespace();
+                node.AddChild(_factory.CreateConstant(ConstantType.String, ns, token.Position));
+            }
+
+            // There are no using statements.
+            // Should not throw an error, so just leave the position as null.
+            if (node == null)
+                node = _factory.CreateNode(SyntaxType.Usings, new TokenPosition(0, 0, 0, null));
+
+            // This needs to be a block so that the enums aren't pushed to the front of the usings node.
+            var block = _factory.CreateNode(SyntaxType.Block, null);
+            AddDeclarations(block);
+            node.AddChild(block);
+
+            return node;
+        }
+
+        private void AddDeclarations(ISyntaxNode node)
+        {
             var enums = new List<ISyntaxElement>();
-            while (!_stream.Finished)
+            // Check for stream finsihed for global declarations,
+            // and check for end brace for namespace declarations.
+            while (!_stream.Finished && !Try("}"))
             {
                 var child = Declaration();
-                if(child != null && child.Type == SyntaxType.Enum)
+                if (child != null && child.Type == SyntaxType.Enum)
                 {
                     enums.Add(child);
-                    child.Parent = root;
+                    child.Parent = node;
                 }
                 else
-                    root.AddChild(child);
+                    node.AddChild(child);
             }
 
             //Make sure that enums get processed before anything else.
-            root.Children.InsertRange(0, enums);
+            node.Children.InsertRange(0, enums);
         }
 
         private ISyntaxElement Declaration()
         {
             switch(_stream.Peek().Type)
             {
+                case "namespace":
+                    var token = Confirm("namespace");
+                    var nsName = GetNamespace();
+                    var ns = new NamespaceNode(nsName, token.Position);
+                    Confirm("{");
+                    try
+                    {
+                        _table.EnterNamespace(nsName);
+                    }
+                    catch(Exception e)
+                    {
+                        Throw(e);
+                        return null;
+                    }
+                    AddDeclarations(ns);
+
+                    //Make sure the declarations didn't end because the file ended.
+                    Confirm("}");
+                    _table.ExitNamespace(nsName);
+                    return ns;
                 case "object":
                     Confirm("object");
                     var objName = Confirm("id");
@@ -160,7 +211,7 @@ namespace TaffyScriptCompiler
                     {
                         do
                         {
-                            if (!(Try("id", out var token) || Try("object", out token)))
+                            if (!(Try("id", out token) || Try("object", out token)))
                             {
                                 Throw(new InvalidTokenException(_stream.Read()));
                                 continue;
@@ -831,6 +882,22 @@ namespace TaffyScriptCompiler
         private void Throw(Exception exception)
         {
             Errors.Add(exception);
+        }
+
+        private string GetNamespace()
+        {
+            var first = Confirm("id");
+            var name = first.Value;
+            while (Validate("."))
+            {
+                name += ".";
+                name += Confirm("id").Value;
+            }
+
+            //Make sure to remove all semi colons.
+            while (Validate(";")) ;
+
+            return name;
         }
     }
 }

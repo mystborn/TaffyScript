@@ -40,6 +40,8 @@ namespace TaffyScriptCompiler.Syntax
         {
             switch(type)
             {
+                case SyntaxType.Usings:
+                    return new UsingsNode(null, position);
                 case SyntaxType.Locals:
                     return new LocalsNode(null, position);
                 case SyntaxType.Import:
@@ -93,6 +95,8 @@ namespace TaffyScriptCompiler.Syntax
         {
             switch(type)
             {
+                case SyntaxType.Namespace:
+                    return new NamespaceNode(value, position);
                 case SyntaxType.Assign:
                     return new AssignNode(value, position);
                 case SyntaxType.Logical:

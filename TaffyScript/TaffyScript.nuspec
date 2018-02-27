@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>mystborn</authors>
+    <owners>$author$</owners>
+    <licenseUrl>https://github.com/mystborn/TaffyScript/blob/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/mystborn/TaffyScript</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>The basic implementation of data types in the TaffyScript language.</description>
+    <releaseNotes>Initial Pack</releaseNotes>
+    <copyright>Copyright 2018 Precisamento LLC</copyright>
+    <tags>taffyscript bcl compiler</tags>
+  </metadata>
+</package>

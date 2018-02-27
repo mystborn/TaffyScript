@@ -23,6 +23,7 @@ namespace TaffyScript
 
         private Dictionary<string, TsObject> _vars = new Dictionary<string, TsObject>();
 
+        public static List<string> Types { get; } = new List<string>();
         public static Dictionary<Type, string> ObjectIndexMapping = new Dictionary<Type, string>();
         public static Dictionary<string, Dictionary<string, InstanceEvent>> Events = new Dictionary<string, Dictionary<string, InstanceEvent>>();
         public static Dictionary<string, TaffyFunction> Functions = new Dictionary<string, TaffyFunction>();
