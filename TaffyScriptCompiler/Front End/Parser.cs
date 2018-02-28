@@ -174,19 +174,26 @@ namespace TaffyScriptCompiler
                     Confirm("{");
                     if(!Try("}"))
                     {
+                        var value = 0;
                         do
                         {
                             var name = Confirm("id");
-                            _table.AddLeaf(name.Value, SymbolType.Variable, SymbolScope.Member);
                             ISyntaxNode nameNode;
                             if (Validate("="))
                             {
                                 nameNode = _factory.CreateNode(SyntaxType.Assign, name.Value, name.Position);
                                 var num = Confirm("num");
-                                nameNode.AddChild(_factory.CreateConstant(ConstantType.Real, num.Value, num.Position));
+                                ConstantToken<float> numToken = (ConstantToken<float>)_factory.CreateConstant(ConstantType.Real, num.Value, num.Position);
+                                value = (int)numToken.Value;
+                                _table.AddLeaf(name.Value, value);
+                                nameNode.AddChild(numToken);
                             }
                             else
+                            {
                                 nameNode = _factory.CreateNode(SyntaxType.Declare, name.Value, name.Position);
+                                _table.AddLeaf(name.Value, value);
+                            }
+                            value++;
                             node.AddChild(nameNode);
                         }
                         while (Validate(","));

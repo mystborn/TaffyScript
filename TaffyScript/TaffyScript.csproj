@@ -51,6 +51,7 @@
     <Compile Include="Exceptions\UserDefinedException.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Collections\LookupTable_T3.cs" />
+    <Compile Include="TaffyScriptLoader.cs" />
     <Compile Include="TsInstance.cs" />
     <Compile Include="TsObject.cs" />
     <Compile Include="TsValue.cs" />

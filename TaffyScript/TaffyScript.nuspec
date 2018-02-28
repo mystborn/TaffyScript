@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>$id$</id>
-    <version>$version$</version>
+    <version>1.1.0</version>
     <title>$title$</title>
     <authors>mystborn</authors>
     <owners>$author$</owners>
@@ -10,7 +10,7 @@
     <projectUrl>https://github.com/mystborn/TaffyScript</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>The basic implementation of data types in the TaffyScript language.</description>
-    <releaseNotes>Initial Pack</releaseNotes>
+    <releaseNotes>Added an assembly loader.</releaseNotes>
     <copyright>Copyright 2018 Precisamento LLC</copyright>
     <tags>taffyscript bcl compiler</tags>
   </metadata>

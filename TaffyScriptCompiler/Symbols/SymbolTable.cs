@@ -141,6 +141,23 @@ namespace TaffyScriptCompiler
             return false;
         }
 
+        /// <summary>
+        /// Adds a new <see cref="EnumLeaf"/> to the current scope.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public bool AddLeaf(string name, int value)
+        {
+            if (!Defined(name, out var overwrite))
+            {
+                Current.Children.Add(name, new EnumLeaf(Current, name, SymbolType.Variable, SymbolScope.Member, value));
+                return true;
+            }
+
+            return false;
+        }
+
         public bool AddChild(ISymbol symbol)
         {
             if (!Defined(symbol.Name, out var overwrite))

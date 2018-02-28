@@ -1744,7 +1744,7 @@ namespace TaffyScriptCompiler.Backend
         public void Visit(EnumNode enumNode)
         {
             //Todo: Implement Namespace with EnumNode
-            var name = enumNode.Value;
+            var name = $"{_namespace}.{enumNode.Value}".TrimStart('.');
             var type = _module.DefineEnum(name, TypeAttributes.Public, typeof(long));
 
             long current = 0;
@@ -1760,7 +1760,7 @@ namespace TaffyScriptCompiler.Backend
                 else if (expr.Type != SyntaxType.Declare)
                     _errors.Add(new CompileException($"Encountered error while compiling enum {enumNode.Value} {expr.Position}."));
 
-                _enums.Add(enumNode.Value, expr.Value, current);
+                _enums[name, expr.Value] = current;
                 type.DefineLiteral(expr.Value, current++);
             }
 
@@ -2145,7 +2145,19 @@ namespace TaffyScriptCompiler.Backend
                 if (memberAccess.Right is VariableToken enumValue)
                 {
                     if (!_enums.TryGetValue(enumVar.Text, enumValue.Text, out var value))
-                        _errors.Add(new CompileException($"The enum {enumVar.Text} does not declare value {enumValue.Text} {enumValue.Position}"));
+                    {
+                        _table.Enter(enumVar.Text);
+                        Console.WriteLine(_table.Defined("Red", out symbol));
+                        Console.WriteLine(symbol.GetType());
+                        if (_table.Defined(enumValue.Text, out symbol) && symbol is EnumLeaf leaf)
+                        {
+                            value = leaf.Value;
+                            _enums[enumVar.Text, leaf.Name] = value;
+                        }
+                        else
+                            _errors.Add(new CompileException($"The enum {enumVar.Text} does not declare value {enumValue.Text} {enumValue.Position}"));
+                        _table.Exit();
+                    }
                     emit.LdFloat(value);
                 }
                 else
