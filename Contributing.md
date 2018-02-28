@@ -16,7 +16,6 @@ For the people willing to sift through the code and make changes, first of all t
 
 
 For those willing to invest a fair bit of time into the project, here are some large changes that are currently planned:
-* Namespaces. This will help alleviate the potential of running into naming conflicts in larger projects or when using libraries.
 * Strong Functions. Currently all methods have the same signature `TsObject MethodName(TsObject[] args)`. However, on methods that don't require a variable number of arguments, the arguments should be layer out properly i.e. `TsObject MethodName(TsObject arg1, TsObject arg2)`
 * Macros. This is pretty low on the list, but these are variables assigned to a constant value. These will have to be preprocessed, and will generally slow compile time down. One solution is to only allow macros to be declared all in one special file, but no idea is set in stone yet.
 * Lazy or Faster Initialization. This library uses a special method to load all of it's scripts and objects into a usable form on startup, but on larger projects this could cause considerable slowdown.
