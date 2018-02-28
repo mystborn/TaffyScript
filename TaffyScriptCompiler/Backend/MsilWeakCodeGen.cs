@@ -1854,6 +1854,7 @@ namespace TaffyScriptCompiler.Backend
         public void Visit(ForNode forNode)
         {
             var forStart = emit.DefineLabel();
+            var forCondition = emit.DefineLabel();
             var forIter = emit.DefineLabel();
             var forFinal = emit.DefineLabel();
             forNode.Initializer.Accept(this);
@@ -1861,10 +1862,13 @@ namespace TaffyScriptCompiler.Backend
             _loopStart.Push(forIter);
             _loopEnd.Push(forFinal);
 
+            //Check condition before continuing.
+            emit.Br(forCondition);
             emit.MarkLabel(forStart);
             forNode.Body.Accept(this);
             emit.MarkLabel(forIter);
             forNode.Iterator.Accept(this);
+            emit.MarkLabel(forCondition);
             forNode.Condition.Accept(this);
             emit.BrTrue(forStart);
             emit.MarkLabel(forFinal);
