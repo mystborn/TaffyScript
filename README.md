@@ -10,7 +10,7 @@ which is the scripting language used inside of the game engine Gamemaker.
 * Does not use DLR
 * Accessable from existing .NET projects
 * Import external .NET methods.
-* Reflection (WIP)
+* Basic Reflection
 
 ## Sounds Great! How Can I Get it?
 Currently the only way to acquire Taffy is to build it from the source, however that will be changing soon.
