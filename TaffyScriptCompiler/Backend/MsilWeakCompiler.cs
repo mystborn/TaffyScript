@@ -63,7 +63,7 @@ namespace TaffyScriptCompiler.Backend
                 {
                     if (File.Exists(expectedOutput))
                         File.Delete(expectedOutput);
-                    File.Move(result.PathToAssembly, expectedOutput);
+                    MoveFile(result.PathToAssembly, expectedOutput);
                     return new CompilerResult(result.CompiledAssebmly, expectedOutput, result.Errors.ToArray());
                 }
             }
@@ -160,7 +160,7 @@ namespace TaffyScriptCompiler.Backend
         private void MoveFile(string source, string dest)
         {
             var ext = Path.GetExtension(source);
-            if(ext == ".dll")
+            if(ext != ".pdb")
             {
                 var pdb = Path.Combine(Path.GetDirectoryName(source), Path.GetFileNameWithoutExtension(source) + ".pdb");
                 if (File.Exists(pdb))
@@ -179,7 +179,7 @@ namespace TaffyScriptCompiler.Backend
         private void CopyFileIfNewer(string source, string dest)
         {
             var ext = Path.GetExtension(source);
-            if (ext == ".dll")
+            if (ext != ".pdb")
             {
                 var pdb = Path.Combine(Path.GetDirectoryName(source), Path.GetFileNameWithoutExtension(source) + ".pdb");
                 if (File.Exists(pdb))

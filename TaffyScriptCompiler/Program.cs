@@ -17,18 +17,15 @@ namespace TaffyScriptCompiler
         static void Main(string[] args)
         {
             bool run = false;
-            bool isDebug = true;
             bool generateBcl = false;
 
             var options = new OptionSet()
             {
                 { "r", v => run = v != null },
-                { "mode=", v => isDebug = v == null || v == "release" },
                 { "bcl", v => generateBcl = v != null }
             };
 
             var extra = options.Parse(args);
-            //var path = @"C:\Users\Chris\Source\GmToSharpSamples\HelloLanguage";
 
             Console.WriteLine("Compile Start...");
 
@@ -41,7 +38,7 @@ namespace TaffyScriptCompiler
                 result = compiler.CompileProject(path);
             }
             else
-                result = compiler.CompileCode(BaseClassLibrary.Generate(), new BuildConfig() { Mode = CompileMode.Release, Output = Path.Combine(Path.GetDirectoryName(typeof(Program).Assembly.Location), "Libraries", "taffybcl") });
+                result = compiler.CompileCode(BaseClassLibrary.Generate(), new BuildConfig() { Mode = CompileMode.Release, Output = Path.Combine(Path.GetDirectoryName(typeof(Program).Assembly.Location), "Libraries", "TaffyScript.Bcl") });
 
             if (result.Errors.Count == 0)
             {
@@ -82,16 +79,6 @@ namespace TaffyScriptCompiler
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
                 process.WaitForExit();
-            }
-        }
-
-        static void WriteSyntax(ISyntaxElement node, int indent)
-        {
-            Console.WriteLine(new string(' ', indent) + node.ToString());
-            if(node is SyntaxNode parent)
-            {
-                foreach (var child in parent.Children)
-                    WriteSyntax(child, indent + 2);
             }
         }
     }
