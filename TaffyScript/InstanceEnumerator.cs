@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace TaffyScript
 {
+    /// <summary>
+    /// Enumerator used to cycle through <see cref="TsInstance"/>s.
+    /// </summary>
     public struct InstanceEnumerator : IEnumerator<TsObject>
     {
         private IEnumerator<TsObject> _backingEnumerator;

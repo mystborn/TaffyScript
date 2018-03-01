@@ -9,6 +9,10 @@ namespace TaffyScript
 {
     public static class TaffyScriptLoader
     {
+        /// <summary>
+        /// Loads a TaffyScript from the specified path and initializes it.
+        /// </summary>
+        /// <param name="path"></param>
         public static void Load(string path)
         {
             var asm = Assembly.LoadFile(path);

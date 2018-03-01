@@ -6,10 +6,17 @@ using System.Threading.Tasks;
 
 namespace TaffyScript
 {
+    /// <summary>
+    /// Variant representing a TaffyScript value
+    /// </summary>
     public struct TsObject
     {
         public const float All = -3f;
         public const float Noone = -4f;
+
+        /// <summary>
+        /// Gets a stack trace of the currently executing instances.
+        /// </summary>
         public static Stack<TsObject> Id { get; } = new Stack<TsObject>();
 
         public VariableType Type { get; private set; }

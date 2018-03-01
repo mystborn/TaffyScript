@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace TaffyScript
 {
+    /// <summary>
+    /// Exception thrown when trying to access a data structure that no longer exists.
+    /// </summary>
     public class DataStructureDestroyedException : Exception
     {
         public string DsType { get; }

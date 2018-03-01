@@ -7,6 +7,15 @@ using System.Threading.Tasks;
 
 namespace TaffyScript.Collections
 {
+    /// <summary>
+    /// Implements a generic Row-Column lookup table.
+    /// </summary>
+    /// <remarks>
+    /// This is just a helper class used to make working with nested dictionaries less tedius.
+    /// </remarks>
+    /// <typeparam name="TRow"></typeparam>
+    /// <typeparam name="TCol"></typeparam>
+    /// <typeparam name="TValue"></typeparam>
     public class LookupTable<TRow, TCol, TValue> : IEnumerable<TableItem<TRow, TCol, TValue>>
     {
         private int _count = 0;

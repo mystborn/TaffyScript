@@ -1,11 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace TaffyScript
 {
+    /// <summary>
+    /// Tags a type as a TaffyScript base type.
+    /// </summary>
     public class WeakBaseTypeAttribute : Attribute
     {
         public WeakBaseTypeAttribute()
