@@ -74,7 +74,7 @@ namespace TaffyScriptCompiler
 
         public int EnterNamespace(string ns)
         {
-            if (ns == null)
+            if (ns == null || ns == "")
                 return 0;
             var parts = ns.Split('.');
             foreach (var part in parts)

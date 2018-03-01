@@ -20,6 +20,14 @@ namespace TaffyScriptCompiler.Backend
         [XmlArrayItem(ElementName = "Exclude")]
         public List<string> Excludes { get; set; } = new List<string>();
 
+        public string EntryPoint { get; set; } = "main";
+        public string Product { get; set; } = "";
+        public string Version { get; set; } = "0.0.0";
+        public string Company { get; set; } = "";
+        public string Copyright { get; set; } = "";
+        public string Trademark { get; set; } = "";
+        public string Description { get; set; } = "";
+
         public CompileMode Mode { get; set; } = CompileMode.Debug;
     }
 }

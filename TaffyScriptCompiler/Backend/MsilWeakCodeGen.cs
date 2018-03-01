@@ -50,6 +50,7 @@ namespace TaffyScriptCompiler.Backend
         private ILEmitter _initializer = null;
         private readonly DotNetAssemblyLoader _assemblyLoader;
         private readonly DotNetTypeParser _typeParser;
+        private string _entryPoint;
 
         private SymbolTable _table;
         // private readonly Dictionary<string, MethodInfo> _methods = new Dictionary<string, MethodInfo>();
@@ -284,6 +285,8 @@ namespace TaffyScriptCompiler.Backend
             _isDebug = config.Mode == CompileMode.Debug;
             _asmName = new AssemblyName(System.IO.Path.GetFileName(config.Output));
             _asm = AppDomain.CurrentDomain.DefineDynamicAssembly(_asmName, AssemblyBuilderAccess.Save);
+            _asm.DefineVersionInfoResource(config.Product, config.Version, config.Company, config.Copyright, config.Trademark);
+            _entryPoint = config.EntryPoint;
 
             CustomAttributeBuilder attrib;
             if (_isDebug)
@@ -329,8 +332,21 @@ namespace TaffyScriptCompiler.Backend
         {
             //If a main script was defined, output an exe. Otherwise outputs a dll.
             var output = ".dll";
-            if (_table.Defined("main", out var symbol) && symbol.Type == SymbolType.Script)
+
+            var ns = "";
+            var index = _entryPoint.LastIndexOf('.');
+            var script = _entryPoint;
+            if (index != -1)
+            {
+                ns = _entryPoint.Remove(index);
+                script = _entryPoint.Substring(index + 1);
+            }
+            var count = _table.EnterNamespace(ns);
+
+            if (_table.Defined(script, out var symbol) && symbol.Type == SymbolType.Script)
                 output = ".exe";
+
+            _table.Exit(count);
 
             _module = _asm.DefineDynamicModule(_asmName.Name, _asmName.Name + output, true);
 
@@ -2768,7 +2784,7 @@ namespace TaffyScriptCompiler.Backend
                 .New(typeof(TaffyFunction).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
                 .Call(typeof(Dictionary<string, TaffyFunction>).GetMethod("Add"));
 
-            if (name == "main")
+            if (name == _entryPoint)
                 GenerateEntryPoint(mb);
         }
 
