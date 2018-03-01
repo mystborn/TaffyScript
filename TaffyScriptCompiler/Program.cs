@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using NDesk.Options;
+using System;
 using System.Diagnostics;
-using System.Linq;
 using System.IO;
-using System.Text;
-using System.Threading.Tasks;
-using TaffyScriptCompiler.FrontEnd;
 using TaffyScriptCompiler.Backend;
-using TaffyScriptCompiler.Syntax;
-using NDesk.Options;
 
 namespace TaffyScriptCompiler
 {
@@ -18,23 +12,34 @@ namespace TaffyScriptCompiler
         {
             bool run = false;
             bool generateBcl = false;
+            bool generateBuild = false;
 
             var options = new OptionSet()
             {
                 { "r", v => run = v != null },
-                { "bcl", v => generateBcl = v != null }
+                { "bcl", v => generateBcl = v != null },
+                { "build", v => generateBuild = v != null }
             };
 
+            var path = Directory.GetCurrentDirectory();
             var extra = options.Parse(args);
+            if (extra.Count != 0)
+                path = extra[0];
 
             Console.WriteLine("Compile Start...");
 
             var compiler = new MsilWeakCompiler();
             CompilerResult result;
 
+            if(generateBuild)
+            {
+                var build = new BuildConfig();
+                build.Save(path);
+                return;
+            }
+
             if (!generateBcl)
             {
-                var path = extra[0];
                 result = compiler.CompileProject(path);
             }
             else

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -29,5 +30,15 @@ namespace TaffyScriptCompiler.Backend
         public string Description { get; set; } = "";
 
         public CompileMode Mode { get; set; } = CompileMode.Debug;
+
+        public void Save(string path)
+        {
+            path = Path.Combine(path, "build.cfg");
+            using(var sw = new StreamWriter(path))
+            {
+                var serializer = new XmlSerializer(typeof(BuildConfig));
+                serializer.Serialize(sw, this);
+            }
+        }
     }
 }
