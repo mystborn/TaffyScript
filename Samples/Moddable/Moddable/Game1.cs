@@ -46,7 +46,7 @@ namespace Moddable
             // WeakLibraryAttribute before loading it.
 
             TaffyScript.BCL.TaffyScript_BCL_Initializer.Initialize();
-            //GameBase.GameBase_Initializer.Initialize();
+            GameBase.GameBase_Initializer.Initialize();
 
             if (File.Exists("mods.txt"))
             {

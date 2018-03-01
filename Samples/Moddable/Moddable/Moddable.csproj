@@ -52,16 +52,19 @@
     <Compile Include="SelectState.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="GameBase">
+      <HintPath>..\GameBase\bin\GameBase.dll</HintPath>
+    </Reference>
     <Reference Include="MonoGame.Framework">
       <HintPath>$(MonoGameInstallDirectory)\MonoGame\v3.0\Assemblies\Windows\MonoGame.Framework.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Xml" />
     <Reference Include="TaffyScript, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\GmParser\packages\TaffyScript.1.1.0\lib\net452\TaffyScript.dll</HintPath>
+      <HintPath>..\..\..\packages\TaffyScript.1.1.0\lib\net452\TaffyScript.dll</HintPath>
     </Reference>
     <Reference Include="TaffyScript.BCL, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\GmParser\packages\TaffyScript.BCL.1.1.0\lib\net452\TaffyScript.BCL.dll</HintPath>
+      <HintPath>..\..\..\packages\TaffyScript.BCL.1.1.0\lib\net452\TaffyScript.BCL.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -69,9 +72,7 @@
     <Content Include="mods.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="mods\GameMod.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <Content Include="mods\GameMod.dll" />
   </ItemGroup>
   <ItemGroup>
     <MonoGameContentReference Include="Content\Content.mgcb" />
