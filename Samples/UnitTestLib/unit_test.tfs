@@ -1,0 +1,155 @@
+//This project is based off of the GaMaTas project for GameMaker Studio.
+//To find more information, you can view the project here:
+//https://github.com/gm-core/gamatas
+
+namespace UnitTest {
+    object obj_unit_test {
+        event create {
+            test_number = 0;
+            tests_failed = false;
+            test_suite = "";
+            test_description = "";
+            tests = ds_list_create();
+        }
+
+        event destroy {
+            ds_list_destroy(tests);
+        }
+
+        event run_tests {
+            var count = ds_list_size(tests);
+            for(var i = 0; i < count; i++) {
+                test_description = "";
+                script_execute(tests[| i]);
+            }
+            if(tests_failed)
+                show_error("Not all tests passed. See output for more info.", true);
+            else
+                show_debug_message("All tests have passed - " + test_suite);
+        }
+    }
+
+    script scr_create_test_suite {
+        //scr_create_test(test_suite_name, ..scripts)
+        if(argument_count < 2)
+            show_error("You must provide at least the test suite name and one test.", true);
+        
+        var unit_test = instance_create(obj_unit_test);
+        unit_test.test_suite = argument0;
+        for(var i = 1; i < argument_count; i++) {
+            unit_test.tests[| i - 1] = argument[i];
+        }
+
+        return unit_test;
+    }
+
+    script scr_run_tests {
+        var unit_test = argument0;
+        with(unit_test){
+            event_perform("run_tests");
+        }
+    }
+
+    script test_it {
+        test_description = argument0;
+    }
+
+    script assert {
+        if(argument_count == 1)
+            assert_equal(argument0);
+        else
+            assert_equal(argument0, argument1);
+    }
+
+    script assert_equal {
+        test_number++;
+        if(argument0 != argument1) {
+            var msg;
+            if(argument_count > 2)
+                msg = argument2;
+            else {
+                show_debug_message(argument0);
+                show_debug_message(argument1);
+                msg = scr_ut_create_assert_error(string(argument0) + " is not " + string(argument1));
+            }
+
+            test_fail(msg);
+        }
+    }
+
+    script assert_not_equal {
+        test_number++;
+        if(argument0 == argument1) {
+            var msg;
+            if(argument_count > 2)
+                msg = argument2;
+            else
+                msg = scr_ut_create_assert_error(string(argument0) + " is " + string(argument1));
+
+            test_fail(msg);
+        }
+    }
+
+    script assert_exists {
+        test_number++;
+        if(!instance_exists(argument0)){
+            var msg;
+            if(argument_count > 1)
+                msg = argument1;
+            else
+                msg = scr_ut_create_assert_error(string(argument0) + " has no instances");
+
+            test_fail(msg);
+        }
+    }
+
+    script assert_does_not_exist {
+        test_number++;
+        if(instance_exists(argument0)){
+            var msg;
+            if(argument_count > 1)
+                msg = argument1;
+            else
+                msg = scr_ut_create_assert_error(string(argument0) + " should not exist");
+
+            test_fail(msg);
+        }
+    }
+
+    script assert_is_true {
+        if(argument_count > 1)
+            assert_equal(argument0, true, argument1);
+        else
+            assert_equal(argument0, true);
+    }
+
+    script assert_is_false {
+        if(argument_count > 1)
+            assert_equal(argument0, false, argument1);
+        else
+            assert_equal(argument0, false);
+    }
+
+    script assert_is_undefined {
+        test_number++;
+        if(!is_undefined(argument0)) {
+            var msg;
+            if(argument_count > 1)
+                msg = argument1;
+            else
+                msg = scr_ut_create_assert_error(string(argument0) + " is not undefined");
+        }
+    }
+
+    script scr_ut_create_assert_error {
+        return "ASSERT ERROR - " + string(argument0) + " - ASSERT #" + string(test_number);
+    }
+
+    script test_fail {
+        var msg = argument0;
+        show_debug_message(msg);
+        show_debug_message("In suite " + test_suite);
+
+        tests_failed = true;
+    }
+}

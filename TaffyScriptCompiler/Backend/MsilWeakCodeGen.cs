@@ -637,7 +637,8 @@ namespace TaffyScriptCompiler.Backend
             //    }
             //    main(args);
             //}
-            emit.LdArg(0)
+            emit.Call(Initializer.Method as MethodBuilder, 0, typeof(void))
+                .LdArg(0)
                 .LdLen()
                 .Dup()
                 .StLocal(count)

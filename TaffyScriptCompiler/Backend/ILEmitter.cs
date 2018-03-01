@@ -31,16 +31,20 @@ namespace TaffyScriptCompiler.Backend
         private Stack<Type> _types = new Stack<Type>();
         private Type[] _paramTypes;
 
+        public MethodBase Method { get; }
+
         public ILEmitter(MethodBuilder builder, Type[] input)
         {
             _generator = builder.GetILGenerator();
             _paramTypes = input;
+            Method = builder;
         }
 
         public ILEmitter(ConstructorBuilder builder, Type[] input)
         {
             _generator = builder.GetILGenerator();
             _paramTypes = input;
+            Method = builder;
         }
 
         public LocalBuilder DeclareLocal(Type type, string name)
