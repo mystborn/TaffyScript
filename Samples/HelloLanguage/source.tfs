@@ -3,6 +3,9 @@ using HelloLanguage;
 script main {
     namespace_script();
     HelloLanguage.Utils.Console.trace("HelloLanguage");
+    var inst = instance_create(namespace_object);
+    //Different from trace defined in this file.
+    trace(inst.i);
 }
 
 namespace HelloLanguage {

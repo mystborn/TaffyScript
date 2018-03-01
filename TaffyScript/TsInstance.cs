@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TaffyScript.Collections;
 
 namespace TaffyScript
 {
     public delegate void InstanceEvent(TsInstance inst);
-    public delegate TsObject TaffyFunction(TsObject[] args);
+    public delegate TsObject Script(TsObject[] args);
 
     public class TsInstance
     {
@@ -24,11 +25,10 @@ namespace TaffyScript
         private Dictionary<string, TsObject> _vars = new Dictionary<string, TsObject>();
 
         public static List<string> Types { get; } = new List<string>();
-        public static Dictionary<Type, string> ObjectIndexMapping = new Dictionary<Type, string>();
-        public static Dictionary<string, Dictionary<string, InstanceEvent>> Events = new Dictionary<string, Dictionary<string, InstanceEvent>>();
-        public static Dictionary<string, TaffyFunction> Functions = new Dictionary<string, TaffyFunction>();
-        public static Dictionary<string, string> Inherits = new Dictionary<string, string>();
-        public static Stack<string> EventType = new Stack<string>();
+        public static LookupTable<string, string, InstanceEvent> Events { get; } = new LookupTable<string, string, InstanceEvent>();
+        public static Dictionary<string, Script> Scripts { get; } = new Dictionary<string, Script>();
+        public static Dictionary<string, string> Inherits { get; } = new Dictionary<string, string>();
+        public static Stack<string> EventType { get; } = new Stack<string>();
         public static TsInstance Global = InitGlobal();
 
         public TsObject this[string variableName]
@@ -70,17 +70,10 @@ namespace TaffyScript
             var inst = ObjectType;
             do
             {
-                if (Events.TryGetValue(inst, out var events) && events.TryGetValue(name, out instanceEvent))
+                if (Events.TryGetValue(inst, name, out instanceEvent))
                 {
                     if (inst != ObjectType)
-                    {
-                        if (!Events.TryGetValue(ObjectType, out events))
-                        {
-                            events = new Dictionary<string, InstanceEvent>();
-                            Events.Add(ObjectType, events);
-                        }
-                        events.Add(name, instanceEvent);
-                    }
+                        Events.Add(ObjectType, name, instanceEvent);
                     return true;
                 }
                 Inherits.TryGetValue(inst, out inst);
@@ -101,17 +94,10 @@ namespace TaffyScript
             var origin = type;
             do
             {
-                if (Events.TryGetValue(type, out var events) && events.TryGetValue(name, out instanceEvent))
+                if (Events.TryGetValue(type, name, out instanceEvent))
                 {
                     if (type != origin)
-                    {
-                        if (!Events.TryGetValue(origin, out events))
-                        {
-                            events = new Dictionary<string, InstanceEvent>();
-                            Events.Add(origin, events);
-                        }
-                        events.Add(name, instanceEvent);
-                    }
+                        Events.Add(origin, name, instanceEvent);
                     return true;
                 }
                 Inherits.TryGetValue(type, out type);

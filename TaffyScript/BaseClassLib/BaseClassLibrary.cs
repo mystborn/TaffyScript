@@ -334,7 +334,7 @@ namespace TaffyScript
             if (args.Length < 1)
                 throw new ArgumentException("You must pass at least a script name to script_execute.");
             var name = args[0].GetString();
-            if (!TsInstance.Functions.TryGetValue(name, out var function))
+            if (!TsInstance.Scripts.TryGetValue(name, out var function))
                 throw new ArgumentException($"Tried to execute a non-existant function: {name}");
             var parameters = new TsObject[args.Length - 1];
             if (parameters.Length != 0)
@@ -344,7 +344,7 @@ namespace TaffyScript
 
         public static bool ScriptExists(string name)
         {
-            return TsInstance.Functions.ContainsKey(name);
+            return TsInstance.Scripts.ContainsKey(name);
         }
 
         public static void ShowError(string message, bool throws)

@@ -270,6 +270,8 @@ namespace TaffyScriptCompiler.Backend
             }
         }
 
+        private MethodInfo GetScripts { get; } = typeof(TsInstance).GetMethod("get_Scripts");
+
         #endregion
 
         #region Public
@@ -604,12 +606,12 @@ namespace TaffyScriptCompiler.Backend
             emit.Ret();
             var name = $"{_namespace}.{importName}".TrimStart('.');
             var init = Initializer;
-            init.LdFld(typeof(TsInstance).GetField("Functions"))
+            init.Call(GetScripts)
                 .LdStr(name)
                 .LdNull()
                 .LdFtn(mb)
-                .New(typeof(TaffyFunction).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                .Call(typeof(Dictionary<string, TaffyFunction>).GetMethod("Add"));
+                .New(typeof(Script).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                .Call(typeof(Dictionary<string, Script>).GetMethod("Add"));
         }
 
         /// <summary>
@@ -1925,7 +1927,7 @@ namespace TaffyScriptCompiler.Backend
             if (!_methods.TryGetValue(ns, name, out var method))
             {
                 method = StartMethod(name, ns);
-                _pendingMethods.Add(name, functionCall.Position);
+                _pendingMethods.Add($"{ns}.{name}".TrimStart('.'), functionCall.Position);
             }
 
             UnresolveNamespace();
@@ -2053,12 +2055,12 @@ namespace TaffyScriptCompiler.Backend
                 SpecialImports.WriteLine(externalName);
                 var init = Initializer;
                 var name = $"{_namespace}.{internalName}".TrimStart('.');
-                init.LdFld(typeof(TsInstance).GetField("Functions"))
+                init.Call(GetScripts)
                     .LdStr(name)
                     .LdNull()
                     .LdFtn(method)
-                    .New(typeof(TaffyFunction).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                    .Call(typeof(Dictionary<string, TaffyFunction>).GetMethod("Add"));
+                    .New(typeof(Script).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                    .Call(typeof(Dictionary<string, Script>).GetMethod("Add"));
             }
             else
                 GenerateWeakMethodForImport(method, internalName);
@@ -2321,19 +2323,15 @@ namespace TaffyScriptCompiler.Backend
 
 
             var input = new[] { typeof(TsInstance) };
-            var inherits = typeof(TsInstance).GetField("Inherits");
-            var addMethod = typeof(Dictionary<string, InstanceEvent>).GetMethod("Add");
-            //var objectIds = typeof(TsInstance).GetField("ObjectIndexMapping");
-            var events = typeof(TsInstance).GetField("Events");
-            //var addObjectId = typeof(Dictionary<Type, string>).GetMethod("Add");
-            var eventType = typeof(TsInstance).GetField("EventType");
+            var addMethod = typeof(LookupTable<string, string, InstanceEvent>).GetMethod("Add", new[] { typeof(string), typeof(string), typeof(InstanceEvent) });
+            var eventType = typeof(TsInstance).GetMethod("get_EventType");
             var push = typeof(Stack<string>).GetMethod("Push");
             var pop = typeof(Stack<string>).GetMethod("Pop");
             var init = Initializer;
 
             if(parent != null)
             {
-                init.LdFld(inherits)
+                init.Call(typeof(TsInstance).GetMethod("get_Inherits"))
                     .LdStr(name)
                     .LdStr(parent)
                     .Call(typeof(Dictionary<string, string>).GetMethod("Add"));
@@ -2342,15 +2340,7 @@ namespace TaffyScriptCompiler.Backend
             init.Call(typeof(TsInstance).GetMethod("get_Types"))
                 .LdStr(name)
                 .Call(typeof(List<string>).GetMethod("Add"))
-
-            /*init.LdFld(objectIds)
-                .LdType(type)
-                .Call(typeof(Type).GetMethod("GetTypeFromHandle"))
-                .LdStr(name)
-                .Call(addObjectId)*/
-                .LdFld(events)
-                .LdStr(name)
-                .New(typeof(Dictionary<string, InstanceEvent>).GetConstructor(Type.EmptyTypes));
+                .Call(typeof(TsInstance).GetMethod("get_Events"));
 
             foreach (EventNode ev in objectNode.Children.Skip(1))
             {
@@ -2362,14 +2352,14 @@ namespace TaffyScriptCompiler.Backend
                     .Call(typeof(TsInstance).GetMethod("get_Id"))
                     .New(_tsConstructors[typeof(float)])
                     .Call(PushId)
-                    .LdFld(eventType)
+                    .Call(eventType)
                     .LdStr(ev.Value)
                     .Call(push);
                 ev.Body.Accept(this);
                 emit.Call(GetIdStack)
                     .Call(PopId)
                     .Pop()
-                    .LdFld(eventType)
+                    .Call(eventType)
                     .Call(pop)
                     .Pop()
                     .Ret();
@@ -2377,13 +2367,14 @@ namespace TaffyScriptCompiler.Backend
                 ScriptEnd();
 
                 init.Dup()
+                    .LdStr(name)
                     .LdStr(ev.Value)
                     .LdNull()
                     .LdFtn(method)
                     .New(typeof(InstanceEvent).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
                     .Call(addMethod);
             }
-            init.Call(typeof(Dictionary<string, Dictionary<string, InstanceEvent>>).GetMethod("Add"));
+            init.Pop();
 
             var attrib = new CustomAttributeBuilder(typeof(WeakObjectAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
             type.SetCustomAttribute(attrib);
@@ -2758,7 +2749,6 @@ namespace TaffyScriptCompiler.Backend
         public void Visit(ScriptNode script)
         {
             var name = script.Value;
-            _pendingMethods.Remove(name);
             var mb = StartMethod(name, _namespace);
             _inScript = true;
             ScriptStart(name, mb, new[] { typeof(TsObject[]) });
@@ -2776,14 +2766,15 @@ namespace TaffyScriptCompiler.Backend
             ScriptEnd();
 
             name = $"{_namespace}.{name}".TrimStart('.');
+            _pendingMethods.Remove(name);
 
             var init = Initializer;
-            init.LdFld(typeof(TsInstance).GetField("Functions"))
+            init.Call(GetScripts)
                 .LdStr(name)
                 .LdNull()
                 .LdFtn(mb)
-                .New(typeof(TaffyFunction).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                .Call(typeof(Dictionary<string, TaffyFunction>).GetMethod("Add"));
+                .New(typeof(Script).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                .Call(typeof(Dictionary<string, Script>).GetMethod("Add"));
 
             if (name == _entryPoint)
                 GenerateEntryPoint(mb);
