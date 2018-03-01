@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TaffyScriptCompiler.FrontEnd;
 using TaffyScriptCompiler.Syntax;
@@ -13,6 +14,8 @@ namespace TaffyScriptCompiler
     /// </summary>
     public class Parser
     {
+        private Regex StringParser = new Regex(@"\\\\");
+
         private ISyntaxTree _tree;
         private Tokenizer _stream;
         private SymbolTable _table;
@@ -681,14 +684,28 @@ namespace TaffyScriptCompiler
             if (value == null)
                 return null;
 
+            bool canCallFunction = value.Type == SyntaxType.Variable;
+            while(Validate("."))
+            {
+                if (!Try("id", out var next))
+                {
+                    Throw(new InvalidTokenException(next, "The value after a period in an access expression must be a variable."));
+                    return null;
+                }
+                var temp = _factory.CreateNode(SyntaxType.MemberAccess, value.Position);
+                temp.AddChild(value);
+                temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
+                value = temp;
+            }
             if(Try("(", out var paren))
             {
-                if (value.Type != SyntaxType.Variable)
+                if (!canCallFunction)
                 {
                     Throw(new InvalidTokenException(paren, "Invalid identifier for a function call."));
                     return null;
                 }
-                var function = _factory.CreateNode(SyntaxType.FunctionCall, ((SyntaxToken)value).Text, value.Position);
+                var function = _factory.CreateNode(SyntaxType.FunctionCall, value.Position);
+                function.AddChild(value);
                 if(!Try(")"))
                 {
                     do
@@ -722,6 +739,7 @@ namespace TaffyScriptCompiler
                     {
                         Throw(new InvalidTokenException(accessToken, "Cannot have two accessors in a row."));
                     }
+                    canCallFunction = false;
                     ISyntaxNode access;
                     if (Validate("|"))
                         access = _factory.CreateNode(SyntaxType.ListAccess, value.Position);
@@ -862,8 +880,25 @@ namespace TaffyScriptCompiler
             if (Try("num", out var token))
                 return _factory.CreateConstant(ConstantType.Real, token.Value, token.Position);
             else if (Try("string", out token))
+            {
+                var value = token.Value.Trim('"', '\'');
+                var match = StringParser.Match(value);
+                while(match.Success)
+                {
+                    switch (value[match.Index + 2])
+                    {
+                        case 'n':
+                            value.Remove(match.Index, 3);
+                            value.Insert(match.Index, "\n");
+                            break;
+                        default:
+                            break;
+                    }
+                    match = match.NextMatch();
+                }
                 return _factory.CreateConstant(ConstantType.String, token.Value.Trim('"', '\''),
                     new TokenPosition(token.Position.Index + 1, token.Position.Line, token.Position.Column + 1, token.Position.File));
+            }
             else if (Try("bool", out token))
                 return _factory.CreateConstant(ConstantType.Bool, token.Value, token.Position);
             else

@@ -86,6 +86,8 @@ namespace TaffyScriptCompiler.Syntax
                     return new ArgumentAccessNode(null, position);
                 case SyntaxType.ArrayLiteral:
                     return new ArrayLiteralNode(null, position);
+                case SyntaxType.FunctionCall:
+                    return new FunctionCallNode(null, position);
                 default:
                     throw new InvalidOperationException();
             }
@@ -117,8 +119,6 @@ namespace TaffyScriptCompiler.Syntax
                     return new MultiplicativeNode(value, position);
                 case SyntaxType.Prefix:
                     return new PrefixNode(value, position);
-                case SyntaxType.FunctionCall:
-                    return new FunctionCallNode(value, position);
                 case SyntaxType.Postfix:
                     return new PostfixNode(value, position);
                 case SyntaxType.Enum:

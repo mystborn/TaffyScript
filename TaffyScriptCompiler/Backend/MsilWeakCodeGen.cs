@@ -1881,7 +1881,17 @@ namespace TaffyScriptCompiler.Backend
         {
             //All methods callable from GML should have the same sig:
             //TsObject func_name(TsObject[]);
-            var name = functionCall.Value;
+            var nameElem = functionCall.Children[0];
+            string name;
+            if (nameElem is ISyntaxToken token)
+                name = token.Text;
+            else if (nameElem is MemberAccessNode memberAccess)
+                name = ((ISyntaxToken)ResolveNamespace(memberAccess)).Text;
+            else
+            {
+                emit.Call(_getEmptyObject);
+                return;
+            }
             if(!_table.Defined(name, out var symbol))
             {
                 _errors.Add(new CompileException($"Tried to call non-existant script: {name} {functionCall.Position}"));
@@ -1938,15 +1948,15 @@ namespace TaffyScriptCompiler.Backend
                                   end);
             }
 
-            emit.LdInt(functionCall.Children.Count)
+            emit.LdInt(functionCall.Children.Count - 1)
                 .NewArr(typeof(TsObject));
 
-            for(var i = 0; i < functionCall.Children.Count; ++i)
+            for(var i = 0; i < functionCall.Children.Count - 1; ++i)
             {
                 emit.Dup()
                     .LdInt(i);
 
-                functionCall.Children[i].Accept(this);
+                functionCall.Children[i + 1].Accept(this);
                 var top = emit.GetTop();
                 if(top != typeof(TsObject))
                     emit.New(_tsConstructors[top]);
