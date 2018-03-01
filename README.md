@@ -41,6 +41,9 @@ object obj_user {
 // Closing...
 ```
 
+## Want to contribute?
+If you want to contribute, check out the contributing.ms file in the root of the repo. If you have any further questions, please don't hesitate to ask!
+
 ## What's Left?
 * Base class library (High)
 * Constant values i.e. macros (Mid)
@@ -51,5 +54,6 @@ As mentioned earlier, the language is based off of GML. However, in order to be 
 * Asset Ids: In GM, all assets (scripts, object, etc) are given a numerical id that you can use to refer to them. In Taffyscript, assets are referred to using their name (aka a string).
 * Asset Declaration: In Taffyscript, you declare all assets and their type inside of the code. No more clicking on the objects folder to find the type that you're looking for.
 * Base Class Library: Being a game engine first, GML had many functions that pertained exclusively to game programming. All of those have been removed. In addition some of the function parameters have been changed to reflect the changes.
+* String Functions: String functions have been altered to use 0-based indexing to be consistent with c#.
 
 I've tried to keep the list of changes as small as possible (sometimes to the decrement of the language). Any code that works in GM will essentially work in TaffyScript, and the reverse is also true.
