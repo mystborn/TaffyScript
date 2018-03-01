@@ -69,6 +69,8 @@ namespace TaffyScriptCompiler
 
         private void Parse(ISyntaxNode root)
         {
+            if (_stream.Finished)
+                return;
             _stream.ErrorEncountered += (e) => Errors.Add(e);
 
             root.AddChild(Usings());
