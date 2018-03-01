@@ -222,7 +222,7 @@ namespace TaffyScriptCompiler.Backend
                 if (_initializer == null)
                 {
                     var asm = _asmName.Name;
-                    var name = $"{asm}.{asm}_Initializer";
+                    var name = $"{asm}.{asm.Replace('.', '_')}_Initializer";
                     var type = _module.DefineType(name, TypeAttributes.Public);
                     _initializer = new ILEmitter(type.DefineMethod("Initialize", MethodAttributes.Public | MethodAttributes.Static, typeof(void), Type.EmptyTypes), Type.EmptyTypes);
                     _baseTypes.Add(name, type);
@@ -356,7 +356,7 @@ namespace TaffyScriptCompiler.Backend
                 foreach (var asm in _assemblyLoader.LoadedAssemblies.Values.Where(a => a.GetCustomAttribute<WeakLibraryAttribute>() != null))
                 {
                     var name = asm.GetName().Name;
-                    init.Call(asm.GetType($"{name}.{name}_Initializer").GetMethod("Initialize"));
+                    init.Call(asm.GetType($"{name}.{name.Replace('.', '_')}_Initializer").GetMethod("Initialize"));
                     /*var first = asm.ExportedTypes.FirstOrDefault();
                     if (first != null)
                         init.LdType(first)

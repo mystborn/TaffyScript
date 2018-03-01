@@ -7,23 +7,99 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaffyScript", "TaffyScript\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaffyScriptCompiler", "TaffyScriptCompiler\TaffyScriptCompiler.csproj", "{4022F406-FCE6-4A8D-B99F-6EF6C406248A}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{0A47DAE1-492D-4EBC-BF9E-C7DD4F666055}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Modding", "Modding", "{53980413-7604-4538-901E-9963A8A73A3A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Moddable", "..\Moddable\Moddable\Moddable.csproj", "{C3E9CCDE-C338-42BD-8F87-03699FE0DC08}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModdableExtern", "..\Moddable\ModdableExtern\ModdableExtern.csproj", "{A4B77AD8-18D2-41C4-8B0F-FDF39E2EBC32}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TaffyScriptMod", "TaffyScriptMod", "{F154F445-9D01-4F56-87E6-5866933710DC}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\GmToSharpSamples\GameMod\build.cfg = ..\..\GmToSharpSamples\GameMod\build.cfg
+		..\..\GmToSharpSamples\GameMod\inverted.tfs = ..\..\GmToSharpSamples\GameMod\inverted.tfs
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TaffyScriptProjects", "TaffyScriptProjects", "{D88ABC2D-9843-4D66-BA27-A191B8FACFA2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "HelloLanguage", "HelloLanguage", "{19318695-4753-4840-9FEA-CA699900829D}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\GmToSharpSamples\HelloLanguage\build.cfg = ..\..\GmToSharpSamples\HelloLanguage\build.cfg
+		..\..\GmToSharpSamples\HelloLanguage\source.tfs = ..\..\GmToSharpSamples\HelloLanguage\source.tfs
+		..\..\GmToSharpSamples\HelloLanguage\trace.tfs = ..\..\GmToSharpSamples\HelloLanguage\trace.tfs
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "UnitTest", "UnitTest", "{AFAA4667-25FD-43F9-9EA4-7FFE0BB6DB62}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\GmToSharpSamples\TestSuite\build.cfg = ..\..\GmToSharpSamples\TestSuite\build.cfg
+		..\..\GmToSharpSamples\TestSuite\unit_test.tfs = ..\..\GmToSharpSamples\TestSuite\unit_test.tfs
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{2D4FFDE1-0F43-4038-BDBA-7CFDB66837E7}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\GmToSharpSamples\Tests\build.cfg = ..\..\GmToSharpSamples\Tests\build.cfg
+		..\..\GmToSharpSamples\Tests\tests.tfs = ..\..\GmToSharpSamples\Tests\tests.tfs
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TaffyScriptBase", "TaffyScriptBase", "{549491F6-4BC5-42E4-9F94-4448FA6F5989}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\GmToSharpSamples\GameBase\build.cfg = ..\..\GmToSharpSamples\GameBase\build.cfg
+		..\..\GmToSharpSamples\GameBase\player.tfs = ..\..\GmToSharpSamples\GameBase\player.tfs
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{68399D06-20DF-4CE8-9920-BD82DF2B8F69}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{68399D06-20DF-4CE8-9920-BD82DF2B8F69}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{68399D06-20DF-4CE8-9920-BD82DF2B8F69}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{68399D06-20DF-4CE8-9920-BD82DF2B8F69}.Debug|x86.Build.0 = Debug|Any CPU
 		{68399D06-20DF-4CE8-9920-BD82DF2B8F69}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{68399D06-20DF-4CE8-9920-BD82DF2B8F69}.Release|Any CPU.Build.0 = Release|Any CPU
+		{68399D06-20DF-4CE8-9920-BD82DF2B8F69}.Release|x86.ActiveCfg = Release|Any CPU
+		{68399D06-20DF-4CE8-9920-BD82DF2B8F69}.Release|x86.Build.0 = Release|Any CPU
 		{4022F406-FCE6-4A8D-B99F-6EF6C406248A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4022F406-FCE6-4A8D-B99F-6EF6C406248A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4022F406-FCE6-4A8D-B99F-6EF6C406248A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4022F406-FCE6-4A8D-B99F-6EF6C406248A}.Debug|x86.Build.0 = Debug|Any CPU
 		{4022F406-FCE6-4A8D-B99F-6EF6C406248A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4022F406-FCE6-4A8D-B99F-6EF6C406248A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4022F406-FCE6-4A8D-B99F-6EF6C406248A}.Release|x86.ActiveCfg = Release|Any CPU
+		{4022F406-FCE6-4A8D-B99F-6EF6C406248A}.Release|x86.Build.0 = Release|Any CPU
+		{C3E9CCDE-C338-42BD-8F87-03699FE0DC08}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{C3E9CCDE-C338-42BD-8F87-03699FE0DC08}.Debug|x86.ActiveCfg = Debug|x86
+		{C3E9CCDE-C338-42BD-8F87-03699FE0DC08}.Debug|x86.Build.0 = Debug|x86
+		{C3E9CCDE-C338-42BD-8F87-03699FE0DC08}.Release|Any CPU.ActiveCfg = Release|x86
+		{C3E9CCDE-C338-42BD-8F87-03699FE0DC08}.Release|x86.ActiveCfg = Release|x86
+		{C3E9CCDE-C338-42BD-8F87-03699FE0DC08}.Release|x86.Build.0 = Release|x86
+		{A4B77AD8-18D2-41C4-8B0F-FDF39E2EBC32}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A4B77AD8-18D2-41C4-8B0F-FDF39E2EBC32}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A4B77AD8-18D2-41C4-8B0F-FDF39E2EBC32}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A4B77AD8-18D2-41C4-8B0F-FDF39E2EBC32}.Debug|x86.Build.0 = Debug|Any CPU
+		{A4B77AD8-18D2-41C4-8B0F-FDF39E2EBC32}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A4B77AD8-18D2-41C4-8B0F-FDF39E2EBC32}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A4B77AD8-18D2-41C4-8B0F-FDF39E2EBC32}.Release|x86.ActiveCfg = Release|Any CPU
+		{A4B77AD8-18D2-41C4-8B0F-FDF39E2EBC32}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{53980413-7604-4538-901E-9963A8A73A3A} = {0A47DAE1-492D-4EBC-BF9E-C7DD4F666055}
+		{C3E9CCDE-C338-42BD-8F87-03699FE0DC08} = {53980413-7604-4538-901E-9963A8A73A3A}
+		{A4B77AD8-18D2-41C4-8B0F-FDF39E2EBC32} = {53980413-7604-4538-901E-9963A8A73A3A}
+		{F154F445-9D01-4F56-87E6-5866933710DC} = {53980413-7604-4538-901E-9963A8A73A3A}
+		{D88ABC2D-9843-4D66-BA27-A191B8FACFA2} = {0A47DAE1-492D-4EBC-BF9E-C7DD4F666055}
+		{19318695-4753-4840-9FEA-CA699900829D} = {D88ABC2D-9843-4D66-BA27-A191B8FACFA2}
+		{AFAA4667-25FD-43F9-9EA4-7FFE0BB6DB62} = {D88ABC2D-9843-4D66-BA27-A191B8FACFA2}
+		{2D4FFDE1-0F43-4038-BDBA-7CFDB66837E7} = {D88ABC2D-9843-4D66-BA27-A191B8FACFA2}
+		{549491F6-4BC5-42E4-9F94-4448FA6F5989} = {53980413-7604-4538-901E-9963A8A73A3A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E5516255-2DA7-489A-A389-E474E6091E62}

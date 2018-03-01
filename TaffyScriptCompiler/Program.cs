@@ -38,7 +38,7 @@ namespace TaffyScriptCompiler
                 result = compiler.CompileProject(path);
             }
             else
-                result = compiler.CompileCode(BaseClassLibrary.Generate(), new BuildConfig() { Mode = CompileMode.Release, Output = Path.Combine(Path.GetDirectoryName(typeof(Program).Assembly.Location), "Libraries", "TaffyScript.Bcl") });
+                result = compiler.CompileCode(BaseClassLibrary.Generate(), new BuildConfig() { Mode = CompileMode.Release, Output = Path.Combine(Path.GetDirectoryName(typeof(Program).Assembly.Location), "Libraries", "TaffyScript.BCL") });
 
             if (result.Errors.Count == 0)
             {
