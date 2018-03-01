@@ -1,4 +1,4 @@
-If you'd like to contribute to TafyScript, there are plenty of opportunities to do so.
+If you'd like to contribute to TafyScript, there are plenty of opportunities to do so. If you have any questions, feel free to ask me on Discord (@mystborn#0264). I'm almost always online.
 
 The most important ways to contribute don't even require any digging through the source code. These include:
 * Art! If you're creatively inclined, I'd love to see any art that could be applied to the language.
@@ -16,6 +16,7 @@ For the people willing to sift through the code and make changes, first of all t
 
 
 For those willing to invest a fair bit of time into the project, here are some large changes that are currently planned:
+* Explicitly Calling Events. Currently the only way to invoke events is by event_perform. Originally that seemed like the best idea in order to keep as close to GM as possible. However, now that the language foundation has been laid, it no longer seems like the right idea (go figure). This will involve a rework of both the parser and the CodeGen.
 * Strong Functions. Currently all methods have the same signature `TsObject MethodName(TsObject[] args)`. However, on methods that don't require a variable number of arguments, the arguments should be layer out properly i.e. `TsObject MethodName(TsObject arg1, TsObject arg2)`
 * Macros. This is pretty low on the list, but these are variables assigned to a constant value. These will have to be preprocessed, and will generally slow compile time down. One solution is to only allow macros to be declared all in one special file, but no idea is set in stone yet.
 * Lazy or Faster Initialization. This library uses a special method to load all of it's scripts and objects into a usable form on startup, but on larger projects this could cause considerable slowdown.
