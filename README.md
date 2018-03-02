@@ -3,6 +3,12 @@
 Taffy is a dynamic programming language based heavily off of Gamemaker language, 
 which is the scripting language used inside of the game engine Gamemaker.
 
+## Nuget
+Both the TaffyScript implementation and it's base class library are available via nuget:
+* https://www.nuget.org/packages/TaffyScript/
+* https://www.nuget.org/packages/TaffyScript.BCL/
+You can use these to use TaffyScript projects inside of .NET projects
+
 ## Features
 * Built in C#
 * Compiles into a valid .NET assembly
