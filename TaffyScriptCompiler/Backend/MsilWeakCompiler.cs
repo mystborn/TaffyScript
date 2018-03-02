@@ -147,7 +147,7 @@ namespace TaffyScriptCompiler.Backend
                 {
                     find = Path.Combine(Path.GetDirectoryName(GetType().Assembly.Location), "Libraries", config.References[i]);
                     if (!File.Exists(find))
-                        errors.Add(new FileNotFoundException($"Could not find the specified reference: {config.References[i]}."));
+                        errors.Add(new FileNotFoundException($"Could not find the specified reference: {config.References[i]}"));
                     else
                         CopyFileIfNewer(find, output);
                 }

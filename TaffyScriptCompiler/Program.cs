@@ -26,17 +26,17 @@ namespace TaffyScriptCompiler
             if (extra.Count != 0)
                 path = extra[0];
 
-            Console.WriteLine("Compile Start...");
-
-            var compiler = new MsilWeakCompiler();
-            CompilerResult result;
-
             if(generateBuild)
             {
                 var build = new BuildConfig();
                 build.Save(path);
                 return;
             }
+
+            Console.WriteLine("Compile Start...");
+
+            var compiler = new MsilWeakCompiler();
+            CompilerResult result;
 
             if (!generateBcl)
             {

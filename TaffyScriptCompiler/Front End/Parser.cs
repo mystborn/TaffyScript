@@ -14,7 +14,7 @@ namespace TaffyScriptCompiler
     /// </summary>
     public class Parser
     {
-        private Regex StringParser = new Regex(@"\\\\");
+        private Regex StringParser = new Regex(@"\\");
 
         private ISyntaxTree _tree;
         private Tokenizer _stream;
@@ -883,22 +883,30 @@ namespace TaffyScriptCompiler
                 return _factory.CreateConstant(ConstantType.Real, token.Value, token.Position);
             else if (Try("string", out token))
             {
-                var value = token.Value.Trim('"', '\'');
+                var value = token.Value;
+                if (value.StartsWith("'"))
+                    value = value.Trim('\'');
+                else
+                    value = value.Trim('"');
                 var match = StringParser.Match(value);
                 while(match.Success)
                 {
-                    switch (value[match.Index + 2])
+                    switch (value[match.Index + 1])
                     {
                         case 'n':
-                            value.Remove(match.Index, 3);
-                            value.Insert(match.Index, "\n");
+                            value = value.Remove(match.Index, 2);
+                            value = value.Insert(match.Index, "\n");
+                            break;
+                        case '\\':
+                            value = value.Remove(match.Index, 2);
+                            value = value.Insert(match.Index, @"\");
                             break;
                         default:
                             break;
                     }
                     match = match.NextMatch();
                 }
-                return _factory.CreateConstant(ConstantType.String, token.Value.Trim('"', '\''),
+                return _factory.CreateConstant(ConstantType.String, value,
                     new TokenPosition(token.Position.Index + 1, token.Position.Line, token.Position.Column + 1, token.Position.File));
             }
             else if (Try("bool", out token))
