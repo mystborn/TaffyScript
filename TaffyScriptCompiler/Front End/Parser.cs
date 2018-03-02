@@ -687,42 +687,30 @@ namespace TaffyScriptCompiler
                 return null;
 
             bool canCallFunction = value.Type == SyntaxType.Variable;
-            while(Validate("."))
-            {
-                if (!Try("id", out var next))
-                {
-                    Throw(new InvalidTokenException(next, "The value after a period in an access expression must be a variable."));
-                    return null;
-                }
-                var temp = _factory.CreateNode(SyntaxType.MemberAccess, value.Position);
-                temp.AddChild(value);
-                temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
-                value = temp;
-            }
-            if(Try("(", out var paren))
-            {
-                if (!canCallFunction)
-                {
-                    Throw(new InvalidTokenException(paren, "Invalid identifier for a function call."));
-                    return null;
-                }
-                var function = _factory.CreateNode(SyntaxType.FunctionCall, value.Position);
-                function.AddChild(value);
-                if(!Try(")"))
-                {
-                    do
-                    {
-                        function.AddChild(Expression());
-                    }
-                    while (Validate(","));
-                }
-                Confirm(")");
-                value = function;
-            }
-            bool wasAccessor = false;
             while(true)
             {
-                if (Validate("."))
+                if (Try("(", out var paren))
+                {
+                    if (!canCallFunction)
+                    {
+                        Throw(new InvalidTokenException(paren, "Invalid identifier for a function call."));
+                        return null;
+                    }
+                    var function = _factory.CreateNode(SyntaxType.FunctionCall, value.Position);
+                    function.AddChild(value);
+                    if (!Try(")"))
+                    {
+                        do
+                        {
+                            function.AddChild(Expression());
+                        }
+                        while (Validate(","));
+                    }
+                    Confirm(")");
+                    value = function;
+                    canCallFunction = false;
+                }
+                else if (Validate("."))
                 {
                     if (!Try("id", out var next))
                     {
@@ -733,14 +721,10 @@ namespace TaffyScriptCompiler
                     temp.AddChild(value);
                     temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
                     value = temp;
-                    wasAccessor = false;
+                    canCallFunction = true;
                 }
                 else if (Try("[", out var accessToken))
                 {
-                    if (wasAccessor)
-                    {
-                        Throw(new InvalidTokenException(accessToken, "Cannot have two accessors in a row."));
-                    }
                     canCallFunction = false;
                     ISyntaxNode access;
                     if (Validate("|"))
@@ -761,7 +745,7 @@ namespace TaffyScriptCompiler
                     Confirm("]");
                     value = access;
 
-                    wasAccessor = true;
+                    canCallFunction = false;
                 }
                 else
                     break;
