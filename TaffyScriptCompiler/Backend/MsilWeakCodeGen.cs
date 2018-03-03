@@ -2032,21 +2032,26 @@ namespace TaffyScriptCompiler.Backend
                                   end);
             }
 
-            emit.LdInt(functionCall.Children.Count - 1)
-                .NewArr(typeof(TsObject));
-
-            for(var i = 0; i < functionCall.Children.Count - 1; ++i)
+            if (functionCall.Children.Count - 1 > 0)
             {
-                emit.Dup()
-                    .LdInt(i);
+                emit.LdInt(functionCall.Children.Count - 1)
+                    .NewArr(typeof(TsObject));
 
-                functionCall.Children[i + 1].Accept(this);
-                var top = emit.GetTop();
-                if(top != typeof(TsObject))
-                    emit.New(_tsConstructors[top]);
+                for (var i = 0; i < functionCall.Children.Count - 1; ++i)
+                {
+                    emit.Dup()
+                        .LdInt(i);
 
-                emit.StElem(typeof(TsObject));
+                    functionCall.Children[i + 1].Accept(this);
+                    var top = emit.GetTop();
+                    if (top != typeof(TsObject))
+                        emit.New(_tsConstructors[top]);
+
+                    emit.StElem(typeof(TsObject));
+                }
             }
+            else
+                emit.LdNull();
             //The argument array should still be on top.
             emit.Call(method, 1, typeof(TsObject));
         }

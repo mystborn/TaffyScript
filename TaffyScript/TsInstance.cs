@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TaffyScript.Collections;
+using MethodImpl = System.Runtime.CompilerServices.MethodImplAttribute;
+using MethodImplOptions = System.Runtime.CompilerServices.MethodImplOptions;
 
 namespace TaffyScript
 {
@@ -175,6 +177,28 @@ namespace TaffyScript
             if (!TryGetEvent(name, out var result))
                 throw new ArgumentException($"Type {ObjectType} does not define event {name}");
             return result;
+        }
+
+        /// <summary>
+        /// Gets the value of a variable from this instance.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryGetVariable(string name, out TsObject value)
+        {
+            return _vars.TryGetValue(name, out value);
+        }
+
+        /// <summary>
+        /// Gets the value of a variable from this instance.
+        /// </summary>
+        /// <param name="name">The name of the variable</param>
+        /// <returns></returns>
+        public TsObject GetVariable(string name)
+        {
+            return _vars[name];
         }
 
         /// <summary>
