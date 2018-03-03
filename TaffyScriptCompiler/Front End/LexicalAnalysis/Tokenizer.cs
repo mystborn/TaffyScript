@@ -97,6 +97,7 @@ namespace TaffyScriptCompiler.FrontEnd
                 { "event", "event" },
                 { "using", "using" },
                 { "namespace", "namespace" },
+                { "new", "new" },
                 { "as", "as" },
                 { "and", "&&" },
                 { "or", "||" },

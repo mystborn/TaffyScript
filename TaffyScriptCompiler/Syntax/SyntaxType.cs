@@ -50,6 +50,7 @@ namespace TaffyScriptCompiler
         Event,
         Usings,
         Namespace,
+        New,
 
         //Token
         Constant,

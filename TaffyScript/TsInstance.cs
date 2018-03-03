@@ -95,17 +95,38 @@ namespace TaffyScript
         /// </summary>
         public string Parent { get; private set; }
 
-        private TsInstance(float id, string instanceType, bool performEvent = true)
+        /// <summary>
+        /// Creates a new instance of the specified type.
+        /// </summary>
+        /// <param name="instanceType">The type of the instance to create</param>
+        public TsInstance(string instanceType)
+        {
+            Id = GetNext();
+            ObjectType = instanceType;
+            Pool.Add(Id, this);
+            Init(true);
+        }
+
+        private TsInstance(string instanceType, bool performEvent = true)
         {
             // Originally, all of the instance events were added onto the object as strings.
             // However at this point in time, I've decided that it's too much of a time sink.
             // This decision is easily reversable if it turns out to be wrong/unneeded.
             // In the meantime, you can still refer to the event by it's string representation.
 
-            Id = id;
+            Id = GetNext();
             ObjectType = instanceType;
-            Pool.Add(id, this);
+            Pool.Add(Id, this);
             Init(performEvent);
+        }
+
+        /// <summary>
+        /// Creates a new Global instance.
+        /// </summary>
+        private TsInstance()
+        {
+            Id = -5;
+            ObjectType = "";
         }
 
         private void Init(bool performEvent)
@@ -142,6 +163,18 @@ namespace TaffyScript
 
             instanceEvent = null;
             return false;
+        }
+
+        /// <summary>
+        /// Gets an event defined by this instance.
+        /// </summary>
+        /// <param name="name">The name of the event</param>
+        /// <returns></returns>
+        public InstanceEvent GetEvent(string name)
+        {
+            if (!TryGetEvent(name, out var result))
+                throw new ArgumentException($"Type {ObjectType} does not define event {name}");
+            return result;
         }
 
         /// <summary>
@@ -210,11 +243,10 @@ namespace TaffyScript
         {
             var id = TsObject.Id.Peek();
             Pool.TryGetValue(id.GetNum(), out var inst);
-            var result = GetNext();
-            var next = new TsInstance(result, inst.ObjectType, false);
+            var next = new TsInstance(inst.ObjectType, false);
             next._vars = new Dictionary<string, TsObject>(inst._vars);
             next.Init(performEvents);
-            return result;
+            return next.Id;
         }
 
         /// <summary>
@@ -224,11 +256,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static TsObject InstanceCreate(string instanceType)
         {
-            var id = GetNext();
-
-            new TsInstance(id, instanceType);
-
-            return new TsObject(id);
+            return new TsObject(new TsInstance(instanceType).Id);
         }
 
         /// <summary>
@@ -458,9 +486,7 @@ namespace TaffyScript
 
         internal static TsInstance InitGlobal()
         {
-            var global = new TsInstance(-5f, "");
-            Pool.Remove(-5f);
-            return global;
+            return new TsInstance();
         }
     }
 }

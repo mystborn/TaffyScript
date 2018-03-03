@@ -117,6 +117,7 @@
     <Compile Include="Syntax\Concrete\MemberAccess.cs" />
     <Compile Include="Syntax\Concrete\Multiplicative.cs" />
     <Compile Include="Syntax\Concrete\NamespaceNode.cs" />
+    <Compile Include="Syntax\Concrete\NewNode.cs" />
     <Compile Include="Syntax\Concrete\ObjectNode.cs" />
     <Compile Include="Syntax\Concrete\Postfix.cs" />
     <Compile Include="Syntax\Concrete\Prefix.cs" />

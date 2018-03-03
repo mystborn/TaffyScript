@@ -162,7 +162,7 @@ namespace TaffyScriptCompiler
                     {
                         Confirm("event");
                         var evName = Confirm("id");
-                        _table.EnterNew(evName.Value, SymbolType.Script);
+                        _table.EnterNew(evName.Value, SymbolType.Event);
                         var eventNode = _factory.CreateNode(SyntaxType.Event, evName.Value, evName.Position);
                         eventNode.AddChild(BlockStatement());
                         node.AddChild(eventNode);
@@ -725,6 +725,11 @@ namespace TaffyScriptCompiler
                 }
                 else if (Try("[", out var accessToken))
                 {
+                    if (value.Type == SyntaxType.New)
+                    {
+                        Throw(new InvalidTokenException(accessToken, "Cannot use an accessor on a newed value"));
+                        return value;
+                    }
                     canCallFunction = false;
                     ISyntaxNode access;
                     if (Validate("|"))
@@ -802,6 +807,16 @@ namespace TaffyScriptCompiler
                 }
                 Confirm("]");
                 return array;
+            }
+            else if(Try("new", out token))
+            {
+                var start = Confirm("id");
+                var type = start.Value;
+                while(Validate("."))
+                    type += "." + Confirm("id");
+                Confirm("(");
+                Confirm(")");
+                return _factory.CreateNode(SyntaxType.New, type, start.Position);
             }
             else
             {

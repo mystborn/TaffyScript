@@ -52,6 +52,12 @@ namespace TaffyScript
             Value = new TsValue<string>(value);
         }
 
+        public TsObject(TsInstance instance)
+        {
+            Type = VariableType.Real;
+            Value = new TsValue<float>(instance.Id);
+        }
+
         public TsObject(TsObject[] array)
         {
             Type = VariableType.Array1;

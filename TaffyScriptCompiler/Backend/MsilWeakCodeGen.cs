@@ -96,7 +96,7 @@ namespace TaffyScriptCompiler.Backend
         /// <summary>
         /// Should not be used directly.
         /// </summary>
-        private MethodInfo _getId;
+        //private MethodInfo _getId;
 
         /// <summary>
         /// Should not be used directly.
@@ -697,6 +697,7 @@ namespace TaffyScriptCompiler.Backend
                 { typeof(int), objType.GetConstructor(new[] { typeof(int) }) },
                 { typeof(float), objType.GetConstructor(new[] { typeof(float) }) },
                 { typeof(string), objType.GetConstructor(new[] { typeof(string) }) },
+                { typeof(TsInstance), objType.GetConstructor(new[] { typeof(TsInstance) }) },
                 { typeof(TsObject[]), objType.GetConstructor(new[] { typeof(TsObject[]) }) },
                 { typeof(TsObject[][]), objType.GetConstructor(new[] { typeof(TsObject[][]) }) },
             };
@@ -754,7 +755,6 @@ namespace TaffyScriptCompiler.Backend
             _binaryOps.Add("+", table);
 
             _getEmptyObject = objType.GetMethod("Empty");
-            _getId = objType.GetMethod("GetId");
         }
 
         /// <summary>
@@ -881,7 +881,11 @@ namespace TaffyScriptCompiler.Backend
         private LocalBuilder GetId()
         {
             if (_id == null)
+            {
                 _id = MakeSecret();
+                emit.Call(typeof(TsObject).GetMethod("GetId"))
+                    .StLocal(_id);
+            }
             return _id;
         }
 
@@ -978,7 +982,7 @@ namespace TaffyScriptCompiler.Backend
                     if (node.Right is ISyntaxToken id)
                         ns.Push(id);
                     else
-                        _errors.Add(new CompileException($"Invalid syntax detected {node.Right.Position}"));
+                        return start;
                 }
 
                 if (node.Left is ISyntaxToken left)
@@ -987,33 +991,82 @@ namespace TaffyScriptCompiler.Backend
                     _errors.Add(new CompileException($"Invalid syntax detected {node.Left.Position}"));
 
                 var sb = new System.Text.StringBuilder();
+                var iterations = 0;
                 while (ns.Count > 0)
                 {
                     var top = ns.Pop();
                     sb.Append(top.Text);
                     sb.Append(".");
                     if (_table.Defined(top.Text, out symbol) && symbol.Type == SymbolType.Namespace)
+                    {
                         _table.Enter(top.Text);
+                        iterations++;
+                    }
                     else
-                        _errors.Add(new CompileException($"Invalid syntax detected {top.Position}"));
+                    {
+                        _table.Exit(iterations);
+                        return start;
+                    }
                 }
                 _resolveNamespace = sb.ToString().TrimEnd('.');
                 return result;
             }
             else
                 return node;
-            /*while(node.Left is ISyntaxToken token && _table.Defined(token.Text, out var symbol) && symbol.Type == SymbolType.Namespace)
+        }
+
+        private bool TryResolveNamespace(MemberAccessNode node, out ISyntaxElement resolved)
+        {
+            resolved = default(ISyntaxElement);
+            if (node.Left is ISyntaxToken token && _table.Defined(token.Text, out var symbol) && symbol.Type == SymbolType.Namespace)
             {
                 _table.Enter(symbol.Name);
-                if (_resolveNamespace == "")
-                    _resolveNamespace += symbol.Name;
-                else
-                    _resolveNamespace += "." + symbol.Name;
-                if (node.Right is MemberAccessNode member)
+                _resolveNamespace = symbol.Name;
+                resolved = node.Right;
+                return true;
+            }
+            else if (node.Left is MemberAccessNode)
+            {
+                var ns = new Stack<ISyntaxToken>();
+                resolved = node.Right;
+                var start = node;
+                while (node.Left is MemberAccessNode member)
+                {
                     node = member;
+                    if (node.Right is ISyntaxToken id)
+                        ns.Push(id);
+                    else
+                        return false;
+                }
+
+                if (node.Left is ISyntaxToken left)
+                    ns.Push(left);
                 else
-                    return node.Right;
-            }*/
+                    _errors.Add(new CompileException($"Invalid syntax detected {node.Left.Position}"));
+
+                var sb = new System.Text.StringBuilder();
+                var iterations = 0;
+                while (ns.Count > 0)
+                {
+                    var top = ns.Pop();
+                    sb.Append(top.Text);
+                    sb.Append(".");
+                    if (_table.Defined(top.Text, out symbol) && symbol.Type == SymbolType.Namespace)
+                    {
+                        _table.Enter(top.Text);
+                        iterations++;
+                    }
+                    else
+                    {
+                        _table.Exit(iterations);
+                        return false;
+                    }
+                }
+                _resolveNamespace = sb.ToString().TrimEnd('.');
+                return true;
+            }
+            else
+                return false;
         }
 
         private void UnresolveNamespace()
@@ -1304,9 +1357,7 @@ namespace TaffyScriptCompiler.Backend
                 else
                 {
                     var id = GetId();
-                    emit.Call(_getId)
-                        .StLocal(id)
-                        .LdLocalA(id)
+                    emit.LdLocalA(id)
                         .LdStr(variable.Text);
                     assign.Right.Accept(this);
                     var result = emit.GetTop();
@@ -1513,9 +1564,7 @@ namespace TaffyScriptCompiler.Backend
         private void SelfAccessSet(VariableToken variable)
         {
             var id = GetId();
-            emit.Call(_getId)
-                .StLocal(id)
-                .LdLocalA(id)
+            emit.LdLocalA(id)
                 .LdStr(variable.Text)
                 .LdLocalA(id)
                 .LdStr(variable.Text);
@@ -1905,19 +1954,35 @@ namespace TaffyScriptCompiler.Backend
             if (nameElem is ISyntaxToken token)
                 name = token.Text;
             else if (nameElem is MemberAccessNode memberAccess)
-                name = ((ISyntaxToken)ResolveNamespace(memberAccess)).Text;
+            {
+                if (TryResolveNamespace(memberAccess, out nameElem))
+                    name = ((ISyntaxToken)nameElem).Text;
+                else
+                {
+                    name = (memberAccess.Right as ISyntaxToken)?.Text;
+                    if(name == null)
+                    {
+                        _errors.Add(new CompileException($"Invalid id for script/event {memberAccess.Right.Position}"));
+                        emit.Call(_getEmptyObject);
+                        return;
+                    }
+                    GetAddressIfPossible(memberAccess.Left);
+                    CallEvent(name, false, memberAccess.Right.Position);
+                    return;
+                }
+            }
             else
             {
+                _errors.Add(new CompileException($"Invalid syntax detected {functionCall.Children[0].Position}"));
                 emit.Call(_getEmptyObject);
                 return;
             }
-            if(!_table.Defined(name, out var symbol))
+            if(!_table.Defined(name, out var symbol) || symbol.Type == SymbolType.Event)
             {
-                _errors.Add(new CompileException($"Tried to call non-existant script: {name} {functionCall.Position}"));
-                emit.Call(_getEmptyObject);
+                CallEvent(name, true, nameElem.Position);
                 return;
             }
-            if(symbol.Type != SymbolType.Script)
+            if (symbol.Type != SymbolType.Script)
             {
                 _errors.Add(new CompileException($"Tried to call something that wasn't a script. Check for name conflict {functionCall.Position}"));
                 emit.Call(_getEmptyObject);
@@ -1932,7 +1997,7 @@ namespace TaffyScriptCompiler.Backend
 
             UnresolveNamespace();
 
-            if (_isDebug && functionCall.Position.File != null)
+            if (_isDebug)
             {
                 var line = functionCall.Position.Line;
                 var end = 0;
@@ -1960,7 +2025,7 @@ namespace TaffyScriptCompiler.Backend
                         }
                     }
                 }
-                MarkSequencePoint(functionCall.Position.File,
+                MarkSequencePoint(functionCall.Position.File ?? "",
                                   functionCall.Position.Line,
                                   functionCall.Position.Column,
                                   line,
@@ -1984,6 +2049,26 @@ namespace TaffyScriptCompiler.Backend
             }
             //The argument array should still be on top.
             emit.Call(method, 1, typeof(TsObject));
+        }
+
+        private void CallEvent(string name, bool loadId, TokenPosition start)
+        {
+            //Todo: Support arguments
+            if (_isDebug)
+                MarkSequencePoint(start.File ?? "", start.Line, start.Column, start.Line, start.Column + name.Length + 2);
+
+            if (loadId)
+                emit.LdLocalA(GetId());
+            CallInstanceMethod(_tsObjectCasts[typeof(TsInstance)], start);
+            var secret = GetLocal(typeof(TsInstance));
+            emit.StLocal(secret)
+                .LdLocal(secret)
+                .LdStr(name)
+                .Call(typeof(TsInstance).GetMethod("GetEvent", BindingFlags.Instance | BindingFlags.Public))
+                .LdLocal(secret)
+                .Call(typeof(InstanceEvent).GetMethod("Invoke"))
+                .Call(_getEmptyObject);
+            FreeLocal(secret);
         }
 
         public void Visit(GridAccessNode gridAccess)
@@ -2026,7 +2111,7 @@ namespace TaffyScriptCompiler.Backend
             var args = new Type[argWrappers.Count];
             var externalName = import.ExternalName.Value;
             var internalName = import.InternalName.Value;
-            _pendingMethods.Remove(internalName);
+            _pendingMethods.Remove($"{_namespace}.{internalName}".TrimStart('.'));
 
             for (var i = 0; i < args.Length; i++)
             {
@@ -2299,6 +2384,35 @@ namespace TaffyScriptCompiler.Backend
             AcceptDeclarations(namespaceNode);
             _namespace = parent;
             _table = temp;
+        }
+
+        public void Visit(NewNode newNode)
+        {
+            if(_table.Defined(newNode.Value, out var symbol))
+            {
+                if(symbol.Type == SymbolType.Object)
+                {
+                    var pos = newNode.Position;
+                    MarkSequencePoint(pos.File ?? "", pos.Line, pos.Column, pos.Line, pos.Column + newNode.Value.Length);
+                    var ctor = typeof(TsInstance).GetConstructor(new[] { typeof(string) });
+                    emit.LdStr(newNode.Value)
+                        .New(ctor);
+                    if (newNode.Parent.Type == SyntaxType.Block)
+                        emit.Pop();
+                    else
+                        emit.New(_tsConstructors[typeof(TsInstance)]);
+                }
+                else
+                {
+                    _errors.Add(new CompileException($"Tried to create an instance of something that wasn't an object: {newNode.Value} {newNode.Position}"));
+                    emit.Call(_getEmptyObject);
+                }
+            }
+            else
+            {
+                _errors.Add(new CompileException($"Tried to create an instance of a type that doesn't exist: {newNode.Value} {newNode.Position}"));
+                emit.Call(_getEmptyObject);
+            }
         }
 
         public void Visit(ObjectNode objectNode)
@@ -2597,7 +2711,10 @@ namespace TaffyScriptCompiler.Backend
             {
                 case "self":
                 case "id":
-                    emit.Call(_getId);
+                    if (_needAddress)
+                        emit.LdLocalA(GetId());
+                    else
+                        emit.LdLocal(GetId());
                     break;
                 case "argument_count":
                     emit.LdArg(0)
@@ -2944,9 +3061,7 @@ namespace TaffyScriptCompiler.Backend
             {
                 var id = GetId();
 
-                emit.Call(_getId)
-                    .StLocal(id)
-                    .LdLocalA(id)
+                emit.LdLocalA(id)
                     .LdStr(variableToken.Text)
                     .Call(typeof(TsObject).GetMethod("MemberGet", new[] { typeof(string) }));
             }
