@@ -284,12 +284,27 @@ namespace TaffyScript
         }
 
         /// <summary>
+        /// Destroys a previously created instance. This overload should not be called.
+        /// </summary>
+        /// <param name="args">Optionally contains the id of the instance.</param>
+        [WeakMethod]
+        public static void InstanceDestroy(TsObject[] args)
+        {
+            float id;
+            if (args == null || args.Length == 0)
+                id = (float)TsObject.Id.Peek();
+            else
+                id = (float)args[0];
+            InstanceDestroy(id);
+        }
+
+        /// <summary>
         /// Destroys a previously created instance.
         /// </summary>
         /// <param name="id">Instance id</param>
         public static void InstanceDestroy(float id)
         {
-            if(Pool.TryGetValue(id, out var inst))
+            if (Pool.TryGetValue(id, out var inst))
             {
                 Pool.Remove(id);
                 if (inst.TryGetEvent(DestroyEvent, out var destroy))

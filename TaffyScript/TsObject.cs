@@ -677,7 +677,7 @@ namespace TaffyScript
         public static bool operator !=(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
-                return false;
+                return true;
 
             return left.GetNumUnchecked() != right;
         }
@@ -685,7 +685,7 @@ namespace TaffyScript
         public static bool operator !=(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
-                return false;
+                return true;
 
             return right.GetNumUnchecked() != left;
         }
@@ -693,7 +693,7 @@ namespace TaffyScript
         public static bool operator !=(TsObject left, string right)
         {
             if (left.Type != VariableType.String)
-                return false;
+                return true;
 
             return left.GetStringUnchecked() != right;
         }
@@ -701,7 +701,7 @@ namespace TaffyScript
         public static bool operator !=(string left, TsObject right)
         {
             if (right.Type != VariableType.String)
-                return false;
+                return true;
 
             return right.GetStringUnchecked() != left;
         }

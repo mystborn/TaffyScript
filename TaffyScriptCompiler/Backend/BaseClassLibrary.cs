@@ -128,7 +128,7 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import TsInstance.InstanceChange(string, bool) as instance_change");
             sb.AppendLine("import TsInstance.InstanceCopy(bool) as instance_copy");
             sb.AppendLine("import TsInstance.InstanceCreate(string) as instance_create");
-            sb.AppendLine("import TsInstance.InstanceDestroy(float) as instance_destroy");
+            sb.AppendLine("import TsInstance.InstanceDestroy(array) as instance_destroy");
             sb.AppendLine("import TsInstance.InstanceExists(float) as instance_exists");
             sb.AppendLine("import TsInstance.InstanceFind(string, int) as instance_find");
             sb.AppendLine("import TsInstance.InstanceNumber(string) as instance_number");
