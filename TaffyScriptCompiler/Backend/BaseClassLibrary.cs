@@ -20,20 +20,20 @@ namespace TaffyScriptCompiler.Backend
             var sb = new StringBuilder();
 
             sb.AppendLine("import Math.Abs(float) as abs;");
-            sb.AppendLine("import Bcl.AngleDifference(array) as angle_difference;");
-            sb.AppendLine("import Bcl.ArcCos(array) as arccos;");
-            sb.AppendLine("import Bcl.ArcSin(array) as arcsin;");
-            sb.AppendLine("import Bcl.ArcTan(array) as arctan;");
-            sb.AppendLine("import Bcl.ArcTan2(array) as arctan2;");
-            sb.AppendLine("import Bcl.ArrayCopy(array) as array_copy;");
+            sb.AppendLine("import Bcl.AngleDifference(float, float) as angle_difference;");
+            sb.AppendLine("import Bcl.ArcCos(float) as arccos;");
+            sb.AppendLine("import Bcl.ArcSin(float) as arcsin;");
+            sb.AppendLine("import Bcl.ArcTan(float) as arctan;");
+            sb.AppendLine("import Bcl.ArcTan2(float, float) as arctan2;");
+            sb.AppendLine("import Bcl.ArrayCopy(object, int, object, int, int) as array_copy;");
             sb.AppendLine("import Bcl.ArrayCreate(array) as array_create;");
-            sb.AppendLine("import Bcl.ArrayEquals(array) as array_equals");
-            sb.AppendLine("import Bcl.ArrayHeight2D(array) as array_height_2d;");
+            sb.AppendLine("import Bcl.ArrayEquals(array, array) as array_equals");
+            sb.AppendLine("import Bcl.ArrayHeight2D(array2d) as array_height_2d;");
             sb.AppendLine("import Bcl.ArrayLength1D(array) as array_length_1d");
-            sb.AppendLine("import Bcl.ArrayLength2D(array) as array_length_2d");
+            sb.AppendLine("import Bcl.ArrayLength2D(array2d, int) as array_length_2d");
             //Todo: asset_get_type, asset_get_index
-            sb.AppendLine("import Bcl.Base64Decode(array) as base64_decode");
-            sb.AppendLine("import Bcl.Base64Encode(array) as base64_encode");
+            sb.AppendLine("import Bcl.Base64Decode(string) as base64_decode");
+            sb.AppendLine("import Bcl.Base64Encode(string) as base64_encode");
             //Todo: buffer
             sb.AppendLine("import Bcl.Ceil(float) as ceil");
             sb.AppendLine("import Bcl.Choose(array) as choose");
@@ -119,7 +119,7 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import DsMap.DsMapSize(int) as ds_map_size");
 
             sb.AppendLine("import Bcl.EnvironmentGetVariable(string) as environment_get_variable");
-            sb.AppendLine("import Bcl.EventInherited(array) as event_inherited");
+            sb.AppendLine("import Bcl.EventInherited() as event_inherited");
             sb.AppendLine("import Bcl.EventPerform(string) as event_perform");
             sb.AppendLine("import Bcl.EventPerformObject(string, string) as event_perform_object");
 
@@ -164,7 +164,7 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import Bcl.ShowError(string, bool) as show_error");
             sb.AppendLine("import System.Console.WriteLine(object) as show_debug_message;");
 
-            sb.AppendLine("import Bcl.ToString(array) as string;");
+            sb.AppendLine("import Bcl.ToString(object) as string;");
             sb.AppendLine("import Bcl.StringByteAt(string, int) as string_byte_at");
             sb.AppendLine("import Bcl.StringByteLength(string) as string_byte_length");
             sb.AppendLine("import Bcl.StringCharAt(string, int) as string_char_at");
