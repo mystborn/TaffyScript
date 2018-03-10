@@ -2064,16 +2064,26 @@ namespace TaffyScriptCompiler.Backend
 
             if (loadId)
                 emit.LdLocalA(GetId());
-            CallInstanceMethod(_tsObjectCasts[typeof(TsInstance)], start);
-            var secret = GetLocal(typeof(TsInstance));
-            emit.StLocal(secret)
-                .LdLocal(secret)
-                .LdStr(name)
-                .Call(typeof(TsInstance).GetMethod("GetEvent", BindingFlags.Instance | BindingFlags.Public))
-                .LdLocal(secret)
-                .Call(typeof(InstanceEvent).GetMethod("Invoke"))
-                .Call(_getEmptyObject);
-            FreeLocal(secret);
+
+            if(name == "destroy")
+            {
+                //Syntactic sugar for instance_destroy(inst);
+                CallInstanceMethod(_tsObjectCasts[typeof(float)], start);
+                emit.Call(typeof(TsInstance).GetMethod("InstanceDestroy", new[] { typeof(float) }));
+            }
+            else
+            {
+                CallInstanceMethod(_tsObjectCasts[typeof(TsInstance)], start);
+                var secret = GetLocal(typeof(TsInstance));
+                emit.StLocal(secret)
+                    .LdLocal(secret)
+                    .LdStr(name)
+                    .Call(typeof(TsInstance).GetMethod("GetEvent", BindingFlags.Instance | BindingFlags.Public))
+                    .LdLocal(secret)
+                    .Call(typeof(InstanceEvent).GetMethod("Invoke"))
+                    .Call(_getEmptyObject);
+                FreeLocal(secret);
+            }
         }
 
         public void Visit(GridAccessNode gridAccess)
@@ -2874,6 +2884,60 @@ namespace TaffyScriptCompiler.Backend
             var mb = StartMethod(name, _namespace);
             _inScript = true;
             ScriptStart(name, mb, new[] { typeof(TsObject[]) });
+
+            //Process arguments
+            if (script.Children.Count > 1)
+            {
+                emit.LdArg(0);
+                for (var i = 0; i < script.Children.Count - 1; i++)
+                {
+                    var arg = script.Children[i];
+                    VariableToken left;
+                    if (arg is AssignNode assign)
+                    {
+                        left = (VariableToken)assign.Left;
+                        if (!_table.Defined(left.Text, out var symbol))
+                        {
+                            _errors.Add(new CompileException($"Unknown exception occurred {left.Position}"));
+                            continue;
+                        }
+                        var lte = emit.DefineLabel();
+                        var end = emit.DefineLabel();
+                        emit.Dup()
+                            .LdNull()
+                            .Beq(lte)
+                            .Dup()
+                            .LdLen()
+                            .LdInt(i)
+                            .Ble(lte)
+                            .Dup()
+                            .LdInt(i)
+                            .LdElem(typeof(TsObject))
+                            .StLocal(_locals[symbol])
+                            .Br(end)
+                            .MarkLabel(lte);
+                        //Must be ConstantToken
+                        assign.Right.Accept(this);
+                        emit.New(_tsConstructors[emit.GetTop()])
+                            .StLocal(_locals[symbol])
+                            .MarkLabel(end);
+                    }
+                    else if (arg is VariableToken variable)
+                    {
+                        if(!_table.Defined(variable.Text, out var symbol))
+                        {
+                            _errors.Add(new CompileException($"Unknown exception occurred {variable.Position}"));
+                            continue;
+                        }
+                        emit.Dup()
+                            .LdInt(i)
+                            .LdElem(typeof(TsObject))
+                            .StLocal(_locals[symbol]);
+                    }
+                }
+                //Pops the last remaining reference to the arugment array from the stack.
+                emit.Pop();
+            }
             
             script.Body.Accept(this);
             

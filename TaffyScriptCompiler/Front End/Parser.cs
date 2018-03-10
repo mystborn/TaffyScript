@@ -252,6 +252,42 @@ namespace TaffyScriptCompiler
                     var scriptName = Confirm("id");
                     _table.EnterNew(scriptName.Value, SymbolType.Script);
                     node = _factory.CreateNode(SyntaxType.Script, scriptName.Value, scriptName.Position);
+                    if (Validate("(") && !Validate(")"))
+                    {
+                        var optional = false;
+                        do
+                        {
+                            var parameterToken = Confirm("id");
+                            var parameter = _factory.CreateToken(SyntaxType.Variable, parameterToken.Value, parameterToken.Position);
+                            ISyntaxElement parameterElement;
+                            if (Try("=", out var assign))
+                            {
+                                optional = true;
+                                if (!IsConstant())
+                                {
+                                    Throw(new InvalidTokenException(_stream.Peek(), "Optional arguments must have a constant value"));
+                                    Validate("id");
+                                    continue;
+                                }
+                                var value = Constant();
+                                var temp = _factory.CreateNode(SyntaxType.Assign, "=", assign.Position);
+                                temp.AddChild(parameter);
+                                temp.AddChild(value);
+                                parameterElement = temp;
+                            }
+                            else
+                            {
+                                if (optional)
+                                    Throw(new InvalidTokenException(parameterToken, "Can't have non-optional arguments after an optional argument."));
+
+                                parameterElement = parameter;
+                            }
+                            node.AddChild(parameterElement);
+                            _table.AddLeaf(parameterToken.Value, SymbolType.Variable, SymbolScope.Local);
+                        }
+                        while (Validate(","));
+                        Confirm(")");
+                    }
                     node.AddChild(Statement());
                     _table.Exit();
                     return node;

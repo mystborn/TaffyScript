@@ -125,6 +125,18 @@ namespace TaffyScriptCompiler
         }
 
         /// <summary>
+        /// Gets the symbol with the specified name in the current scope.
+        /// </summary>
+        /// <param name="name">The name of the symbol to lookup.</param>
+        /// <returns></returns>
+        public ISymbol Defined(string name)
+        {
+            if (Defined(name, out var symbol))
+                return symbol;
+            return null;
+        }
+
+        /// <summary>
         /// Adds a new <see cref="SymbolLeaf"/> to the current scope.
         /// </summary>
         /// <param name="name">The name of the leaf.</param>
