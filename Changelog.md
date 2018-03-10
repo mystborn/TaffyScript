@@ -4,3 +4,5 @@ Changes from the master branch:
 * Public constructor for TsInstance
 * Function call optimization for 0 arguments
 * Fixed not equal operator when used with a variable and constant
+* Include script arguments in script declaration
+* Optional script arguments
