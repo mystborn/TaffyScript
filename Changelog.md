@@ -7,3 +7,4 @@ Changes from the master branch:
 * Destroy instance using destroy event: inst.destroy()
 * Include script arguments in script declaration
 * Optional script arguments
+* Updated certain function in the BaseClassLibrary to use stronger types
