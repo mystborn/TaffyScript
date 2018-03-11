@@ -64,8 +64,7 @@ namespace TaffyScriptCompiler.Backend
             }
             return excludes;
         }
-
-        //Todo: Change name to reflect purpose
+        
         protected void ParseFilesInProjectDirectory(string directory, Parser parser, HashSet<string> exclude)
         {
             foreach (var file in Directory.EnumerateFiles(directory, "*.tfs").Where(f => !exclude.Contains(f)))
@@ -77,7 +76,6 @@ namespace TaffyScriptCompiler.Backend
 
         protected List<Exception> VerifyReferencesExists(string projectDir, string outputDir, BuildConfig config)
         {
-            //Todo: Return list of exceptions
             var errors = new List<Exception>();
             for (var i = 0; i < config.References.Count; i++)
             {
@@ -100,7 +98,32 @@ namespace TaffyScriptCompiler.Backend
 
         protected List<Exception> VerifyReferencesExists(string projectDir, Action<string> onReference, BuildConfig config)
         {
-            //Todo: Look for assemblies in microsoft assembly cache
+            //Todo: Look for assemblies in the global assembly cache
+            //Update: After some tinkering, it seems this is not easily achieved.
+            //        The best way to determine if an assembly exists is to use gacutil,
+            //        however, I cannot figure out a way to find a path to the asm.
+            //        You could just force search %windir%\Microsoft.NET\assembly
+            //        but you'd have top at least guess that one folder will be the correct one.
+            //        Still, here is some psuedo code to do so.
+            //        I'm not currently using it becuase it's not stable enough.
+            //        Still, it could be useful. Maybe used when a compile option is specified
+
+            /*
+            var cpuArchitecture = "64";
+            var folderName = Path.GetFileNameWithoutExtension(config.References[i]);
+            var basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly");
+            var archPath = Path.Combine(basePath, $"GAC_{cpuArchitecture}", folderName);
+            var msilPath = Path.Combine(basePath, "GAC_MSIL", folderName);
+            if (Directory.Exists(archPath))
+            {
+                asmExpectedLocation = Path.Combine(archPath, Directory.EnumerateDirectories(archPath).First(), config.References[i]);
+            }
+            else if(Directory.Exists(msilPath))
+            {
+                asmExpectedLocation = Path.Combine(msilPath, Directory.EnumerateDirectories(msilPath).First(), config.References[i]);
+            }
+            */
+
             var errors = new List<Exception>();
             for(var i = 0; i < config.References.Count; i++)
             {

@@ -156,7 +156,6 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import Bcl.Real(string) as real");
             sb.AppendLine("import Bcl.Round(float) as round");
 
-            //Todo: Networking Funtions (Maybe?)
             //Todo: radtodeg
 
             sb.AppendLine("import Bcl.ScriptExecute(array) as script_execute");

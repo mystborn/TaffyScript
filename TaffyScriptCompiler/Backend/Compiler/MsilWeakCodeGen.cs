@@ -1806,12 +1806,11 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(EndToken endToken)
         {
-            //Empty statement. Means nothing in GM.
+            //Empty statement. Means nothing in TS.
         }
 
         public void Visit(EnumNode enumNode)
         {
-            //Todo: Implement Namespace with EnumNode
             var name = $"{_namespace}.{enumNode.Value}".TrimStart('.');
             var type = _module.DefineEnum(name, TypeAttributes.Public, typeof(long));
 
@@ -2058,7 +2057,6 @@ namespace TaffyScriptCompiler.Backend
 
         private void CallEvent(string name, bool loadId, TokenPosition start)
         {
-            //Todo: Support arguments
             if (_isDebug)
                 MarkSequencePoint(start.File ?? "", start.Line, start.Column, start.Line, start.Column + name.Length + 2);
 
@@ -2325,12 +2323,7 @@ namespace TaffyScriptCompiler.Backend
                 }
                 else if(left != typeof(TsObject).MakePointerType())
                 {
-
-                    //Todo: MemberAccess class variables.
-                    //There won't be any static class variables,
-                    //instead it will set the variable on the first instance of the type.
-                    //Alternatively, you might just have it set the variable on all instances of that type,
-                    //but that would break GM compatibility.
+                    
                     _errors.Add(new NotImplementedException($"Accessing a variable through a type is not yet supported {memberAccess.Left} {memberAccess.Left.Position}"));
                 }
                 if (memberAccess.Right is VariableToken right)

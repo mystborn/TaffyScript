@@ -240,8 +240,6 @@ namespace TaffyScript
                 return _availableIds.Dequeue();
         }
 
-        //Todo: All of the methods that start with Instance should be changed so a non static method implementation can be written to allow other libraries to use the method.
-
         /// <summary>
         /// Changes the currently executing instance into a new type
         /// </summary>
