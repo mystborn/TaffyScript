@@ -8,3 +8,4 @@ Changes from the master branch:
 * Include script arguments in script declaration
 * Optional script arguments
 * Updated certain function in the BaseClassLibrary to use stronger types
+* Added quality of life instance methods to TsInstance
