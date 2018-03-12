@@ -74,6 +74,7 @@
     <Compile Include="Backend\Compiler\ICompiler.cs" />
     <Compile Include="Backend\ILEmitter.cs" />
     <Compile Include="Backend\Compiler\MsilWeakCompiler.cs" />
+    <Compile Include="DotNet\TaffyScriptTypes.cs" />
     <Compile Include="Front End\LexicalAnalysis\Token.cs" />
     <Compile Include="Front End\LexicalAnalysis\Tokenizer.cs" />
     <Compile Include="Front End\LexicalAnalysis\TokenPosition.cs" />

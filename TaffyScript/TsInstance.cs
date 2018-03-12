@@ -286,7 +286,7 @@ namespace TaffyScript
         public static void InstanceChange(string newObj, bool performEvents)
         {
             var id = TsObject.Id.Peek();
-            Pool.TryGetValue(id.GetNum(), out var inst);
+            Pool.TryGetValue(id.GetFloat(), out var inst);
             inst.ChangeType(newObj, performEvents);
         }
 
@@ -298,7 +298,7 @@ namespace TaffyScript
         public static float InstanceCopy(bool performEvents)
         {
             var id = TsObject.Id.Peek();
-            Pool.TryGetValue(id.GetNum(), out var inst);
+            Pool.TryGetValue(id.GetFloat(), out var inst);
             return inst.Copy(performEvents).Id;
         }
 

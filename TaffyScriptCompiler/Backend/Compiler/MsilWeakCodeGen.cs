@@ -74,26 +74,6 @@ namespace TaffyScriptCompiler.Backend
         private List<string> _warnings = new List<string>();
 
         /// <summary>
-        /// Methods used to convert a <see cref="TsObject"/> to another type.
-        /// </summary>
-        private Dictionary<Type, MethodInfo> _tsObjectCasts;
-
-        /// <summary>
-        /// <see cref="TsObject"/> constructors that take a single argument.
-        /// </summary>
-        private Dictionary<Type, ConstructorInfo> _tsConstructors;
-
-        /// <summary>
-        /// Defines the native types that TaffyScript supports.
-        /// </summary>
-        private Dictionary<string, Type> _tsBasicTypes;
-
-        /// <summary>
-        /// Should not be used directly.
-        /// </summary>
-        private MethodInfo _getEmptyObject;
-
-        /// <summary>
         /// Should not be used directly.
         /// </summary>
         //private MethodInfo _getId;
@@ -590,15 +570,15 @@ namespace TaffyScriptCompiler.Backend
                 else if (paramTypes[i] != typeof(TsObject))
                 {
                     emit.LdElemA(typeof(TsObject))
-                        .Call(_tsObjectCasts[paramTypes[i]]);
+                        .Call(TsTypes.ObjectCasts[paramTypes[i]]);
                 }
                 else
                     emit.LdElem(typeof(TsObject));
             }
             emit.Call(method);
             if (method.ReturnType == typeof(void))
-                emit.Call(_getEmptyObject);
-            else if (_tsConstructors.TryGetValue(method.ReturnType, out var ctor))
+                emit.Call(TsTypes.Empty);
+            else if (TsTypes.Constructors.TryGetValue(method.ReturnType, out var ctor))
                 emit.New(ctor);
             else if (method.ReturnType != typeof(TsObject))
                 _errors.Add(new InvalidProgramException($"Imported method {importName} had an invalid return type {method.ReturnType}."));
@@ -657,7 +637,7 @@ namespace TaffyScriptCompiler.Backend
                 .LdArg(0)
                 .LdLocal(i)
                 .LdElem(typeof(string))
-                .New(_tsConstructors[typeof(string)])
+                .New(TsTypes.Constructors[typeof(string)])
                 .StElem(typeof(TsObject))
                 .LdLocal(i)
                 .LdInt(1)
@@ -678,69 +658,6 @@ namespace TaffyScriptCompiler.Backend
         /// </summary>
         private void InitTsMethods()
         {
-            var objType = typeof(TsObject);
-            _tsObjectCasts = new Dictionary<Type, MethodInfo>()
-            {
-                { typeof(string), objType.GetMethod("GetString") },
-                { typeof(float), objType.GetMethod("GetNum") },
-                { typeof(int), objType.GetMethod("GetNumAsInt") },
-                { typeof(long), objType.GetMethod("GetNumAsLong") },
-                { typeof(bool), objType.GetMethod("GetBool") },
-                { typeof(TsInstance), objType.GetMethod("GetInstance") },
-                { typeof(TsObject[]), objType.GetMethod("GetArray1D") },
-                { typeof(TsObject[][]), objType.GetMethod("GetArray2D") }
-            };
-
-            _tsConstructors = new Dictionary<Type, ConstructorInfo>()
-            {
-                { typeof(bool), objType.GetConstructor(new[] { typeof(bool) }) },
-                { typeof(int), objType.GetConstructor(new[] { typeof(int) }) },
-                { typeof(float), objType.GetConstructor(new[] { typeof(float) }) },
-                { typeof(string), objType.GetConstructor(new[] { typeof(string) }) },
-                { typeof(TsInstance), objType.GetConstructor(new[] { typeof(TsInstance) }) },
-                { typeof(TsObject[]), objType.GetConstructor(new[] { typeof(TsObject[]) }) },
-                { typeof(TsObject[][]), objType.GetConstructor(new[] { typeof(TsObject[][]) }) },
-            };
-
-            _tsBasicTypes = new Dictionary<string, Type>()
-            {
-                { "bool", typeof(bool) },
-                { "float", typeof(float) },
-                { "int", typeof(int) },
-                { "string", typeof(string) },
-                { "instance", typeof(TsInstance) },
-                { "array1d", typeof(TsObject[]) },
-                { "array2d", typeof(TsObject[][]) },
-                { "object", typeof(TsObject) }
-            };
-
-            _operators = new Dictionary<string, string>()
-            {
-                { "+", "op_Addition" },
-                { "&", "op_BitwiseAnd" },
-                { "|", "op_BitwiseOr" },
-                { "--", "op_Decrement" },
-                { "/", "op_Division" },
-                { "==", "op_Equality" },
-                { "!=", "op_Inequality" },
-                { "^", "op_ExclusiveOr" },
-                { "explicit", "op_Explicit" },
-                { "false", "op_False" },
-                { ">", "op_GreaterThan" },
-                { ">=", "op_GreaterThanOrEqual" },
-                { "++", "op_Increment" },
-                { "<<", "op_LeftShift" },
-                { "<", "op_LessThan" },
-                { "<=", "op_LessThanOrEqual" },
-                { "!", "op_LogicalNot" },
-                { "%", "op_Modulus" },
-                { "*", "op_Multiply" },
-                { "~", "op_OnesComplement" },
-                { ">>", "op_RightShift" },
-                { "-", "op_Subtraction" },
-                { "true", "op_True" }
-            };
-
             _declarationTypes = new HashSet<SyntaxType>()
             {
                 SyntaxType.Enum,
@@ -753,8 +670,6 @@ namespace TaffyScriptCompiler.Backend
             var table = new LookupTable<Type, Type, MethodInfo>();
             table.Add(typeof(string), typeof(string), typeof(string).GetMethod("Concat", _methodFlags, null, new[] { typeof(string), typeof(string) }, null));
             _binaryOps.Add("+", table);
-
-            _getEmptyObject = objType.GetMethod("Empty");
         }
 
         /// <summary>
@@ -1197,7 +1112,7 @@ namespace TaffyScriptCompiler.Backend
                 if (type == typeof(float))
                     emit.ConvertInt(false);
                 else if (type == typeof(TsObject) || type == typeof(TsObject).MakePointerType())
-                    CallInstanceMethod(_tsObjectCasts[typeof(int)], argumentAccess.Index.Position);
+                    CallInstanceMethod(TsTypes.ObjectCasts[typeof(int)], argumentAccess.Index.Position);
                 else if (type != typeof(int))
                     _errors.Add(new CompileException($"Invalid argument access {argumentAccess.Position}"));
             }
@@ -1212,13 +1127,13 @@ namespace TaffyScriptCompiler.Backend
             var address = _needAddress;
             _needAddress = false;
             GetAddressIfPossible(arrayAccess.Left);
-            CallInstanceMethod(_tsObjectCasts[arrayAccess.Children.Count == 2 ? typeof(TsObject[]) : typeof(TsObject[][])], arrayAccess.Position);
+            CallInstanceMethod(TsTypes.ObjectCasts[arrayAccess.Children.Count == 2 ? typeof(TsObject[]) : typeof(TsObject[][])], arrayAccess.Position);
             GetAddressIfPossible(arrayAccess.Children[1]);
             var top = emit.GetTop();
             if (top == typeof(float))
                 emit.ConvertInt(false);
             else if (top != typeof(int) || top != typeof(bool))
-                CallInstanceMethod(_tsObjectCasts[typeof(int)], arrayAccess.Position);
+                CallInstanceMethod(TsTypes.ObjectCasts[typeof(int)], arrayAccess.Position);
             if(arrayAccess.Children.Count == 2)
             {
                 if (address)
@@ -1234,7 +1149,7 @@ namespace TaffyScriptCompiler.Backend
                 if (top == typeof(float))
                     emit.ConvertInt(false);
                 else if (top != typeof(int) || top != typeof(bool))
-                    CallInstanceMethod(_tsObjectCasts[typeof(int)], arrayAccess.Position);
+                    CallInstanceMethod(TsTypes.ObjectCasts[typeof(int)], arrayAccess.Position);
 
                 if (address)
                     emit.LdElemA(typeof(TsObject));
@@ -1255,10 +1170,10 @@ namespace TaffyScriptCompiler.Backend
                 arrayLiteral.Children[i].Accept(this);
                 var type = emit.GetTop();
                 if (type != typeof(TsObject))
-                    emit.New(_tsConstructors[type]);
+                    emit.New(TsTypes.Constructors[type]);
                 emit.StElem(typeof(TsObject));
             }
-            emit.New(_tsConstructors[typeof(TsObject[])]);
+            emit.New(TsTypes.Constructors[typeof(TsObject[])]);
         }
 
         public void Visit(AssignNode assign)
@@ -1274,7 +1189,7 @@ namespace TaffyScriptCompiler.Backend
                 assign.Right.Accept(this);
                 var top = emit.GetTop();
                 if (top != typeof(TsObject))
-                    emit.New(_tsConstructors[top]);
+                    emit.New(TsTypes.Constructors[top]);
                 emit.StObj(typeof(TsObject));
             }
             else if (assign.Left is ArrayAccessNode array)
@@ -1298,7 +1213,7 @@ namespace TaffyScriptCompiler.Backend
                 assign.Right.Accept(this);
                 var top = emit.GetTop();
                 if (top != typeof(TsObject))
-                    emit.New(_tsConstructors[top]);
+                    emit.New(TsTypes.Constructors[top]);
                 argTypes[argTypes.Length - 1] = emit.GetTop();
                 emit.Call(typeof(TsObject).GetMethod("ArraySet", argTypes));
             }
@@ -1312,7 +1227,7 @@ namespace TaffyScriptCompiler.Backend
                 assign.Right.Accept(this);
                 var top = emit.GetTop();
                 if (top != typeof(TsObject))
-                    emit.New(_tsConstructors[top]);
+                    emit.New(TsTypes.Constructors[top]);
                 emit.Call(typeof(DsList).GetMethod("DsListStrongSet"));
             }
             else if(assign.Left is GridAccessNode grid)
@@ -1323,7 +1238,7 @@ namespace TaffyScriptCompiler.Backend
                 assign.Right.Accept(this);
                 var top = emit.GetTop();
                 if (top != typeof(TsObject))
-                    emit.New(_tsConstructors[top]);
+                    emit.New(TsTypes.Constructors[top]);
                 emit.Call(typeof(DsGrid).GetMethod("DsGridSet"));
             }
             else if(assign.Left is MapAccessNode map)
@@ -1332,11 +1247,11 @@ namespace TaffyScriptCompiler.Backend
                 map.Right.Accept(this);
                 var top = emit.GetTop();
                 if (top != typeof(TsObject))
-                    emit.New(_tsConstructors[top]);
+                    emit.New(TsTypes.Constructors[top]);
                 assign.Right.Accept(this);
                 top = emit.GetTop();
                 if (top != typeof(TsObject))
-                    emit.New(_tsConstructors[top]);
+                    emit.New(TsTypes.Constructors[top]);
                 emit.Call(typeof(DsMap).GetMethod("DsMapReplace"));
             }
             else if (assign.Left is VariableToken variable)
@@ -1351,7 +1266,7 @@ namespace TaffyScriptCompiler.Backend
                     assign.Right.Accept(this);
                     var result = emit.GetTop();
                     if (result != typeof(TsObject))
-                        emit.New(_tsConstructors[result]);
+                        emit.New(TsTypes.Constructors[result]);
                     emit.StLocal(_locals[symbol]);
                 }
                 else
@@ -1381,7 +1296,7 @@ namespace TaffyScriptCompiler.Backend
                         assign.Right.Accept(this);
                         var top = emit.GetTop();
                         if (top != typeof(TsObject))
-                            emit.New(_tsConstructors[top]);
+                            emit.New(TsTypes.Constructors[top]);
 
                         emit.Call(typeof(TsInstance).GetMethod("set_Item"));
                     }
@@ -1550,7 +1465,7 @@ namespace TaffyScriptCompiler.Backend
             map.Right.Accept(this);
             var top = emit.GetTop();
             if (top != typeof(TsObject))
-                emit.New(_tsConstructors[top]);
+                emit.New(TsTypes.Constructors[top]);
             emit.StLocal(key);
             emit.LdLocal(id)
                 .LdLocal(key)
@@ -1634,7 +1549,7 @@ namespace TaffyScriptCompiler.Backend
                 var top = emit.GetTop();
                 if (top != typeof(TsObject) && top != typeof(TsObject).MakePointerType())
                     _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the type {emit.GetTop()} {bitwise.Position}"));
-                emit.Call(_tsObjectCasts[typeof(long)]);
+                emit.Call(TsTypes.ObjectCasts[typeof(long)]);
             }
 
             if(bitwise.Right.Type == SyntaxType.Constant)
@@ -1651,7 +1566,7 @@ namespace TaffyScriptCompiler.Backend
                 var top = emit.GetTop();
                 if (top != typeof(TsObject) && top != typeof(TsObject).MakePointerType())
                     _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the type {top} {bitwise.Position}"));
-                emit.Call(_tsObjectCasts[typeof(long)]);
+                emit.Call(TsTypes.ObjectCasts[typeof(long)]);
             }
 
             switch(bitwise.Value)
@@ -1701,7 +1616,7 @@ namespace TaffyScriptCompiler.Backend
             GetAddressIfPossible(conditionalNode.Test);
             var top = emit.GetTop();
             if (top == typeof(TsObject) || top == typeof(TsObject).MakePointerType())
-                CallInstanceMethod(_tsObjectCasts[typeof(bool)], conditionalNode.Test.Position);
+                CallInstanceMethod(TsTypes.ObjectCasts[typeof(bool)], conditionalNode.Test.Position);
             else if (top == typeof(float))
                 emit.ConvertInt(false);
             else
@@ -1717,7 +1632,7 @@ namespace TaffyScriptCompiler.Backend
             conditionalNode.Left.Accept(this);
             top = emit.GetTop();
             if (top != typeof(TsObject))
-                emit.New(_tsConstructors[top]);
+                emit.New(TsTypes.Constructors[top]);
 
             emit.Br(brFinal)
                 .MarkLabel(brFalse);
@@ -1725,7 +1640,7 @@ namespace TaffyScriptCompiler.Backend
             conditionalNode.Right.Accept(this);
             top = emit.GetTop();
             if (top != typeof(TsObject))
-                emit.New(_tsConstructors[top]);
+                emit.New(TsTypes.Constructors[top]);
 
             // This unbalances the execution stack.
             // Maunually pop the top value off the stack.
@@ -1759,7 +1674,7 @@ namespace TaffyScriptCompiler.Backend
         {
             if (_table.Defined(declare.Value, out var symbol) && symbol.Type == SymbolType.Variable && _locals.TryGetValue(symbol, out var local))
             {
-                emit.Call(_getEmptyObject)
+                emit.Call(TsTypes.Empty)
                     .StLocal(local);
             }
             else
@@ -1790,7 +1705,7 @@ namespace TaffyScriptCompiler.Backend
             if (type == typeof(float))
                 emit.ConvertInt(false);
             else if (type == typeof(TsObject))
-                emit.Call(_tsObjectCasts[typeof(bool)]);
+                emit.Call(TsTypes.ObjectCasts[typeof(bool)]);
             else if(type == typeof(string))
             {
                 //All string should eval to false.
@@ -1904,7 +1819,7 @@ namespace TaffyScriptCompiler.Backend
         public void Visit(ExitToken exitToken)
         {
             if (_inScript && !emit.TryGetTop(out _))
-                emit.Call(_getEmptyObject);
+                emit.Call(TsTypes.Empty);
             emit.Ret();
         }
 
@@ -1962,7 +1877,7 @@ namespace TaffyScriptCompiler.Backend
                     if(name == null)
                     {
                         _errors.Add(new CompileException($"Invalid id for script/event {memberAccess.Right.Position}"));
-                        emit.Call(_getEmptyObject);
+                        emit.Call(TsTypes.Empty);
                         return;
                     }
                     GetAddressIfPossible(memberAccess.Left);
@@ -1973,7 +1888,7 @@ namespace TaffyScriptCompiler.Backend
             else
             {
                 _errors.Add(new CompileException($"Invalid syntax detected {functionCall.Children[0].Position}"));
-                emit.Call(_getEmptyObject);
+                emit.Call(TsTypes.Empty);
                 return;
             }
             if(!_table.Defined(name, out var symbol) || symbol.Type == SymbolType.Event)
@@ -1984,7 +1899,7 @@ namespace TaffyScriptCompiler.Backend
             if (symbol.Type != SymbolType.Script)
             {
                 _errors.Add(new CompileException($"Tried to call something that wasn't a script. Check for name conflict {functionCall.Position}"));
-                emit.Call(_getEmptyObject);
+                emit.Call(TsTypes.Empty);
                 return;
             }
             var ns = GetAssetNamespace(symbol);
@@ -2044,7 +1959,7 @@ namespace TaffyScriptCompiler.Backend
                     functionCall.Children[i + 1].Accept(this);
                     var top = emit.GetTop();
                     if (top != typeof(TsObject))
-                        emit.New(_tsConstructors[top]);
+                        emit.New(TsTypes.Constructors[top]);
 
                     emit.StElem(typeof(TsObject));
                 }
@@ -2066,12 +1981,12 @@ namespace TaffyScriptCompiler.Backend
             if(name == "destroy")
             {
                 //Syntactic sugar for instance_destroy(inst);
-                CallInstanceMethod(_tsObjectCasts[typeof(float)], start);
+                CallInstanceMethod(TsTypes.ObjectCasts[typeof(float)], start);
                 emit.Call(typeof(TsInstance).GetMethod("InstanceDestroy", new[] { typeof(float) }));
             }
             else
             {
-                CallInstanceMethod(_tsObjectCasts[typeof(TsInstance)], start);
+                CallInstanceMethod(TsTypes.ObjectCasts[typeof(TsInstance)], start);
                 var secret = GetLocal(typeof(TsInstance));
                 emit.StLocal(secret)
                     .LdLocal(secret)
@@ -2079,7 +1994,7 @@ namespace TaffyScriptCompiler.Backend
                     .Call(typeof(TsInstance).GetMethod("GetEvent", BindingFlags.Instance | BindingFlags.Public))
                     .LdLocal(secret)
                     .Call(typeof(InstanceEvent).GetMethod("Invoke"))
-                    .Call(_getEmptyObject);
+                    .Call(TsTypes.Empty);
                 FreeLocal(secret);
             }
         }
@@ -2102,7 +2017,7 @@ namespace TaffyScriptCompiler.Backend
             GetAddressIfPossible(ifNode.Condition);
             var top = emit.GetTop();
             if (top == typeof(TsObject) || top == typeof(TsObject).MakePointerType())
-                CallInstanceMethod(_tsObjectCasts[typeof(bool)], ifNode.Condition.Position);
+                CallInstanceMethod(TsTypes.ObjectCasts[typeof(bool)], ifNode.Condition.Position);
             emit.BrFalse(ifFalse);
             ifNode.Body.Accept(this);
 
@@ -2128,7 +2043,7 @@ namespace TaffyScriptCompiler.Backend
 
             for (var i = 0; i < args.Length; i++)
             {
-                if (!_tsBasicTypes.TryGetValue(argWrappers[i].Value, out var argType))
+                if (!TsTypes.BasicTypes.TryGetValue(argWrappers[i].Value, out var argType))
                     _errors.Add(new CompileException($"Could not import the function {internalName} because one of the arguments was invalid {argWrappers[i].Value} {argWrappers[i].Position}"));
 
                 args[i] = argType;
@@ -2184,7 +2099,7 @@ namespace TaffyScriptCompiler.Backend
             }
             else if (top == typeof(TsObject) || top == typeof(TsObject).MakePointerType())
             {
-                CallInstanceMethod(_tsObjectCasts[typeof(int)], element.Position);
+                CallInstanceMethod(TsTypes.ObjectCasts[typeof(int)], element.Position);
                 top = typeof(int);
             }
             else
@@ -2209,7 +2124,7 @@ namespace TaffyScriptCompiler.Backend
             else if (left == typeof(float))
                 emit.LdFloat(.5f).Cge();
             else if (left == typeof(TsObject) || left == typeof(TsObject).MakePointerType())
-                CallInstanceMethod(_tsObjectCasts[typeof(bool)], logical.Left.Position);
+                CallInstanceMethod(TsTypes.ObjectCasts[typeof(bool)], logical.Left.Position);
             else if (left != typeof(bool))
                 _errors.Add(new CompileException($"Encountered invalid syntax {logical.Left.Position}"));
             if (logical.Value == "&&")
@@ -2232,7 +2147,7 @@ namespace TaffyScriptCompiler.Backend
             else if (right == typeof(float))
                 emit.LdFloat(.5f).Cge();
             else if (right == typeof(TsObject) || right == typeof(TsObject).MakePointerType())
-                CallInstanceMethod(_tsObjectCasts[typeof(bool)], logical.Right.Position);
+                CallInstanceMethod(TsTypes.ObjectCasts[typeof(bool)], logical.Right.Position);
             else if (right != typeof(bool))
                 _errors.Add(new CompileException($"Encountered invalid syntax {logical.Right.Position}"));
 
@@ -2246,7 +2161,7 @@ namespace TaffyScriptCompiler.Backend
             var top = emit.GetTop();
             if(top != typeof(TsObject))
             {
-                emit.New(_tsConstructors[top]);
+                emit.New(TsTypes.Constructors[top]);
                 top = typeof(TsObject);
             }
             emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"));
@@ -2408,18 +2323,18 @@ namespace TaffyScriptCompiler.Backend
                     if (newNode.Parent.Type == SyntaxType.Block)
                         emit.Pop();
                     else
-                        emit.New(_tsConstructors[typeof(TsInstance)]);
+                        emit.New(TsTypes.Constructors[typeof(TsInstance)]);
                 }
                 else
                 {
                     _errors.Add(new CompileException($"Tried to create an instance of something that wasn't an object: {newNode.Value} {newNode.Position}"));
-                    emit.Call(_getEmptyObject);
+                    emit.Call(TsTypes.Empty);
                 }
             }
             else
             {
                 _errors.Add(new CompileException($"Tried to create an instance of a type that doesn't exist: {newNode.Value} {newNode.Position}"));
-                emit.Call(_getEmptyObject);
+                emit.Call(TsTypes.Empty);
             }
         }
 
@@ -2472,7 +2387,7 @@ namespace TaffyScriptCompiler.Backend
                 emit.Call(GetIdStack)
                     .LdArg(0)
                     .Call(typeof(TsInstance).GetMethod("get_Id"))
-                    .New(_tsConstructors[typeof(float)])
+                    .New(TsTypes.Constructors[typeof(float)])
                     .Call(PushId)
                     .Call(eventType)
                     .LdStr(ev.Value)
@@ -2858,7 +2773,7 @@ namespace TaffyScriptCompiler.Backend
                 _errors.Add(new CompileException($"Tried to return without a return value. If this is expected, use exit instead {returnNode.Position}"));
 
             if (returnType != null && returnType != typeof(TsObject))
-                emit.New(_tsConstructors[returnType]);
+                emit.New(TsTypes.Constructors[returnType]);
 
             emit.Ret();
         }
@@ -2911,7 +2826,7 @@ namespace TaffyScriptCompiler.Backend
                             .MarkLabel(lte);
                         //Must be ConstantToken
                         assign.Right.Accept(this);
-                        emit.New(_tsConstructors[emit.GetTop()])
+                        emit.New(TsTypes.Constructors[emit.GetTop()])
                             .StLocal(_locals[symbol])
                             .MarkLabel(end);
                     }
@@ -2936,7 +2851,7 @@ namespace TaffyScriptCompiler.Backend
             
             if (!emit.TryGetTop(out _))
             {
-                emit.Call(_getEmptyObject);
+                emit.Call(TsTypes.Empty);
             }
 
             emit.Ret();
@@ -2979,7 +2894,7 @@ namespace TaffyScriptCompiler.Backend
             }
             else if(right == typeof(TsObject) || right == typeof(TsObject).MakePointerType())
             {
-                CallInstanceMethod(_tsObjectCasts[typeof(int)], shift.Right.Position);
+                CallInstanceMethod(TsTypes.ObjectCasts[typeof(int)], shift.Right.Position);
                 right = typeof(int);
             }
             else
@@ -3148,12 +3063,12 @@ namespace TaffyScriptCompiler.Backend
             var top = emit.GetTop();
             if(top == typeof(int) || top == typeof(bool))
             {
-                emit.New(_tsConstructors[typeof(int)]);
+                emit.New(TsTypes.Constructors[typeof(int)]);
                 top = typeof(TsObject);
             }
             if(top == typeof(float))
             {
-                emit.New(_tsConstructors[typeof(float)]);
+                emit.New(TsTypes.Constructors[typeof(float)]);
                 top = typeof(TsObject);
             }
             var start = emit.DefineLabel();

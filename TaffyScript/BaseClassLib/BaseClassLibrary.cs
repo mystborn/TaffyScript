@@ -81,7 +81,7 @@ namespace TaffyScript
         [WeakMethod]
         public static TsObject ArrayCreate(TsObject[] args)
         {
-            var size = args[0].GetNumAsInt();
+            var size = args[0].GetInt();
             var value = TsObject.Empty();
             if (args.Length > 1)
                 value = args[1];
@@ -223,10 +223,10 @@ namespace TaffyScript
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
-            var max = args[0].GetNum();
+            var max = args[0].GetFloat();
             for(var i = 1; i < args.Length; i++)
             {
-                var num = args[i].GetNum();
+                var num = args[i].GetFloat();
                 if (num > max)
                     max = num;
             }
@@ -238,10 +238,10 @@ namespace TaffyScript
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
-            var min = args[0].GetNum();
+            var min = args[0].GetFloat();
             for (var i = 1; i < args.Length; i++)
             {
-                var num = args[i].GetNum();
+                var num = args[i].GetFloat();
                 if (num < min)
                     min = num;
             }

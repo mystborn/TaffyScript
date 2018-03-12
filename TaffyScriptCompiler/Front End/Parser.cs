@@ -223,17 +223,13 @@ namespace TaffyScriptCompiler
                     {
                         do
                         {
-                            if (!(Try("id", out token) || Try("object", out token)))
-                            {
-                                Throw(new InvalidTokenException(_stream.Read()));
-                                continue;
-                            }
+                            token = _stream.Read();
                             var type = token.Value;
                             if (type == "array")
                                 type = "array1d";
-                            if (type != "object" && type != "instance" && type != "float" && type != "int" && type != "bool" && type != "string" && type != "array1d" && type != "array2d")
+                            if (!TsTypes.BasicTypes.ContainsKey(type))
                             {
-                                Throw(new InvalidTokenException(token, "Import type must be one of the following: object, float, int, bool, string, instance, array1d, array2d "));
+                                Throw(new InvalidTokenException(token, $"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n"));
                                 node.AddChild(null);
                             }
                             else

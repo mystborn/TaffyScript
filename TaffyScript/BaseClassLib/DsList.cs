@@ -22,7 +22,7 @@ namespace TaffyScript
         {
             if (args.Length < 2)
                 throw new ArgumentNullException("When calling ds_list_add, at least 2 arguments must be provided.");
-            var list = GetList(args[0].GetNumAsInt());
+            var list = GetList(args[0].GetInt());
             for (var i = 1; i < args.Length; i++)
                 list.Add(args[i]);
 
@@ -165,8 +165,8 @@ namespace TaffyScript
         {
             if (args.Length < 3)
                 throw new ArgumentException("When calling ds_list_set, at least 3 arguments must be provided.");
-            var list = GetList(args[0].GetNumAsInt());
-            var pos = args[1].GetNumAsInt();
+            var list = GetList(args[0].GetInt());
+            var pos = args[1].GetInt();
             var length = pos + args.Length - 2;
             while (list.Count <= length)
                 list.Add(new TsObject(0));
