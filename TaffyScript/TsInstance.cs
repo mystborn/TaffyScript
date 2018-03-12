@@ -202,6 +202,52 @@ namespace TaffyScript
         }
 
         /// <summary>
+        /// Changes the type of this instance, optionally performing the destroy and create events.
+        /// </summary>
+        /// <param name="type">The type to change into</param>
+        /// <param name="performEvents">Determines whether the events are performed</param>
+        public void ChangeType(string type, bool performEvents)
+        {
+            if (performEvents && TryGetEvent(DestroyEvent, out var destroy))
+                destroy(this);
+
+            ObjectType = type;
+            Init(performEvents);
+        }
+
+        /// <summary>
+        /// Creates a copy of this instance.
+        /// </summary>
+        /// <param name="performEvents">Determines whether the create event is performed</param>
+        /// <returns></returns>
+        public TsInstance Copy(bool performEvents)
+        {
+            var copy = new TsInstance(ObjectType, false);
+            copy._vars = new Dictionary<string, TsObject>(_vars);
+            if (performEvents && TryGetEvent(ObjectType, out var create))
+                create(copy);
+
+            return copy;
+        }
+
+        /// <summary>
+        /// Destroys this instance in the eyes of TaffyScript
+        /// </summary>
+        /// <remarks>
+        /// Make this object inheritf from IDisposable, change this to Dispose method?
+        /// </remarks>
+        public void Destroy()
+        {
+            if (Pool.ContainsKey(Id))
+            {
+                Pool.Remove(Id);
+                if (TryGetEvent(DestroyEvent, out var destroy))
+                    destroy(this);
+                _availableIds.Enqueue(Id);
+            }
+        }
+
+        /// <summary>
         /// Gets an event defined by the given type.
         /// </summary>
         /// <param name="type">The type that defines the event</param>
@@ -232,14 +278,6 @@ namespace TaffyScript
             return false;
         }
 
-        private static float GetNext()
-        {
-            if (_availableIds.Count == 0)
-                return Pool.Count + Start;
-            else
-                return _availableIds.Dequeue();
-        }
-
         /// <summary>
         /// Changes the currently executing instance into a new type
         /// </summary>
@@ -249,11 +287,7 @@ namespace TaffyScript
         {
             var id = TsObject.Id.Peek();
             Pool.TryGetValue(id.GetNum(), out var inst);
-            if (performEvents && inst.TryGetEvent(DestroyEvent, out var destroy))
-                destroy(inst);
-
-            inst.ObjectType = newObj;
-            inst.Init(performEvents);
+            inst.ChangeType(newObj, performEvents);
         }
 
         /// <summary>
@@ -265,10 +299,7 @@ namespace TaffyScript
         {
             var id = TsObject.Id.Peek();
             Pool.TryGetValue(id.GetNum(), out var inst);
-            var next = new TsInstance(inst.ObjectType, false);
-            next._vars = new Dictionary<string, TsObject>(inst._vars);
-            next.Init(performEvents);
-            return next.Id;
+            return inst.Copy(performEvents).Id;
         }
 
         /// <summary>
@@ -307,8 +338,8 @@ namespace TaffyScript
                 Pool.Remove(id);
                 if (inst.TryGetEvent(DestroyEvent, out var destroy))
                     destroy(inst);
+                _availableIds.Enqueue(id);
             }
-            _availableIds.Enqueue(id);
         }
 
         /// <summary>
@@ -521,9 +552,17 @@ namespace TaffyScript
                     yield return new TsObject(inst.Id);
         }
 
-        internal static TsInstance InitGlobal()
+        private static TsInstance InitGlobal()
         {
             return new TsInstance();
+        }
+
+        private static float GetNext()
+        {
+            if (_availableIds.Count == 0)
+                return Pool.Count + Start;
+            else
+                return _availableIds.Dequeue();
         }
     }
 }
