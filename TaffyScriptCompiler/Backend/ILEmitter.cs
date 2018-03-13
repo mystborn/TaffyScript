@@ -186,6 +186,8 @@ namespace TaffyScriptCompiler.Backend
 
         public ILEmitter Call(MethodInfo method, int input, Type output)
         {
+            if (method == null)
+                return this;
             for (var i = 0; i < input; i++)
                 _types.Pop();
 

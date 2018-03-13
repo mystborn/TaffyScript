@@ -240,9 +240,9 @@ namespace TaffyScript
         {
             if (Pool.ContainsKey(Id))
             {
-                Pool.Remove(Id);
                 if (TryGetEvent(DestroyEvent, out var destroy))
                     destroy(this);
+                Pool.Remove(Id);
                 _availableIds.Enqueue(Id);
             }
         }
@@ -335,9 +335,9 @@ namespace TaffyScript
         {
             if (Pool.TryGetValue(id, out var inst))
             {
-                Pool.Remove(id);
                 if (inst.TryGetEvent(DestroyEvent, out var destroy))
                     destroy(inst);
+                Pool.Remove(id);
                 _availableIds.Enqueue(id);
             }
         }

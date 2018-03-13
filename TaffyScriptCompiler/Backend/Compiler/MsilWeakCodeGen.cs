@@ -339,12 +339,6 @@ namespace TaffyScriptCompiler.Backend
                 {
                     var name = asm.GetName().Name;
                     init.Call(asm.GetType($"{name}.{name.Replace('.', '_')}_Initializer").GetMethod("Initialize"));
-                    /*var first = asm.ExportedTypes.FirstOrDefault();
-                    if (first != null)
-                        init.LdType(first)
-                            .Call(typeof(Type).GetMethod("GetTypeFromHandle"))
-                            .Call(typeof(Type).GetMethod("get_FullName"))
-                            .Pop();*/
                 }
             }
 
@@ -658,6 +652,33 @@ namespace TaffyScriptCompiler.Backend
         /// </summary>
         private void InitTsMethods()
         {
+            _operators = new Dictionary<string, string>()
+            {
+                { "+", "op_Addition" },
+                { "&", "op_BitwiseAnd" },
+                { "|", "op_BitwiseOr" },
+                { "--", "op_Decrement" },
+                { "/", "op_Division" },
+                { "==", "op_Equality" },
+                { "!=", "op_Inequality" },
+                { "^", "op_ExclusiveOr" },
+                { "explicit", "op_Explicit" },
+                { "false", "op_False" },
+                { ">", "op_GreaterThan" },
+                { ">=", "op_GreaterThanOrEqual" },
+                { "++", "op_Increment" },
+                { "<<", "op_LeftShift" },
+                { "<", "op_LessThan" },
+                { "<=", "op_LessThanOrEqual" },
+                { "!", "op_LogicalNot" },
+                { "%", "op_Modulus" },
+                { "*", "op_Multiply" },
+                { "~", "op_OnesComplement" },
+                { ">>", "op_RightShift" },
+                { "-", "op_Subtraction" },
+                { "true", "op_True" },
+            };
+
             _declarationTypes = new HashSet<SyntaxType>()
             {
                 SyntaxType.Enum,
