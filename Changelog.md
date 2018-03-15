@@ -1,4 +1,4 @@
-Changes from the master branch:
+# Release 1.5.0.0
 * Directly call events from instance: inst.event_name()
 * New keyword to create instances: inst = new object_name()
 * Public constructor for TsInstance
