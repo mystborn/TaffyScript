@@ -39,7 +39,6 @@ namespace Moddable
         /// </summary>
         protected override void Initialize()
         {
-            // TODO: Add your initialization logic here
 
             // If you were doing this for realsies,
             // You would use Mono.Cecil to view the Assembly level attributes to make sure they has the
@@ -84,7 +83,7 @@ namespace Moddable
         /// </summary>
         protected override void UnloadContent()
         {
-            // TODO: Unload any non ContentManager content here
+
         }
 
         /// <summary>

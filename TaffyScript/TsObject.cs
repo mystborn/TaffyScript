@@ -28,42 +28,169 @@ namespace TaffyScript
             Value = value;
         }
 
+        /// <summary>
+        /// Creates a TaffyScript object from a bool.
+        /// </summary>
+        /// <param name="value">The value of the object.</param>
         public TsObject(bool value)
         {
             Type = VariableType.Real;
             Value = new TsValue<float>(value ? 1 : 0);
         }
 
+        /// <summary>
+        /// Creates a string TaffyScript object from a char.
+        /// </summary>
+        /// <param name="value"></param>
+        public TsObject(char value)
+        {
+            Type = VariableType.String;
+            Value = new TsValue<string>(value.ToString());
+        }
+
+        /// <summary>
+        /// Creates a TaffyScript object from a byte.
+        /// </summary>
+        /// <param name="value">The value of the object.</param>
+        public TsObject(byte value)
+        {
+            Type = VariableType.Real;
+            Value = new TsValue<float>(value);
+        }
+
+        /// <summary>
+        /// Creates a TaffyScript object from an sbyte.
+        /// </summary>
+        /// <param name="value">The value of the object.</param>
+        public TsObject(sbyte value)
+        {
+            Type = VariableType.Real;
+            Value = new TsValue<float>(value);
+        }
+
+        /// <summary>
+        /// Creates a TaffyScript object from a short.
+        /// </summary>
+        /// <param name="value">The value of the object.</param>
+        public TsObject(short value)
+        {
+            Type = VariableType.Real;
+            Value = new TsValue<float>(value);
+        }
+
+        /// <summary>
+        /// Creates a TaffyScript object from a ushort.
+        /// </summary>
+        /// <param name="value">The value of the object.</param>
+        public TsObject(ushort value)
+        {
+            Type = VariableType.Real;
+            Value = new TsValue<float>(value);
+        }
+
+        /// <summary>
+        /// Creates a TaffyScript object from an int.
+        /// </summary>
+        /// <param name="value">The value of the object.</param>
         public TsObject(int value)
         {
             Type = VariableType.Real;
             Value = new TsValue<float>(value);
         }
 
+        /// <summary>
+        /// Creates a TaffyScript object from a uint.
+        /// </summary>
+        /// <param name="value">The value of the object.</param>
+        public TsObject(uint value)
+        {
+            Type = VariableType.Real;
+            Value = new TsValue<float>(value);
+        }
+
+        /// <summary>
+        /// Creates a TaffyScript object from a long.
+        /// </summary>
+        /// <param name="value">The value of the object.</param>
+        public TsObject(long value)
+        {
+            Type = VariableType.Real;
+            Value = new TsValue<float>(value);
+        }
+
+        /// <summary>
+        /// Creates a TaffyScript object from a ulong.
+        /// </summary>
+        /// <param name="value">The value of the object.</param>
+        public TsObject(ulong value)
+        {
+            Type = VariableType.Real;
+            Value = new TsValue<float>(value);
+        }
+
+        /// <summary>
+        /// Creates a TaffyScript object from a float.
+        /// </summary>
+        /// <param name="value">The value of the object.</param>
         public TsObject(float value)
         {
             Type = VariableType.Real;
             Value = new TsValue<float>(value);
         }
 
+        /// <summary>
+        /// Creates a TaffyScript object from a double.
+        /// </summary>
+        /// <param name="value">The value of the object.</param>
+        public TsObject(double value)
+        {
+            Type = VariableType.Real;
+            Value = new TsValue<float>((float)value);
+        }
+
+        /// <summary>
+        /// Creates a TaffyScript object from a string.
+        /// </summary>
+        /// <param name="value">The value of the object.</param>
         public TsObject(string value)
         {
             Type = VariableType.String;
             Value = new TsValue<string>(value);
         }
 
+        /// <summary>
+        /// Creates a TaffyScript object from an instances id.
+        /// </summary>
+        /// <param name="instance">The instance to get the id from.</param>
+        public TsObject(TsInstance instance)
+        {
+            Type = VariableType.Real;
+            Value = new TsValue<float>(instance.Id);
+        }
+
+        /// <summary>
+        /// Creates a TaffyScript object from a 1D array.
+        /// </summary>
+        /// <param name="array">The value of the object.</param>
         public TsObject(TsObject[] array)
         {
             Type = VariableType.Array1;
             Value = new TsValueArray<TsObject[]>(array);
         }
 
+        /// <summary>
+        /// Creates a TaffyScript object from a 2D array
+        /// </summary>
+        /// <param name="array">The value of the object.</param>
         public TsObject(TsObject[][] array)
         {
             Type = VariableType.Array2;
             Value = new TsValueArray<TsObject[][]>(array);
         }
 
+        /// <summary>
+        /// Creates an empty TaffyScript object.
+        /// </summary>
         public static TsObject Empty()
         {
             return new TsObject(VariableType.Null, new TsValue<object>(null));
@@ -76,7 +203,100 @@ namespace TaffyScript
 
         #region Raw Values
 
-        public float GetNum()
+        /// <summary>
+        /// Gets the value of this object as a bool.
+        /// </summary>
+        /// <returns></returns>
+        public bool GetBool()
+        {
+            return GetFloat() >= .5f;
+        }
+
+        /// <summary>
+        /// Gets the value of this object as a char.
+        /// </summary>
+        /// <returns></returns>
+        public char GetChar()
+        {
+            return GetString()[0];
+        }
+
+        /// <summary>
+        /// Gets the value of this object as a byte.
+        /// </summary>
+        /// <returns></returns>
+        public byte GetByte()
+        {
+            return (byte)GetFloat();
+        }
+
+        /// <summary>
+        /// Gets the value of this object as an sbyte.
+        /// </summary>
+        /// <returns></returns>
+        public sbyte GetSByte()
+        {
+            return (sbyte)GetFloat();
+        }
+
+        /// <summary>
+        /// Gets the value of this object as a short.
+        /// </summary>
+        /// <returns></returns>
+        public short GetShort()
+        {
+            return (short)GetFloat();
+        }
+
+        /// <summary>
+        /// Gets the value of this object as a ushort.
+        /// </summary>
+        /// <returns></returns>
+        public ushort GetUShort()
+        {
+            return (ushort)GetFloat();
+        }
+
+        /// <summary>
+        /// Gets the number value held by this object as an int.
+        /// </summary>
+        public int GetInt()
+        {
+            return (int)GetFloat();
+        }
+
+        /// <summary>
+        /// Gets the value of this object as a uint.
+        /// </summary>
+        /// <returns></returns>
+        public uint GetUInt()
+        {
+            return (uint)GetFloat();
+        }
+
+        /// <summary>
+        /// Gets the number value held by this object as a long.
+        /// </summary>
+        /// <returns></returns>
+        public long GetLong()
+        {
+            return (long)GetFloat();
+        }
+
+        /// <summary>
+        /// Gets the value of this object as a ulong.
+        /// </summary>
+        /// <returns></returns>
+        public ulong GetULong()
+        {
+            return (ulong)GetFloat();
+        }
+
+        /// <summary>
+        /// Gets the number value held by this object.
+        /// </summary>
+        /// <returns></returns>
+        public float GetFloat()
         {
             if (Type == VariableType.Null)
                 return 0;
@@ -86,27 +306,27 @@ namespace TaffyScript
         }
 
         /// <summary>
-        /// Particularly useful when accessing native array indices.
+        /// Gets the value of this object as a double.
         /// </summary>
-        public int GetNumAsInt()
+        /// <returns></returns>
+        public double GetDouble()
         {
-            return (int)GetNum();
+            return GetFloat();
         }
 
         /// <summary>
-        /// Gets this object as a long. Used for bitwise operations.
+        /// Gets the number held by this object without checking it's type.
         /// </summary>
         /// <returns></returns>
-        public long GetNumAsLong()
-        {
-            return (long)GetNum();
-        }
-
-        public float GetNumUnchecked()
+        public float GetFloatUnchecked()
         {
             return ((TsValue<float>)Value).StrongValue;
         }
 
+        /// <summary>
+        /// Gets the string value held by this object.
+        /// </summary>
+        /// <returns></returns>
         public string GetString()
         {
             if (Type == VariableType.Null)
@@ -116,23 +336,30 @@ namespace TaffyScript
             return ((TsValue<string>)Value).StrongValue;
         }
 
+        /// <summary>
+        /// Gets the string value held by this object without checking its type.
+        /// </summary>
+        /// <returns></returns>
         public string GetStringUnchecked()
         {
             return ((TsValue<string>)Value).StrongValue;
         }
 
-        public bool GetBool()
-        {
-            return GetNum() >= .5f;
-        }
-
+        /// <summary>
+        /// Gets the instance that has an id matching the value held by this object.
+        /// </summary>
+        /// <returns></returns>
         public TsInstance GetInstance()
         {
-            if (!TsInstance.TryGetInstance(GetNum(), out var inst))
+            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
                 throw new InvalidInstanceException();
             return inst;
         }
 
+        /// <summary>
+        /// Gets the 1D array held by this object.
+        /// </summary>
+        /// <returns></returns>
         public TsObject[] GetArray1D()
         {
             if (Type != VariableType.Array1)
@@ -140,6 +367,10 @@ namespace TaffyScript
             return ((TsValueArray<TsObject[]>)Value).StrongValue;
         }
 
+        /// <summary>
+        /// Gets the 2D array held by this object.
+        /// </summary>
+        /// <returns></returns>
         public TsObject[][] GetArray2D()
         {
             if (Type != VariableType.Array2)
@@ -147,6 +378,10 @@ namespace TaffyScript
             return ((TsValueArray<TsObject[][]>)Value).StrongValue;
         }
 
+        /// <summary>
+        /// Gets the untyped value held by this object.
+        /// </summary>
+        /// <returns></returns>
         public object GetValue()
         {
             if (Value == null)
@@ -158,35 +393,75 @@ namespace TaffyScript
 
         #region Member Access
 
+        /// <summary>
+        /// Gets the id of the currently executing instance
+        /// </summary>
+        /// <returns></returns>
         public static TsObject GetId()
         {
             return Id.Peek();
         }
 
+        /// <summary>
+        /// Attempts to get the id of the currently executing instance.
+        /// </summary>
+        /// <param name="id">If found, the instance id</param>
+        /// <returns></returns>
+        public static bool TryGetId(out TsObject id)
+        {
+            if(Id.Count != 0)
+            {
+                id = Id.Peek();
+                return true;
+            }
+            id = Empty();
+            return false;
+        }
+
+        /// <summary>
+        /// Sets a variable of the given name on the instance with an id that matches the value of this object to a float value.
+        /// </summary>
+        /// <param name="name">The name of the variable.</param>
+        /// <param name="value">The value of the variable.</param>
         public void MemberSet(string name, float value)
         {
-            if (!TsInstance.TryGetInstance(GetNum(), out var inst))
+            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
                 throw new InvalidInstanceException();
             inst[name] = new TsObject(value);
         }
 
+        /// <summary>
+        /// Sets a variable of the given name on the instance with an id that matches the value of this object to a string value.
+        /// </summary>
+        /// <param name="name">The name of the variable.</param>
+        /// <param name="value">The value of the variable.</param>
         public void MemberSet(string name, string value)
         {
-            if (!TsInstance.TryGetInstance(GetNum(), out var inst))
+            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
                 throw new InvalidInstanceException();
             inst[name] = new TsObject(value);
         }
 
+        /// <summary>
+        /// Sets a variable of the given name on the instance with an id that matches the value of this object.
+        /// </summary>
+        /// <param name="name">The name of the variable.</param>
+        /// <param name="value">The value of the variable.</param>
         public void MemberSet(string name, TsObject value)
         {
-            if (!TsInstance.TryGetInstance(GetNum(), out var inst))
+            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
                 throw new InvalidInstanceException();
             inst[name] = value;
         }
 
+        /// <summary>
+        /// Gets the value of a variable with the given name from the instance with an id that matches the value of this object.
+        /// </summary>
+        /// <param name="name">The name of the variable.</param>
+        /// <returns></returns>
         public TsObject MemberGet(string name)
         {
-            if (!TsInstance.TryGetInstance(GetNum(), out var inst))
+            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
                 throw new InvalidInstanceException();
             return inst[name];
         }
@@ -195,9 +470,19 @@ namespace TaffyScript
 
         #region Array Access
 
+        /// <summary>
+        /// Sets the value at the given index in the 1D array held by this object.
+        /// </summary>
+        /// <param name="index">The array index.</param>
+        /// <param name="right">The value of the index.</param>
         public void ArraySet(TsObject index, TsObject right)
-            => ArraySet(index.GetNum(), right);
+            => ArraySet(index.GetFloat(), right);
 
+        /// <summary>
+        /// Sets the value at the given index in the 1D array held by this object.
+        /// </summary>
+        /// <param name="index">The array index.</param>
+        /// <param name="right">The value of the index.</param>
         public void ArraySet(float index, TsObject right)
         {
             var real = (int)index;
@@ -223,15 +508,39 @@ namespace TaffyScript
             arr[real] = right;
         }
 
+        /// <summary>
+        /// Sets the value at the given indeces in the 2D array held by this object.
+        /// </summary>
+        /// <param name="index1">The index of the first dimension.</param>
+        /// <param name="index2">The index of the second dimension.</param>
+        /// <param name="right">The value of the index.</param>
         public void ArraySet(TsObject index1, TsObject index2, TsObject right)
-            => ArraySet(index1.GetNum(), index2.GetNum(), right);
+            => ArraySet(index1.GetFloat(), index2.GetFloat(), right);
 
+        /// <summary>
+        /// Sets the value at the given indeces in the 2D array held by this object.
+        /// </summary>
+        /// <param name="index1">The index of the first dimension.</param>
+        /// <param name="index2">The index of the second dimension.</param>
+        /// <param name="right">The value of the index.</param>
         public void ArraySet(float index1, TsObject index2, TsObject right)
-            => ArraySet(index1, index2.GetNum(), right);
+            => ArraySet(index1, index2.GetFloat(), right);
 
+        /// <summary>
+        /// Sets the value at the given indeces in the 2D array held by this object.
+        /// </summary>
+        /// <param name="index1">The index of the first dimension.</param>
+        /// <param name="index2">The index of the second dimension.</param>
+        /// <param name="right">The value of the index.</param>
         public void ArraySet(TsObject index1, float index2, TsObject right)
-            => ArraySet(index1.GetNum(), index2, right);
+            => ArraySet(index1.GetFloat(), index2, right);
 
+        /// <summary>
+        /// Sets the value at the given indeces in the 2D array held by this object.
+        /// </summary>
+        /// <param name="index1">The index of the first dimension.</param>
+        /// <param name="index2">The index of the second dimension.</param>
+        /// <param name="right">The value of the index.</param>
         public void ArraySet(float index1, float index2, TsObject right)
         {
             int real1 = (int)index1;
@@ -266,9 +575,19 @@ namespace TaffyScript
             self.StrongValue[real1][real2] = right;
         }
 
+        /// <summary>
+        /// Gets the value at the given index in the 1D array held by this object.
+        /// </summary>
+        /// <param name="index">The index of the value.</param>
+        /// <returns></returns>
         public TsObject ArrayGet(TsObject index)
-            => ArrayGet(index.GetNum());
+            => ArrayGet(index.GetFloat());
 
+        /// <summary>
+        /// Gets the value at the given index in the 1D array held by this object.
+        /// </summary>
+        /// <param name="index">The index of the value.</param>
+        /// <returns></returns>
         public TsObject ArrayGet(float index)
         {
             var real = (int)index;
@@ -278,15 +597,39 @@ namespace TaffyScript
             return arr[real];
         }
 
+        /// <summary>
+        /// Gets the value at the given indeces in the 2D array held by this object.
+        /// </summary>
+        /// <param name="index1">The index of the first dimension.</param>
+        /// <param name="index2">The index of the second dimension.</param>
+        /// <returns></returns>
         public TsObject ArrayGet(TsObject index1, TsObject index2)
             => ArrayGet((float)index1, (float)index2);
 
+        /// <summary>
+        /// Gets the value at the given indeces in the 2D array held by this object.
+        /// </summary>
+        /// <param name="index1">The index of the first dimension.</param>
+        /// <param name="index2">The index of the second dimension.</param>
+        /// <returns></returns>
         public TsObject ArrayGet(TsObject index1, float index2)
             => ArrayGet((float)index1, index2);
 
+        /// <summary>
+        /// Gets the value at the given indeces in the 2D array held by this object.
+        /// </summary>
+        /// <param name="index1">The index of the first dimension.</param>
+        /// <param name="index2">The index of the second dimension.</param>
+        /// <returns></returns>
         public TsObject ArrayGet(float index1, TsObject index2)
             => ArrayGet(index1, (float)index2);
 
+        /// <summary>
+        /// Gets the value at the given indeces in the 2D array held by this object.
+        /// </summary>
+        /// <param name="index1">The index of the first dimension.</param>
+        /// <param name="index2">The index of the second dimension.</param>
+        /// <returns></returns>
         public TsObject ArrayGet(float index1, float index2)
         {
             var real1 = (int)index1;
@@ -329,12 +672,12 @@ namespace TaffyScript
 
         public static explicit operator float(TsObject right)
         {
-            return right.GetNum();
+            return right.GetFloat();
         }
 
         public static explicit operator int(TsObject right)
         {
-            return (int)right.GetNum();
+            return (int)right.GetFloat();
         }
 
         public static explicit operator string(TsObject right)
@@ -369,12 +712,12 @@ namespace TaffyScript
 
         public static TsObject operator +(TsObject obj)
         {
-            return new TsObject(+obj.GetNum());
+            return new TsObject(+obj.GetFloat());
         }
 
         public static TsObject operator -(TsObject obj)
         {
-            return new TsObject(-obj.GetNum());
+            return new TsObject(-obj.GetFloat());
         }
 
         public static TsObject operator !(TsObject obj)
@@ -384,17 +727,17 @@ namespace TaffyScript
 
         public static TsObject operator ~(TsObject obj)
         {
-            return new TsObject(~(int)obj.GetNum());
+            return new TsObject(~(int)obj.GetFloat());
         }
 
         public static TsObject operator ++(TsObject obj)
         {
-            return new TsObject(obj.GetNum() + 1f);
+            return new TsObject(obj.GetFloat() + 1f);
         }
 
         public static TsObject operator --(TsObject obj)
         {
-            return new TsObject(obj.GetNum() - 1f);
+            return new TsObject(obj.GetFloat() - 1f);
         }
 
         public static bool operator true(TsObject obj) => obj.GetBool();
@@ -406,7 +749,7 @@ namespace TaffyScript
             if (left.Type == right.Type)
             {
                 if (left.Type == VariableType.Real)
-                    return new TsObject(left.GetNum() + right.GetNum());
+                    return new TsObject(left.GetFloat() + right.GetFloat());
                 else if (left.Type == VariableType.String)
                     return new TsObject(left.GetString() + right.GetString());
             }
@@ -417,14 +760,14 @@ namespace TaffyScript
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot add {left.Type} and Real together.");
-            return new TsObject(left.GetNum() + right);
+            return new TsObject(left.GetFloat() + right);
         }
 
         public static TsObject operator +(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot add Real and {right.Type} together.");
-            return new TsObject(left + right.GetNum());
+            return new TsObject(left + right.GetFloat());
         }
 
         public static TsObject operator +(TsObject left, string right)
@@ -444,7 +787,7 @@ namespace TaffyScript
         public static TsObject operator -(TsObject left, TsObject right)
         {
             if (left.Type == VariableType.Real && right.Type == VariableType.Real)
-                return new TsObject(left.GetNum() - right.GetNum());
+                return new TsObject(left.GetFloat() - right.GetFloat());
             throw new InvalidOperationException($"Cannot subtract {left.Type} and {right.Type}.");
         }
 
@@ -452,20 +795,20 @@ namespace TaffyScript
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot subtract {left.Type} and Real together.");
-            return new TsObject(left.GetNum() - right);
+            return new TsObject(left.GetFloat() - right);
         }
 
         public static TsObject operator -(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot subtract Real and {right.Type} together.");
-            return new TsObject(left - right.GetNum());
+            return new TsObject(left - right.GetFloat());
         }
 
         public static TsObject operator *(TsObject left, TsObject right)
         {
             if (left.Type == VariableType.Real && right.Type == VariableType.Real)
-                return new TsObject(left.GetNum() * right.GetNum());
+                return new TsObject(left.GetFloat() * right.GetFloat());
             throw new InvalidOperationException($"Cannot multiply {left.Type} and {right.Type}.");
         }
 
@@ -473,20 +816,20 @@ namespace TaffyScript
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot multiply {left.Type} and Real together.");
-            return new TsObject(left.GetNum() * right);
+            return new TsObject(left.GetFloat() * right);
         }
 
         public static TsObject operator *(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot multiply Real and {right.Type} together.");
-            return new TsObject(left * right.GetNum());
+            return new TsObject(left * right.GetFloat());
         }
 
         public static TsObject operator /(TsObject left, TsObject right)
         {
             if (left.Type == VariableType.Real && right.Type == VariableType.Real)
-                return new TsObject(left.GetNum() / right.GetNum());
+                return new TsObject(left.GetFloat() / right.GetFloat());
             throw new InvalidOperationException($"Cannot divide {left.Type} and {right.Type}.");
         }
 
@@ -494,20 +837,20 @@ namespace TaffyScript
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot divide {left.Type} and Real together.");
-            return new TsObject(left.GetNum() / right);
+            return new TsObject(left.GetFloat() / right);
         }
 
         public static TsObject operator /(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot divide Real and {right.Type} together.");
-            return new TsObject(left / right.GetNum());
+            return new TsObject(left / right.GetFloat());
         }
 
         public static TsObject operator %(TsObject left, TsObject right)
         {
             if (left.Type == VariableType.Real && right.Type == VariableType.Real)
-                return new TsObject(left.GetNum() % right.GetNum());
+                return new TsObject(left.GetFloat() % right.GetFloat());
             throw new InvalidOperationException($"Cannot modulo {left.Type} and {right.Type}.");
         }
 
@@ -515,91 +858,91 @@ namespace TaffyScript
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot modulo {left.Type} and Real together.");
-            return new TsObject(left.GetNum() % right);
+            return new TsObject(left.GetFloat() % right);
         }
 
         public static TsObject operator %(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot modulo Real and {right.Type} together.");
-            return new TsObject(left % right.GetNum());
+            return new TsObject(left % right.GetFloat());
         }
 
         public static TsObject operator &(TsObject left, TsObject right)
         {
             if (left.Type != VariableType.Real || right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot & {left.Type} and {right.Type}.");
-            return new TsObject(Convert.ToInt32(left.GetNum()) & Convert.ToInt32(right.GetNum()));
+            return new TsObject(Convert.ToInt32(left.GetFloat()) & Convert.ToInt32(right.GetFloat()));
         }
 
         public static TsObject operator &(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot & {left.Type} and Real together.");
-            return new TsObject(Convert.ToInt32(left.GetNum()) & Convert.ToInt32(right));
+            return new TsObject(Convert.ToInt32(left.GetFloat()) & Convert.ToInt32(right));
         }
 
         public static TsObject operator &(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot & Real and {right.Type} together.");
-            return new TsObject(Convert.ToInt32(left) & Convert.ToInt32(right.GetNum()));
+            return new TsObject(Convert.ToInt32(left) & Convert.ToInt32(right.GetFloat()));
         }
 
         public static TsObject operator |(TsObject left, TsObject right)
         {
             if (left.Type != VariableType.Real || right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot | {left.Type} and {right.Type}.");
-            return new TsObject(Convert.ToInt32(left.GetNum()) | Convert.ToInt32(right.GetNum()));
+            return new TsObject(Convert.ToInt32(left.GetFloat()) | Convert.ToInt32(right.GetFloat()));
         }
 
         public static TsObject operator |(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot | {left.Type} and Real together.");
-            return new TsObject(Convert.ToInt32(left.GetNum()) | Convert.ToInt32(right));
+            return new TsObject(Convert.ToInt32(left.GetFloat()) | Convert.ToInt32(right));
         }
 
         public static TsObject operator |(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot | Real and {right.Type} together.");
-            return new TsObject(Convert.ToInt32(left) | Convert.ToInt32(right.GetNum()));
+            return new TsObject(Convert.ToInt32(left) | Convert.ToInt32(right.GetFloat()));
         }
 
         public static TsObject operator ^(TsObject left, TsObject right)
         {
             if (left.Type != VariableType.Real || right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot ^ {left.Type} and {right.Type}.");
-            return new TsObject(Convert.ToInt32(left.GetNum()) ^ Convert.ToInt32(right.GetNum()));
+            return new TsObject(Convert.ToInt32(left.GetFloat()) ^ Convert.ToInt32(right.GetFloat()));
         }
 
         public static TsObject operator ^(TsObject left, float right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot ^ {left.Type} and Real together.");
-            return new TsObject(Convert.ToInt32(left.GetNum()) ^ Convert.ToInt32(right));
+            return new TsObject(Convert.ToInt32(left.GetFloat()) ^ Convert.ToInt32(right));
         }
 
         public static TsObject operator ^(float left, TsObject right)
         {
             if (right.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot ^ Real and {right.Type} together.");
-            return new TsObject(Convert.ToInt32(left) ^ Convert.ToInt32(right.GetNum()));
+            return new TsObject(Convert.ToInt32(left) ^ Convert.ToInt32(right.GetFloat()));
         }
 
         public static TsObject operator <<(TsObject left, int right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot & {left.Type} and Real together.");
-            return new TsObject(Convert.ToInt32(left.GetNum()) << right);
+            return new TsObject(Convert.ToInt32(left.GetFloat()) << right);
         }
 
         public static TsObject operator >>(TsObject left, int right)
         {
             if (left.Type != VariableType.Real)
                 throw new InvalidOperationException($"Cannot & {left.Type} and Real together.");
-            return new TsObject(Convert.ToInt32(left.GetNum()) >> right);
+            return new TsObject(Convert.ToInt32(left.GetFloat()) >> right);
         }
 
         public static bool operator ==(TsObject left, TsObject right)
@@ -609,7 +952,7 @@ namespace TaffyScript
             switch (left.Type)
             {
                 case VariableType.Real:
-                    return left.GetNumUnchecked() == right.GetNumUnchecked();
+                    return left.GetFloatUnchecked() == right.GetFloatUnchecked();
                 case VariableType.String:
                     return left.GetStringUnchecked() == right.GetStringUnchecked();
                 case VariableType.Array1:
@@ -624,7 +967,7 @@ namespace TaffyScript
             if (left.Type != VariableType.Real)
                 return false;
 
-            return left.GetNumUnchecked() == right;
+            return left.GetFloatUnchecked() == right;
         }
 
         public static bool operator ==(float left, TsObject right)
@@ -632,7 +975,7 @@ namespace TaffyScript
             if (right.Type != VariableType.Real)
                 return false;
 
-            return right.GetNumUnchecked() == left;
+            return right.GetFloatUnchecked() == left;
         }
 
         public static bool operator ==(TsObject left, string right)
@@ -658,7 +1001,7 @@ namespace TaffyScript
             switch (left.Type)
             {
                 case VariableType.Real:
-                    return left.GetNumUnchecked() != right.GetNumUnchecked();
+                    return left.GetFloatUnchecked() != right.GetFloatUnchecked();
                 case VariableType.String:
                     return left.GetStringUnchecked() != right.GetStringUnchecked();
                 case VariableType.Array1:
@@ -670,32 +1013,32 @@ namespace TaffyScript
 
         public static bool operator !=(TsObject left, float right)
         {
-            if (left.Type == VariableType.Real)
-                return false;
+            if (left.Type != VariableType.Real)
+                return true;
 
-            return left.GetNumUnchecked() != right;
+            return left.GetFloatUnchecked() != right;
         }
 
         public static bool operator !=(float left, TsObject right)
         {
-            if (right.Type == VariableType.Real)
-                return false;
+            if (right.Type != VariableType.Real)
+                return true;
 
-            return right.GetNumUnchecked() != left;
+            return right.GetFloatUnchecked() != left;
         }
 
         public static bool operator !=(TsObject left, string right)
         {
-            if (left.Type == VariableType.String)
-                return false;
+            if (left.Type != VariableType.String)
+                return true;
 
             return left.GetStringUnchecked() != right;
         }
 
         public static bool operator !=(string left, TsObject right)
         {
-            if (right.Type == VariableType.String)
-                return false;
+            if (right.Type != VariableType.String)
+                return true;
 
             return right.GetStringUnchecked() != left;
         }
@@ -705,12 +1048,12 @@ namespace TaffyScript
             if (left.Type == VariableType.Real)
             {
                 if (right.Type == VariableType.Real)
-                    return left.GetNumUnchecked() < right.GetNumUnchecked();
+                    return left.GetFloatUnchecked() < right.GetFloatUnchecked();
                 else
-                    return left.GetNumUnchecked() < right.GetHashCode();
+                    return left.GetFloatUnchecked() < right.GetHashCode();
             }
             else if (right.Type == VariableType.Real)
-                return left.GetHashCode() < right.GetNumUnchecked();
+                return left.GetHashCode() < right.GetFloatUnchecked();
             else
                 return left.GetHashCode() < right.GetHashCode();
         }
@@ -718,28 +1061,28 @@ namespace TaffyScript
         public static bool operator <(TsObject left, float right)
         {
             if (left.Type == VariableType.Real)
-                return left.GetNumUnchecked() < right;
+                return left.GetFloatUnchecked() < right;
             return left.GetHashCode() < right;
         }
 
         public static bool operator <(float left, TsObject right)
         {
             if (right.Type == VariableType.Real)
-                return left < right.GetNumUnchecked();
+                return left < right.GetFloatUnchecked();
             return left < right.GetHashCode();
         }
 
         public static bool operator <(TsObject left, string right)
         {
             if (left.Type == VariableType.Real)
-                return left.GetNumUnchecked() < right.GetHashCode();
+                return left.GetFloatUnchecked() < right.GetHashCode();
             return left.GetHashCode() < right.GetHashCode();
         }
 
         public static bool operator <(string left, TsObject right)
         {
             if (right.Type == VariableType.Real)
-                return left.GetHashCode() < right.GetNumUnchecked();
+                return left.GetHashCode() < right.GetFloatUnchecked();
             return left.GetHashCode() < right.GetHashCode();
         }
 
@@ -748,12 +1091,12 @@ namespace TaffyScript
             if (left.Type == VariableType.Real)
             {
                 if (right.Type == VariableType.Real)
-                    return left.GetNumUnchecked() > right.GetNumUnchecked();
+                    return left.GetFloatUnchecked() > right.GetFloatUnchecked();
                 else
-                    return left.GetNumUnchecked() > right.GetHashCode();
+                    return left.GetFloatUnchecked() > right.GetHashCode();
             }
             else if (right.Type == VariableType.Real)
-                return left.GetHashCode() > right.GetNumUnchecked();
+                return left.GetHashCode() > right.GetFloatUnchecked();
             else
                 return left.GetHashCode() > right.GetHashCode();
         }
@@ -761,28 +1104,28 @@ namespace TaffyScript
         public static bool operator >(TsObject left, float right)
         {
             if (left.Type == VariableType.Real)
-                return left.GetNumUnchecked() > right;
+                return left.GetFloatUnchecked() > right;
             return left.GetHashCode() > right;
         }
 
         public static bool operator >(float left, TsObject right)
         {
             if (right.Type == VariableType.Real)
-                return left > right.GetNumUnchecked();
+                return left > right.GetFloatUnchecked();
             return left > right.GetHashCode();
         }
 
         public static bool operator >(TsObject left, string right)
         {
             if (left.Type == VariableType.Real)
-                return left.GetNumUnchecked() > right.GetHashCode();
+                return left.GetFloatUnchecked() > right.GetHashCode();
             return left.GetHashCode() > right.GetHashCode();
         }
 
         public static bool operator >(string left, TsObject right)
         {
             if (right.Type == VariableType.Real)
-                return left.GetHashCode() > right.GetNumUnchecked();
+                return left.GetHashCode() > right.GetFloatUnchecked();
             return left.GetHashCode() > right.GetHashCode();
         }
 

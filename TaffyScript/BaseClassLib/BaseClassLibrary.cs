@@ -10,20 +10,18 @@ namespace TaffyScript
     {
         public static Random Rng = new Random(123456789);
         public static int RandomSeed { get; private set; } = 123456789;
-
-        [WeakMethod]
-        public static TsObject ToString(TsObject[] args)
+        
+        public static TsObject ToString(TsObject obj)
         {
-            if (args[0].Type != VariableType.String)
-                return new TsObject(args[0].ToString());
+            if (obj.Type != VariableType.String)
+                return new TsObject(obj.ToString());
             else
-                return args[0];
+                return obj;
         }
-
-        [WeakMethod]
-        public static TsObject AngleDifference(TsObject[] args)
+        
+        public static TsObject AngleDifference(float ang1, float ang2)
         {
-            var result = args[0].GetNum() - args[1].GetNum();
+            var result = ang1 - ang2;
             if (result > 180)
             {
                 do
@@ -43,60 +41,47 @@ namespace TaffyScript
             return new TsObject(result);
         }
 
-        [WeakMethod]
-        public static TsObject ArcCos(TsObject[] args)
+        public static TsObject ArcCos(float x)
         {
-            return new TsObject((float)Math.Acos(args[0].GetNum()));
+            return new TsObject((float)Math.Acos(x));
         }
-
-        [WeakMethod]
-        public static TsObject ArcSin(TsObject[] args)
+        
+        public static TsObject ArcSin(float x)
         {
-            return new TsObject((float)Math.Asin(args[0].GetNum()));
+            return new TsObject((float)Math.Asin(x));
         }
-
-        [WeakMethod]
-        public static TsObject ArcTan(TsObject[] args)
+        
+        public static TsObject ArcTan(float x)
         {
-            return new TsObject((float)Math.Atan(args[0].GetNum()));
+            return new TsObject((float)Math.Atan(x));
         }
-
-        [WeakMethod]
-        public static TsObject ArcTan2(TsObject[] args)
+        
+        public static TsObject ArcTan2(float y, float x)
         {
-            return new TsObject((float)Math.Atan2(args[0].GetNum(), args[1].GetNum()));
+            return new TsObject((float)Math.Atan2(y, x));
         }
-
-        [WeakMethod]
-        public static TsObject ArrayCopy(TsObject[] args)
+        
+        public static TsObject ArrayCopy(TsObject dest, int destIndex, TsObject src, int srcIndex, int length)
         {
-            var destIndex = args[1].GetNumAsInt();
-            var srcIndex = args[3].GetNumAsInt();
-            var length = args[4].GetNumAsInt();
-            if (args[0].Type == VariableType.Array1)
+            var destWrapper = dest.Value as TsValueArray<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "dest");
+            var srcWrapper = src.Value as TsValueArray<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "src");
+            var destValue = destWrapper.StrongValue;
+            var srcValue = srcWrapper.StrongValue;
+            if (destIndex + length >= destValue.Length)
             {
-                var destWrapper = args[0].Value as TsValueArray<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "dest");
-                var srcWrapper = args[2].Value as TsValueArray<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "src");
-                var dest = destWrapper.StrongValue;
-                var src = srcWrapper.StrongValue;
-                if (destIndex + length >= dest.Length)
-                {
-                    var temp = new TsObject[destIndex + length];
-                    Buffer.BlockCopy(dest, 0, temp, 0, dest.Length);
-                    dest = temp;
-                    destWrapper.StrongValue = dest;
-                }
-                Buffer.BlockCopy(src, srcIndex, dest, destIndex, length);
+                var temp = new TsObject[destIndex + length + 1];
+                Buffer.BlockCopy(destValue, 0, temp, 0, destValue.Length);
+                destValue = temp;
+                destWrapper.StrongValue = destValue;
             }
-            else
-                throw new ArgumentException("Can only copy 1D arrays", "dest");
+            Buffer.BlockCopy(srcValue, srcIndex, destValue, destIndex, length);
             return TsObject.Empty();
         }
 
         [WeakMethod]
         public static TsObject ArrayCreate(TsObject[] args)
         {
-            var size = args[0].GetNumAsInt();
+            var size = args[0].GetInt();
             var value = TsObject.Empty();
             if (args.Length > 1)
                 value = args[1];
@@ -106,12 +91,9 @@ namespace TaffyScript
 
             return new TsObject(result);
         }
-
-        [WeakMethod]
-        public static TsObject ArrayEquals(TsObject[] args)
+        
+        public static TsObject ArrayEquals(TsObject[] var1, TsObject[] var2)
         {
-            var var1 = (args[0].Value as TsValueArray<TsObject[]> ?? throw new ArgumentException("Can only compare 1D arrays", "var1")).StrongValue;
-            var var2 = (args[1].Value as TsValueArray<TsObject[]> ?? throw new ArgumentException("Can only compare 1D arrays", "var2")).StrongValue;
             if (var1.Length != var2.Length)
                 return new TsObject(false);
 
@@ -122,49 +104,32 @@ namespace TaffyScript
             }
             return new TsObject(true);
         }
-
-        [WeakMethod]
-        public static TsObject ArrayHeight2D(TsObject[] args)
+        
+        public static TsObject ArrayHeight2D(TsObject[][] array)
         {
-            var arrayIndex = (args[0].Value as TsValueArray<TsObject[][]> ?? throw new ArgumentException($"Expected 2D array, got {args[0].Type}.", "array_index")).StrongValue;
-            return new TsObject(arrayIndex.Length);
+            return new TsObject(array.Length);
         }
-
-        [WeakMethod]
-        public static TsObject ArrayLength1D(TsObject[] args)
+        
+        public static TsObject ArrayLength1D(TsObject[] array)
         {
-            var arrayIndex = (args[0].Value as TsValueArray<TsObject[]> ?? throw new ArgumentException($"Expected 1D array, got {args[0].Type}.", "array_index")).StrongValue;
-            return new TsObject(arrayIndex.Length);
+            return new TsObject(array.Length);
         }
-
-        [WeakMethod]
-        public static TsObject ArrayLength2D(TsObject[] args)
+        
+        public static TsObject ArrayLength2D(TsObject[][] array, int n)
         {
-            var arrayIndex = (args[0].Value as TsValueArray<TsObject[][]> ?? throw new ArgumentException($"Expected 2D array, got {args[0].Type}.", "array_index")).StrongValue;
-            if (args[1].Type != VariableType.Real)
-                throw new ArgumentException($"Expected real value, got {args[1].Type}");
-            var n = (int)args[1].GetNumUnchecked();
-            if (arrayIndex[n] == null)
+            if (array[n] == null)
                 return new TsObject(0);
             else
-                return new TsObject(arrayIndex[n].Length);
+                return new TsObject(array[n].Length);
         }
-
-        [WeakMethod]
-        public static TsObject Base64Encode(TsObject[] args)
+        
+        public static TsObject Base64Encode(string str)
         {
-            if (args[0].Type != VariableType.String)
-                throw new ArgumentException($"Expected string, got {args[0].Type}.", "string");
-            var str = args[0].GetStringUnchecked();
             return new TsObject(Convert.ToBase64String(Encoding.Unicode.GetBytes(str)));
         }
-
-        [WeakMethod]
-        public static TsObject Base64Decode(TsObject[] args)
+        
+        public static TsObject Base64Decode(string str)
         {
-            if (args[0].Type != VariableType.String)
-                throw new ArgumentException($"Expected string, got {args[0].Type}.", "string");
-            var str = args[0].GetStringUnchecked();
             return new TsObject(Encoding.Unicode.GetString(Convert.FromBase64String(str)));
         }
 
@@ -197,14 +162,11 @@ namespace TaffyScript
             return (x1 * x2) + (y1 + y2);
         }
 
-        [WeakMethod]
-        public static TsObject EventInherited(TsObject[] args)
+        public static void EventInherited()
         {
             var inst = TsObject.Id.Peek().GetInstance();
             if (TsInstance.TryGetEvent(inst.Parent, TsInstance.EventType.Peek(), out var ev))
                 ev(inst);
-
-            return TsObject.Empty();
         }
 
         public static string EnvironmentGetVariable(string name)
@@ -261,10 +223,10 @@ namespace TaffyScript
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
-            var max = args[0].GetNum();
+            var max = args[0].GetFloat();
             for(var i = 1; i < args.Length; i++)
             {
-                var num = args[i].GetNum();
+                var num = args[i].GetFloat();
                 if (num > max)
                     max = num;
             }
@@ -276,10 +238,10 @@ namespace TaffyScript
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
-            var min = args[0].GetNum();
+            var min = args[0].GetFloat();
             for (var i = 1; i < args.Length; i++)
             {
-                var num = args[i].GetNum();
+                var num = args[i].GetFloat();
                 if (num < min)
                     min = num;
             }

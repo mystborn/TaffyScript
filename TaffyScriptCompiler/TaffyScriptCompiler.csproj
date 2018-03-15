@@ -48,6 +48,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.Build" />
     <Reference Include="NDesk.Options, Version=0.2.1.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\NDesk.Options.0.2.1\lib\NDesk.Options.dll</HintPath>
     </Reference>
@@ -62,16 +63,18 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Backend\BaseClassLibrary.cs" />
-    <Compile Include="Backend\CompileException.cs" />
-    <Compile Include="Backend\CompileMode.cs" />
-    <Compile Include="Backend\CompilerResult.cs" />
-    <Compile Include="Backend\MsilWeakBuildConfig.cs" />
-    <Compile Include="Backend\MsilWeakCodeGen.cs" />
+    <Compile Include="Backend\Builder.cs" />
+    <Compile Include="Backend\Compiler\CompileException.cs" />
+    <Compile Include="Backend\Compiler\CompileMode.cs" />
+    <Compile Include="Backend\Compiler\CompilerResult.cs" />
+    <Compile Include="Backend\BuildConfig.cs" />
+    <Compile Include="Backend\Compiler\MsilWeakCodeGen.cs" />
     <Compile Include="Backend\NameConflictException.cs" />
     <Compile Include="DotNet\AssemblyLoader.cs" />
-    <Compile Include="Backend\ICompiler.cs" />
+    <Compile Include="Backend\Compiler\ICompiler.cs" />
     <Compile Include="Backend\ILEmitter.cs" />
-    <Compile Include="Backend\MsilWeakCompiler.cs" />
+    <Compile Include="Backend\Compiler\MsilWeakCompiler.cs" />
+    <Compile Include="DotNet\TaffyScriptTypes.cs" />
     <Compile Include="Front End\LexicalAnalysis\Token.cs" />
     <Compile Include="Front End\LexicalAnalysis\Tokenizer.cs" />
     <Compile Include="Front End\LexicalAnalysis\TokenPosition.cs" />
@@ -117,6 +120,7 @@
     <Compile Include="Syntax\Concrete\MemberAccess.cs" />
     <Compile Include="Syntax\Concrete\Multiplicative.cs" />
     <Compile Include="Syntax\Concrete\NamespaceNode.cs" />
+    <Compile Include="Syntax\Concrete\NewNode.cs" />
     <Compile Include="Syntax\Concrete\ObjectNode.cs" />
     <Compile Include="Syntax\Concrete\Postfix.cs" />
     <Compile Include="Syntax\Concrete\Prefix.cs" />
@@ -173,5 +177,6 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

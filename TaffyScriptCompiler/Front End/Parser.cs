@@ -162,7 +162,7 @@ namespace TaffyScriptCompiler
                     {
                         Confirm("event");
                         var evName = Confirm("id");
-                        _table.EnterNew(evName.Value, SymbolType.Script);
+                        _table.EnterNew(evName.Value, SymbolType.Event);
                         var eventNode = _factory.CreateNode(SyntaxType.Event, evName.Value, evName.Position);
                         eventNode.AddChild(BlockStatement());
                         node.AddChild(eventNode);
@@ -223,17 +223,13 @@ namespace TaffyScriptCompiler
                     {
                         do
                         {
-                            if (!(Try("id", out token) || Try("object", out token)))
-                            {
-                                Throw(new InvalidTokenException(_stream.Read()));
-                                continue;
-                            }
+                            token = _stream.Read();
                             var type = token.Value;
                             if (type == "array")
                                 type = "array1d";
-                            if (type != "object" && type != "instance" && type != "float" && type != "int" && type != "bool" && type != "string" && type != "array1d" && type != "array2d")
+                            if (!TsTypes.BasicTypes.ContainsKey(type))
                             {
-                                Throw(new InvalidTokenException(token, "Import type must be one of the following: object, float, int, bool, string, instance, array1d, array2d "));
+                                Throw(new InvalidTokenException(token, $"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n"));
                                 node.AddChild(null);
                             }
                             else
@@ -252,6 +248,42 @@ namespace TaffyScriptCompiler
                     var scriptName = Confirm("id");
                     _table.EnterNew(scriptName.Value, SymbolType.Script);
                     node = _factory.CreateNode(SyntaxType.Script, scriptName.Value, scriptName.Position);
+                    if (Validate("(") && !Validate(")"))
+                    {
+                        var optional = false;
+                        do
+                        {
+                            var parameterToken = Confirm("id");
+                            var parameter = _factory.CreateToken(SyntaxType.Variable, parameterToken.Value, parameterToken.Position);
+                            ISyntaxElement parameterElement;
+                            if (Try("=", out var assign))
+                            {
+                                optional = true;
+                                if (!IsConstant())
+                                {
+                                    Throw(new InvalidTokenException(_stream.Peek(), "Optional arguments must have a constant value"));
+                                    Validate("id");
+                                    continue;
+                                }
+                                var value = Constant();
+                                var temp = _factory.CreateNode(SyntaxType.Assign, "=", assign.Position);
+                                temp.AddChild(parameter);
+                                temp.AddChild(value);
+                                parameterElement = temp;
+                            }
+                            else
+                            {
+                                if (optional)
+                                    Throw(new InvalidTokenException(parameterToken, "Can't have non-optional arguments after an optional argument."));
+
+                                parameterElement = parameter;
+                            }
+                            node.AddChild(parameterElement);
+                            _table.AddLeaf(parameterToken.Value, SymbolType.Variable, SymbolScope.Local);
+                        }
+                        while (Validate(","));
+                        Confirm(")");
+                    }
                     node.AddChild(Statement());
                     _table.Exit();
                     return node;
@@ -687,42 +719,30 @@ namespace TaffyScriptCompiler
                 return null;
 
             bool canCallFunction = value.Type == SyntaxType.Variable;
-            while(Validate("."))
-            {
-                if (!Try("id", out var next))
-                {
-                    Throw(new InvalidTokenException(next, "The value after a period in an access expression must be a variable."));
-                    return null;
-                }
-                var temp = _factory.CreateNode(SyntaxType.MemberAccess, value.Position);
-                temp.AddChild(value);
-                temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
-                value = temp;
-            }
-            if(Try("(", out var paren))
-            {
-                if (!canCallFunction)
-                {
-                    Throw(new InvalidTokenException(paren, "Invalid identifier for a function call."));
-                    return null;
-                }
-                var function = _factory.CreateNode(SyntaxType.FunctionCall, value.Position);
-                function.AddChild(value);
-                if(!Try(")"))
-                {
-                    do
-                    {
-                        function.AddChild(Expression());
-                    }
-                    while (Validate(","));
-                }
-                Confirm(")");
-                value = function;
-            }
-            bool wasAccessor = false;
             while(true)
             {
-                if (Validate("."))
+                if (Try("(", out var paren))
+                {
+                    if (!canCallFunction)
+                    {
+                        Throw(new InvalidTokenException(paren, "Invalid identifier for a function call."));
+                        return null;
+                    }
+                    var function = _factory.CreateNode(SyntaxType.FunctionCall, value.Position);
+                    function.AddChild(value);
+                    if (!Try(")"))
+                    {
+                        do
+                        {
+                            function.AddChild(Expression());
+                        }
+                        while (Validate(","));
+                    }
+                    Confirm(")");
+                    value = function;
+                    canCallFunction = false;
+                }
+                else if (Validate("."))
                 {
                     if (!Try("id", out var next))
                     {
@@ -733,13 +753,14 @@ namespace TaffyScriptCompiler
                     temp.AddChild(value);
                     temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
                     value = temp;
-                    wasAccessor = false;
+                    canCallFunction = true;
                 }
                 else if (Try("[", out var accessToken))
                 {
-                    if (wasAccessor)
+                    if (value.Type == SyntaxType.New)
                     {
-                        Throw(new InvalidTokenException(accessToken, "Cannot have two accessors in a row."));
+                        Throw(new InvalidTokenException(accessToken, "Cannot use an accessor on a newed value"));
+                        return value;
                     }
                     canCallFunction = false;
                     ISyntaxNode access;
@@ -761,7 +782,7 @@ namespace TaffyScriptCompiler
                     Confirm("]");
                     value = access;
 
-                    wasAccessor = true;
+                    canCallFunction = false;
                 }
                 else
                     break;
@@ -818,6 +839,16 @@ namespace TaffyScriptCompiler
                 }
                 Confirm("]");
                 return array;
+            }
+            else if(Try("new", out token))
+            {
+                var start = Confirm("id");
+                var type = start.Value;
+                while(Validate("."))
+                    type += "." + Confirm("id");
+                Confirm("(");
+                Confirm(")");
+                return _factory.CreateNode(SyntaxType.New, type, start.Position);
             }
             else
             {

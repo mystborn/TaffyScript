@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TaffyScript.Collections;
+using MethodImpl = System.Runtime.CompilerServices.MethodImplAttribute;
+using MethodImplOptions = System.Runtime.CompilerServices.MethodImplOptions;
 
 namespace TaffyScript
 {
@@ -95,17 +97,38 @@ namespace TaffyScript
         /// </summary>
         public string Parent { get; private set; }
 
-        private TsInstance(float id, string instanceType, bool performEvent = true)
+        /// <summary>
+        /// Creates a new instance of the specified type.
+        /// </summary>
+        /// <param name="instanceType">The type of the instance to create</param>
+        public TsInstance(string instanceType)
+        {
+            Id = GetNext();
+            ObjectType = instanceType;
+            Pool.Add(Id, this);
+            Init(true);
+        }
+
+        private TsInstance(string instanceType, bool performEvent = true)
         {
             // Originally, all of the instance events were added onto the object as strings.
             // However at this point in time, I've decided that it's too much of a time sink.
             // This decision is easily reversable if it turns out to be wrong/unneeded.
             // In the meantime, you can still refer to the event by it's string representation.
 
-            Id = id;
+            Id = GetNext();
             ObjectType = instanceType;
-            Pool.Add(id, this);
+            Pool.Add(Id, this);
             Init(performEvent);
+        }
+
+        /// <summary>
+        /// Creates a new Global instance.
+        /// </summary>
+        private TsInstance()
+        {
+            Id = -5;
+            ObjectType = "";
         }
 
         private void Init(bool performEvent)
@@ -145,6 +168,86 @@ namespace TaffyScript
         }
 
         /// <summary>
+        /// Gets an event defined by this instance.
+        /// </summary>
+        /// <param name="name">The name of the event</param>
+        /// <returns></returns>
+        public InstanceEvent GetEvent(string name)
+        {
+            if (!TryGetEvent(name, out var result))
+                throw new ArgumentException($"Type {ObjectType} does not define event {name}");
+            return result;
+        }
+
+        /// <summary>
+        /// Gets the value of a variable from this instance.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryGetVariable(string name, out TsObject value)
+        {
+            return _vars.TryGetValue(name, out value);
+        }
+
+        /// <summary>
+        /// Gets the value of a variable from this instance.
+        /// </summary>
+        /// <param name="name">The name of the variable</param>
+        /// <returns></returns>
+        public TsObject GetVariable(string name)
+        {
+            return _vars[name];
+        }
+
+        /// <summary>
+        /// Changes the type of this instance, optionally performing the destroy and create events.
+        /// </summary>
+        /// <param name="type">The type to change into</param>
+        /// <param name="performEvents">Determines whether the events are performed</param>
+        public void ChangeType(string type, bool performEvents)
+        {
+            if (performEvents && TryGetEvent(DestroyEvent, out var destroy))
+                destroy(this);
+
+            ObjectType = type;
+            Init(performEvents);
+        }
+
+        /// <summary>
+        /// Creates a copy of this instance.
+        /// </summary>
+        /// <param name="performEvents">Determines whether the create event is performed</param>
+        /// <returns></returns>
+        public TsInstance Copy(bool performEvents)
+        {
+            var copy = new TsInstance(ObjectType, false);
+            copy._vars = new Dictionary<string, TsObject>(_vars);
+            if (performEvents && TryGetEvent(ObjectType, out var create))
+                create(copy);
+
+            return copy;
+        }
+
+        /// <summary>
+        /// Destroys this instance in the eyes of TaffyScript
+        /// </summary>
+        /// <remarks>
+        /// Make this object inheritf from IDisposable, change this to Dispose method?
+        /// </remarks>
+        public void Destroy()
+        {
+            if (Pool.ContainsKey(Id))
+            {
+                if (TryGetEvent(DestroyEvent, out var destroy))
+                    destroy(this);
+                Pool.Remove(Id);
+                _availableIds.Enqueue(Id);
+            }
+        }
+
+        /// <summary>
         /// Gets an event defined by the given type.
         /// </summary>
         /// <param name="type">The type that defines the event</param>
@@ -175,16 +278,6 @@ namespace TaffyScript
             return false;
         }
 
-        private static float GetNext()
-        {
-            if (_availableIds.Count == 0)
-                return Pool.Count + Start;
-            else
-                return _availableIds.Dequeue();
-        }
-
-        //Todo: All of the methods that start with Instance should be changed so a non static method implementation can be written to allow other libraries to use the method.
-
         /// <summary>
         /// Changes the currently executing instance into a new type
         /// </summary>
@@ -193,12 +286,8 @@ namespace TaffyScript
         public static void InstanceChange(string newObj, bool performEvents)
         {
             var id = TsObject.Id.Peek();
-            Pool.TryGetValue(id.GetNum(), out var inst);
-            if (performEvents && inst.TryGetEvent(DestroyEvent, out var destroy))
-                destroy(inst);
-
-            inst.ObjectType = newObj;
-            inst.Init(performEvents);
+            Pool.TryGetValue(id.GetFloat(), out var inst);
+            inst.ChangeType(newObj, performEvents);
         }
 
         /// <summary>
@@ -209,12 +298,8 @@ namespace TaffyScript
         public static float InstanceCopy(bool performEvents)
         {
             var id = TsObject.Id.Peek();
-            Pool.TryGetValue(id.GetNum(), out var inst);
-            var result = GetNext();
-            var next = new TsInstance(result, inst.ObjectType, false);
-            next._vars = new Dictionary<string, TsObject>(inst._vars);
-            next.Init(performEvents);
-            return result;
+            Pool.TryGetValue(id.GetFloat(), out var inst);
+            return inst.Copy(performEvents).Id;
         }
 
         /// <summary>
@@ -224,11 +309,22 @@ namespace TaffyScript
         /// <returns></returns>
         public static TsObject InstanceCreate(string instanceType)
         {
-            var id = GetNext();
+            return new TsObject(new TsInstance(instanceType).Id);
+        }
 
-            new TsInstance(id, instanceType);
-
-            return new TsObject(id);
+        /// <summary>
+        /// Destroys a previously created instance. This overload should not be called.
+        /// </summary>
+        /// <param name="args">Optionally contains the id of the instance.</param>
+        [WeakMethod]
+        public static void InstanceDestroy(TsObject[] args)
+        {
+            float id;
+            if (args == null || args.Length == 0)
+                id = (float)TsObject.Id.Peek();
+            else
+                id = (float)args[0];
+            InstanceDestroy(id);
         }
 
         /// <summary>
@@ -237,13 +333,13 @@ namespace TaffyScript
         /// <param name="id">Instance id</param>
         public static void InstanceDestroy(float id)
         {
-            if(Pool.TryGetValue(id, out var inst))
+            if (Pool.TryGetValue(id, out var inst))
             {
-                Pool.Remove(id);
                 if (inst.TryGetEvent(DestroyEvent, out var destroy))
                     destroy(inst);
+                Pool.Remove(id);
+                _availableIds.Enqueue(id);
             }
-            _availableIds.Enqueue(id);
         }
 
         /// <summary>
@@ -456,11 +552,17 @@ namespace TaffyScript
                     yield return new TsObject(inst.Id);
         }
 
-        internal static TsInstance InitGlobal()
+        private static TsInstance InitGlobal()
         {
-            var global = new TsInstance(-5f, "");
-            Pool.Remove(-5f);
-            return global;
+            return new TsInstance();
+        }
+
+        private static float GetNext()
+        {
+            if (_availableIds.Count == 0)
+                return Pool.Count + Start;
+            else
+                return _availableIds.Dequeue();
         }
     }
 }
