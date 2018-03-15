@@ -147,6 +147,10 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import Bcl.Max(array) as max");
             sb.AppendLine("import Bcl.Min(array) as min");
 
+            sb.AppendLine("import TsInstance.ObjectGetName(instance) as object_get_name");
+            sb.AppendLine("import TsInstance.ObjectGetParent(instance) as object_get_parent");
+            sb.AppendLine("import TsInstance.ObjectIsAncestor(string, string) as object_is_ancestor");
+
             sb.AppendLine("import Bcl.Random(float) as random");
             sb.AppendLine("import Bcl.RandomGetSeed() as random_get_seed");
             sb.AppendLine("import Bcl.RandomRange(float, float) as random_range");
