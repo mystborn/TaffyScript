@@ -1,5 +1,4 @@
 namespace TaffyScript.Threading {
-
     import Threads.TaskStart(array) as thread_start;
     import Threads.ThreadFire(array) as thread_fire;
     import Threads.TaskResult(int) as thread_get_result;
