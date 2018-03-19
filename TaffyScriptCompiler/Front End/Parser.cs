@@ -14,7 +14,18 @@ namespace TaffyScriptCompiler
     /// </summary>
     public class Parser
     {
-        private Regex StringParser = new Regex(@"\\");
+        private static Regex StringParser = new Regex(@"\\");
+        private static HashSet<char> _hexCharacters = null;
+
+        private static HashSet<char> HexCharacters
+        {
+            get
+            {
+                if(_hexCharacters == null)
+                    _hexCharacters = new HashSet<char>() { 'a', 'b', 'c', 'd', 'e', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
+                return _hexCharacters;
+            }
+        }
 
         private ISyntaxTree _tree;
         private Tokenizer _stream;
@@ -924,6 +935,36 @@ namespace TaffyScriptCompiler
                 {
                     switch (value[match.Index + 1])
                     {
+                        case 'u':
+                            var i = match.Index + 2;
+                            string num = "";
+                            while (HexCharacters.Contains(char.ToLower(value[i])) || i - match.Index == 6)
+                                num += value[i++];
+                            if (num == "")
+                            {
+                                var errorPos = new TokenPosition(token.Position.Index, token.Position.Line, token.Position.Column + i, token.Position.File);
+                                Throw(new InvalidOperationException($"Invalid hex constant {errorPos}"));
+                            }
+                            num = num.PadLeft(4, '0');
+                            byte[] hex = new byte[2];
+                            hex[0] = (byte)int.Parse(num.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
+                            hex[1] = (byte)int.Parse(num.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
+                            if(i - match.Index != 6)
+                            {
+                                if (value[i] == '\\')
+                                    i++;
+                            }
+                            value = value.Remove(match.Index, i - match.Index);
+                            value = value.Insert(match.Index, Encoding.Unicode.GetString(hex));
+                            break;
+                        case '\t':
+                            value = value.Remove(match.Index, 2);
+                            value = value.Insert(match.Index, "\t");
+                            break;
+                        case 'r':
+                            value = value.Remove(match.Index, 2);
+                            value = value.Insert(match.Index, "\r");
+                            break;
                         case 'n':
                             value = value.Remove(match.Index, 2);
                             value = value.Insert(match.Index, "\n");

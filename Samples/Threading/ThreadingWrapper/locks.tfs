@@ -1,0 +1,18 @@
+namespace TaffyScript.Threading.Locks {
+    import Locks.Lock(object) as lock;
+    import Locks.Unlock(object) as unlock;
+
+    object moniter {
+        event create {
+            _key = [];
+        }
+
+        event lock {
+            lock(_key);
+        }
+
+        event unlock {
+            unlock(_key);
+        }
+    }
+}
