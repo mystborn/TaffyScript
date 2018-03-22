@@ -1,3 +1,8 @@
+# Release 1.5.1.0
+* Added Threading example
+* Fixed bug when importing methods with the WeakMethod attibute.
+* Fixed namespace bug
+
 # Release 1.5.0.0
 * Directly call events from instance: inst.event_name()
 * New keyword to create instances: inst = new object_name()
