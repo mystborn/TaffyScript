@@ -11,11 +11,11 @@ namespace TaffyScriptCompiler.Backend
     [XmlRoot(ElementName = "Build")]
     public class BuildConfig
     {
-        public string Output { get; set; }
+        public string Output { get; set; } = "bin/Output";
 
         [XmlArray]
         [XmlArrayItem(ElementName = "Reference")]
-        public List<string> References { get; set; } = new List<string>();
+        public List<string> References { get; set; } = new List<string>() { "TaffyScript.BCL.dll" };
 
         [XmlArray]
         [XmlArrayItem(ElementName = "Exclude")]
