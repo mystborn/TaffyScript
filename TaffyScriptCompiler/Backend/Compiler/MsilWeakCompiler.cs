@@ -24,6 +24,10 @@ namespace TaffyScriptCompiler.Backend
             if(config == null)
                 return new CompilerResult(null, null, exception);
 
+            if (string.IsNullOrEmpty(config.Output))
+                return new CompilerResult(null, null, 
+                    new InvalidOperationException("The config file must conatin an output path."));
+
             var dir = Path.Combine(projectDir, Path.GetDirectoryName(config.Output));
             Directory.CreateDirectory(dir);
 

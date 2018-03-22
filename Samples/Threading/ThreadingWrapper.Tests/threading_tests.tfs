@@ -1,0 +1,17 @@
+using TaffyScript.Threading;
+using TaffyScript.Threading.Locks;
+
+namespace TaffyScript.Threading.Tests {
+    script main {
+        thread_fire(print_thread_id);
+        thread_fire(print_thread_id);
+        thread_sleep(1000);
+    }
+
+    script print_thread_id {
+        for(var i = 0; i < 10; i++) {
+            show_debug_message(thread_get_id());
+            thread_sleep(1);
+        }
+    }
+}

@@ -462,7 +462,9 @@ namespace TaffyScriptCompiler.Backend
                             var methodName = external.Substring(owner.Length + 1);
                             var type = _typeParser.GetType(owner);
                             var method = GetMethodToImport(type, methodName, new[] { typeof(TsObject[]) });
+                            var count = _table.EnterNamespace(input[0]);
                             _table.AddLeaf(input[1], SymbolType.Script, SymbolScope.Global);
+                            _table.Exit(count);
                             _methods[input[0], input[1]] = method;
                         }
                     }
@@ -1895,7 +1897,7 @@ namespace TaffyScriptCompiler.Backend
                 else
                 {
                     name = (memberAccess.Right as ISyntaxToken)?.Text;
-                    if(name == null)
+                    if (name == null)
                     {
                         _errors.Add(new CompileException($"Invalid id for script/event {memberAccess.Right.Position}"));
                         emit.Call(TsTypes.Empty);
@@ -2210,8 +2212,6 @@ namespace TaffyScriptCompiler.Backend
                     if (!_enums.TryGetValue(enumVar.Text, enumValue.Text, out var value))
                     {
                         _table.Enter(enumVar.Text);
-                        Console.WriteLine(_table.Defined("Red", out symbol));
-                        Console.WriteLine(symbol.GetType());
                         if (_table.Defined(enumValue.Text, out symbol) && symbol is EnumLeaf leaf)
                         {
                             value = leaf.Value;

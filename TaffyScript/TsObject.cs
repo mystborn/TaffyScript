@@ -642,42 +642,110 @@ namespace TaffyScript
 
         #endregion
 
+        /// <summary>
+        /// Gets the hash code of the underlying value.
+        /// </summary>
+        /// <returns></returns>
         public override int GetHashCode()
         {
             if (Type == VariableType.Null)
                 return 0;
+#if Unsafe
+            // Mirrors the operation in Gamemaker more closely,
+            // but is highly unstable in c#
+            return GetMemAddress(GetValue());
+#else
             return GetValue().GetHashCode();
+#endif
         }
 
+        /// <summary>
+        /// Converts the held value to a string.
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             return GetValue().ToString();
         }
 
+        /// <summary>
+        /// Determines if the held value is equal to an object.
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
         public override bool Equals(object obj)
         {
-            if(obj != null)
-            {
-                if (obj is string str)
-                    return this == str;
-                else if (obj is float f)
-                    return this == f;
-                else if (obj is TsObject other)
-                    return this == other;
-            }
-            return false;
+            var held = Value.WeakValue;
+            if (held is null)
+                return obj is null;
+            else
+                return held.Equals(obj);
         }
 
         #region Operators
+
+
+
+        #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+
+        public static explicit operator bool(TsObject right)
+        {
+            return right.GetBool();
+        }
+
+        public static explicit operator char(TsObject right)
+        {
+            return right.GetChar();
+        }
+
+        public static explicit operator byte(TsObject right)
+        {
+            return right.GetByte();
+        }
+
+        public static explicit operator sbyte(TsObject right)
+        {
+            return right.GetSByte();
+        }
+
+        public static explicit operator short(TsObject right)
+        {
+            return right.GetShort();
+        }
+
+        public static explicit operator ushort(TsObject right)
+        {
+            return right.GetUShort();
+        }
+
+        public static explicit operator int(TsObject right)
+        {
+            return right.GetInt();
+        }
+
+        public static explicit operator uint(TsObject right)
+        {
+            return right.GetUInt();
+        }
+
+        public static explicit operator long(TsObject right)
+        {
+            return right.GetLong();
+        }
+
+        public static explicit operator ulong(TsObject right)
+        {
+            return right.GetULong();
+        }
 
         public static explicit operator float(TsObject right)
         {
             return right.GetFloat();
         }
 
-        public static explicit operator int(TsObject right)
+        public static explicit operator double(TsObject right)
         {
-            return (int)right.GetFloat();
+            return right.GetFloat();
         }
 
         public static explicit operator string(TsObject right)
@@ -685,27 +753,67 @@ namespace TaffyScript
             return right.GetString();
         }
 
-        public static explicit operator bool(TsObject right)
-        {
-            return right.GetBool();
-        }
-
-        public static explicit operator TsObject(float right)
+        public static implicit operator TsObject(bool right)
         {
             return new TsObject(right);
         }
 
-        public static explicit operator TsObject(int right)
+        public static implicit operator TsObject(char right)
         {
             return new TsObject(right);
         }
 
-        public static explicit operator TsObject(string right)
+        public static implicit operator TsObject(byte right)
         {
             return new TsObject(right);
         }
 
-        public static explicit operator TsObject(bool right)
+        public static implicit operator TsObject(sbyte right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(short right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(ushort right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(int right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(uint right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(long right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(ulong right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(float right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(double right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(string right)
         {
             return new TsObject(right);
         }
@@ -1178,6 +1286,8 @@ namespace TaffyScript
         {
             return left == right || left > right;
         }
+
+        #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 
         #endregion
 
