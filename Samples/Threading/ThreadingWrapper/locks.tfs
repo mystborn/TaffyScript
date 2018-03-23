@@ -1,6 +1,6 @@
 namespace TaffyScript.Threading.Locks {
-    import Locks.Lock(object) as lock;
-    import Locks.Unlock(object) as unlock;
+    import Locks.Lock(object) as _lock;
+    import Locks.Unlock(object) as _unlock;
 
     object moniter {
         event create {
@@ -8,11 +8,11 @@ namespace TaffyScript.Threading.Locks {
         }
 
         event lock {
-            lock(_key);
+            _lock(_key);
         }
 
         event unlock {
-            unlock(_key);
+            _unlock(_key);
         }
     }
 }

@@ -29,6 +29,7 @@ namespace TaffyScriptCompiler
             if(generateBuild)
             {
                 var build = new BuildConfig();
+                build.References.Add("TaffyScript.BCL.dll");
                 build.Save(path);
                 return;
             }

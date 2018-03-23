@@ -3,15 +3,45 @@ using TaffyScript.Threading.Locks;
 
 namespace TaffyScript.Threading.Tests {
     script main {
+        show_debug_message("Threading without locks")
         thread_fire(print_thread_id);
         thread_fire(print_thread_id);
-        thread_sleep(1000);
+        thread_sleep(500);
+        show_debug_message("\nFinished!\n");
+        show_debug_message("Threading with locks");
+        var m = new moniter();
+        thread_fire(print_thread_id_locked, m);
+        thread_fire(print_thread_id_locked, m);
+        thread_sleep(500);
+        show_debug_message("\nFinished\n");
+        show_debug_message("Starting thread that has a result.\n");
+        var thread = thread_start(script_with_result);
+        var result = thread_get_result(thread);
+        if(result.exception != "") {
+            show_debug_message("Thread Failed: " + result.exception);
+        } else {
+            show_debug_message("Thread Result: " + string(result.result));
+        }
     }
 
-    script print_thread_id {
+    script print_thread_id() {
         for(var i = 0; i < 10; i++) {
             show_debug_message(thread_get_id());
             thread_sleep(1);
         }
+    }
+
+    script print_thread_id_locked(key) {
+        key.lock();
+        for(var i = 0; i < 10; i++) {
+            show_debug_message(thread_get_id());
+            thread_sleep(1);
+        }
+        show_debug_message("");
+        key.unlock();
+    }
+
+    script script_with_result() {
+        return 1;
     }
 }

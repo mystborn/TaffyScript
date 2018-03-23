@@ -10,7 +10,14 @@ namespace TaffyScript.Threading.Extern
     {
         public static void Lock(TsObject obj)
         {
-            Monitor.Enter(obj.GetValue());
+            try
+            {
+                Monitor.Enter(obj.GetValue());
+            }
+            catch(SynchronizationLockException e)
+            {
+                Console.WriteLine(e.InnerException);
+            }
         }
 
         public static void Unlock(TsObject obj)

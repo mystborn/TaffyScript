@@ -1617,7 +1617,7 @@ namespace TaffyScriptCompiler.Backend
             for (var i = 0; i < size; ++i)
             {
                 block.Children[i].Accept(this);
-                if (block.Children[i].Type == SyntaxType.FunctionCall || block.Children[i].Type == SyntaxType.Postfix || block.Children[i].Type == SyntaxType.Prefix)
+                if (block.Children[i].Type == SyntaxType.Postfix || block.Children[i].Type == SyntaxType.Prefix)
                     emit.Pop();
             }
         }
@@ -1904,7 +1904,7 @@ namespace TaffyScriptCompiler.Backend
                         return;
                     }
                     GetAddressIfPossible(memberAccess.Left);
-                    CallEvent(name, false, memberAccess.Right.Position);
+                    CallEvent(name, false, memberAccess.Right.Position, functionCall.Parent.Type);
                     return;
                 }
             }
@@ -1916,7 +1916,7 @@ namespace TaffyScriptCompiler.Backend
             }
             if(!_table.Defined(name, out var symbol) || symbol.Type == SymbolType.Event)
             {
-                CallEvent(name, true, nameElem.Position);
+                CallEvent(name, true, nameElem.Position, functionCall.Parent.Type);
                 return;
             }
             if (symbol.Type != SymbolType.Script)
@@ -1991,9 +1991,11 @@ namespace TaffyScriptCompiler.Backend
                 emit.LdNull();
             //The argument array should still be on top.
             emit.Call(method, 1, typeof(TsObject));
+            if (functionCall.Parent.Type == SyntaxType.Block)
+                emit.Pop();
         }
 
-        private void CallEvent(string name, bool loadId, TokenPosition start)
+        private void CallEvent(string name, bool loadId, TokenPosition start, SyntaxType parentType)
         {
             if (_isDebug)
                 MarkSequencePoint(start.File ?? "", start.Line, start.Column, start.Line, start.Column + name.Length + 2);
@@ -2016,9 +2018,11 @@ namespace TaffyScriptCompiler.Backend
                     .LdStr(name)
                     .Call(typeof(TsInstance).GetMethod("GetEvent", BindingFlags.Instance | BindingFlags.Public))
                     .LdLocal(secret)
-                    .Call(typeof(InstanceEvent).GetMethod("Invoke"))
-                    .Call(TsTypes.Empty);
+                    .Call(typeof(InstanceEvent).GetMethod("Invoke"));
                 FreeLocal(secret);
+
+                if (parentType != SyntaxType.Block)
+                    emit.Call(TsTypes.Empty);
             }
         }
 
@@ -2336,10 +2340,14 @@ namespace TaffyScriptCompiler.Backend
             {
                 if(symbol.Type == SymbolType.Object)
                 {
+                    var name = newNode.Value;
                     var pos = newNode.Position;
                     MarkSequencePoint(pos.File ?? "", pos.Line, pos.Column, pos.Line, pos.Column + newNode.Value.Length);
                     var ctor = typeof(TsInstance).GetConstructor(new[] { typeof(string) });
-                    emit.LdStr(newNode.Value)
+                    var ns = GetAssetNamespace(symbol);
+                    if (ns != "")
+                        name = $"{ns}.{name}";
+                    emit.LdStr(name)
                         .New(ctor);
                     if (newNode.Parent.Type == SyntaxType.Block)
                         emit.Pop();

@@ -15,7 +15,7 @@ namespace TaffyScriptCompiler.Backend
 
         [XmlArray]
         [XmlArrayItem(ElementName = "Reference")]
-        public List<string> References { get; set; } = new List<string>() { "TaffyScript.BCL.dll" };
+        public List<string> References { get; set; } = new List<string>();
 
         [XmlArray]
         [XmlArrayItem(ElementName = "Exclude")]
