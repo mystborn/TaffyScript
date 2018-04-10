@@ -63,8 +63,8 @@ namespace TaffyScript
         
         public static TsObject ArrayCopy(TsObject dest, int destIndex, TsObject src, int srcIndex, int length)
         {
-            var destWrapper = dest.Value as TsValueArray<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "dest");
-            var srcWrapper = src.Value as TsValueArray<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "src");
+            var destWrapper = dest.Value as TsMutableValue<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "dest");
+            var srcWrapper = src.Value as TsMutableValue<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "src");
             var destValue = destWrapper.StrongValue;
             var srcValue = srcWrapper.StrongValue;
             if (destIndex + length >= destValue.Length)

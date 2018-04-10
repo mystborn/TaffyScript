@@ -35,7 +35,7 @@ namespace TaffyScript
         public TsObject(bool value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value ? 1 : 0);
+            Value = new TsImmutableValue<float>(value ? 1 : 0);
         }
 
         /// <summary>
@@ -45,7 +45,7 @@ namespace TaffyScript
         public TsObject(char value)
         {
             Type = VariableType.String;
-            Value = new TsValue<string>(value.ToString());
+            Value = new TsImmutableValue<string>(value.ToString());
         }
 
         /// <summary>
@@ -55,7 +55,7 @@ namespace TaffyScript
         public TsObject(byte value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace TaffyScript
         public TsObject(sbyte value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -75,7 +75,7 @@ namespace TaffyScript
         public TsObject(short value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -85,7 +85,7 @@ namespace TaffyScript
         public TsObject(ushort value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -95,7 +95,7 @@ namespace TaffyScript
         public TsObject(int value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace TaffyScript
         public TsObject(uint value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace TaffyScript
         public TsObject(long value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -125,7 +125,7 @@ namespace TaffyScript
         public TsObject(ulong value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -135,7 +135,7 @@ namespace TaffyScript
         public TsObject(float value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -145,7 +145,7 @@ namespace TaffyScript
         public TsObject(double value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>((float)value);
+            Value = new TsImmutableValue<float>((float)value);
         }
 
         /// <summary>
@@ -155,7 +155,7 @@ namespace TaffyScript
         public TsObject(string value)
         {
             Type = VariableType.String;
-            Value = new TsValue<string>(value);
+            Value = new TsImmutableValue<string>(value);
         }
 
         /// <summary>
@@ -165,7 +165,7 @@ namespace TaffyScript
         public TsObject(TsInstance instance)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(instance.Id);
+            Value = new TsImmutableValue<float>(instance.Id);
         }
 
         /// <summary>
@@ -175,7 +175,7 @@ namespace TaffyScript
         public TsObject(TsObject[] array)
         {
             Type = VariableType.Array1;
-            Value = new TsValueArray<TsObject[]>(array);
+            Value = new TsMutableValue<TsObject[]>(array);
         }
 
         /// <summary>
@@ -185,7 +185,7 @@ namespace TaffyScript
         public TsObject(TsObject[][] array)
         {
             Type = VariableType.Array2;
-            Value = new TsValueArray<TsObject[][]>(array);
+            Value = new TsMutableValue<TsObject[][]>(array);
         }
 
         /// <summary>
@@ -193,7 +193,7 @@ namespace TaffyScript
         /// </summary>
         public static TsObject Empty()
         {
-            return new TsObject(VariableType.Null, new TsValue<object>(null));
+            return new TsObject(VariableType.Null, new TsImmutableValue<object>(null));
         }
 
         public static TsObject NooneObject()
@@ -302,7 +302,7 @@ namespace TaffyScript
                 return 0;
             if (Type != VariableType.Real)
                 throw new InvalidTsTypeException($"Variable is supposed to be of type Real, is {Type} instead.");
-            return ((TsValue<float>)Value).StrongValue;
+            return ((TsImmutableValue<float>)Value).StrongValue;
         }
 
         /// <summary>
@@ -320,7 +320,7 @@ namespace TaffyScript
         /// <returns></returns>
         public float GetFloatUnchecked()
         {
-            return ((TsValue<float>)Value).StrongValue;
+            return ((TsImmutableValue<float>)Value).StrongValue;
         }
 
         /// <summary>
@@ -333,7 +333,7 @@ namespace TaffyScript
                 return "";
             if (Type != VariableType.String)
                 throw new InvalidTsTypeException($"Variable is supposed to be of type String, is {Type} instead.");
-            return ((TsValue<string>)Value).StrongValue;
+            return ((TsImmutableValue<string>)Value).StrongValue;
         }
 
         /// <summary>
@@ -342,7 +342,7 @@ namespace TaffyScript
         /// <returns></returns>
         public string GetStringUnchecked()
         {
-            return ((TsValue<string>)Value).StrongValue;
+            return ((TsImmutableValue<string>)Value).StrongValue;
         }
 
         /// <summary>
@@ -364,7 +364,7 @@ namespace TaffyScript
         {
             if (Type != VariableType.Array1)
                 throw new InvalidTsTypeException($"Variable is supposed to be of type Array1D, is {Type} instead.");
-            return ((TsValueArray<TsObject[]>)Value).StrongValue;
+            return ((TsMutableValue<TsObject[]>)Value).StrongValue;
         }
 
         /// <summary>
@@ -375,7 +375,7 @@ namespace TaffyScript
         {
             if (Type != VariableType.Array2)
                 throw new InvalidTsTypeException($"Variable is supposed to be of type Array2D, is {Type} instead.");
-            return ((TsValueArray<TsObject[][]>)Value).StrongValue;
+            return ((TsMutableValue<TsObject[][]>)Value).StrongValue;
         }
 
         /// <summary>
@@ -493,10 +493,10 @@ namespace TaffyScript
                 Type = VariableType.Array1;
                 var temp = new TsObject[real + 1];
                 temp[real] = right;
-                Value = new TsValueArray<TsObject[]>(temp);
+                Value = new TsMutableValue<TsObject[]>(temp);
                 return;
             }
-            var self = (TsValueArray<TsObject[]>)Value;
+            var self = (TsMutableValue<TsObject[]>)Value;
             var arr = self.StrongValue;
             if (index >= arr.Length)
             {
@@ -554,10 +554,10 @@ namespace TaffyScript
                 var inner = new TsObject[real2 + 1];
                 inner[real2] = right;
                 temp[real1] = inner;
-                Value = new TsValueArray<TsObject[][]>(temp);
+                Value = new TsMutableValue<TsObject[][]>(temp);
                 return;
             }
-            var self = (TsValueArray<TsObject[][]>)Value;
+            var self = (TsMutableValue<TsObject[][]>)Value;
             if(real1 >= self.StrongValue.Length)
             {
                 var temp = new TsObject[real1 + 1][];

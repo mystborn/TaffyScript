@@ -22,14 +22,14 @@ namespace TaffyScript
         {
             if (obj.Type == VariableType.Real)
             {
-                var val = ((TsValue<float>)obj.Value).StrongValue;
+                var val = ((TsImmutableValue<float>)obj.Value).StrongValue;
                 if (val == TsObject.All)
                     _backingEnumerator = TsInstance.Instances().GetEnumerator();
                 else
                     _backingEnumerator = new List<TsObject>() { obj }.GetEnumerator();
             }
             else if (obj.Type == VariableType.String)
-                _backingEnumerator = TsInstance.Instances(((TsValue<string>)obj.Value).StrongValue).GetEnumerator();
+                _backingEnumerator = TsInstance.Instances(((TsImmutableValue<string>)obj.Value).StrongValue).GetEnumerator();
             else
                 throw new InvalidOperationException("Can only enumerate on a string or real");
         }
@@ -49,7 +49,7 @@ namespace TaffyScript
             {
                 result = _backingEnumerator.MoveNext();
             }
-            while (result == true && !TsInstance.InstanceExists(((TsValue<float>)_backingEnumerator.Current.Value).StrongValue));
+            while (result == true && !TsInstance.InstanceExists(((TsImmutableValue<float>)_backingEnumerator.Current.Value).StrongValue));
             return result;
         }
 
