@@ -55,7 +55,7 @@ namespace TaffyScript.Threading.Extern
                 inst["id"] = taskId;
                 if(task.Status == TaskStatus.Faulted)
                 {
-                    inst["exception"] = task.Exception.Message;
+                    inst["exception"] = task.Exception.InnerException.ToString();
                     inst["result"] = TsObject.Empty();
                 }
                 else
@@ -72,20 +72,20 @@ namespace TaffyScript.Threading.Extern
 
         public static TsObject[] TaskResultArray(int taskId)
         {
+
             if(_tasks.TryGetValue(taskId, out var task))
             {
                 Task.WaitAny(task);
-                TsObject[] result = new TsObject[3];
-                result[0] = taskId;
+                TsObject[] result = new TsObject[2];
                 if (task.Status == TaskStatus.Faulted)
                 {
-                    result[1] = task.Exception.Message;
-                    result[2] = TsObject.Empty();
+                    result[0] = task.Exception.InnerException.ToString();
+                    result[1] = TsObject.Empty();
                 }
                 else
                 {
-                    result[1] = "";
-                    result[2] = task.Result;
+                    result[0] = "";
+                    result[1] = task.Result;
                 }
                 ReleaseId(taskId);
                 task.Dispose();

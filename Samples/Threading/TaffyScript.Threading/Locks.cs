@@ -8,19 +8,23 @@ namespace TaffyScript.Threading.Extern
 {
     public static class Locks
     {
-        public static void Lock(TsObject obj)
+        public static void MoniterEnter(TsObject obj)
         {
-            try
-            {
-                Monitor.Enter(obj.GetValue());
-            }
-            catch(SynchronizationLockException e)
-            {
-                Console.WriteLine(e.InnerException);
-            }
+            Monitor.Enter(obj.GetValue());
         }
 
-        public static void Unlock(TsObject obj)
+        [WeakMethod]
+        public static TsObject MoniterTryEnter(TsObject[] args)
+        {
+            if (args.Length < 1)
+                throw new ArgumentOutOfRangeException("args", "There must be at least one argument to call moniter_try_enter");
+            if (args.Length == 2)
+                return Monitor.TryEnter(args[0].GetValue(), args[1].GetInt());
+            else
+                return Monitor.TryEnter(args[0].GetValue());
+        }
+
+        public static void MoniterExit(TsObject obj)
         {
             Monitor.Exit(obj.GetValue());
         }

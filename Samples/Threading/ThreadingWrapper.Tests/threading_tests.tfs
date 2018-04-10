@@ -13,15 +13,19 @@ namespace TaffyScript.Threading.Tests {
         thread_fire(print_thread_id_locked, m);
         thread_fire(print_thread_id_locked, m);
         thread_sleep(500);
-        show_debug_message("\nFinished\n");
-        show_debug_message("Starting thread that has a result.\n");
-        var thread = thread_start(script_with_result);
-        var result = thread_get_result(thread);
-        if(result.exception != "") {
-            show_debug_message("Thread Failed: " + result.exception);
-        } else {
-            show_debug_message("Thread Result: " + string(result.result));
-        }
+        show_debug_message("Finished\n");
+        show_debug_message("Starting threads that have a result:");
+        var thread1 = thread_start(script_with_result);
+        var thread2 = thread_start(script_with_result);
+        var result = thread_get_result(thread1);
+        print_thread_result(result);
+        result = thread_get_result_array(thread2);
+        print_thread_result(result);
+
+        show_debug_message("\nStarting thread that throws an exception:")
+        thread1 = thread_start(script_with_exception);
+        result = thread_get_result(thread1);
+        print_thread_result(result);
     }
 
     script print_thread_id() {
@@ -43,5 +47,24 @@ namespace TaffyScript.Threading.Tests {
 
     script script_with_result() {
         return 1;
+    }
+
+    script script_with_exception() {
+        show_error("Thread " + string(thread_get_id()) + " threw an error", true);
+    }
+
+    script print_thread_result(result) {
+        var value, exception;
+        if(typeof(result) == "array") {
+            exception = result[0];
+            value = result[1];
+        } else {
+            exception = result.exception;
+            value = result.result;
+        }
+        if(exception != "")
+            show_debug_message("Thread Failed: " + exception);
+        else
+            show_debug_message("Thread Result: " + string(value));
     }
 }
