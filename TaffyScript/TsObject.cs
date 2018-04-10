@@ -1356,12 +1356,6 @@ namespace TaffyScript
             }
         }
 
-        public static void ConditionalTest()
-        {
-            float f = -1;
-            var result = +f;
-        }
-
         #endregion
 
     }

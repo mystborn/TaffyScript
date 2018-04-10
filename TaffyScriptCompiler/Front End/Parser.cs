@@ -938,7 +938,7 @@ namespace TaffyScriptCompiler
                         case 'u':
                             var i = match.Index + 2;
                             string num = "";
-                            while (HexCharacters.Contains(char.ToLower(value[i])) || i - match.Index == 6)
+                            while (HexCharacters.Contains(char.ToLower(value[i])) && i - match.Index < 6)
                                 num += value[i++];
                             if (num == "")
                             {
@@ -947,8 +947,9 @@ namespace TaffyScriptCompiler
                             }
                             num = num.PadLeft(4, '0');
                             byte[] hex = new byte[2];
-                            hex[0] = (byte)int.Parse(num.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
-                            hex[1] = (byte)int.Parse(num.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
+                            hex[1] = (byte)int.Parse(num.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
+                            hex[0] = (byte)int.Parse(num.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
+                            Console.WriteLine($"{hex[0]}, {hex[1]}");
                             if(i - match.Index != 6)
                             {
                                 if (value[i] == '\\')
@@ -976,7 +977,7 @@ namespace TaffyScriptCompiler
                         default:
                             break;
                     }
-                    match = match.NextMatch();
+                    match = StringParser.Match(value, match.Index + 1);
                 }
                 return _factory.CreateConstant(ConstantType.String, value,
                     new TokenPosition(token.Position.Index + 1, token.Position.Line, token.Position.Column + 1, token.Position.File));

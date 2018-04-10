@@ -11,7 +11,7 @@ namespace TaffyScriptCompiler.Backend
     [XmlRoot(ElementName = "Build")]
     public class BuildConfig
     {
-        public string Output { get; set; }
+        public string Output { get; set; } = "bin/Output";
 
         [XmlArray]
         [XmlArrayItem(ElementName = "Reference")]

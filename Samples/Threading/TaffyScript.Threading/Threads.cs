@@ -25,7 +25,7 @@ namespace TaffyScript.Threading.Extern
             {
                 var scriptArgs = new TsObject[args.Length - 1];
                 Array.Copy(args, 1, scriptArgs, 0, args.Length - 1);
-                return GetId(new Task<TsObject>(() => script(scriptArgs)));
+                return GetId(Task.Run(() => script(scriptArgs)));
             }
             throw new InvalidOperationException($"Could not find a script by the name of {scriptName}");
         }
@@ -55,7 +55,7 @@ namespace TaffyScript.Threading.Extern
                 inst["id"] = taskId;
                 if(task.Status == TaskStatus.Faulted)
                 {
-                    inst["exception"] = task.Exception.Message;
+                    inst["exception"] = task.Exception.InnerException.ToString();
                     inst["result"] = TsObject.Empty();
                 }
                 else
@@ -72,20 +72,20 @@ namespace TaffyScript.Threading.Extern
 
         public static TsObject[] TaskResultArray(int taskId)
         {
+
             if(_tasks.TryGetValue(taskId, out var task))
             {
                 Task.WaitAny(task);
-                TsObject[] result = new TsObject[3];
-                result[0] = taskId;
+                TsObject[] result = new TsObject[2];
                 if (task.Status == TaskStatus.Faulted)
                 {
-                    result[1] = task.Exception.Message;
-                    result[2] = TsObject.Empty();
+                    result[0] = task.Exception.InnerException.ToString();
+                    result[1] = TsObject.Empty();
                 }
                 else
                 {
-                    result[1] = "";
-                    result[2] = task.Result;
+                    result[0] = "";
+                    result[1] = task.Result;
                 }
                 ReleaseId(taskId);
                 task.Dispose();
@@ -111,8 +111,8 @@ namespace TaffyScript.Threading.Extern
                 int id;
                 if (_availableIds.Count == 0)
                     id = _tasks.Count;
-
-                id = _availableIds.Pop();
+                else
+                    id = _availableIds.Pop();
                 _tasks[id] = task;
 
                 return id;
@@ -123,7 +123,8 @@ namespace TaffyScript.Threading.Extern
         {
             lock(_key)
             {
-                _tasks.TryRemove(id, out var result);
+                if (_tasks.TryRemove(id, out var result))
+                    _availableIds.Push(id);
                 return result;
             }
         }

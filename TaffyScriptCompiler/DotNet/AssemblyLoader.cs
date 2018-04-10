@@ -37,7 +37,9 @@ namespace TaffyScriptCompiler.DotNet
         public Assembly LoadAssembly(string asmPath)
         {
             if (_loadedAssemblies.ContainsKey(asmPath))
-                throw new InvalidOperationException();
+            {
+                throw new InvalidOperationException($"Duplicate assembly found: {asmPath}");
+            }
 
             var asm = Assembly.LoadFrom(asmPath);
 
