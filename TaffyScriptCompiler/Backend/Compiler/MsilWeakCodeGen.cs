@@ -2812,7 +2812,7 @@ namespace TaffyScriptCompiler.Backend
             var name = script.Value;
             var mb = StartMethod(name, _namespace);
             _inGlobalScript = true;
-            ScriptStart(name, mb, new[] { typeof(TsObject[]) });
+            ScriptStart(name, mb, new[] { typeof(TsInstance), typeof(TsObject[]) });
 
             //Process arguments
             ProcessScriptArguments(script);
@@ -3035,10 +3035,10 @@ namespace TaffyScriptCompiler.Backend
             var name = variableToken.Text;
             if (_table.Defined(name, out var symbol))
             {
-                UnresolveNamespace();
                 switch(symbol.Type)
                 {
                     case SymbolType.Object:
+                        UnresolveNamespace();
                         var ns = GetAssetNamespace(symbol);
                         if (ns != "")
                             name = $"{ns}.{name}";
@@ -3051,6 +3051,7 @@ namespace TaffyScriptCompiler.Backend
                             method = StartMethod(name, ns);
                             _pendingMethods.Add($"{ns}.{name}".TrimStart('.'), variableToken.Position);
                         }
+                        UnresolveNamespace();
                         emit.LdNull()
                             .LdFtn(method)
                             .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
