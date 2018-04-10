@@ -2651,10 +2651,13 @@ namespace TaffyScriptCompiler.Backend
             {
                 case "self":
                 case "id":
-                    emit.LdArg(0);
+                    if (_needAddress)
+                        emit.LdLocalA(GetId());
+                    else
+                        emit.LdLocal(GetId());
                     break;
                 case "argument_count":
-                    emit.LdArg(1)
+                    emit.LdArg(0)
                         .LdLen()
                         .ConvertFloat();
                     break;
@@ -2789,13 +2792,6 @@ namespace TaffyScriptCompiler.Backend
             if (returnType != null && returnType != typeof(TsObject))
                 emit.New(TsTypes.Constructors[returnType]);
 
-            if (_inInstanceScript)
-            {
-                emit.Call(typeof(TsInstance).GetMethod("get_EventType"))
-                    .Call(typeof(Stack<string>).GetMethod("Pop"))
-                    .Pop();
-            }
-
             emit.Ret();
         }
 
@@ -2811,49 +2807,16 @@ namespace TaffyScriptCompiler.Backend
         {
             var name = script.Value;
             var mb = StartMethod(name, _namespace);
-            _inGlobalScript = true;
+            _inScript = true;
             ScriptStart(name, mb, new[] { typeof(TsObject[]) });
 
             //Process arguments
-            ProcessScriptArguments(script);
-            
-            script.Body.Accept(this);
-            
-            if (!emit.TryGetTop(out _))
+            if (script.Children.Count > 1)
             {
-                emit.Call(TsTypes.Empty);
-            }
-
-            emit.Ret();
-
-            _inGlobalScript = false;
-            ScriptEnd();
-
-            name = $"{_namespace}.{name}".TrimStart('.');
-            _pendingMethods.Remove(name);
-
-            var init = Initializer;
-            init.Call(GetGlobalScripts)
-                .LdStr(name)
-                .LdNull()
-                .LdFtn(mb)
-                .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                .LdStr(name)
-                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                .Call(typeof(Dictionary<string, TsDelegate>).GetMethod("Add"));
-
-            if (name == _entryPoint)
-                GenerateEntryPoint(mb);
-        }
-
-        private void ProcessScriptArguments(ScriptNode script)
-        {
-            if (script.Arguments.Count > 0)
-            {
-                emit.LdArg(1);
-                for (var i = 0; i < script.Arguments.Count; i++)
+                emit.LdArg(0);
+                for (var i = 0; i < script.Children.Count - 1; i++)
                 {
-                    var arg = script.Arguments[i];
+                    var arg = script.Children[i];
                     VariableToken left;
                     if (arg is AssignNode assign)
                     {
@@ -2900,6 +2863,32 @@ namespace TaffyScriptCompiler.Backend
                 //Pops the last remaining reference to the arugment array from the stack.
                 emit.Pop();
             }
+            
+            script.Body.Accept(this);
+            
+            if (!emit.TryGetTop(out _))
+            {
+                emit.Call(TsTypes.Empty);
+            }
+
+            emit.Ret();
+
+            _inScript = false;
+            ScriptEnd();
+
+            name = $"{_namespace}.{name}".TrimStart('.');
+            _pendingMethods.Remove(name);
+
+            var init = Initializer;
+            init.Call(GetScripts)
+                .LdStr(name)
+                .LdNull()
+                .LdFtn(mb)
+                .New(typeof(Script).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                .Call(typeof(Dictionary<string, Script>).GetMethod("Add"));
+
+            if (name == _entryPoint)
+                GenerateEntryPoint(mb);
         }
 
         public void Visit(ShiftNode shift)
@@ -3035,28 +3024,16 @@ namespace TaffyScriptCompiler.Backend
             var name = variableToken.Text;
             if (_table.Defined(name, out var symbol))
             {
-                UnresolveNamespace();
                 switch(symbol.Type)
                 {
                     case SymbolType.Object:
+                    case SymbolType.Script:
+                        
+                        UnresolveNamespace();
                         var ns = GetAssetNamespace(symbol);
                         if (ns != "")
                             name = $"{ns}.{name}";
                         emit.LdStr(name);
-                        break;
-                    case SymbolType.Script:
-                        ns = GetAssetNamespace(symbol);
-                        if (!_methods.TryGetValue(ns, name, out var method))
-                        {
-                            method = StartMethod(name, ns);
-                            _pendingMethods.Add($"{ns}.{name}".TrimStart('.'), variableToken.Position);
-                        }
-                        emit.LdNull()
-                            .LdFtn(method)
-                            .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                            .LdStr(symbol.Name)
-                            .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                            .New(TsTypes.Constructors[typeof(TsDelegate)]);
                         break;
                     case SymbolType.Variable:
                         if (_locals.TryGetValue(symbol, out var local))
@@ -3076,9 +3053,11 @@ namespace TaffyScriptCompiler.Backend
             }
             else
             {
-                emit.LdArg(0)
+                var id = GetId();
+
+                emit.LdLocalA(id)
                     .LdStr(variableToken.Text)
-                    .Call(typeof(TsInstance).GetMethod("GetVariable", BindingFlags.Public | BindingFlags.Instance));
+                    .Call(typeof(TsObject).GetMethod("MemberGet", new[] { typeof(string) }));
             }
         }
 
@@ -3111,32 +3090,27 @@ namespace TaffyScriptCompiler.Backend
             }
             var start = emit.DefineLabel();
             var end = emit.DefineLabel();
+            var final = emit.DefineLabel();
             var gen = GetLocal(typeof(InstanceEnumerator));
-            var other = GetLocal(typeof(TsInstance));
             _loopStart.Push(start);
             _loopEnd.Push(end);
-            emit.Call(typeof(TsInstance).GetMethod("get_Other"))
-                .StLocal(other)
-                .LdArg(0)
-                .Call(typeof(TsInstance).GetMethod("set_Other"))
-                .New(typeof(InstanceEnumerator).GetConstructor(new[] { top }))
+            emit.New(typeof(InstanceEnumerator).GetConstructor(new[] { top }))
                 .StLocal(gen)
                 .MarkLabel(start)
                 .LdLocalA(gen)
                 .Call(typeof(InstanceEnumerator).GetMethod("MoveNext"))
-                .BrFalse(end)
+                .BrFalse(final)
+                .Call(GetIdStack)
                 .LdLocalA(gen)
                 .Call(typeof(InstanceEnumerator).GetMethod("get_Current"))
-                .StArg(0);
+                .Call(PushId);
+            FreeLocal(gen);
             with.Body.Accept(this);
             emit.MarkLabel(end)
-                .Call(typeof(TsInstance).GetMethod("get_Other"))
-                .StArg(0)
-                .LdLocal(other)
-                .Call(typeof(TsInstance).GetMethod("set_Other"));
-
-            FreeLocal(other);
-            FreeLocal(gen);
+                .Call(GetIdStack)
+                .Call(PopId)
+                .Pop()
+                .MarkLabel(final);
 
 
         }

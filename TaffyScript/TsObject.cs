@@ -188,6 +188,12 @@ namespace TaffyScript
             Value = new TsMutableValue<TsObject[][]>(array);
         }
 
+        public TsObject(TsDelegate script)
+        {
+            Type = VariableType.Delegate;
+            Value = new TsImmutableValue<TsDelegate>(script);
+        }
+
         /// <summary>
         /// Creates an empty TaffyScript object.
         /// </summary>
@@ -378,6 +384,18 @@ namespace TaffyScript
             return ((TsMutableValue<TsObject[][]>)Value).StrongValue;
         }
 
+        public TsDelegate GetDelegate()
+        {
+            if (Type != VariableType.Delegate)
+                throw new InvalidTsTypeException($"Variable is supposed to be of type Delegate, is {Type} instead.");
+            return (TsDelegate)Value.WeakValue;
+        }
+
+        public TsDelegate GetDelegateUnchecked()
+        {
+            return (TsDelegate)Value.WeakValue;
+        }
+
         /// <summary>
         /// Gets the untyped value held by this object.
         /// </summary>
@@ -385,7 +403,7 @@ namespace TaffyScript
         public object GetValue()
         {
             if (Value == null)
-                return 0;
+                return null;
             return Value.WeakValue;
         }
 
@@ -642,6 +660,20 @@ namespace TaffyScript
 
         #endregion
 
+        #region Delegate Access
+
+        public TsObject DelegateInvoke(params TsObject[] args)
+        {
+            return GetDelegate().Invoke(args);
+        }
+
+        public TsObject DelegateInvoke(TsInstance target, params TsObject[] args)
+        {
+            return GetDelegate().Invoke(target, args);
+        }
+
+        #endregion
+
         /// <summary>
         /// Gets the hash code of the underlying value.
         /// </summary>
@@ -650,13 +682,7 @@ namespace TaffyScript
         {
             if (Type == VariableType.Null)
                 return 0;
-#if Unsafe
-            // Mirrors the operation in Gamemaker more closely,
-            // but is highly unstable in c#
-            return GetMemAddress(GetValue());
-#else
             return GetValue().GetHashCode();
-#endif
         }
 
         /// <summary>
@@ -1291,31 +1317,6 @@ namespace TaffyScript
 
         #endregion
 
-
-        //The unsafe block works just GM does, but it's extremely volatile.
-        //The safe block won't work exactly like GM, but it's close enough.
-        //If absolutely necessary, use the unsafe flag.
-
-#if Unsafe
-
-        private static unsafe int GetMemAddress(object obj)
-        {
-            TypedReference reference = __makeref(obj);
-            var ptr = **(IntPtr**)(&reference);
-            return ptr.ToInt32();
-        }
-
-#else
-
-        private static int GetMemAddress(object obj)
-        {
-            if (obj is null)
-                return 0;
-            return obj.GetHashCode();
-        }
-
-#endif
-
         #region Base Class Library
 
         public static bool IsArray(TsObject obj)
@@ -1331,6 +1332,11 @@ namespace TaffyScript
         public static bool IsString(TsObject obj)
         {
             return obj.Type == VariableType.String;
+        }
+
+        public static bool IsDelegate(TsObject obj)
+        {
+            return obj.Type == VariableType.Delegate;
         }
 
         public static bool IsUndefined(TsObject obj)
@@ -1351,6 +1357,8 @@ namespace TaffyScript
                     return "real";
                 case VariableType.String:
                     return "string";
+                case VariableType.Delegate:
+                    return "script";
                 default:
                     return "unknown";
             }

@@ -20,14 +20,15 @@ namespace TaffyScript.Threading.Extern
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args");
-            var scriptName = args[0].GetString();
-            if(TsInstance.Scripts.TryGetValue(scriptName, out var script))
+
+            var script = args[0].GetDelegate();
+            TsObject[] scriptArgs = null;
+            if(args.Length > 1)
             {
-                var scriptArgs = new TsObject[args.Length - 1];
+                scriptArgs = new TsObject[args.Length - 1];
                 Array.Copy(args, 1, scriptArgs, 0, args.Length - 1);
-                return GetId(Task.Run(() => script(scriptArgs)));
             }
-            throw new InvalidOperationException($"Could not find a script by the name of {scriptName}");
+            return GetId(Task.Run(() => script.Invoke(scriptArgs)));
         }
 
         [WeakMethod]
@@ -35,15 +36,17 @@ namespace TaffyScript.Threading.Extern
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args");
-            var scriptName = args[0].GetString();
-            if(TsInstance.Scripts.TryGetValue(scriptName, out var script))
+
+            var script = args[0].GetDelegate();
+            TsObject[] scriptArgs = null;
+            if (args.Length > 1)
             {
-                var scriptArgs = new TsObject[args.Length - 1];
+                scriptArgs = new TsObject[args.Length - 1];
                 Array.Copy(args, 1, scriptArgs, 0, args.Length - 1);
-                ThreadPool.QueueUserWorkItem((obj) => script(scriptArgs));
-                return TsObject.Empty();
             }
-            throw new InvalidOperationException($"Could not find a script by the name of {scriptName}");
+
+            ThreadPool.QueueUserWorkItem((obj) => script.Invoke(scriptArgs));
+            return TsObject.Empty();
         }
 
         public static TsInstance TaskResult(int taskId)

@@ -12,6 +12,7 @@ namespace TaffyScript
         Real,
         String,
         Array1,
-        Array2
+        Array2,
+        Delegate
     }
 }

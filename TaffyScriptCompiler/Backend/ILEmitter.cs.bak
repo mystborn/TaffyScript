@@ -661,17 +661,6 @@ namespace TaffyScriptCompiler.Backend
             return this;
         }
 
-        public ILEmitter StArg(short arg)
-        {
-            _types.Pop();
-            if (arg <= 255)
-                _generator.Emit(OpCodes.Starg_S, (byte)arg);
-            else
-                _generator.Emit(OpCodes.Starg, arg);
-
-            return this;
-        }
-
         public ILEmitter StElem(Type elementType)
         {
             _types.Pop();

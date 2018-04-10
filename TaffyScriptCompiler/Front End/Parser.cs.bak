@@ -861,19 +861,9 @@ namespace TaffyScriptCompiler
                 var type = start.Value;
                 while(Validate("."))
                     type += "." + Confirm("id");
-
-                var newNode = _factory.CreateNode(SyntaxType.New, type, start.Position);
                 Confirm("(");
-                if(!Try(")"))
-                {
-                    do
-                    {
-                        newNode.AddChild(Expression());
-                    }
-                    while (Validate(","));
-                }
                 Confirm(")");
-                return newNode;
+                return _factory.CreateNode(SyntaxType.New, type, start.Position);
             }
             else
             {

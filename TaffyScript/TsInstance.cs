@@ -10,18 +10,6 @@ using MethodImplOptions = System.Runtime.CompilerServices.MethodImplOptions;
 namespace TaffyScript
 {
     /// <summary>
-    /// Method signature of a TaffyScript event.
-    /// </summary>
-    /// <param name="inst">The target of the event</param>
-    public delegate void InstanceEvent(TsInstance inst);
-
-    /// <summary>
-    /// Method signature of a TaffyScript script.
-    /// </summary>
-    /// <param name="args">The arguments used to call the script</param>
-    public delegate TsObject Script(TsObject[] args);
-
-    /// <summary>
     /// Represents an object instance in TaffyScript.
     /// </summary>
     public class TsInstance
@@ -29,6 +17,17 @@ namespace TaffyScript
         private const float Start = 100000f;
         private const string CreateEvent = "create";
         private const string DestroyEvent = "destroy";
+
+        /// <summary>
+        /// Delegate used to represent methods to be triggered when a TS instance is destroyed.
+        /// </summary>
+        /// <param name="inst">The instance that was destroyed.</param>
+        public delegate void DestroyedDelegate(TsInstance inst);
+
+        /// <summary>
+        /// Event that gets triggered when this instance is destroyed.
+        /// </summary>
+        public event DestroyedDelegate Destroyed;
 
         // Eventually this should change to not remove object on instance_destroy.
         // When that happens, make sure to change the readonly id instance_count
@@ -49,12 +48,12 @@ namespace TaffyScript
         /// Row = ObjectType (including namespace),  Column = EventName
         /// </para>
         /// </summary>
-        public static LookupTable<string, string, InstanceEvent> Events { get; } = new LookupTable<string, string, InstanceEvent>();
+        public static LookupTable<string, string, TsDelegate> InstanceScripts { get; } = new LookupTable<string, string, TsDelegate>();
 
         /// <summary>
         /// Used to get the implementation of a script from it's name (which must include it's namespace).
         /// </summary>
-        public static Dictionary<string, Script> Scripts { get; } = new Dictionary<string, Script>();
+        public static Dictionary<string, TsDelegate> GlobalScripts { get; } = new Dictionary<string, TsDelegate>();
 
         /// <summary>
         /// Used to get the parent type of an object type. The object name must include its namespace.
@@ -70,15 +69,26 @@ namespace TaffyScript
         /// Gets the isntance used to store global variables.
         /// </summary>
         public static TsInstance Global = InitGlobal();
+        
+        /// <summary>
+        /// References the target of the parent scope in a with block.
+        /// </summary>
+        public static TsInstance Other { get; set; }
 
         /// <summary>
         /// Gets or sets a value based on a variable name.
         /// </summary>
         /// <param name="variableName">The name of the variable</param>
         /// <returns></returns>
+        /// <remarks>
+        /// During code generation, the backing methods of this indexer are referred to explicitly.
+        /// We make sure that it will always have the name of Item so that compiler implementations
+        /// give it the correct name.
+        /// </remarks>
+        [System.Runtime.CompilerServices.IndexerName("Item")]
         public TsObject this[string variableName]
         {
-            get => _vars[variableName];
+            get => GetVariable(variableName);
             set => _vars[variableName] = value;
         }
 
@@ -101,15 +111,16 @@ namespace TaffyScript
         /// Creates a new instance of the specified type.
         /// </summary>
         /// <param name="instanceType">The type of the instance to create</param>
-        public TsInstance(string instanceType)
+        /// <param name="args">Any arguments passed to the create event.</param>
+        public TsInstance(string instanceType, params TsObject[] args)
         {
             Id = GetNext();
             ObjectType = instanceType;
             Pool.Add(Id, this);
-            Init(true);
+            Init(true, args);
         }
 
-        private TsInstance(string instanceType, bool performEvent = true)
+        private TsInstance(string instanceType, bool performEvent = true, params TsObject[] args)
         {
             // Originally, all of the instance events were added onto the object as strings.
             // However at this point in time, I've decided that it's too much of a time sink.
@@ -119,7 +130,7 @@ namespace TaffyScript
             Id = GetNext();
             ObjectType = instanceType;
             Pool.Add(Id, this);
-            Init(performEvent);
+            Init(performEvent, args);
         }
 
         /// <summary>
@@ -131,15 +142,15 @@ namespace TaffyScript
             ObjectType = "";
         }
 
-        private void Init(bool performEvent)
+        private void Init(bool performEvent, params TsObject[] args)
         {
             if (Inherits.TryGetValue(ObjectType, out var parent))
                 Parent = parent;
             else
                 Parent = null;
 
-            if (performEvent && TryGetEvent(CreateEvent, out var create))
-                create(this);
+            if (performEvent && TryGetDelegate(CreateEvent, out var create))
+                create.Invoke(this, args);
         }
 
         /// <summary>
@@ -148,22 +159,40 @@ namespace TaffyScript
         /// <param name="name">The name of the event.</param>
         /// <param name="instanceEvent">If found, the event.</param>
         /// <returns>True if found, false otherwise.</returns>
-        public bool TryGetEvent(string name, out InstanceEvent instanceEvent)
+        public bool TryGetDelegate(string name, out TsDelegate del)
         {
-            var inst = ObjectType;
+            if (_vars.TryGetValue(name, out var wrapper) && wrapper.Type == VariableType.Delegate)
+            {
+                del = wrapper.GetDelegateUnchecked();
+                return true;
+            }
+
+            return InternalTryGetDelegate(name, out del);
+        }
+
+        private bool InternalTryGetDelegate(string name, out TsDelegate del)
+        {
+            var type = ObjectType;
             do
             {
-                if (Events.TryGetValue(inst, name, out instanceEvent))
+                if (InstanceScripts.TryGetValue(type, name, out del))
                 {
-                    if (inst != ObjectType)
-                        Events.Add(ObjectType, name, instanceEvent);
+                    //If the script is inherited, cache it in the child's script lookup.
+                    if (type != ObjectType)
+                        InstanceScripts.Add(ObjectType, name, del);
+
+                    del = new TsDelegate(del, this);
+
+                    if (!_vars.ContainsKey(name))
+                        _vars[name] = new TsObject(del);
+
                     return true;
                 }
-                Inherits.TryGetValue(inst, out inst);
+                Inherits.TryGetValue(type, out type);
             }
-            while (inst != null);
+            while (type != null);
 
-            instanceEvent = null;
+            del = null;
             return false;
         }
 
@@ -172,9 +201,9 @@ namespace TaffyScript
         /// </summary>
         /// <param name="name">The name of the event</param>
         /// <returns></returns>
-        public InstanceEvent GetEvent(string name)
+        public TsDelegate GetDelegate(string name)
         {
-            if (!TryGetEvent(name, out var result))
+            if (!TryGetDelegate(name, out var result))
                 throw new ArgumentException($"Type {ObjectType} does not define event {name}");
             return result;
         }
@@ -188,7 +217,17 @@ namespace TaffyScript
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetVariable(string name, out TsObject value)
         {
-            return _vars.TryGetValue(name, out value);
+            if (!_vars.TryGetValue(name, out value))
+            {
+                if (InternalTryGetDelegate(name, out var del))
+                {
+                    value = new TsObject(del);
+                    _vars[name] = value;
+                    return true;
+                }
+                return false;
+            }
+            return true;
         }
 
         /// <summary>
@@ -198,7 +237,10 @@ namespace TaffyScript
         /// <returns></returns>
         public TsObject GetVariable(string name)
         {
-            return _vars[name];
+            if (TryGetVariable(name, out var result))
+                return result;
+            else
+                throw new MissingFieldException($"Tried to access non-existant variable {name} on object of type {ObjectType}");
         }
 
         /// <summary>
@@ -208,8 +250,8 @@ namespace TaffyScript
         /// <param name="performEvents">Determines whether the events are performed</param>
         public void ChangeType(string type, bool performEvents)
         {
-            if (performEvents && TryGetEvent(DestroyEvent, out var destroy))
-                destroy(this);
+            if (performEvents && TryGetDelegate(DestroyEvent, out var destroy))
+                destroy.Invoke(this);
 
             ObjectType = type;
             Init(performEvents);
@@ -224,8 +266,8 @@ namespace TaffyScript
         {
             var copy = new TsInstance(ObjectType, false);
             copy._vars = new Dictionary<string, TsObject>(_vars);
-            if (performEvents && TryGetEvent(ObjectType, out var create))
-                create(copy);
+            if (performEvents && TryGetDelegate(ObjectType, out var create))
+                create.Invoke(copy);
 
             return copy;
         }
@@ -240,10 +282,11 @@ namespace TaffyScript
         {
             if (Pool.ContainsKey(Id))
             {
-                if (TryGetEvent(DestroyEvent, out var destroy))
-                    destroy(this);
+                if (TryGetDelegate(DestroyEvent, out var destroy))
+                    destroy.Invoke(this);
                 Pool.Remove(Id);
                 _availableIds.Enqueue(Id);
+                Destroyed?.Invoke(this);
             }
         }
 
@@ -254,27 +297,28 @@ namespace TaffyScript
         /// <param name="name">The name of the event.</param>
         /// <param name="instanceEvent">If found, the event.</param>
         /// <returns>True if found, otherwise false.</returns>
-        public static bool TryGetEvent(string type, string name, out InstanceEvent instanceEvent)
+        public static bool TryGetDelegate(string type, string name, out TsDelegate del)
         {
             if (type == null)
             {
-                instanceEvent = null;
+                del = null;
                 return false;
             }
             var origin = type;
             do
             {
-                if (Events.TryGetValue(type, name, out instanceEvent))
+                if (InstanceScripts.TryGetValue(type, name, out del))
                 {
+                    //If the script is inherited, cache it in the child's script lookup.
                     if (type != origin)
-                        Events.Add(origin, name, instanceEvent);
+                        InstanceScripts.Add(origin, name, del);
                     return true;
                 }
                 Inherits.TryGetValue(type, out type);
             }
             while (type != null);
 
-            instanceEvent = null;
+            del = null;
             return false;
         }
 
@@ -303,13 +347,29 @@ namespace TaffyScript
         }
 
         /// <summary>
-        /// Creates a new instance of the given type.
+        /// Creates a new TS instance. Should not be called directly.
         /// </summary>
-        /// <param name="instanceType">The name of the TaffyScript object type.</param>
+        /// <param name="target">Currently executing instance if any.</param>
+        /// <param name="args">Arguments used to call this method.
+        /// <para>
+        /// The first argument should be a string of the object name. Anything else will be passed to the ctor.
+        /// </para>
+        /// </param>
         /// <returns></returns>
-        public static TsObject InstanceCreate(string instanceType)
+        [WeakMethod]
+        public static TsObject InstanceCreate(TsInstance target, TsObject[] args)
         {
-            return new TsObject(new TsInstance(instanceType).Id);
+            TsInstance inst;
+            if (args.Length > 1)
+            {
+                var ctorArgs = new TsObject[args.Length - 1];
+                Array.Copy(args, 1, ctorArgs, 0, args.Length - 1);
+                inst = new TsInstance((string)args[0], ctorArgs);
+            }
+            else
+                inst = new TsInstance((string)args[0]);
+
+            return new TsObject(inst);
         }
 
         /// <summary>
@@ -317,14 +377,12 @@ namespace TaffyScript
         /// </summary>
         /// <param name="args">Optionally contains the id of the instance.</param>
         [WeakMethod]
-        public static void InstanceDestroy(TsObject[] args)
+        public static void InstanceDestroy(TsInstance target, TsObject[] args)
         {
-            float id;
             if (args == null || args.Length == 0)
-                id = (float)TsObject.Id.Peek();
+                target.Destroy();
             else
-                id = (float)args[0];
-            InstanceDestroy(id);
+                InstanceDestroy((float)args[0]);
         }
 
         /// <summary>
@@ -334,12 +392,7 @@ namespace TaffyScript
         public static void InstanceDestroy(float id)
         {
             if (Pool.TryGetValue(id, out var inst))
-            {
-                if (inst.TryGetEvent(DestroyEvent, out var destroy))
-                    destroy(inst);
-                Pool.Remove(id);
-                _availableIds.Enqueue(id);
-            }
+                inst.Destroy();
         }
 
         /// <summary>
