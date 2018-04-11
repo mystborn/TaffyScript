@@ -398,7 +398,7 @@ namespace TaffyScriptCompiler.Backend
                             var owner = external.Remove(external.LastIndexOf('.'));
                             var methodName = external.Substring(owner.Length + 1);
                             var type = _typeParser.GetType(owner);
-                            var method = GetMethodToImport(type, methodName, new[] { typeof(TsObject[]) });
+                            var method = GetMethodToImport(type, methodName, new[] { typeof(TsInstance), typeof(TsObject[]) });
                             var count = _table.EnterNamespace(input[0]);
                             _table.AddLeaf(input[1], SymbolType.Script, SymbolScope.Global);
                             _table.Exit(count);
@@ -962,6 +962,14 @@ namespace TaffyScriptCompiler.Backend
             }
         }
 
+        private void TryCopyTable(SymbolTable src, SymbolTable dest)
+        {
+            foreach(var symbol in src.Symbols)
+            {
+                dest.AddChild(symbol);
+            }
+        }
+
         private void AcceptDeclarations(ISyntaxNode block)
         {
             foreach(var child in block.Children)
@@ -1270,8 +1278,14 @@ namespace TaffyScriptCompiler.Backend
                         _errors.Add(new CompileException($"Invalid syntax detected {member.Left.Position}"));
                     emit.LdStr(((ISyntaxToken)member.Right).Text);
                     assign.Right.Accept(this);
-                    var argTypes = new[] { typeof(string), emit.GetTop() };
-                    emit.Call(typeof(TsObject).GetMethod("MemberSet", BindingFlags.Public | BindingFlags.Instance, null, argTypes, null));
+                    top = emit.GetTop();
+                    if (top == typeof(int))
+                    {
+                        emit.ConvertFloat();
+                        top = typeof(float);
+                    }
+                    var argTypes = new[] { typeof(string), top };
+                    emit.Call(typeof(TsObject).GetMethod("MemberSet", argTypes));
                 }
             }
             else
@@ -1544,7 +1558,7 @@ namespace TaffyScriptCompiler.Backend
             for (var i = 0; i < size; ++i)
             {
                 block.Children[i].Accept(this);
-                if (block.Children[i].Type == SyntaxType.Postfix || block.Children[i].Type == SyntaxType.Prefix)
+                if (block.Children[i].Type == SyntaxType.FunctionCall || block.Children[i].Type == SyntaxType.Postfix || block.Children[i].Type == SyntaxType.Prefix)
                     emit.Pop();
             }
         }
@@ -1847,12 +1861,34 @@ namespace TaffyScriptCompiler.Backend
             }
             else
             {
-                _errors.Add(new CompileException($"Invalid syntax detected {functionCall.Children[0].Position}"));
-                emit.Call(TsTypes.Empty);
+                GetAddressIfPossible(nameElem);
+                var top = emit.GetTop();
+                LocalBuilder secret = null;
+                if(top == typeof(TsObject))
+                {
+                    secret = GetLocal();
+                    emit.StLocal(secret);
+                    emit.LdLocalA(secret);
+                    FreeLocal(secret);
+                }
+                else if(emit.GetTop() != typeof(TsObject).MakePointerType())
+                {
+                    _errors.Add(new CompileException($"Invalid syntax detected {functionCall.Children[0].Position}"));
+                    emit.Call(TsTypes.Empty);
+                    return;
+                }
+                emit.LdArg(0);
+                LoadFunctionArguments(functionCall);
+                emit.Call(typeof(TsObject).GetMethod("DelegateInvoke", new[] { typeof(TsInstance), typeof(TsObject[]) }));
+
                 return;
             }
+            if(name == "ds_list_add")
+            {
 
-            if(!_table.Defined(name, out var symbol) || (symbol.Type == SymbolType.Script && ((SymbolLeaf)symbol).Scope == SymbolScope.Member))
+            }
+
+            if(!_table.Defined(name, out var symbol) || (symbol.Type == SymbolType.Script && symbol.Scope == SymbolScope.Member))
             {
                 CallEvent(name, true, functionCall, nameElem.Position);
                 return;
@@ -2507,8 +2543,8 @@ namespace TaffyScriptCompiler.Backend
                     emit.Call(typeof(TsInstance).GetMethod("GetVariable"))
                         .StLocal(secret)
                         .LdLocal(secret)
-                        .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position));
-                    emit.Call(typeof(TsObject).GetMethod("set_Item", new[] { typeof(string), typeof(TsObject) }))
+                        .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                        .Call(typeof(TsInstance).GetMethod("set_Item", new[] { typeof(string), typeof(TsObject) }))
                         .LdLocal(secret);
                 }
             }

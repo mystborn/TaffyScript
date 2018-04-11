@@ -171,7 +171,7 @@ namespace TaffyScriptCompiler
                     Confirm("{");
                     while (!Try("}"))
                     {
-                        node.AddChild(Script());
+                        node.AddChild(Script(SymbolScope.Member));
                     }
                     Confirm("}");
                     _table.Exit();
@@ -249,7 +249,7 @@ namespace TaffyScriptCompiler
                     node.AddChild(_factory.CreateConstant(ConstantType.String, importName.Value, importName.Position));
                     return node;
                 case "script":
-                    return Script();
+                    return Script(SymbolScope.Global);
                 case ";":
                     Confirm(";");
                     return null;
@@ -259,7 +259,7 @@ namespace TaffyScriptCompiler
             }
         }
 
-        private ISyntaxElement Script()
+        private ISyntaxElement Script(SymbolScope scope)
         {
             if (!(Validate("script") || Validate("event")))
             {
@@ -268,7 +268,7 @@ namespace TaffyScriptCompiler
             }
 
             var scriptName = Confirm("id");
-            _table.EnterNew(scriptName.Value, SymbolType.Script);
+            _table.EnterNew(scriptName.Value, SymbolType.Script, scope);
             var node = _factory.CreateNode(SyntaxType.Script, scriptName.Value, scriptName.Position);
             if (Validate("(") && !Validate(")"))
             {
@@ -733,16 +733,10 @@ namespace TaffyScriptCompiler
             if (value == null)
                 return null;
 
-            bool canCallFunction = value.Type == SyntaxType.Variable;
             while(true)
             {
                 if (Try("(", out var paren))
                 {
-                    if (!canCallFunction)
-                    {
-                        Throw(new InvalidTokenException(paren, "Invalid identifier for a function call."));
-                        return null;
-                    }
                     var function = _factory.CreateNode(SyntaxType.FunctionCall, value.Position);
                     function.AddChild(value);
                     if (!Try(")"))
@@ -755,7 +749,6 @@ namespace TaffyScriptCompiler
                     }
                     Confirm(")");
                     value = function;
-                    canCallFunction = false;
                 }
                 else if (Validate("."))
                 {
@@ -768,7 +761,6 @@ namespace TaffyScriptCompiler
                     temp.AddChild(value);
                     temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
                     value = temp;
-                    canCallFunction = true;
                 }
                 else if (Try("[", out var accessToken))
                 {
@@ -777,7 +769,6 @@ namespace TaffyScriptCompiler
                         Throw(new InvalidTokenException(accessToken, "Cannot use an accessor on a newed value"));
                         return value;
                     }
-                    canCallFunction = false;
                     ISyntaxNode access;
                     if (Validate("|"))
                         access = _factory.CreateNode(SyntaxType.ListAccess, value.Position);
@@ -796,8 +787,6 @@ namespace TaffyScriptCompiler
                         access.AddChild(Expression());
                     Confirm("]");
                     value = access;
-
-                    canCallFunction = false;
                 }
                 else
                     break;

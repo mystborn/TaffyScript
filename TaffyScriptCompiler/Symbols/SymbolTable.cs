@@ -61,6 +61,11 @@ namespace TaffyScriptCompiler
             Current = Current.EnterNew(scopeName, type);
         }
 
+        public void EnterNew(string scopeName, SymbolType type, SymbolScope scope)
+        {
+            Current = Current.EnterNew(scopeName, type, scope);
+        }
+
         public bool TryCreate(string scope, SymbolType type)
         {
             if (!Current.Children.TryGetValue(scope, out var symbol))

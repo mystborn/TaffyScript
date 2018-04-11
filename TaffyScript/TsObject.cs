@@ -11,8 +11,14 @@ namespace TaffyScript
     /// </summary>
     public struct TsObject
     {
+        #region Constants
+
         public const float All = -3f;
         public const float Noone = -4f;
+
+        #endregion
+
+        #region Properties
 
         /// <summary>
         /// Gets a stack trace of the currently executing instances.
@@ -21,6 +27,10 @@ namespace TaffyScript
 
         public VariableType Type { get; private set; }
         public ITsValue Value { get; private set; }
+
+        #endregion
+
+        #region Constructors
 
         private TsObject(VariableType type, ITsValue value)
         {
@@ -179,7 +189,7 @@ namespace TaffyScript
         }
 
         /// <summary>
-        /// Creates a TaffyScript object from a 2D array
+        /// Creates a TaffyScript object from a 2D array.
         /// </summary>
         /// <param name="array">The value of the object.</param>
         public TsObject(TsObject[][] array)
@@ -188,6 +198,10 @@ namespace TaffyScript
             Value = new TsMutableValue<TsObject[][]>(array);
         }
 
+        /// <summary>
+        /// Creates a TaffyScript object from a <see cref="TsDelegate"/>.
+        /// </summary>
+        /// <param name="script"></param>
         public TsObject(TsDelegate script)
         {
             Type = VariableType.Delegate;
@@ -206,6 +220,8 @@ namespace TaffyScript
         {
             return new TsObject(Noone);
         }
+
+        #endregion
 
         #region Raw Values
 
@@ -691,6 +707,8 @@ namespace TaffyScript
         /// <returns></returns>
         public override string ToString()
         {
+            if (Type == VariableType.Null)
+                return "undefined";
             return GetValue().ToString();
         }
 
