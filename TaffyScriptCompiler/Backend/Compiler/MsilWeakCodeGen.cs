@@ -2233,26 +2233,39 @@ namespace TaffyScriptCompiler.Backend
             }
             else if(memberAccess.Left is ReadOnlyToken read)
             {
-                if (_resolveNamespace != "")
-                    _errors.Add(new CompileException($"Invalid syntax detected {read.Position}"));
-                if (read.Text != "global")
-                    _errors.Add(new CompileException($"Tried to access a variable in a read-only value that wasn't an instance {read.Position}"));
-                else
+                if (_resolveNamespace != "" || !(memberAccess.Right is VariableToken right))
                 {
-                    if (memberAccess.Right is VariableToken right)
-                    {
-                        emit.LdFld(typeof(TsInstance).GetField("Global"))
-                            .LdStr(right.Text)
-                            .Call(typeof(TsInstance).GetMethod("get_Item"));
-                    }
-                    else
-                        _errors.Add(new CompileException($"Cannot access readonly value from global {memberAccess.Right.Position}"));
+                    UnresolveNamespace();
+                    _errors.Add(new CompileException($"Invalid syntax detected {read.Position}"));
+                    emit.Call(TsTypes.Empty);
+                    return;
                 }
+                switch(read.Text)
+                {
+                    case "global":
+                        emit.LdFld(typeof(TsInstance).GetField("Global"));
+                        break;
+                    case "self":
+                        emit.LdArg(0);
+                        break;
+                    default:
+                        _errors.Add(new CompileException($"Invalid syntax detected {right.Position}"));
+                        emit.Call(TsTypes.Empty);
+                        return;
+                }
+                emit.LdStr(right.Text)
+                    .Call(typeof(TsInstance).GetMethod("get_Item"));
             }
             else
             {
                 if (_resolveNamespace != "")
+                {
+                    UnresolveNamespace();
                     _errors.Add(new CompileException($"Invalid syntax detected {memberAccess.Left}"));
+                    emit.Call(TsTypes.Empty);
+                    return;
+                }
+
                 GetAddressIfPossible(memberAccess.Left);
                 var left = emit.GetTop();
                 if(left == typeof(TsObject))
@@ -2264,9 +2277,11 @@ namespace TaffyScriptCompiler.Backend
                 }
                 else if(left != typeof(TsObject).MakePointerType())
                 {
-                    
                     _errors.Add(new NotImplementedException($"Accessing a variable through a type is not yet supported {memberAccess.Left} {memberAccess.Left.Position}"));
+                    emit.Call(TsTypes.Empty);
+                    return;
                 }
+
                 if (memberAccess.Right is VariableToken right)
                 {
                     emit.LdStr(right.Text)
@@ -2275,13 +2290,19 @@ namespace TaffyScriptCompiler.Backend
                 else if (memberAccess.Right is ReadOnlyToken readOnly)
                 {
                     if (readOnly.Text != "id" && readOnly.Text != "self")
+                    {
                         _errors.Add(new NotImplementedException($"Only the read only variables id and self can be accessed from an instance currently {readOnly.Position}"));
-                    emit.LdStr("id")
-                        .Call(typeof(TsObject).GetMethod("MemberGet", new[] { typeof(string) }));
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+                    emit.Call(typeof(TsObject).GetMethod("GetInstance"))
+                        .Call(typeof(TsInstance).GetMethod("get_Id"))
+                        .New(TsTypes.Constructors[typeof(float)]);
                 }
                 else
                     _errors.Add(new CompileException($"Invalid syntax detected {memberAccess.Position}"));
             }
+
             UnresolveNamespace();
         }
 
@@ -2550,26 +2571,47 @@ namespace TaffyScriptCompiler.Backend
             }
             else if (postfix.Child is MemberAccessNode member)
             {
-                MethodInfo get, set;
-                if (GlobalOrMemberAccessSet(member, 3))
+                LocalBuilder target;
+                var value = member.Right as VariableToken;
+                if (value is null)
                 {
-                    get = typeof(TsInstance).GetMethod("get_Item");
-                    set = typeof(TsInstance).GetMethod("set_Item");
+                    _errors.Add(new CompileException($"Invalid member access {member.Position}"));
+                    emit.Call(TsTypes.Empty);
+                    return;
+                }
+                member.Left.Accept(this);
+                if (member.Left is ReadOnlyToken read)
+                {
+                    //Todo: optimize to use readonly value directly instead of assigning it to a var.
+                    target = GetLocal(typeof(TsInstance));
+                    emit.StLocal(target)
+                        .LdLocal(target)
+                        .LdStr(value.Text)
+                        .Call(typeof(TsInstance).GetMethod("get_Item"))
+                        .StLocal(secret)
+                        .LdLocal(secret)
+                        .LdLocal(target)
+                        .LdStr(value.Text)
+                        .LdLocal(secret)
+                        .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                        .Call(typeof(TsInstance).GetMethod("set_Item"));
                 }
                 else
                 {
-                    get = typeof(TsObject).GetMethod("MemberGet");
-                    set = typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), typeof(TsObject) });
+                    target = GetLocal();
+                    emit.StLocal(target)
+                        .LdLocalA(target)
+                        .LdStr(value.Text)
+                        .Call(typeof(TsObject).GetMethod("MemberGet"))
+                        .StLocal(secret)
+                        .LdLocal(secret)
+                        .LdLocalA(target)
+                        .LdStr(value.Text)
+                        .LdLocal(secret)
+                        .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                        .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), typeof(TsObject) }));
                 }
-                var value = GetLocal();
-                emit.Call(get)
-                    .StLocal(value)
-                    .Call(get)
-                    .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
-                    .Call(set)
-                    .LdLocal(value);
-
-                FreeLocal(value);
+                FreeLocal(target);
             }
             else
                 _errors.Add(new CompileException($"Invalid syntax detected {postfix.Child.Position}"));
@@ -2696,9 +2738,9 @@ namespace TaffyScriptCompiler.Backend
                     break;
                 case "global":
                     if (_needAddress)
-                        emit.LdFldA(typeof(TsObject).GetField("Global"));
+                        emit.LdFldA(typeof(TsInstance).GetField("Global"));
                     else
-                        emit.LdFld(typeof(TsObject).GetField("Global"));
+                        emit.LdFld(typeof(TsInstance).GetField("Global"));
                     break;
                 case "pi":
                     emit.LdFloat((float)Math.PI);

@@ -8,7 +8,7 @@ namespace UnitTest {
             if(argument_count < 2)
                 show_error("You must provide at least the test suite name and one test.", true);
 
-            global._unit_test.test_number = 0;
+            test_number = 0;
             tests_failed = false;
             test_suite = test_suite_name;
             test_description = "";
@@ -48,7 +48,9 @@ namespace UnitTest {
     }
 
     script assert_equal {
+        //show_debug_message(global._unit_test);
         global._unit_test.test_number++;
+        show_debug_message("assert_equal");
         if(argument0 != argument1) {
             var msg;
             if(argument_count > 2)

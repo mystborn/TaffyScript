@@ -752,14 +752,26 @@ namespace TaffyScriptCompiler
                 }
                 else if (Validate("."))
                 {
-                    if (!Try("id", out var next))
+                    var temp = _factory.CreateNode(SyntaxType.MemberAccess, value.Position);
+                    temp.AddChild(value);
+                    if (Try("id", out var next))
+                    {
+                        temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
+                    }
+                    else if (Try("readonly", out next))
+                    {
+                        if (next.Value != "self")
+                        {
+                            Throw(new InvalidTokenException(next, "Invalid readonly token on the right side of an access expression"));
+                            return null;
+                        }
+                        temp.AddChild(_factory.CreateToken(SyntaxType.ReadOnlyValue, next.Value, next.Position));
+                    }
+                    else
                     {
                         Throw(new InvalidTokenException(next, "The value after a period in an access expression must be a variable."));
                         return null;
                     }
-                    var temp = _factory.CreateNode(SyntaxType.MemberAccess, value.Position);
-                    temp.AddChild(value);
-                    temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
                     value = temp;
                 }
                 else if (Try("[", out var accessToken))
@@ -806,7 +818,12 @@ namespace TaffyScriptCompiler
             if (IsConstant())
                 return Constant();
             else if (Try("readonly", out var token))
-                return _factory.CreateToken(SyntaxType.ReadOnlyValue, token.Value, token.Position);
+            {
+                var val = token.Value;
+                if (val == "id")
+                    val = "self";
+                return _factory.CreateToken(SyntaxType.ReadOnlyValue, val, token.Position);
+            }
             else if (Try("argument", out token))
             {
                 var arg = _factory.CreateNode(SyntaxType.ArgumentAccess, token.Position);
@@ -844,16 +861,16 @@ namespace TaffyScriptCompiler
                 Confirm("]");
                 return array;
             }
-            else if(Try("new", out token))
+            else if (Try("new", out token))
             {
                 var start = Confirm("id");
                 var type = start.Value;
-                while(Validate("."))
+                while (Validate("."))
                     type += "." + Confirm("id");
 
                 var newNode = _factory.CreateNode(SyntaxType.New, type, start.Position);
                 Confirm("(");
-                if(!Try(")"))
+                if (!Try(")"))
                 {
                     do
                     {

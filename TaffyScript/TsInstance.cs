@@ -150,7 +150,7 @@ namespace TaffyScript
                 Parent = null;
 
             if (performEvent && TryGetDelegate(CreateEvent, out var create))
-                create.Invoke(this, args);
+                create.Script(this, args);
         }
 
         /// <summary>

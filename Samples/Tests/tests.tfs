@@ -3,11 +3,22 @@ using UnitTest;
 namespace LanguageTests {
     script main {
         var tests = new obj_unit_test("Operator Tests", 
-                                      );
+                                      addition_tests);
         tests.run_tests();
     }
 
     script addition_tests() {
-        
+        var left = 30;
+        var right = 10;
+        assert_equal(left + right, 40);
+        assert_equal(left + 10, 40);
+        assert_equal(30 + right, 40);
+        assert_equal(30 + 10, 40);
+        left = "hello ";
+        right = "world";
+        assert_equal(left + right, "hello world");
+        assert_equal(left + "world", "hello world");
+        assert_equal("hello " + right, "hello world");
+        assert_equal("hello " + "world", "hello world");
     }
 }

@@ -81,7 +81,6 @@ namespace TaffyScript
 
         public TsObject Invoke(TsInstance target, params TsObject[] args)
         {
-            Console.WriteLine(Name);
             if (target is null && ScriptScope != TsScriptScope.Global)
                 throw new ArgumentNullException("target", "This script requires a target to invoke.");
             return Script(target, args);

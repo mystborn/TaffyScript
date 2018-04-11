@@ -201,7 +201,7 @@ namespace TaffyScript
         /// <summary>
         /// Creates a TaffyScript object from a <see cref="TsDelegate"/>.
         /// </summary>
-        /// <param name="script"></param>
+        /// <param name="script">The value of the object.</param>
         public TsObject(TsDelegate script)
         {
             Type = VariableType.Delegate;
@@ -496,7 +496,9 @@ namespace TaffyScript
         public TsObject MemberGet(string name)
         {
             if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
+            {
                 throw new InvalidInstanceException();
+            }
             return inst[name];
         }
 
@@ -690,6 +692,8 @@ namespace TaffyScript
 
         #endregion
 
+        #region Object Overrides
+
         /// <summary>
         /// Gets the hash code of the underlying value.
         /// </summary>
@@ -726,11 +730,11 @@ namespace TaffyScript
                 return held.Equals(obj);
         }
 
+        #endregion
+
         #region Operators
 
-
-
-        #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
         public static explicit operator bool(TsObject right)
         {
