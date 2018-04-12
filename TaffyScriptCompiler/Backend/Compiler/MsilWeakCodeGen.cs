@@ -1246,18 +1246,25 @@ namespace TaffyScriptCompiler.Backend
             {
                 if (member.Left is ReadOnlyToken token)
                 {
-                    if (token.Text != "global")
-                        _errors.Add(new CompileException($"Cannot access member on non-global readonly value {token.Position}"));
-                    else if (member.Right is VariableToken right)
+                    if (member.Right is VariableToken right)
                     {
-                        emit.LdFld(typeof(TsInstance).GetField("Global"))
-                            .LdStr(right.Text);
-
+                        switch (token.Text)
+                        {
+                            case "global":
+                                emit.LdFld(typeof(TsInstance).GetField("Global"));
+                                break;
+                            case "self":
+                                emit.LdArg(0);
+                                break;
+                            default:
+                                _errors.Add(new CompileException($"Cannot access member on non-global readonly value {token.Position}"));
+                                return;
+                        }
+                        emit.LdStr(right.Text);
                         assign.Right.Accept(this);
                         var top = emit.GetTop();
                         if (top != typeof(TsObject))
                             emit.New(TsTypes.Constructors[top]);
-
                         emit.Call(typeof(TsInstance).GetMethod("set_Item"));
                     }
                     else
@@ -1358,26 +1365,57 @@ namespace TaffyScriptCompiler.Backend
             }
             else if(assign.Left is MemberAccessNode member)
             {
-                if(GlobalOrMemberAccessSet(member, 2))
+                if(!(member.Right is VariableToken value))
                 {
-                    emit.Call(typeof(TsInstance).GetMethod("get_Item"));
+                    _errors.Add(new CompileException($"Cannot assign to readonly value {member.Right.Position}"));
+                    return;
+                }
+                if(member.Left is ReadOnlyToken read)
+                {
+                    Func<ILEmitter> loadTarget = GetReadOnlyLoadFunc(read);
+
+                    loadTarget()
+                        .LdStr(value.Text);
+                    loadTarget()
+                        .LdStr(value.Text)
+                        .Call(typeof(TsInstance).GetMethod("get_Item"));
+
                     assign.Right.Accept(this);
-                    var result = emit.GetTop();
-                    if (result == typeof(int) || result == typeof(bool))
+                    var top = emit.GetTop();
+                    if (top == typeof(int) || top == typeof(bool))
                     {
                         emit.ConvertFloat();
-                        result = typeof(float);
+                        top = typeof(float);
                     }
-                    // This should always leave a TsObject on the top of the stack.
-                    emit.Call(GetOperator(op, typeof(TsObject), result, assign.Position))
+
+                    emit.Call(GetOperator(op, typeof(TsObject), top, assign.Position))
                         .Call(typeof(TsInstance).GetMethod("set_Item"));
                 }
                 else
                 {
-                    emit.Call(typeof(TsObject).GetMethod("MemberGet"));
+                    var secret = GetLocal();
+                    member.Left.Accept(this);
+
+                    emit.StLocal(secret)
+                        .LdLocalA(secret)
+                        .LdStr(value.Text)
+                        .LdLocalA(secret)
+                        .LdStr(value.Text)
+                        .Call(typeof(TsObject).GetMethod("MemberGet"));
+
                     assign.Right.Accept(this);
-                    emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
-                        .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), emit.GetTop() }));
+                    var top = emit.GetTop();
+                    if (top == typeof(int) || top == typeof(bool))
+                    {
+                        emit.ConvertFloat();
+                        top = typeof(float);
+                    }
+
+                    emit.Call(GetOperator(op, typeof(TsObject), top, assign.Position))
+                        .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), typeof(TsObject) }));
+
+
+                    FreeLocal(secret);
                 }
             }
         }
@@ -2465,8 +2503,8 @@ namespace TaffyScriptCompiler.Backend
                 ProcessScriptArguments(script);
                 script.Body.Accept(this);
                 BlockNode body = (BlockNode)script.Body;
-                var last = body.Children[body.Children.Count - 1];
-                if(last.Type != SyntaxType.Exit && last.Type != SyntaxType.Return)
+                var last = body.Children.Count == 0 ? null : body.Children[body.Children.Count - 1];
+                if(body.Children.Count == 0 || (last.Type != SyntaxType.Exit && last.Type != SyntaxType.Return))
                 {
                     emit.Call(eventType)
                     .Call(pop)
@@ -2571,7 +2609,6 @@ namespace TaffyScriptCompiler.Backend
             }
             else if (postfix.Child is MemberAccessNode member)
             {
-                LocalBuilder target;
                 var value = member.Right as VariableToken;
                 if (value is null)
                 {
@@ -2579,18 +2616,16 @@ namespace TaffyScriptCompiler.Backend
                     emit.Call(TsTypes.Empty);
                     return;
                 }
-                member.Left.Accept(this);
                 if (member.Left is ReadOnlyToken read)
                 {
-                    //Todo: optimize to use readonly value directly instead of assigning it to a var.
-                    target = GetLocal(typeof(TsInstance));
-                    emit.StLocal(target)
-                        .LdLocal(target)
+                    Func<ILEmitter> loadTarget = GetReadOnlyLoadFunc(read);
+
+                    loadTarget()
                         .LdStr(value.Text)
                         .Call(typeof(TsInstance).GetMethod("get_Item"))
                         .StLocal(secret)
-                        .LdLocal(secret)
-                        .LdLocal(target)
+                        .LdLocal(secret);
+                    loadTarget()
                         .LdStr(value.Text)
                         .LdLocal(secret)
                         .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
@@ -2598,7 +2633,8 @@ namespace TaffyScriptCompiler.Backend
                 }
                 else
                 {
-                    target = GetLocal();
+                    member.Left.Accept(this);
+                    var target = GetLocal();
                     emit.StLocal(target)
                         .LdLocalA(target)
                         .LdStr(value.Text)
@@ -2610,13 +2646,22 @@ namespace TaffyScriptCompiler.Backend
                         .LdLocal(secret)
                         .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
                         .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), typeof(TsObject) }));
+
+                    FreeLocal(target);
                 }
-                FreeLocal(target);
             }
             else
                 _errors.Add(new CompileException($"Invalid syntax detected {postfix.Child.Position}"));
 
             FreeLocal(secret);
+        }
+
+        private Func<ILEmitter> GetReadOnlyLoadFunc(ReadOnlyToken read)
+        {
+            if (read.Text == "global")
+                return () => emit.LdFld(typeof(TsInstance).GetField("Global"));
+            else
+                return () => emit.LdArg(0);
         }
 
         public void Visit(PrefixNode prefix)
@@ -2681,31 +2726,56 @@ namespace TaffyScriptCompiler.Backend
                     else
                     {
                         SelfAccessSet(variable);
-                        emit.Call(typeof(TsInstance).GetMethod("GetVariable"))
+                        emit.Call(typeof(TsInstance).GetMethod("get_Item"))
                             .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
-                            .Dup()
-                            .Call(typeof(TsObject).GetMethod("set_Item", new[] { typeof(string), typeof(TsObject) }));
+                            .StLocal(secret)
+                            .LdLocal(secret)
+                            .Call(typeof(TsInstance).GetMethod("set_Item"))
+                            .LdLocal(secret);
                     }
                 }
                 else if (prefix.Child is MemberAccessNode member)
                 {
-                    MethodInfo get, set;
-                    if(GlobalOrMemberAccessSet(member, 3))
+                    if (!(member.Right is VariableToken value))
                     {
-                        get = typeof(TsInstance).GetMethod("get_Item");
-                        set = typeof(TsInstance).GetMethod("set_Item");
+                        _errors.Add(new CompileException($"Cannot assign to readonly value {member.Right.Position}"));
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+                    if (member.Left is ReadOnlyToken read)
+                    {
+                        Func<ILEmitter> loadTarget = GetReadOnlyLoadFunc(read);
+
+                        loadTarget()
+                            .LdStr(value.Text);
+                        loadTarget()
+                            .LdStr(value.Text)
+                            .Call(typeof(TsInstance).GetMethod("get_Item"))
+                            .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                            .StLocal(secret)
+                            .LdLocal(secret)
+                            .Call(typeof(TsInstance).GetMethod("set_Item"))
+                            .LdLocal(secret);
                     }
                     else
                     {
-                        get = typeof(TsObject).GetMethod("MemberGet");
-                        set = typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), typeof(TsObject) });
+                        member.Left.Accept(this);
+
+                        var target = GetLocal();
+                        emit.StLocal(target)
+                            .LdLocalA(target)
+                            .LdStr(value.Text)
+                            .LdLocalA(target)
+                            .LdStr(value.Text)
+                            .Call(typeof(TsObject).GetMethod("MemberGet"))
+                            .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                            .StLocal(secret)
+                            .LdLocal(secret)
+                            .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), typeof(TsObject) }))
+                            .LdLocal(secret);
+
+                        FreeLocal(target);
                     }
-                    emit.Call(get)
-                        .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
-                        .Dup()
-                        .StLocal(secret)
-                        .Call(set)
-                        .LdLocal(secret);
                 }
                 else
                     _errors.Add(new CompileException($"Invalid syntax detected {prefix.Position}"));

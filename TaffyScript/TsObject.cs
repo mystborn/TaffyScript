@@ -726,6 +726,8 @@ namespace TaffyScript
             var held = Value.WeakValue;
             if (held is null)
                 return obj is null;
+            else if (obj is TsObject other)
+                return this == other;
             else
                 return held.Equals(obj);
         }
