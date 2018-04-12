@@ -20,7 +20,7 @@ You can use these to use TaffyScript projects inside of .NET projects
 * Basic Reflection
 
 ## Sounds Great! How Can I Get it?
-Currently the only way to acquire Taffy is to build it from the source, however that will be changing soon.
+You can now download a precompiled binary from the [releases](https://github.com/mystborn/TaffyScript/releases) page! Please note that TaffyScript is windows only.
 
 ## Example Code
 ```cs

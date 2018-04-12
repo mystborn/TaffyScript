@@ -1,3 +1,16 @@
+# Release 1.5.1.1
+_This release does not come with a new prebuilt compiler. You must build from source to use the new changes._
+* Made some QoL changes to the config file generation.
+* Fixed a few errors when parsing strings with special characters.
+* Fixed a few namespace related errors.
+* Some small codegen optimizations.
+* Grossly improved the threading library in the Samples folder.
+
+# Release 1.5.1.0
+* Added Threading example
+* Fixed bug when importing methods with the WeakMethod attibute.
+* Fixed namespace bug
+
 # Release 1.5.0.0
 * Directly call events from instance: inst.event_name()
 * New keyword to create instances: inst = new object_name()
