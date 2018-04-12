@@ -10,7 +10,7 @@ using MethodImplOptions = System.Runtime.CompilerServices.MethodImplOptions;
 namespace TaffyScript
 {
     /// <summary>
-    /// Represents an object instance in TaffyScript.
+    /// Represents an instance of an object in TaffyScript.
     /// </summary>
     public class TsInstance
     {
@@ -29,9 +29,16 @@ namespace TaffyScript
         /// </summary>
         public event DestroyedDelegate Destroyed;
 
-        // Eventually this should change to not remove object on instance_destroy.
-        // When that happens, make sure to change the readonly id instance_count
-        // to reflect the change.
+        /// <summary>
+        /// Keeps a reference to all of the instances that currently exist, to be retrieved via their id.
+        /// </summary>
+        /// <remarks>
+        /// This can be changed to be list for a speed increase. Testing needed.
+        /// If changed, when retrieving an instance it should go something like this:
+        /// var index = (int)id - Start;
+        /// return Pool[index];
+        /// Keep in mind there will need be at least one check for null.
+        /// </remarks>
         private static Dictionary<float, TsInstance> Pool = new Dictionary<float, TsInstance>();
         private static Queue<float> _availableIds = new Queue<float>();
 
@@ -157,7 +164,7 @@ namespace TaffyScript
         /// Gets an event defined by this instance.
         /// </summary>
         /// <param name="name">The name of the event.</param>
-        /// <param name="instanceEvent">If found, the event.</param>
+        /// <param name="del">If found, the event.</param>
         /// <returns>True if found, false otherwise.</returns>
         public bool TryGetDelegate(string name, out TsDelegate del)
         {
@@ -235,6 +242,7 @@ namespace TaffyScript
         /// </summary>
         /// <param name="name">The name of the variable</param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TsObject GetVariable(string name)
         {
             if (TryGetVariable(name, out var result))
@@ -276,7 +284,7 @@ namespace TaffyScript
         /// Destroys this instance in the eyes of TaffyScript
         /// </summary>
         /// <remarks>
-        /// Make this object inheritf from IDisposable, change this to Dispose method?
+        /// Make this object inherit from IDisposable, change this to Dispose method?
         /// </remarks>
         public void Destroy()
         {
@@ -295,7 +303,7 @@ namespace TaffyScript
         /// </summary>
         /// <param name="type">The type that defines the event</param>
         /// <param name="name">The name of the event.</param>
-        /// <param name="instanceEvent">If found, the event.</param>
+        /// <param name="del">If found, the event.</param>
         /// <returns>True if found, otherwise false.</returns>
         public static bool TryGetDelegate(string type, string name, out TsDelegate del)
         {
@@ -327,11 +335,10 @@ namespace TaffyScript
         /// </summary>
         /// <param name="newObj">The name of the new type</param>
         /// <param name="performEvents">Determines whether or not to perform the destroy and create events when changing.</param>
-        public static void InstanceChange(string newObj, bool performEvents)
+        [WeakMethod]
+        public static void InstanceChange(TsInstance inst, TsObject[] args)
         {
-            var id = TsObject.Id.Peek();
-            Pool.TryGetValue(id.GetFloat(), out var inst);
-            inst.ChangeType(newObj, performEvents);
+            inst.ChangeType((string)args[0], (bool)args[1]);
         }
 
         /// <summary>
@@ -339,11 +346,9 @@ namespace TaffyScript
         /// </summary>
         /// <param name="performEvents">Determines whther or not to perform the create event on the copy.</param>
         /// <returns></returns>
-        public static float InstanceCopy(bool performEvents)
+        public static float InstanceCopy(TsInstance inst, TsObject[] args)
         {
-            var id = TsObject.Id.Peek();
-            Pool.TryGetValue(id.GetFloat(), out var inst);
-            return inst.Copy(performEvents).Id;
+            return inst.Copy((bool)args[0]).Id;
         }
 
         /// <summary>
@@ -375,6 +380,7 @@ namespace TaffyScript
         /// <summary>
         /// Destroys a previously created instance. This overload should not be called.
         /// </summary>
+        /// <param name="target">Currently executing instance if any.</param>
         /// <param name="args">Optionally contains the id of the instance.</param>
         [WeakMethod]
         public static void InstanceDestroy(TsInstance target, TsObject[] args)
@@ -503,8 +509,8 @@ namespace TaffyScript
         {
             var arr = new TsObject[Global._vars.Count];
             int i = 0;
-            foreach (var value in Global._vars.Values)
-                arr[i++] = value;
+            foreach (var key in Global._vars.Keys)
+                arr[i++] = key;
 
             return arr;
         }
@@ -553,8 +559,8 @@ namespace TaffyScript
         {
             var arr = new TsObject[inst._vars.Count];
             var i = 0;
-            foreach (var value in inst._vars.Values)
-                arr[i++] = value;
+            foreach (var key in inst._vars.Keys)
+                arr[i++] = key;
 
             return arr;
         }

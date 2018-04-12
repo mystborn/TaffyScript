@@ -21,35 +21,29 @@ namespace TaffyScriptCompiler.Backend
 
             sb.AppendLine("import Math.Abs(float) as abs;");
             sb.AppendLine("import Bcl.AngleDifference(float, float) as angle_difference;");
-            sb.AppendLine("import Bcl.ArcCos(float) as arccos;");
-            sb.AppendLine("import Bcl.ArcSin(float) as arcsin;");
-            sb.AppendLine("import Bcl.ArcTan(float) as arctan;");
-            sb.AppendLine("import Bcl.ArcTan2(float, float) as arctan2;");
+            sb.AppendLine("import Math.Acos(double) as arccos;");
+            sb.AppendLine("import Math.Asin(double) as arcsin;");
+            sb.AppendLine("import Math.Atan(double) as arctan;");
+            sb.AppendLine("import Math.Atan2(double, double) as arctan2;");
             sb.AppendLine("import Bcl.ArrayCopy(object, int, object, int, int) as array_copy;");
             sb.AppendLine("import Bcl.ArrayCreate(instance, array) as array_create;");
             sb.AppendLine("import Bcl.ArrayEquals(array, array) as array_equals");
             sb.AppendLine("import Bcl.ArrayHeight2D(array2d) as array_height_2d;");
             sb.AppendLine("import Bcl.ArrayLength1D(array) as array_length_1d");
             sb.AppendLine("import Bcl.ArrayLength2D(array2d, int) as array_length_2d");
-            //Todo: asset_get_type, asset_get_index
+
             sb.AppendLine("import Bcl.Base64Decode(string) as base64_decode");
             sb.AppendLine("import Bcl.Base64Encode(string) as base64_encode");
+
             //Todo: buffer
-            sb.AppendLine("import Bcl.Ceil(float) as ceil");
+
+            sb.AppendLine("import Math.Ceiling(double) as ceil");
             sb.AppendLine("import Bcl.Choose(instance, array) as choose");
             sb.AppendLine("import Bcl.Clamp(float, float, float) as clamp");
-            sb.AppendLine("import Bcl.CodeIsCompiled() as code_is_compiled");
 
-            //Todo: colour_get_hsv
-            //Todo: d-trig funcs
             //Todo: datetime handling.
-
-            //sb.AppendLine("import Directory.CreateDirectory(string) as directory_create");
-            //sb.AppendLine("import FileHandling.DirectoryDestroy(string) as directory_destroy");
-            //sb.AppendLine("import Directory.Exists(string) as directory_exists");
-
-
             //Todo: File-Handling.
+
             sb.AppendLine("import Bcl.DotProduct(float, float, float, float) as dot_product");
 
             sb.AppendLine("import DsGrid.DsGridAdd(int, int, int, object) as ds_grid_add");
@@ -119,14 +113,15 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import DsMap.DsMapSize(int) as ds_map_size");
 
             sb.AppendLine("import Bcl.EnvironmentGetVariable(string) as environment_get_variable");
-            sb.AppendLine("import Bcl.EventInherited() as event_inherited");
-            sb.AppendLine("import Bcl.EventPerform(string) as event_perform");
-            sb.AppendLine("import Bcl.EventPerformObject(string, string) as event_perform_object");
+            sb.AppendLine("import Bcl.EventInherited(instance, array) as event_inherited");
+            sb.AppendLine("import Bcl.EventPerform(instance, array) as event_perform");
+            sb.AppendLine("import Bcl.EventPerformObject(instance, array) as event_perform_object");
 
-            sb.AppendLine("import Bcl.Floor(float) as floor");
+            sb.AppendLine("import Math.Exp(double) as exp");
+            sb.AppendLine("import Math.Floor(double) as floor");
 
-            sb.AppendLine("import TsInstance.InstanceChange(string, bool) as instance_change");
-            sb.AppendLine("import TsInstance.InstanceCopy(bool) as instance_copy");
+            sb.AppendLine("import TsInstance.InstanceChange(instance, array) as instance_change");
+            sb.AppendLine("import TsInstance.InstanceCopy(instance, array) as instance_copy");
             sb.AppendLine("import TsInstance.InstanceCreate(instance, array) as instance_create");
             sb.AppendLine("import TsInstance.InstanceDestroy(instance, array) as instance_destroy");
             sb.AppendLine("import TsInstance.InstanceExists(float) as instance_exists");
@@ -136,14 +131,14 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import TsObject.IsArray(object) as is_array");
             sb.AppendLine("import TsObject.IsReal(object) as is_real");
             sb.AppendLine("import TsObject.IsString(object) as is_string");
+            sb.AppendLine("import TsObject.IsDelegate(object) as is_delegate");
             sb.AppendLine("import TsObject.IsUndefined(object) as is_undefined");
 
             //Todo: lengthdir, lerp
 
-            sb.AppendLine("import Bcl.Ln(float) as ln");
-            sb.AppendLine("import Bcl.Log10(float) as log10");
-            sb.AppendLine("import Bcl.Log2(float) as log2");
-            sb.AppendLine("import Bcl.LogN(float, float) as logn");
+            sb.AppendLine("import Math.Log(double) as ln");
+            sb.AppendLine("import Math.Log10(double) as log10");
+            sb.AppendLine("import Math.Log(double, double) as logn");
             sb.AppendLine("import Bcl.Max(instance, array) as max");
             sb.AppendLine("import Bcl.Min(instance, array) as min");
 
@@ -160,12 +155,14 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import Bcl.Real(string) as real");
             sb.AppendLine("import Bcl.Round(float) as round");
 
-            //Todo: radtodeg
-
             sb.AppendLine("import Bcl.ScriptExecute(instance, array) as script_execute");
             sb.AppendLine("import Bcl.ScriptExists(string) as script_exists");
             sb.AppendLine("import Bcl.ShowError(string, bool) as show_error");
             sb.AppendLine("import System.Console.WriteLine(object) as show_debug_message;");
+
+            sb.AppendLine("import Math.Sign(float) as sign");
+            sb.AppendLine("import Bcl.Square(float) as sqr");
+            sb.AppendLine("import Math.Sqrt(double) as sqrt");
 
             sb.AppendLine("import Bcl.ToString(object) as string;");
             sb.AppendLine("import Bcl.StringByteAt(string, int) as string_byte_at");

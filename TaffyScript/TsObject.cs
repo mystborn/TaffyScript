@@ -20,11 +20,6 @@ namespace TaffyScript
 
         #region Properties
 
-        /// <summary>
-        /// Gets a stack trace of the currently executing instances.
-        /// </summary>
-        public static Stack<TsObject> Id { get; } = new Stack<TsObject>();
-
         public VariableType Type { get; private set; }
         public ITsValue Value { get; private set; }
 
@@ -426,31 +421,6 @@ namespace TaffyScript
         #endregion
 
         #region Member Access
-
-        /// <summary>
-        /// Gets the id of the currently executing instance
-        /// </summary>
-        /// <returns></returns>
-        public static TsObject GetId()
-        {
-            return Id.Peek();
-        }
-
-        /// <summary>
-        /// Attempts to get the id of the currently executing instance.
-        /// </summary>
-        /// <param name="id">If found, the instance id</param>
-        /// <returns></returns>
-        public static bool TryGetId(out TsObject id)
-        {
-            if(Id.Count != 0)
-            {
-                id = Id.Peek();
-                return true;
-            }
-            id = Empty();
-            return false;
-        }
 
         /// <summary>
         /// Sets a variable of the given name on the instance with an id that matches the value of this object to a float value.
