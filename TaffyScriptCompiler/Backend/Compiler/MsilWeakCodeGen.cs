@@ -1487,54 +1487,6 @@ namespace TaffyScriptCompiler.Backend
                 .LdStr(variable.Text);
         }
 
-        /// <summary>
-        /// Prepares a global or member variable to be read then set. Returns true if it's global, false if it's member.
-        /// </summary>
-        /// <param name="memberAccess"></param>
-        /// <returns></returns>
-        private bool GlobalOrMemberAccessSet(MemberAccessNode memberAccess, int accesses)
-        {
-            string text = null;
-            if (memberAccess.Right is VariableToken right)
-                text = right.Text;
-            else
-                _errors.Add(new CompileException($"Invalid syntax detected {memberAccess.Right.Position}"));
-
-            if (memberAccess.Left is ReadOnlyToken read)
-            {
-                if (read.Text != "global")
-                    _errors.Add(new CompileException($"Tried to access a variable in a read-only value that wasn't an instance {read.Position}"));
-                else
-                {
-                    for(var i = 0; i < accesses; i++)
-                    {
-                        emit.LdFld(typeof(TsInstance).GetField("Global"))
-                            .LdStr(text);
-                    }
-                }
-                return true;
-            }
-            else
-            {
-                memberAccess.Left.Accept(this);
-                var top = emit.GetTop();
-                if (top != typeof(TsObject))
-                    _errors.Add(new CompileException($"Invalid syntax detected {memberAccess.Left.Position}"));
-                var secret = GetLocal();
-                emit.StLocal(secret);
-
-                for(var i = 0; i < accesses; i++)
-                {
-                    emit.LdLocalA(secret)
-                        .LdStr(text);
-                }
-
-                FreeLocal(secret);
-
-                return false;
-            }
-        }
-
         public void Visit(BitwiseNode bitwise)
         {
             if(bitwise.Left.Type == SyntaxType.Constant)
@@ -2383,11 +2335,14 @@ namespace TaffyScriptCompiler.Backend
         public void Visit(NamespaceNode namespaceNode)
         {
             var parent = _namespace;
-            _namespace = namespaceNode.Value;
-            _table.EnterNamespace(_namespace);
+            if (parent == "")
+                _namespace = namespaceNode.Value;
+            else
+                _namespace += "." + namespaceNode.Value;
+            _table.EnterNamespace(namespaceNode.Value);
             var temp = _table;
             _table = CopyTable(_table);
-            temp.ExitNamespace(_namespace);
+            temp.ExitNamespace(namespaceNode.Value);
             CopyTable(temp, _table, namespaceNode.Position);
             AcceptDeclarations(namespaceNode);
             _namespace = parent;

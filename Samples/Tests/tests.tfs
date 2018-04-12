@@ -3,16 +3,17 @@ using UnitTest;
 namespace LanguageTests {
     script main {
         var tests = new obj_unit_test("Operator Tests", 
-                                      addition_tests,
+                                      addition,
                                       array_literal,
                                       assignment,
                                       postfix,
-                                      prefix);
+                                      prefix,
+                                      script_tests);
         tests.run_tests();
         tests.destroy();
     }
 
-    script addition_tests() {
+    script addition() {
         test_it("Addition");
         var left = 30;
         var right = 10;
@@ -175,6 +176,38 @@ namespace LanguageTests {
         obj.destroy();
     }
 
+    script script_tests() {
+        test_it("Script")
+        var func = script1;
+        var result = func();
+        assert_equal(result, 40);
+        func = script2;
+        result = func("henlo");
+        assert_equal(result, "henlo");
+        var obj = new obj_test();
+        func = obj.script1;
+        result = func();
+        assert_equal(result, obj);
+        func = obj.script2;
+        result = func("yo");
+        assert_equal(result, "yo");
+        obj.destroy();
+        func = Inner.script1;
+        result = func();
+        assert_equal(result, 6);
+        func = Inner.script2;
+        result = func("cow");
+        assert_equal(result, "cow");
+    }
+
+    script script1() {
+        return 40;
+    }
+
+    script script2() {
+        return argument0;
+    }
+
     object obj_test {
         event create() {
             val = 30;
@@ -207,10 +240,6 @@ namespace LanguageTests {
             assert_equal(self.val, 34);
         }
 
-        event il_test() {
-            ++val;
-        }
-
         event assignment() {
             val = 50;
             assert_equal(val, 50);
@@ -218,8 +247,26 @@ namespace LanguageTests {
             assert_equal(self.val, 49);
             val += 2;
             assert_equal(val, 51);
-            //self.val += 1;
-            //assert_equal(self.val, 52);
+            self.val += 1;
+            assert_equal(self.val, 52);
+        }
+
+        event script1() {
+            return self;
+        }
+
+        event script2() {
+            return argument0;
+        }
+    }
+
+    namespace Inner {
+        script script1() {
+            return 6;
+        }
+
+        script script2() {
+            return argument0;
         }
     }
 }
