@@ -336,9 +336,10 @@ namespace TaffyScript
         /// <param name="newObj">The name of the new type</param>
         /// <param name="performEvents">Determines whether or not to perform the destroy and create events when changing.</param>
         [WeakMethod]
-        public static void InstanceChange(TsInstance inst, TsObject[] args)
+        public static TsObject InstanceChange(TsInstance inst, TsObject[] args)
         {
             inst.ChangeType((string)args[0], (bool)args[1]);
+            return TsObject.Empty();
         }
 
         /// <summary>
@@ -383,12 +384,14 @@ namespace TaffyScript
         /// <param name="target">Currently executing instance if any.</param>
         /// <param name="args">Optionally contains the id of the instance.</param>
         [WeakMethod]
-        public static void InstanceDestroy(TsInstance target, TsObject[] args)
+        public static TsObject InstanceDestroy(TsInstance target, TsObject[] args)
         {
             if (args == null || args.Length == 0)
                 target.Destroy();
             else
                 InstanceDestroy((float)args[0]);
+
+            return TsObject.Empty();
         }
 
         /// <summary>

@@ -150,24 +150,27 @@ namespace TaffyScript
         }
 
         [WeakMethod]
-        public static void EventInherited(TsInstance inst, TsObject[] args)
+        public static TsObject EventInherited(TsInstance inst, TsObject[] args)
         {
             if (TsInstance.TryGetDelegate(inst.Parent, TsInstance.EventType.Peek(), out var ev))
-                ev.Invoke(inst, args);
+                return ev.Invoke(inst, args);
+            return TsObject.Empty();
         }
 
         [WeakMethod]
-        public static void EventPerform(TsInstance inst, TsObject[] args)
+        public static TsObject EventPerform(TsInstance inst, TsObject[] args)
         {
             if (TsInstance.TryGetDelegate(inst.ObjectType, (string)args[0], out var ev))
-                ev.Invoke(inst);
+                return ev.Invoke(inst);
+            return TsObject.Empty();
         }
 
         [WeakMethod]
-        public static void EventPerformObject(TsInstance inst, TsObject[] args)
+        public static TsObject EventPerformObject(TsInstance inst, TsObject[] args)
         {
             if (TsInstance.TryGetDelegate((string)args[0], (string)args[1], out var ev))
-                ev.Invoke(inst);
+                return ev.Invoke(inst);
+            return TsObject.Empty();
         }
 
         [WeakMethod]

@@ -1,0 +1,44 @@
+//This file makes sure weird scripts and object inheritance compiles properly.
+
+using UnitTest;
+
+namespace LanguageTests {
+
+    script scr_comp_tests() {
+        test_it("Script Composition");
+        var obj = new obj_comp3();
+        assert_equal(obj.moo(), "moomoo");
+    }
+
+    script scr_comp1() {
+
+    }
+
+    script scr_comp2 {
+
+    }
+
+    object obj_comp1 {
+
+    }
+
+    object obj_comp2 : obj_comp1 {
+        event ev_comp1() {
+
+        }
+
+        event ev_comp2 {
+
+        }
+
+        event moo() {
+            return "moo";
+        }
+    }
+
+    object obj_comp3 : obj_comp2 {
+        event moo() {
+            return "moo" + event_inherited();
+        }
+    }
+}

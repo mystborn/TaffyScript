@@ -1,7 +1,7 @@
 namespace TaffyScript.Threading.Locks {
     import Locks.MoniterEnter(object) as moniter_enter;
     import Locks.MoniterExit(object) as moniter_exit;
-    import Locks.MoniterTryEnter(array) as moniter_try_enter;
+    import Locks.MoniterTryEnter(instance, array) as moniter_try_enter;
 
     object moniter {
         event create {
@@ -14,6 +14,10 @@ namespace TaffyScript.Threading.Locks {
 
         event unlock {
             moniter_exit(_key);
+        }
+
+        event try_lock {
+            return moniter_try_enter(_key);
         }
     }
 }

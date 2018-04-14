@@ -8,7 +8,8 @@ namespace LanguageTests {
                                       assignment,
                                       postfix,
                                       prefix,
-                                      script_tests);
+                                      script_tests,
+                                      scr_comp_tests);
         tests.run_tests();
         tests.destroy();
     }

@@ -16,28 +16,52 @@ namespace TaffyScript.Threading.Extern
         private static object _key = new object();
 
         [WeakMethod]
-        public static TsObject TaskStart(TsObject[] args)
+        public static TsObject TaskStart(TsInstance inst, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args");
 
-            var script = args[0].GetDelegate();
+            TsDelegate script;
+            switch(args[0].Type)
+            {
+                case VariableType.String:
+                    script = TsInstance.GlobalScripts[args[0].GetStringUnchecked()];
+                    break;
+                case VariableType.Delegate:
+                    script = args[0].GetDelegateUnchecked();
+                    break;
+                default:
+                    throw new InvalidTsTypeException($"Expected string or delegate to start thread, got {args[0].Type}");
+            }
+
             TsObject[] scriptArgs = null;
             if(args.Length > 1)
             {
                 scriptArgs = new TsObject[args.Length - 1];
                 Array.Copy(args, 1, scriptArgs, 0, args.Length - 1);
             }
-            return GetId(Task.Run(() => script.Invoke(scriptArgs)));
+            return GetId(Task.Run(() => script.Invoke(inst, scriptArgs)));
         }
 
         [WeakMethod]
-        public static TsObject ThreadFire(TsObject[] args)
+        public static TsObject ThreadFire(TsInstance inst, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args");
 
-            var script = args[0].GetDelegate();
+            TsDelegate script;
+            switch (args[0].Type)
+            {
+                case VariableType.String:
+                    script = TsInstance.GlobalScripts[args[0].GetStringUnchecked()];
+                    break;
+                case VariableType.Delegate:
+                    script = args[0].GetDelegateUnchecked();
+                    break;
+                default:
+                    throw new InvalidTsTypeException($"Expected string or delegate to start thread, got {args[0].Type}");
+            }
+
             TsObject[] scriptArgs = null;
             if (args.Length > 1)
             {
@@ -45,7 +69,7 @@ namespace TaffyScript.Threading.Extern
                 Array.Copy(args, 1, scriptArgs, 0, args.Length - 1);
             }
 
-            ThreadPool.QueueUserWorkItem((obj) => script.Invoke(scriptArgs));
+            ThreadPool.QueueUserWorkItem((obj) => script.Invoke(inst, scriptArgs));
             return TsObject.Empty();
         }
 

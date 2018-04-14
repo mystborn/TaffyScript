@@ -632,8 +632,10 @@ namespace TaffyScriptCompiler.Backend
                 SyntaxType.Script
             };
 
-            var table = new LookupTable<Type, Type, MethodInfo>();
-            table.Add(typeof(string), typeof(string), typeof(string).GetMethod("Concat", _methodFlags, null, new[] { typeof(string), typeof(string) }, null));
+            var table = new LookupTable<Type, Type, MethodInfo>
+            {
+                { typeof(string), typeof(string), typeof(string).GetMethod("Concat", _methodFlags, null, new[] { typeof(string), typeof(string) }, null) }
+            };
             _binaryOps.Add("+", table);
         }
 
@@ -2074,24 +2076,33 @@ namespace TaffyScriptCompiler.Backend
                 _errors.Add(new CompileException($"Failed to find the import function {externalName} {import.ExternalName.Position}"));
                 return;
             }
+
             if (method.GetCustomAttribute<WeakMethodAttribute>() != null && IsMethodValid(method))
             {
-                _methods.Add(_namespace, internalName, method);
-                SpecialImports.Write(_namespace);
-                SpecialImports.Write(":");
-                SpecialImports.Write(internalName);
-                SpecialImports.Write(':');
-                SpecialImports.WriteLine(externalName);
-                var init = Initializer;
-                var name = $"{_namespace}.{internalName}".TrimStart('.');
-                init.Call(GetGlobalScripts)
-                    .LdStr(name)
-                    .LdNull()
-                    .LdFtn(method)
-                    .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                    .LdStr(name)
-                    .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                    .Call(typeof(Dictionary<string, TsDelegate>).GetMethod("Add"));
+                if(IsMethodValid(method))
+                {
+                    _methods.Add(_namespace, internalName, method);
+                    SpecialImports.Write(_namespace);
+                    SpecialImports.Write(":");
+                    SpecialImports.Write(internalName);
+                    SpecialImports.Write(':');
+                    SpecialImports.WriteLine(externalName);
+                    var init = Initializer;
+                    var name = $"{_namespace}.{internalName}".TrimStart('.');
+                    init.Call(GetGlobalScripts)
+                        .LdStr(name)
+                        .LdNull()
+                        .LdFtn(method)
+                        .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                        .LdStr(name)
+                        .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
+                        .Call(typeof(Dictionary<string, TsDelegate>).GetMethod("Add"));
+                }
+                else
+                {
+                    _warnings.Add($"Could not directly import method with the WeakMethod attribute: {method} {import.Position}\nPlease check the method signature.");
+                    GenerateWeakMethodForImport(method, internalName);
+                }
             }
             else
                 GenerateWeakMethodForImport(method, internalName);
@@ -2442,8 +2453,10 @@ namespace TaffyScriptCompiler.Backend
 
             init.Call(typeof(TsInstance).GetMethod("get_Types"))
                 .LdStr(name)
-                .Call(typeof(List<string>).GetMethod("Add"))
-                .Call(typeof(TsInstance).GetMethod("get_InstanceScripts"));
+                .Call(typeof(List<string>).GetMethod("Add"));
+
+            if(objectNode.Children.Count > 1)
+                init.Call(typeof(TsInstance).GetMethod("get_InstanceScripts"));
 
             for(var i = 1; i < objectNode.Children.Count; i++)
             {
@@ -2983,8 +2996,11 @@ namespace TaffyScriptCompiler.Backend
                             .MarkLabel(lte);
                         //Must be ConstantToken
                         assign.Right.Accept(this);
-                        emit.New(TsTypes.Constructors[emit.GetTop()])
-                            .StLocal(_locals[symbol])
+                        var top = emit.GetTop();
+                        if (top != typeof(TsObject))
+                            emit.New(TsTypes.Constructors[emit.GetTop()]);
+
+                        emit.StLocal(_locals[symbol])
                             .MarkLabel(end);
                     }
                     else if (arg is VariableToken variable)
