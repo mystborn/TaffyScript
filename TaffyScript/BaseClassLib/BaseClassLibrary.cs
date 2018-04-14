@@ -31,6 +31,12 @@ namespace TaffyScript
                 return obj;
         }
 
+        /// <summary>
+        /// Calculates the difference between two angles in degrees.
+        /// </summary>
+        /// <param name="ang1">The first angle.</param>
+        /// <param name="ang2">The second angle.</param>
+        /// <returns></returns>
         public static TsObject AngleDifference(float ang1, float ang2)
         {
             var result = ang1 - ang2;
@@ -53,6 +59,15 @@ namespace TaffyScript
             return new TsObject(result);
         }
 
+        /// <summary>
+        /// Copies one TS array into another, resizing the destination if needed.
+        /// </summary>
+        /// <param name="dest"></param>
+        /// <param name="destIndex"></param>
+        /// <param name="src"></param>
+        /// <param name="srcIndex"></param>
+        /// <param name="length"></param>
+        /// <returns></returns>
         public static TsObject ArrayCopy(TsObject dest, int destIndex, TsObject src, int srcIndex, int length)
         {
             //We need to get the value wrapper in case we need to resize the internal array.
@@ -71,6 +86,12 @@ namespace TaffyScript
             return TsObject.Empty();
         }
 
+        /// <summary>
+        /// Creates a TS array of empty objects.
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
         [WeakMethod]
         public static TsObject ArrayCreate(TsInstance target, TsObject[] args)
         {
@@ -85,6 +106,12 @@ namespace TaffyScript
             return new TsObject(result);
         }
 
+        /// <summary>
+        /// Determines if the values of two arrays are equal.
+        /// </summary>
+        /// <param name="var1"></param>
+        /// <param name="var2"></param>
+        /// <returns></returns>
         public static TsObject ArrayEquals(TsObject[] var1, TsObject[] var2)
         {
             if (var1.Length != var2.Length)
@@ -97,12 +124,12 @@ namespace TaffyScript
             }
             return new TsObject(true);
         }
-
+        
         public static TsObject ArrayHeight2D(TsObject[][] array)
         {
             return new TsObject(array.Length);
         }
-
+        
         public static TsObject ArrayLength1D(TsObject[] array)
         {
             return new TsObject(array.Length);

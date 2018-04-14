@@ -59,7 +59,8 @@ namespace TaffyScript.Collections
     /// <typeparam name="T"></typeparam>
     public class ClassBinder<T> : IBinder<T> where T : class
     {
-        private readonly List<T> _binder = new List<T>();
+        private T[] _binder = new T[10];
+        private int _count = 0;
         private readonly Stack<int> _openSlots = new Stack<int>();
 
         /// <summary>
@@ -75,7 +76,7 @@ namespace TaffyScript.Collections
         /// <summary>
         /// Gets the number of bound items.
         /// </summary>
-        public int Count => _binder.Count - _openSlots.Count;
+        public int Count => _count;
 
         /// <summary>
         /// Adds an item to the binder, returning its index.
@@ -87,15 +88,18 @@ namespace TaffyScript.Collections
             int index;
             if (_openSlots.Count == 0)
             {
-                index = _binder.Count;
-                _binder.Add(item);
+                if (_count == _binder.Length)
+                {
+                    var temp = new T[_count * 2];
+                    Array.Copy(_binder, temp, _count);
+                    _binder = temp;
+                }
+                index = _count;
             }
             else
-            {
                 index = _openSlots.Pop();
-                _binder[index] = item;
-            }
 
+            ++_count;
             return index;
         }
 
@@ -105,9 +109,11 @@ namespace TaffyScript.Collections
         /// <returns></returns>
         public IEnumerator<T> GetEnumerator()
         {
-            foreach (var item in _binder)
-                if (item != null)
-                    yield return item;
+            for(var i = 0; i < _count; i++)
+            {
+                if (_binder[i] != null)
+                    yield return _binder[i];
+            }
         }
 
         /// <summary>
@@ -117,13 +123,14 @@ namespace TaffyScript.Collections
         public void Remove(int index)
         {
             // Originally did a bounds check, but currently
-            // I've decided to let the List implementation control that.
-            // if (index < 0 || index >= _binder.Count)
+            // I've decided to let the Array implementation control that.
+            // if (index < 0 || index >= _binder.Length)
             //     throw new ArgumentOutOfRangeException(nameof(index));
             _binder[index] = null;
 
             //The application will throw before this operation 
             //so it's safe to push any index that's made it this far.
+            --_count;
             _openSlots.Push(index);
         }
 
@@ -136,7 +143,7 @@ namespace TaffyScript.Collections
         public bool TryGetValue(int index, out T value)
         {
             value = null;
-            if (index < 0 || index >= _binder.Count)
+            if (index < 0 || index >= _count)
                 return false;
             value = _binder[index];
             if (value == null)
@@ -151,17 +158,9 @@ namespace TaffyScript.Collections
     /// <typeparam name="T"></typeparam>
     public class StructBinder<T> : IBinder<T> where T : struct
     {
-        private readonly List<T> _binder = new List<T>();
+        private T[] _binder = new T[10];
         private readonly Stack<int> _openSlots = new Stack<int>();
-
-        /// <summary>
-        /// Creates a new StructBinder with the specified default value.
-        /// </summary>
-        /// <param name="defaultValue"></param>
-        public StructBinder(T defaultValue)
-        {
-            Default = defaultValue;
-        }
+        private int _count = 0;
 
         /// <summary>
         /// Gets the item at the specified index.
@@ -173,12 +172,29 @@ namespace TaffyScript.Collections
         /// <summary>
         /// Gets the number of bound items.
         /// </summary>
-        public int Count => _binder.Count - _openSlots.Count;
+        public int Count => _count;
 
         /// <summary>
         /// Gets the default value of this binder.
         /// </summary>
         public T Default { get; }
+
+        /// <summary>
+        /// Creates a new StructBinder with default(T) as the default value.
+        /// </summary>
+        public StructBinder()
+        {
+            Default = default(T);
+        }
+
+        /// <summary>
+        /// Creates a new StructBinder with the specified default value.
+        /// </summary>
+        /// <param name="defaultValue"></param>
+        public StructBinder(T defaultValue)
+        {
+            Default = defaultValue;
+        }
 
         /// <summary>
         /// Adds an item to the binder, returning it's index.
@@ -190,15 +206,18 @@ namespace TaffyScript.Collections
             int index;
             if (_openSlots.Count == 0)
             {
-                index = _binder.Count;
-                _binder.Add(item);
+                if (_count == _binder.Length)
+                {
+                    var temp = new T[_count * 2];
+                    Array.Copy(_binder, temp, _count);
+                    _binder = temp;
+                }
+                index = _count;
             }
             else
-            {
                 index = _openSlots.Pop();
-                _binder[index] = item;
-            }
 
+            ++_count;
             return index;
         }
 
@@ -208,9 +227,11 @@ namespace TaffyScript.Collections
         /// <returns></returns>
         public IEnumerator<T> GetEnumerator()
         {
-            foreach (var item in _binder)
-                if (!item.Equals(Default))
-                    yield return item;
+            for(var i = 0; i < _count; i++)
+            {
+                if (!_binder[i].Equals(Default))
+                    yield return _binder[i];
+            }
         }
 
         /// <summary>
@@ -220,6 +241,8 @@ namespace TaffyScript.Collections
         public void Remove(int index)
         {
             _binder[index] = Default;
+
+            --_count;
             _openSlots.Push(index);
         }
 
@@ -232,7 +255,7 @@ namespace TaffyScript.Collections
         public bool TryGetValue(int index, out T value)
         {
             value = Default;
-            if (index < 0 || index >= _binder.Count)
+            if (index < 0 || index >= _count)
                 return false;
             value = _binder[index];
             if (value.Equals(Default))
