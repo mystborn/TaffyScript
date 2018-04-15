@@ -100,6 +100,7 @@ namespace TaffyScript.Collections
                 index = _openSlots.Pop();
 
             ++_count;
+            _binder[index] = item;
             return index;
         }
 

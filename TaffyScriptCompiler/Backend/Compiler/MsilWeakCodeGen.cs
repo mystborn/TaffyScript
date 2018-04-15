@@ -1192,7 +1192,7 @@ namespace TaffyScriptCompiler.Backend
                 var top = emit.GetTop();
                 if (top != typeof(TsObject))
                     emit.New(TsTypes.Constructors[top]);
-                emit.Call(typeof(DsList).GetMethod("DsListStrongSet"));
+                emit.Call(typeof(DsList).GetMethod("DsListSet", new[] { typeof(int), typeof(int), typeof(TsObject) }));
             }
             else if(assign.Left is GridAccessNode grid)
             {
@@ -1322,7 +1322,7 @@ namespace TaffyScriptCompiler.Backend
                 emit.Call(typeof(DsList).GetMethod("DsListFindValue"));
                 assign.Right.Accept(this);
                 emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
-                    .Call(typeof(DsList).GetMethod("DsListStrongSet"));
+                    .Call(typeof(DsList).GetMethod("DsListSet", new[] { typeof(int), typeof(int), typeof(TsObject) }));
             }
             else if (assign.Left is GridAccessNode grid)
             {
@@ -1902,8 +1902,21 @@ namespace TaffyScriptCompiler.Backend
             var ns = GetAssetNamespace(symbol);
             if (!_methods.TryGetValue(ns, name, out var method))
             {
-                method = StartMethod(name, ns);
-                _pendingMethods.Add($"{ns}.{name}".TrimStart('.'), functionCall.Position);
+                // Special case hack needed for getting the MethodInfo for weak methods before
+                // their ImportNode has been hit.
+                if (symbol is ImportLeaf leaf)
+                {
+                    var temp = _namespace;
+                    _namespace = ns;
+                    leaf.Node.Accept(this);
+                    method = _methods[_namespace, leaf.Name];
+                    _namespace = temp;
+                }
+                else
+                {
+                    method = StartMethod(name, ns);
+                    _pendingMethods.Add($"{ns}.{name}".TrimStart('.'), functionCall.Position);
+                }
             }
 
             UnresolveNamespace();
@@ -2053,6 +2066,9 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(ImportNode import)
         {
+            if (_methods.ContainsIndex(_namespace, import.InternalName.Value))
+                return;
+
             var argWrappers = import.GetArguments();
             var args = new Type[argWrappers.Count];
             var externalName = import.ExternalName.Value;
@@ -2077,7 +2093,7 @@ namespace TaffyScriptCompiler.Backend
                 return;
             }
 
-            if (method.GetCustomAttribute<WeakMethodAttribute>() != null && IsMethodValid(method))
+            if (method.GetCustomAttribute<WeakMethodAttribute>() != null)
             {
                 if(IsMethodValid(method))
                 {
@@ -2457,7 +2473,7 @@ namespace TaffyScriptCompiler.Backend
 
             if(objectNode.Children.Count > 1)
                 init.Call(typeof(TsInstance).GetMethod("get_InstanceScripts"));
-
+            _inInstanceScript = true;
             for(var i = 1; i < objectNode.Children.Count; i++)
             {
                 var script = (ScriptNode)objectNode.Children[i];
@@ -2495,6 +2511,7 @@ namespace TaffyScriptCompiler.Backend
                     .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
                     .Call(addMethod);
             }
+            _inInstanceScript = false;
 
             var attrib = new CustomAttributeBuilder(typeof(WeakObjectAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
             type.SetCustomAttribute(attrib);

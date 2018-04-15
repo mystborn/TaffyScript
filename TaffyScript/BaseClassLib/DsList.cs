@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TaffyScript.Collections;
 
 namespace TaffyScript
 {
@@ -11,8 +12,7 @@ namespace TaffyScript
     /// </summary>
     public static class DsList
     {
-        private readonly static List<List<TsObject>> _lists = new List<List<TsObject>>();
-        private readonly static Queue<int> _listSlots = new Queue<int>();
+        private readonly static ClassBinder<List<TsObject>> _lists = new ClassBinder<List<TsObject>>();
 
         /// <summary>
         /// Adds a value to a list.
@@ -22,7 +22,7 @@ namespace TaffyScript
         {
             if (args.Length < 2)
                 throw new ArgumentNullException("When calling ds_list_add, at least 2 arguments must be provided.");
-            var list = GetList(args[0].GetInt());
+            var list = _lists[(int)args[0]];
             for (var i = 1; i < args.Length; i++)
                 list.Add(args[i]);
 
@@ -35,7 +35,7 @@ namespace TaffyScript
         /// <param name="id"></param>
         public static void DsListClear(int id)
         {
-            GetList(id).Clear();
+            _lists[id].Clear();
         }
 
         /// <summary>
@@ -45,8 +45,8 @@ namespace TaffyScript
         /// <param name="source"></param>
         public static void DsListCopy(int id, int source)
         {
-            var dest = GetList(id);
-            var src = GetList(source);
+            var dest = _lists[id];
+            var src = _lists[source];
             dest.Clear();
             dest.AddRange(src);
         }
@@ -57,18 +57,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static int DsListCreate()
         {
-            int index;
-            if(_listSlots.Count == 0)
-            {
-                index = _lists.Count;
-                _lists.Add(new List<TsObject>());
-            }
-            else
-            {
-                index = _listSlots.Dequeue();
-                _lists[index] = new List<TsObject>();
-            }
-            return index;
+            return _lists.Add(new List<TsObject>());
         }
 
         /// <summary>
@@ -78,7 +67,7 @@ namespace TaffyScript
         /// <param name="position"></param>
         public static void DsListDelete(int id, int position)
         {
-            GetList(id).RemoveAt(position);
+            _lists[id].RemoveAt(position);
         }
 
         /// <summary>
@@ -92,8 +81,7 @@ namespace TaffyScript
             else if (_lists[id] == null)
                 throw new DataStructureDestroyedException("list", id);
 
-            _lists[id] = null;
-            _listSlots.Enqueue(id);
+            _lists.Remove(id);
         }
 
         /// <summary>
@@ -103,7 +91,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static bool DsListEmpty(int id)
         {
-            return GetList(id).Count == 0;
+            return _lists[id].Count == 0;
         }
 
         /// <summary>
@@ -114,7 +102,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static int DsListFindIndex(int id, TsObject value)
         {
-            return GetList(id).FindIndex(v => v == value);
+            return _lists[id].FindIndex(v => v == value);
         }
 
         /// <summary>
@@ -125,7 +113,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static TsObject DsListFindValue(int id, int index)
         {
-            var list = GetList(id);
+            var list = _lists[id];
             if (index >= list.Count)
                 return TsObject.Empty();
             return list[index];
@@ -139,7 +127,7 @@ namespace TaffyScript
         /// <param name="val">Value to insert</param>
         public static void DsListInsert(int id, int pos, TsObject val)
         {
-            GetList(id).Insert(pos, val);
+            _lists[id].Insert(pos, val);
         }
 
         /// <summary>
@@ -150,7 +138,7 @@ namespace TaffyScript
         /// <param name="val">Value to replace with</param>
         public static void DsListReplace(int id, int pos, TsObject val)
         {
-            GetList(id)[pos] = val;
+            _lists[id][pos] = val;
         }
 
         /// <summary>
@@ -165,8 +153,8 @@ namespace TaffyScript
         {
             if (args.Length < 3)
                 throw new ArgumentException("When calling ds_list_set, at least 3 arguments must be provided.");
-            var list = GetList(args[0].GetInt());
-            var pos = args[1].GetInt();
+            var list = _lists[(int)args[0]];
+            var pos = (int)args[1];
             var length = pos + args.Length - 2;
             while (list.Count <= length)
                 list.Add(new TsObject(0));
@@ -176,9 +164,15 @@ namespace TaffyScript
             return TsObject.Empty();
         }
         
-        public static void DsListStrongSet(int id, int pos, TsObject value)
+        /// <summary>
+        /// Sets a value at the specified position within a list.
+        /// </summary>
+        /// <param name="id">The id of the list.</param>
+        /// <param name="pos">The index of the value.</param>
+        /// <param name="value">The new value.</param>
+        public static void DsListSet(int id, int pos, TsObject value)
         {
-            var list = GetList(id);
+            var list = _lists[id];
             while (list.Count <= pos)
                 list.Add(new TsObject(0));
             list[pos] = value;
@@ -190,7 +184,7 @@ namespace TaffyScript
         /// <param name="id"></param>
         public static void DsListShuffle(int id)
         {
-            GetList(id).Shuffle();
+            _lists[id].Shuffle();
         }
 
         /// <summary>
@@ -200,7 +194,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static int DsListSize(int id)
         {
-            return GetList(id).Count;
+            return _lists[id].Count;
         }
 
         /// <summary>
@@ -209,14 +203,7 @@ namespace TaffyScript
         /// <param name="id"></param>
         public static void DsListSort(int id)
         {
-            GetList(id).Sort();
-        }
-
-        private static List<TsObject> GetList(int id)
-        {
-            if (id < 0 || id >= _lists.Count || _lists[id] == null)
-                throw new ArgumentOutOfRangeException("index");
-            return _lists[id];
+            _lists[id].Sort();
         }
     }
 }

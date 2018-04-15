@@ -119,7 +119,7 @@ namespace TaffyScriptCompiler
             while (!_stream.Finished && !Try("}"))
             {
                 var child = Declaration();
-                if (child != null && child.Type == SyntaxType.Enum)
+                if (child != null && (child.Type == SyntaxType.Enum || child.Type == SyntaxType.Import))
                 {
                     enums.Add(child);
                     child.Parent = node;
@@ -245,7 +245,8 @@ namespace TaffyScriptCompiler
                     Confirm(")");
                     Confirm("as");
                     var importName = Confirm("id");
-                    _table.AddLeaf(importName.Value, SymbolType.Script, SymbolScope.Global);
+                    _table.AddChild(new ImportLeaf(_table.Current, importName.Value, SymbolScope.Global, (ImportNode)node));
+                    //_table.AddLeaf(importName.Value, SymbolType.Script, SymbolScope.Global);
                     node.AddChild(_factory.CreateConstant(ConstantType.String, importName.Value, importName.Position));
                     return node;
                 case "script":

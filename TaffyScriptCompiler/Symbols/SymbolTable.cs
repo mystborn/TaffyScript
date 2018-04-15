@@ -10,10 +10,10 @@ namespace TaffyScriptCompiler
     {
         private Stack<SymbolNode> _current = new Stack<SymbolNode>();
 
-        private SymbolNode Current
+        public SymbolNode Current
         {
             get => _current.Peek();
-            set => _current.Push(value);
+            private set => _current.Push(value);
         }
 
         public IEnumerable<ISymbol> Symbols => Current.Children.Values;
