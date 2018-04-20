@@ -19,7 +19,7 @@ namespace TaffyScriptCompiler.FrontEnd
         private bool _finished;
         private char _current;
         private HashSet<char> _whitespace;
-        private Dictionary<string, string> _definitions;
+        private Dictionary<string, TokenType> _definitions;
         private Token _token;
         private string _fname = null;
 
@@ -61,92 +61,95 @@ namespace TaffyScriptCompiler.FrontEnd
             
             // Defines the language keywords and other constructs.
             // Strings, numbers, and identifiers get processed under a special case.
-            _definitions = new Dictionary<string, string>()
+            _definitions = new Dictionary<string, TokenType>()
             {
-                { "true", "bool" },
-                { "false", "bool" },
-                { "var", "local" },
-                { "break", "break" },
-                { "continue", "continue" },
-                { "while", "while" },
-                { "repeat", "repeat" },
-                { "do", "do" },
-                { "until", "until" },
-                { "if", "if" },
-                { "else", "else" },
-                { "for", "for" },
-                { "return", "return" },
-                { "exit", "exit" },
-                { "switch", "switch" },
-                { "case", "case" },
-                { "default", "default" },
-                { "enum", "enum" },
-                { "with", "with" },
-                { "import", "import" },
-                { "script", "script" },
-                { "argument", "argument" },
-                { "argument_count", "readonly" },
-                { "all", "readonly" },
-                { "noone", "readonly" },
-                { "id", "readonly" },
-                { "self", "readonly" },
-                { "pi", "readonly" },
-                { "global", "readonly" },
-                { "instance_count", "readonly" },
-                { "object", "object" },
-                { "event", "event" },
-                { "using", "using" },
-                { "namespace", "namespace" },
-                { "new", "new" },
-                { "as", "as" },
-                { "and", "&&" },
-                { "or", "||" },
-                { ";", ";" },
-                { "||", "||" },
-                { "&&", "&&" },
-                { "!=", "!=" },
-                { "<>", "!=" },
-                { "==", "==" },
-                { "<=", "<=" },
-                { ">=", ">=" },
-                { "<", "<" },
-                { ">", ">" },
-                { "!", "!" },
-                { "~", "~" },
-                { "^", "^" },
-                { "|", "|" },
-                { "&", "&" },
-                { "<<", "<<" },
-                { ">>", ">>" },
-                { "(", "(" },
-                { ")", ")" },
-                { "[", "[" },
-                { "]", "]" },
-                { "{", "{" },
-                { "}", "}" },
-                { ".", "." },
-                { "=", "=" },
-                { "++", "++" },
-                { "--", "--" },
-                { "+=", "+=" },
-                { "-=", "-=" },
-                { "*=", "*=" },
-                { "/=", "/=" },
-                { "%=", "%=" },
-                { "+", "+" },
-                { "-", "-" },
-                { "*", "*" },
-                { "/", "/" },
-                { "%", "%" },
-                { ",", "," },
-                { "?", "?" },
-                { "#", "#" },
-                { ":", ":" },
+                { "true", TokenType.Bool },
+                { "false", TokenType.Bool },
+                { "var", TokenType.Var },
+                { "break", TokenType.Break },
+                { "continue", TokenType.Continue },
+                { "while", TokenType.While },
+                { "repeat", TokenType.Repeat },
+                { "do", TokenType.Do },
+                { "until", TokenType.Until },
+                { "if", TokenType.If },
+                { "else", TokenType.Else },
+                { "for", TokenType.For },
+                { "return", TokenType.Return },
+                { "exit", TokenType.Exit },
+                { "switch", TokenType.Switch },
+                { "case", TokenType.Case },
+                { "default", TokenType.Default },
+                { "enum", TokenType.Enum },
+                { "with", TokenType.With },
+                { "import", TokenType.Import },
+                { "script", TokenType.Script },
+                { "argument", TokenType.Argument },
+                { "argument_count", TokenType.ReadOnly },
+                { "all", TokenType.ReadOnly },
+                { "noone", TokenType.ReadOnly },
+                { "id", TokenType.ReadOnly },
+                { "self", TokenType.ReadOnly },
+                { "pi", TokenType.ReadOnly },
+                { "global", TokenType.ReadOnly },
+                { "instance_count", TokenType.ReadOnly },
+                { "object", TokenType.Object },
+                { "event", TokenType.Event },
+                { "using", TokenType.Using },
+                { "namespace", TokenType.Namespace },
+                { "new", TokenType.New },
+                { "as", TokenType.As },
+                { "and", TokenType.LogicalAnd },
+                { "or", TokenType.LogicalOr },
+                { ";", TokenType.SemiColon },
+                { "||", TokenType.LogicalOr },
+                { "&&", TokenType.LogicalAnd },
+                { "!=", TokenType.NotEqual },
+                { "<>", TokenType.NotEqual },
+                { "==", TokenType.Equal },
+                { "<=", TokenType.LessThanOrEqual },
+                { ">=", TokenType.GreaterThanOrEqual },
+                { "<", TokenType.LessThan },
+                { ">", TokenType.GreaterThan },
+                { "!", TokenType.Not },
+                { "~", TokenType.Complement },
+                { "^", TokenType.Xor },
+                { "|", TokenType.BitwiseOr },
+                { "&", TokenType.BitwiseAnd },
+                { "<<", TokenType.ShiftLeft },
+                { ">>", TokenType.ShiftRight },
+                { "(", TokenType.OpenParen },
+                { ")", TokenType.CloseParen },
+                { "[", TokenType.OpenBracket },
+                { "]", TokenType.CloseBracket },
+                { "{", TokenType.OpenBrace },
+                { "}", TokenType.CloseBrace },
+                { ".", TokenType.Dot },
+                { "=", TokenType.Assign },
+                { "++", TokenType.Increment },
+                { "--", TokenType.Decrement },
+                { "+=", TokenType.PlusEquals },
+                { "-=", TokenType.SubEquals },
+                { "*=", TokenType.MulEquals },
+                { "/=", TokenType.DivEquals },
+                { "%=", TokenType.ModEquals },
+                { "&=", TokenType.AndEquals },
+                { "|=", TokenType.OrEquals },
+                { "^=", TokenType.XorEquals },
+                { "+", TokenType.Plus },
+                { "-", TokenType.Minus },
+                { "*", TokenType.Multiply },
+                { "/", TokenType.Divide },
+                { "%", TokenType.Modulo },
+                { ",", TokenType.Comma },
+                { "?", TokenType.QuestionMark },
+                { "#", TokenType.Sharp },
+                { ":", TokenType.Colon },
             };
             for (var i = 0; i < 16; i++)
-                _definitions.Add($"argument{i}", "argument");
+                _definitions.Add($"argument{i}", TokenType.Argument);
 
-            // Set _current to the first character. Needed to prevent an error when callinf ReadNext for the first time.
+            // Set _current to the first character. Needed to prevent an error when calling ReadNext for the first time.
             TryReadNext();
 
             // Set the first token.
@@ -215,12 +218,11 @@ namespace TaffyScriptCompiler.FrontEnd
                     case '7':
                     case '8':
                     case '9':
-                    case '?':
-                        _token = new Token("num", next, pos);
+                        _token = new Token(TokenType.Number, next, pos);
                         break;
                     case '\'':
                     case '"':
-                        _token = new Token("string", next, pos);
+                        _token = new Token(TokenType.String, next, pos);
                         break;
                     case '/':
                         ReadWhiteSpace();
@@ -290,7 +292,7 @@ namespace TaffyScriptCompiler.FrontEnd
                     case 'Y':
                     case 'Z':
                     case '_':
-                        _token = new Token("id", next, pos);
+                        _token = new Token(TokenType.Identifier, next, pos);
                         break;
                     default:
                         ErrorEncountered?.Invoke(new UnrecognizedTokenException(next[0], pos));

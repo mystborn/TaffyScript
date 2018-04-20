@@ -16,14 +16,14 @@ namespace TaffyScriptCompiler.FrontEnd
         /// <summary>
         /// The type of this token.
         /// </summary>
-        public string Type { get; }
+        public TokenType Type { get; }
 
         /// <summary>
         /// The value of this token.
         /// </summary>
         public string Value { get; }
 
-        public Token(string type, string value, TokenPosition position)
+        public Token(TokenType type, string value, TokenPosition position)
         {
             Type = type;
             Value = value;

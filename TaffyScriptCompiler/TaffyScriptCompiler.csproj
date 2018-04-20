@@ -78,6 +78,7 @@
     <Compile Include="Front End\LexicalAnalysis\Token.cs" />
     <Compile Include="Front End\LexicalAnalysis\Tokenizer.cs" />
     <Compile Include="Front End\LexicalAnalysis\TokenPosition.cs" />
+    <Compile Include="Front End\LexicalAnalysis\TokenType.cs" />
     <Compile Include="Front End\LexicalAnalysis\UnrecognizedTokenException.cs" />
     <Compile Include="Symbols\EnumLeaf.cs" />
     <Compile Include="Symbols\ImportLeaf.cs" />

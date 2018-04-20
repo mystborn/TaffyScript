@@ -90,7 +90,7 @@ namespace TaffyScriptCompiler
         private ISyntaxElement Usings()
         {
             ISyntaxNode node = null;
-            while(Try("using", out var token))
+            while(Try(TokenType.Using, out var token))
             {
                 if (node == null)
                     node = _factory.CreateNode(SyntaxType.Usings, token.Position);
@@ -116,7 +116,7 @@ namespace TaffyScriptCompiler
             var enums = new List<ISyntaxElement>();
             // Check for stream finsihed for global declarations,
             // and check for end brace for namespace declarations.
-            while (!_stream.Finished && !Try("}"))
+            while (!_stream.Finished && !Try(TokenType.CloseBrace))
             {
                 var child = Declaration();
                 if (child != null && (child.Type == SyntaxType.Enum || child.Type == SyntaxType.Import))
@@ -136,11 +136,11 @@ namespace TaffyScriptCompiler
         {
             switch(_stream.Peek().Type)
             {
-                case "namespace":
-                    var token = Confirm("namespace");
+                case TokenType.Namespace:
+                    var token = Confirm(TokenType.Namespace);
                     var nsName = GetNamespace();
                     var ns = new NamespaceNode(nsName, token.Position);
-                    Confirm("{");
+                    Confirm(TokenType.OpenBrace);
                     try
                     {
                         _table.EnterNamespace(nsName);
@@ -153,46 +153,46 @@ namespace TaffyScriptCompiler
                     AddDeclarations(ns);
 
                     //Make sure the declarations didn't end because the file ended.
-                    Confirm("}");
+                    Confirm(TokenType.CloseBrace);
                     _table.ExitNamespace(nsName);
                     return ns;
-                case "object":
-                    Confirm("object");
-                    var objName = Confirm("id");
+                case TokenType.Object:
+                    Confirm(TokenType.Object);
+                    var objName = Confirm(TokenType.Identifier);
                     _table.EnterNew(objName.Value, SymbolType.Object);
                     var node = _factory.CreateNode(SyntaxType.Object, objName.Value, objName.Position);
-                    if (Validate(":"))
+                    if (Validate(TokenType.Colon))
                     {
-                        var parent = Confirm("id");
+                        var parent = Confirm(TokenType.Identifier);
                         node.AddChild(_factory.CreateConstant(ConstantType.String, parent.Value, parent.Position));
                     }
                     else
                         node.AddChild(_factory.CreateConstant(ConstantType.String, "", objName.Position));
-                    Confirm("{");
-                    while (!Try("}"))
+                    Confirm(TokenType.OpenBrace);
+                    while (!Try(TokenType.CloseBrace))
                     {
                         node.AddChild(Script(SymbolScope.Member));
                     }
-                    Confirm("}");
+                    Confirm(TokenType.CloseBrace);
                     _table.Exit();
                     return node;
-                case "enum":
-                    Confirm("enum");
-                    var enumName = Confirm("id");
+                case TokenType.Enum:
+                    Confirm(TokenType.Enum);
+                    var enumName = Confirm(TokenType.Identifier);
                     _table.EnterNew(enumName.Value, SymbolType.Enum);
                     node = _factory.CreateNode(SyntaxType.Enum, enumName.Value, enumName.Position);
-                    Confirm("{");
-                    if(!Try("}"))
+                    Confirm(TokenType.OpenBrace);
+                    if(!Try(TokenType.CloseBrace))
                     {
                         var value = 0;
                         do
                         {
-                            var name = Confirm("id");
+                            var name = Confirm(TokenType.Identifier);
                             ISyntaxNode nameNode;
-                            if (Validate("="))
+                            if (Validate(TokenType.Assign))
                             {
                                 nameNode = _factory.CreateNode(SyntaxType.Assign, name.Value, name.Position);
-                                var num = Confirm("num");
+                                var num = Confirm(TokenType.Number);
                                 ConstantToken<float> numToken = (ConstantToken<float>)_factory.CreateConstant(ConstantType.Real, num.Value, num.Position);
                                 value = (int)numToken.Value;
                                 _table.AddLeaf(name.Value, value);
@@ -206,25 +206,25 @@ namespace TaffyScriptCompiler
                             value++;
                             node.AddChild(nameNode);
                         }
-                        while (Validate(","));
+                        while (Validate(TokenType.Comma));
                     }
-                    Confirm("}");
+                    Confirm(TokenType.CloseBrace);
                     _table.Exit();
                     return node;
-                case "import":
-                    var import = Confirm("import");
+                case TokenType.Import:
+                    var import = Confirm(TokenType.Import);
                     node = _factory.CreateNode(SyntaxType.Import, import.Position);
-                    var start = Confirm("id");
+                    var start = Confirm(TokenType.Identifier);
                     var baseType = new StringBuilder(start.Value);
                     do
                     {
-                        baseType.Append(Confirm(".").Value);
-                        baseType.Append(Confirm("id").Value);
+                        baseType.Append(Confirm(TokenType.Dot).Value);
+                        baseType.Append(Confirm(TokenType.Identifier).Value);
                     }
-                    while (Try("."));
+                    while (Try(TokenType.Dot));
                     node.AddChild(_factory.CreateConstant(ConstantType.String, baseType.ToString(), start.Position));
-                    Confirm("(");
-                    if(!Try(")"))
+                    Confirm(TokenType.OpenParen);
+                    if(!Try(TokenType.CloseParen))
                     {
                         do
                         {
@@ -240,19 +240,19 @@ namespace TaffyScriptCompiler
                             else
                                 node.AddChild(_factory.CreateConstant(ConstantType.String, type, token.Position));
                         }
-                        while (Validate(","));
+                        while (Validate(TokenType.Comma));
                     }
-                    Confirm(")");
-                    Confirm("as");
-                    var importName = Confirm("id");
+                    Confirm(TokenType.CloseParen);
+                    Confirm(TokenType.As);
+                    var importName = Confirm(TokenType.Identifier);
                     _table.AddChild(new ImportLeaf(_table.Current, importName.Value, SymbolScope.Global, (ImportNode)node));
                     //_table.AddLeaf(importName.Value, SymbolType.Script, SymbolScope.Global);
                     node.AddChild(_factory.CreateConstant(ConstantType.String, importName.Value, importName.Position));
                     return node;
-                case "script":
+                case TokenType.Script:
                     return Script(SymbolScope.Global);
-                case ";":
-                    Confirm(";");
+                case TokenType.SemiColon:
+                    Confirm(TokenType.SemiColon);
                     return null;
                 default:
                     Throw(new InvalidTokenException(_stream.Peek(), $"Expected declaration, got {_stream.Read().Type}"));
@@ -262,24 +262,24 @@ namespace TaffyScriptCompiler
 
         private ISyntaxElement Script(SymbolScope scope)
         {
-            if (!(Validate("script") || Validate("event")))
+            if (!(Validate(TokenType.Script) || Validate(TokenType.Event)))
             {
                 Throw(new InvalidTokenException(_stream.Peek(), $"Expected a script, got {_stream.Read().Type}"));
                 return null;
             }
 
-            var scriptName = Confirm("id");
+            var scriptName = Confirm(TokenType.Identifier);
             _table.EnterNew(scriptName.Value, SymbolType.Script, scope);
             var node = _factory.CreateNode(SyntaxType.Script, scriptName.Value, scriptName.Position);
-            if (Validate("(") && !Validate(")"))
+            if (Validate(TokenType.OpenParen) && !Validate(TokenType.CloseParen))
             {
                 var optional = false;
                 do
                 {
-                    var parameterToken = Confirm("id");
+                    var parameterToken = Confirm(TokenType.Identifier);
                     var parameter = _factory.CreateToken(SyntaxType.Variable, parameterToken.Value, parameterToken.Position);
                     ISyntaxElement parameterElement;
-                    if (Try("=", out var assign))
+                    if (Try(TokenType.Assign, out var assign))
                     {
                         optional = true;
                         ISyntaxElement value;
@@ -288,26 +288,26 @@ namespace TaffyScriptCompiler
                             var next = _stream.Peek().Type;
                             switch(next)
                             {
-                                case "-":
-                                    Confirm("-");
+                                case TokenType.Minus:
+                                    Confirm(TokenType.Minus);
                                     var prefix = "-";
-                                    if (Validate("."))
+                                    if (Validate(TokenType.Dot))
                                         prefix += ".";
-                                    var num = Confirm("num");
+                                    var num = Confirm(TokenType.Number);
                                     value = _factory.CreateConstant(ConstantType.Real, prefix + num.Value, num.Position);
                                     break;
-                                case ".":
-                                    Confirm(".");
-                                    num = Confirm("num");
-                                    value = _factory.CreateConstant(ConstantType.Real, "." + num.Value, num.Position);
+                                case TokenType.Dot:
+                                    Confirm(TokenType.Dot);
+                                    num = Confirm(TokenType.Number);
+                                    value = _factory.CreateConstant(ConstantType.Real, TokenType.Dot + num.Value, num.Position);
                                     break;
-                                case "readonly":
-                                    var read = Confirm("readonly");
+                                case TokenType.ReadOnly:
+                                    var read = Confirm(TokenType.ReadOnly);
                                     value = _factory.CreateToken(SyntaxType.ReadOnlyValue, read.Value, read.Position);
                                     break;
                                 default:
                                     Throw(new InvalidTokenException(_stream.Peek(), "Optional arguments must have a constant value"));
-                                    Validate("id");
+                                    Validate(TokenType.Identifier);
                                     continue;
                             }
                         }
@@ -329,8 +329,8 @@ namespace TaffyScriptCompiler
                     node.AddChild(parameterElement);
                     _table.AddLeaf(parameterToken.Value, SymbolType.Variable, SymbolScope.Local);
                 }
-                while (Validate(","));
-                Confirm(")");
+                while (Validate(TokenType.Comma));
+                Confirm(TokenType.CloseParen);
             }
             node.AddChild(Statement());
             _table.Exit();
@@ -339,18 +339,18 @@ namespace TaffyScriptCompiler
 
         private ISyntaxElement Statement()
         {
-            if (Try("local", out var localToken))
+            if (Try(TokenType.Var, out var localToken))
             {
                 var locals = _factory.CreateNode(SyntaxType.Locals, localToken.Position);
                 do
                 {
-                    var localName = Confirm("id");
+                    var localName = Confirm(TokenType.Identifier);
                     if (!_table.Defined(localName.Value, out var symbol))
                         _table.AddLeaf(localName.Value, SymbolType.Variable, SymbolScope.Local);
                     else if (symbol.Type != SymbolType.Variable)
                         Throw(new InvalidTokenException(localName, $"Id already defined for higher priority type: {localName.Value} = {symbol.Type}"));
                     
-                    if (Try("=", out var equalToken))
+                    if (Try(TokenType.Assign, out var equalToken))
                     {
                         var id = _factory.CreateToken(SyntaxType.Variable, localName.Value, localToken.Position);
                         var assign = _factory.CreateNode(SyntaxType.Assign, "=", equalToken.Position);
@@ -364,7 +364,7 @@ namespace TaffyScriptCompiler
                         locals.AddChild(declare);
                     }
                 }
-                while (Validate(","));
+                while (Validate(TokenType.Comma));
                 return locals;
             }
             else
@@ -374,7 +374,7 @@ namespace TaffyScriptCompiler
         private ISyntaxElement EmbeddedStatement()
         {
             ISyntaxElement result;
-            if (Try("{"))
+            if (Try(TokenType.OpenBrace))
                 result = BlockStatement();
             else
                 result = SimpleStatement();
@@ -383,133 +383,133 @@ namespace TaffyScriptCompiler
 
         private ISyntaxElement SimpleStatement()
         {
-            var type = _stream.Peek();
+            var next = _stream.Peek();
             ISyntaxElement result;
-            switch (type.Value)
+            switch (next.Type)
             {
-                case ";":
-                    Confirm(";");
+                case TokenType.SemiColon:
+                    Confirm(TokenType.SemiColon);
                     result = null;
                     break;
-                case "break":
-                    result = _factory.CreateToken(SyntaxType.Break, Confirm("break").Value, type.Position);
+                case TokenType.Break:
+                    result = _factory.CreateToken(SyntaxType.Break, Confirm(TokenType.Break).Value, next.Position);
                     break;
-                case "continue":
-                    result = _factory.CreateToken(SyntaxType.Continue, Confirm("continue").Value, type.Position);
+                case TokenType.Continue:
+                    result = _factory.CreateToken(SyntaxType.Continue, Confirm(TokenType.Continue).Value, next.Position);
                     break;
-                case "exit":
-                    result = _factory.CreateToken(SyntaxType.Exit, Confirm("exit").Value, type.Position);
+                case TokenType.Exit:
+                    result = _factory.CreateToken(SyntaxType.Exit, Confirm(TokenType.Exit).Value, next.Position);
                     break;
-                case "return":
-                    Confirm("return");
-                    var temp = _factory.CreateNode(SyntaxType.Return, type.Position);
+                case TokenType.Return:
+                    Confirm(TokenType.Return);
+                    var temp = _factory.CreateNode(SyntaxType.Return, next.Position);
                     temp.AddChild(Expression());
                     result = temp;
                     break;
-                case "repeat":
-                    Confirm("repeat");
-                    temp = _factory.CreateNode(SyntaxType.Repeat, type.Position);
-                    var paren = Validate("(");
+                case TokenType.Repeat:
+                    Confirm(TokenType.Repeat);
+                    temp = _factory.CreateNode(SyntaxType.Repeat, next.Position);
+                    var paren = Validate(TokenType.OpenParen);
                     temp.AddChild(Expression());
                     if (paren)
-                        Confirm(")");
+                        Confirm(TokenType.CloseParen);
                     temp.AddChild(BodyStatement());
                     result = temp;
                     break;
-                case "while":
-                    Confirm("while");
-                    temp = _factory.CreateNode(SyntaxType.While, type.Position);
-                    paren = Validate("(");
+                case TokenType.While:
+                    Confirm(TokenType.While);
+                    temp = _factory.CreateNode(SyntaxType.While, next.Position);
+                    paren = Validate(TokenType.OpenParen);
                     temp.AddChild(Expression());
                     if (paren)
-                        Confirm(")");
+                        Confirm(TokenType.CloseParen);
                     temp.AddChild(BodyStatement());
                     result = temp;
                     break;
-                case "with":
-                    Confirm("with");
-                    temp = _factory.CreateNode(SyntaxType.With, type.Position);
-                    paren = Validate("(");
+                case TokenType.With:
+                    Confirm(TokenType.With);
+                    temp = _factory.CreateNode(SyntaxType.With, next.Position);
+                    paren = Validate(TokenType.OpenParen);
                     temp.AddChild(Expression());
                     if (paren)
-                        Confirm(")");
+                        Confirm(TokenType.CloseParen);
                     temp.AddChild(BodyStatement());
                     result = temp;
                     break;
-                case "do":
-                    Confirm("do");
-                    temp = _factory.CreateNode(SyntaxType.Do, type.Position);
+                case TokenType.Do:
+                    Confirm(TokenType.Do);
+                    temp = _factory.CreateNode(SyntaxType.Do, next.Position);
                     temp.AddChild(BodyStatement());
-                    Confirm("until");
-                    paren = Validate("(");
+                    Confirm(TokenType.Until);
+                    paren = Validate(TokenType.OpenParen);
                     temp.AddChild(Expression());
                     if (paren)
-                        Confirm(")");
+                        Confirm(TokenType.CloseParen);
                     result = temp;
                     break;
-                case "if":
-                    Confirm("if");
-                    temp = _factory.CreateNode(SyntaxType.If, type.Position);
-                    paren = Validate("(");
+                case TokenType.If:
+                    Confirm(TokenType.If);
+                    temp = _factory.CreateNode(SyntaxType.If, next.Position);
+                    paren = Validate(TokenType.OpenParen);
                     temp.AddChild(Expression());
                     if (paren)
-                        Confirm(")");
+                        Confirm(TokenType.CloseParen);
                     temp.AddChild(BodyStatement());
-                    while (Validate(";")) ;
-                    if (Validate("else"))
+                    while (Validate(TokenType.SemiColon)) ;
+                    if (Validate(TokenType.Else))
                         temp.AddChild(BodyStatement());
                     result = temp;
                     break;
-                case "for":
-                    Confirm("for");
-                    Confirm("(");
-                    temp = _factory.CreateNode(SyntaxType.For, type.Position);
-                    if (!Try(";"))
+                case TokenType.For:
+                    Confirm(TokenType.For);
+                    Confirm(TokenType.OpenParen);
+                    temp = _factory.CreateNode(SyntaxType.For, next.Position);
+                    if (!Try(TokenType.SemiColon))
                         temp.AddChild(BodyStatement());
                     else
-                        temp.AddChild(_factory.CreateNode(SyntaxType.Block, type.Position));
-                    Confirm(";");
-                    if (Try(";"))
+                        temp.AddChild(_factory.CreateNode(SyntaxType.Block, next.Position));
+                    Confirm(TokenType.SemiColon);
+                    if (Try(TokenType.SemiColon))
                         Throw(new InvalidTokenException(_stream.Peek(), "Expected expression in for declaration"));
                     else
                         temp.AddChild(Expression());
-                    Confirm(";");
+                    Confirm(TokenType.SemiColon);
                     temp.AddChild(BodyStatement());
-                    Confirm(")");
+                    Confirm(TokenType.CloseParen);
                     temp.AddChild(BodyStatement());
                     result = temp;
                     break;
-                case "switch":
-                    Confirm("switch");
-                    temp = _factory.CreateNode(SyntaxType.Switch, type.Position);
-                    paren = Validate("(");
+                case TokenType.Switch:
+                    Confirm(TokenType.Switch);
+                    temp = _factory.CreateNode(SyntaxType.Switch, next.Position);
+                    paren = Validate(TokenType.OpenParen);
                     temp.AddChild(Expression());
                     if (paren)
-                        Confirm(")");
-                    Confirm("{");
+                        Confirm(TokenType.CloseParen);
+                    Confirm(TokenType.OpenBrace);
                     ISyntaxNode caseNode;
-                    while(!Try("}"))
+                    while(!Try(TokenType.CloseBrace))
                     {
-                        if (Try("case", out var caseToken))
+                        if (Try(TokenType.Case, out var caseToken))
                         {
                             caseNode = _factory.CreateNode(SyntaxType.Case, caseToken.Position);
                             caseNode.AddChild(Expression());
                         }
-                        else if (Try("default", out var defaultToken))
+                        else if (Try(TokenType.Default, out var defaultToken))
                             caseNode = _factory.CreateNode(SyntaxType.Default, defaultToken.Position);
                         else
                         {
                             Throw(new InvalidTokenException(_stream.Peek(), $"Expected case declaration, got {_stream.Read().Value}"));
                             continue;
                         }
-                        var blockStart = Confirm(":");
+                        var blockStart = Confirm(TokenType.Colon);
                         var block = _factory.CreateNode(SyntaxType.Block, blockStart.Position);
-                        while (!Try("case") && !Try("default") && !Try("}"))
+                        while (!Try(TokenType.Case) && !Try(TokenType.Default) && !Try(TokenType.CloseBrace))
                             block.AddChild(Statement());
                         caseNode.AddChild(block);
                         temp.AddChild(caseNode);
                     }
-                    Confirm("}");
+                    Confirm(TokenType.CloseBrace);
                     result = temp;
                     break;
                 default:
@@ -522,19 +522,19 @@ namespace TaffyScriptCompiler
 
         private ISyntaxElement BlockStatement()
         {
-            var blockStart = Confirm("{");
+            var blockStart = Confirm(TokenType.OpenBrace);
             var result = _factory.CreateNode(SyntaxType.Block, blockStart.Position);
-            while (!_stream.Finished && !Try("}"))
+            while (!_stream.Finished && !Try(TokenType.CloseBrace))
                 result.AddChild(Statement());
 
-            Confirm("}");
+            Confirm(TokenType.CloseBrace);
             return result;
         }
 
         private ISyntaxElement BodyStatement()
         {
             ISyntaxElement body;
-            if (Try("{"))
+            if (Try(TokenType.OpenBrace))
                 body = BlockStatement();
             else
             {
@@ -586,12 +586,12 @@ namespace TaffyScriptCompiler
             var value = LogicalOrExpression();
 
             //Example: true == false ? "hello" : "henlo"
-            if (Try("?", out var token))
+            if (Try(TokenType.QuestionMark, out var token))
             {
                 var conditional = _factory.CreateNode(SyntaxType.Conditional, token.Position);
                 conditional.AddChild(value);
                 conditional.AddChild(AssignmentExpression());
-                Confirm(":");
+                Confirm(TokenType.Colon);
                 conditional.AddChild(AssignmentExpression());
                 value = conditional;
             }
@@ -602,7 +602,7 @@ namespace TaffyScriptCompiler
         private ISyntaxElement LogicalOrExpression()
         {
             var value = LogicalAndExpression();
-            while(Try("||", out var token))
+            while(Try(TokenType.LogicalOr, out var token))
             {
                 var or = _factory.CreateNode(SyntaxType.Logical, token.Value, token.Position);
                 or.AddChild(value);
@@ -615,7 +615,7 @@ namespace TaffyScriptCompiler
         private ISyntaxElement LogicalAndExpression()
         {
             var value = BitwiseOrExpression();
-            while (Try("&&", out var token))
+            while (Try(TokenType.LogicalAnd, out var token))
             {
                 var and = _factory.CreateNode(SyntaxType.Logical, token.Value, token.Position);
                 and.AddChild(value);
@@ -628,7 +628,7 @@ namespace TaffyScriptCompiler
         private ISyntaxElement BitwiseOrExpression()
         {
             var value = BitwiseXorExpression();
-            while (Try("|", out var token))
+            while (Try(TokenType.BitwiseOr, out var token))
             {
                 var or = _factory.CreateNode(SyntaxType.Bitwise, token.Value, token.Position);
                 or.AddChild(value);
@@ -641,7 +641,7 @@ namespace TaffyScriptCompiler
         private ISyntaxElement BitwiseXorExpression()
         {
             var value = BitwiseAndExpression();
-            while (Try("^", out var token))
+            while (Try(TokenType.Xor, out var token))
             {
                 var xor = _factory.CreateNode(SyntaxType.Bitwise, token.Value, token.Position);
                 xor.AddChild(value);
@@ -654,7 +654,7 @@ namespace TaffyScriptCompiler
         private ISyntaxElement BitwiseAndExpression()
         {
             var value = EqualityExpression();
-            while (Try("&", out var token))
+            while (Try(TokenType.BitwiseAnd, out var token))
             {
                 var and = _factory.CreateNode(SyntaxType.Bitwise, token.Value, token.Position);
                 and.AddChild(value);
@@ -668,7 +668,7 @@ namespace TaffyScriptCompiler
         {
             var value = RelationalExpression();
 
-            while(Try("==", out var token) || Try("!=", out token) || (_canAssign > 1 && Try("=", out token)))
+            while(Try(TokenType.Equal, out var token) || Try(TokenType.NotEqual, out token) || (_canAssign > 1 && Try(TokenType.Assign, out token)))
             {
                 var op = token.Value == "=" ? "==" : token.Value;
                 var equal = _factory.CreateNode(SyntaxType.Equality, op, token.Position);
@@ -684,7 +684,7 @@ namespace TaffyScriptCompiler
         {
             var value = ShiftExpression();
 
-            while(Try("<", out var token) || Try("<=", out token) || Try(">", out token) || Try(">=", out token))
+            while(Try(TokenType.LessThan, out var token) || Try(TokenType.LessThanOrEqual, out token) || Try(TokenType.GreaterThan, out token) || Try(TokenType.GreaterThanOrEqual, out token))
             {
                 var compare = _factory.CreateNode(SyntaxType.Relational, token.Value, token.Position);
                 compare.AddChild(value);
@@ -699,7 +699,7 @@ namespace TaffyScriptCompiler
         {
             var value = AdditiveExpression();
 
-            while(Try("<<", out var token) || Try(">>", out token))
+            while(Try(TokenType.ShiftLeft, out var token) || Try(TokenType.ShiftRight, out token))
             {
                 var shift = _factory.CreateNode(SyntaxType.Shift, token.Value, token.Position);
                 shift.AddChild(value);
@@ -714,7 +714,7 @@ namespace TaffyScriptCompiler
         {
             var value = MultiplicativeExpression();
 
-            while (Try("+", out var token) || Try("-", out token))
+            while (Try(TokenType.Plus, out var token) || Try(TokenType.Minus, out token))
             {
                 var add = _factory.CreateNode(SyntaxType.Additive, token.Value, token.Position);
                 add.AddChild(value);
@@ -729,7 +729,7 @@ namespace TaffyScriptCompiler
         {
             var value = UnaryExpression();
 
-            while (Try("*", out var token) || Try("/", out token) || Try("%", out token))
+            while (Try(TokenType.Multiply, out var token) || Try(TokenType.Divide, out token) || Try(TokenType.Modulo, out token))
             {
                 var mul = _factory.CreateNode(SyntaxType.Multiplicative, token.Value, token.Position);
                 mul.AddChild(value);
@@ -742,8 +742,8 @@ namespace TaffyScriptCompiler
 
         private ISyntaxElement UnaryExpression()
         {
-            if (Try("+", out var token) || Try("-", out token) || Try("!", out token) ||
-                Try("~", out token) || Try("++", out token) || Try("--", out token))
+            if (Try(TokenType.Plus, out var token) || Try(TokenType.Minus, out token) || Try(TokenType.Not, out token) ||
+                Try(TokenType.Complement, out token) || Try(TokenType.Increment, out token) || Try(TokenType.Decrement, out token))
             {
                 var prefix = _factory.CreateNode(SyntaxType.Prefix, token.Value, token.Position);
                 prefix.AddChild(UnaryExpression());
@@ -761,30 +761,30 @@ namespace TaffyScriptCompiler
 
             while(true)
             {
-                if (Try("(", out var paren))
+                if (Try(TokenType.OpenParen, out var paren))
                 {
                     var function = _factory.CreateNode(SyntaxType.FunctionCall, value.Position);
                     function.AddChild(value);
-                    if (!Try(")"))
+                    if (!Try(TokenType.CloseParen))
                     {
                         do
                         {
                             function.AddChild(Expression());
                         }
-                        while (Validate(","));
+                        while (Validate(TokenType.Comma));
                     }
-                    Confirm(")");
+                    Confirm(TokenType.CloseParen);
                     value = function;
                 }
-                else if (Validate("."))
+                else if (Validate(TokenType.Dot))
                 {
                     var temp = _factory.CreateNode(SyntaxType.MemberAccess, value.Position);
                     temp.AddChild(value);
-                    if (Try("id", out var next))
+                    if (Try(TokenType.Identifier, out var next))
                     {
                         temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
                     }
-                    else if (Try("readonly", out next))
+                    else if (Try(TokenType.ReadOnly, out next))
                     {
                         if (next.Value != "self")
                         {
@@ -800,7 +800,7 @@ namespace TaffyScriptCompiler
                     }
                     value = temp;
                 }
-                else if (Try("[", out var accessToken))
+                else if (Try(TokenType.OpenBracket, out var accessToken))
                 {
                     if (value.Type == SyntaxType.New)
                     {
@@ -808,28 +808,26 @@ namespace TaffyScriptCompiler
                         return value;
                     }
                     ISyntaxNode access;
-                    if (Validate("|"))
+                    if (Validate(TokenType.BitwiseOr))
                         access = _factory.CreateNode(SyntaxType.ListAccess, value.Position);
-                    else if (Validate("#"))
+                    else if (Validate(TokenType.Sharp))
                         access = _factory.CreateNode(SyntaxType.GridAccess, value.Position);
-                    else if (Validate("?"))
+                    else if (Validate(TokenType.QuestionMark))
                         access = _factory.CreateNode(SyntaxType.MapAccess, value.Position);
-                    else if (Validate("@"))
-                        access = _factory.CreateNode(SyntaxType.ExplicitArrayAccess, value.Position);
                     else
                         access = _factory.CreateNode(SyntaxType.ArrayAccess, value.Position);
 
                     access.AddChild(value);
                     access.AddChild(Expression());
-                    if (Validate(","))
+                    if (Validate(TokenType.Comma))
                         access.AddChild(Expression());
-                    Confirm("]");
+                    Confirm(TokenType.CloseBracket);
                     value = access;
                 }
                 else
                     break;
             }
-            if(Try("++", out var token) || Try("--", out token))
+            if(Try(TokenType.Increment, out var token) || Try(TokenType.Decrement, out token))
             {
                 var postfix = _factory.CreateNode(SyntaxType.Postfix, token.Value, value.Position);
                 postfix.AddChild(value);
@@ -843,14 +841,14 @@ namespace TaffyScriptCompiler
         {
             if (IsConstant())
                 return Constant();
-            else if (Try("readonly", out var token))
+            else if (Try(TokenType.ReadOnly, out var token))
             {
                 var val = token.Value;
                 if (val == "id")
                     val = "self";
                 return _factory.CreateToken(SyntaxType.ReadOnlyValue, val, token.Position);
             }
-            else if (Try("argument", out token))
+            else if (Try(TokenType.Argument, out token))
             {
                 var arg = _factory.CreateNode(SyntaxType.ArgumentAccess, token.Position);
                 if (token.Value != "argument")
@@ -858,53 +856,53 @@ namespace TaffyScriptCompiler
                         new TokenPosition(token.Position.Index + 8, token.Position.Line, token.Position.Column + 8, token.Position.File)));
                 else
                 {
-                    Confirm("[");
+                    Confirm(TokenType.OpenBracket);
                     arg.AddChild(Expression());
-                    Confirm("]");
+                    Confirm(TokenType.CloseBracket);
                 }
                 return arg;
             }
-            else if (Try("id", out token))
+            else if (Try(TokenType.Identifier, out token))
             {
                 if (!_table.Defined(token.Value, out _))
                     _table.AddPending(token.Value);
                 return _factory.CreateToken(SyntaxType.Variable, token.Value, token.Position);
             }
-            else if (Validate("("))
+            else if (Validate(TokenType.OpenParen))
             {
                 var value = Expression();
-                Confirm(")");
+                Confirm(TokenType.CloseParen);
                 return value;
             }
-            else if (Try("[", out token))
+            else if (Try(TokenType.OpenBracket, out token))
             {
                 var array = _factory.CreateNode(SyntaxType.ArrayLiteral, token.Position);
-                while (!Try("]"))
+                while (!Try(TokenType.CloseBracket))
                 {
                     array.AddChild(Expression());
-                    Validate(",");
+                    Validate(TokenType.Comma);
                 }
-                Confirm("]");
+                Confirm(TokenType.CloseBracket);
                 return array;
             }
-            else if (Try("new", out token))
+            else if (Try(TokenType.New, out token))
             {
-                var start = Confirm("id");
+                var start = Confirm(TokenType.Identifier);
                 var type = start.Value;
-                while (Validate("."))
-                    type += "." + Confirm("id");
+                while (Validate(TokenType.Dot))
+                    type += "." + Confirm(TokenType.Identifier).Value;
 
                 var newNode = _factory.CreateNode(SyntaxType.New, type, start.Position);
-                Confirm("(");
-                if (!Try(")"))
+                Confirm(TokenType.OpenParen);
+                if (!Try(TokenType.CloseParen))
                 {
                     do
                     {
                         newNode.AddChild(Expression());
                     }
-                    while (Validate(","));
+                    while (Validate(TokenType.Comma));
                 }
-                Confirm(")");
+                Confirm(TokenType.CloseParen);
                 return newNode;
             }
             else
@@ -914,14 +912,14 @@ namespace TaffyScriptCompiler
             }
         }
 
-        private bool Try(string next)
+        private bool Try(TokenType next)
         {
             if (_stream.Finished || _stream.Peek().Type != next)
                 return false;
             return true;
         }
 
-        private bool Try(string next, out Token result)
+        private bool Try(TokenType next, out Token result)
         {
             result = default(Token);
             if (_stream.Finished || _stream.Peek().Type != next)
@@ -931,7 +929,7 @@ namespace TaffyScriptCompiler
             return true;
         }
 
-        private bool Validate(string next)
+        private bool Validate(TokenType next)
         {
             if(!_stream.Finished && _stream.Peek().Type == next)
             {
@@ -941,7 +939,7 @@ namespace TaffyScriptCompiler
             return false;
         }
 
-        private Token Confirm(string next)
+        private Token Confirm(TokenType next)
         {
             if (_stream.Finished)
             {
@@ -957,7 +955,7 @@ namespace TaffyScriptCompiler
         private bool IsConstant()
         {
             var type = _stream.Peek().Type;
-            return type == "num" || type == "string" || type == "bool";
+            return type == TokenType.Number || type == TokenType.String || type == TokenType.Bool;
         }
 
         private bool IsConstant(ISyntaxElement element)
@@ -967,9 +965,9 @@ namespace TaffyScriptCompiler
 
         private ISyntaxToken Constant()
         {
-            if (Try("num", out var token))
+            if (Try(TokenType.Number, out var token))
                 return _factory.CreateConstant(ConstantType.Real, token.Value, token.Position);
-            else if (Try("string", out token))
+            else if (Try(TokenType.String, out token))
             {
                 var value = token.Value;
                 if (value.StartsWith("'"))
@@ -1028,7 +1026,7 @@ namespace TaffyScriptCompiler
                 return _factory.CreateConstant(ConstantType.String, value,
                     new TokenPosition(token.Position.Index + 1, token.Position.Line, token.Position.Column + 1, token.Position.File));
             }
-            else if (Try("bool", out token))
+            else if (Try(TokenType.Bool, out token))
                 return _factory.CreateConstant(ConstantType.Bool, token.Value, token.Position);
             else
                 Throw(new InvalidTokenException(_stream.Peek(), $"Expected literal, got {_stream.Peek().Type}"));
@@ -1039,15 +1037,21 @@ namespace TaffyScriptCompiler
         private bool IsAssignment()
         {
             var type = _stream.Peek().Type;
-            return type == "=" ||
-                   type == "+=" ||
-                   type == "-=" ||
-                   type == "*=" ||
-                   type == "/=" ||
-                   type == "%=" ||
-                   type == "&=" ||
-                   type == "^=" ||
-                   type == "|=";
+            switch(type)
+            {
+                case TokenType.Assign:
+                case TokenType.PlusEquals:
+                case TokenType.SubEquals:
+                case TokenType.MulEquals:
+                case TokenType.DivEquals:
+                case TokenType.ModEquals:
+                case TokenType.AndEquals:
+                case TokenType.OrEquals:
+                case TokenType.XorEquals:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private void Throw(Exception exception)
@@ -1057,16 +1061,16 @@ namespace TaffyScriptCompiler
 
         private string GetNamespace()
         {
-            var first = Confirm("id");
+            var first = Confirm(TokenType.Identifier);
             var name = first.Value;
-            while (Validate("."))
+            while (Validate(TokenType.Dot))
             {
-                name += ".";
-                name += Confirm("id").Value;
+                name += TokenType.Dot;
+                name += Confirm(TokenType.Identifier).Value;
             }
 
             //Make sure to remove all semi colons.
-            while (Validate(";")) ;
+            while (Validate(TokenType.SemiColon)) ;
 
             return name;
         }
