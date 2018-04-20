@@ -282,13 +282,38 @@ namespace TaffyScriptCompiler
                     if (Try("=", out var assign))
                     {
                         optional = true;
+                        ISyntaxElement value;
                         if (!IsConstant())
                         {
-                            Throw(new InvalidTokenException(_stream.Peek(), "Optional arguments must have a constant value"));
-                            Validate("id");
-                            continue;
+                            var next = _stream.Peek().Type;
+                            switch(next)
+                            {
+                                case "-":
+                                    Confirm("-");
+                                    var prefix = "-";
+                                    if (Validate("."))
+                                        prefix += ".";
+                                    var num = Confirm("num");
+                                    value = _factory.CreateConstant(ConstantType.Real, prefix + num.Value, num.Position);
+                                    break;
+                                case ".":
+                                    Confirm(".");
+                                    num = Confirm("num");
+                                    value = _factory.CreateConstant(ConstantType.Real, "." + num.Value, num.Position);
+                                    break;
+                                case "readonly":
+                                    var read = Confirm("readonly");
+                                    value = _factory.CreateToken(SyntaxType.ReadOnlyValue, read.Value, read.Position);
+                                    break;
+                                default:
+                                    Throw(new InvalidTokenException(_stream.Peek(), "Optional arguments must have a constant value"));
+                                    Validate("id");
+                                    continue;
+                            }
                         }
-                        var value = Constant();
+                        else
+                            value = Constant();
+
                         var temp = _factory.CreateNode(SyntaxType.Assign, "=", assign.Position);
                         temp.AddChild(parameter);
                         temp.AddChild(value);
