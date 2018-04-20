@@ -12,14 +12,15 @@ namespace TaffyScriptCompiler.FrontEnd
     /// </summary>
     public class Tokenizer : IDisposable
     {
+        private static HashSet<char> _whitespace;
+        private static Dictionary<string, TokenType> _definitions;
+
         private TextReader _reader;
         private int _line = 1;
         private int _column;
         private int _index;
         private bool _finished;
         private char _current;
-        private HashSet<char> _whitespace;
-        private Dictionary<string, TokenType> _definitions;
         private Token _token;
         private string _fname = null;
 
@@ -54,11 +55,11 @@ namespace TaffyScriptCompiler.FrontEnd
             Init();
         }
 
-        private void Init()
+        static Tokenizer()
         {
             // Defines the whitespace characters that should be ignored.
             _whitespace = new HashSet<char>() { '\r', '\t', '\v', '\f', ' ', '\n' };
-            
+
             // Defines the language keywords and other constructs.
             // Strings, numbers, and identifiers get processed under a special case.
             _definitions = new Dictionary<string, TokenType>()
@@ -148,7 +149,10 @@ namespace TaffyScriptCompiler.FrontEnd
             };
             for (var i = 0; i < 16; i++)
                 _definitions.Add($"argument{i}", TokenType.Argument);
+        }
 
+        private void Init()
+        {
             // Set _current to the first character. Needed to prevent an error when calling ReadNext for the first time.
             TryReadNext();
 
@@ -202,8 +206,16 @@ namespace TaffyScriptCompiler.FrontEnd
         {
             var next = ReadNext();
             var pos = new TokenPosition(_index - next.Length, _line, _column - next.Length, _fname);
-            if (_definitions.TryGetValue(next, out var def))
+            if (next == "argument")
+            {
+                next += ReadNumber(true);
+                pos = new TokenPosition(_index - next.Length, _line, _column - next.Length, _fname);
+                _token = new Token(TokenType.Argument, next, pos);
+            }
+            else if (_definitions.TryGetValue(next, out var def))
+            {
                 _token = new Token(def, next, pos);
+            }
             else
             {
                 switch (next[0])
@@ -218,6 +230,9 @@ namespace TaffyScriptCompiler.FrontEnd
                     case '7':
                     case '8':
                     case '9':
+                    case '?':
+                    case '-':
+                    case '.':
                         _token = new Token(TokenType.Number, next, pos);
                         break;
                     case '\'':
@@ -297,7 +312,7 @@ namespace TaffyScriptCompiler.FrontEnd
                     default:
                         ErrorEncountered?.Invoke(new UnrecognizedTokenException(next[0], pos));
                         break;
-                        
+
                 }
             }
 
