@@ -768,22 +768,44 @@ namespace TaffyScriptCompiler.Backend
         /// Currently this is only called before methods, and it makes the console show better information when an exception is thrown.
         /// </para>
         /// </summary>
-        /// <param name="file"></param>
-        /// <param name="startLine"></param>
-        /// <param name="startColumn"></param>
-        /// <param name="endLine"></param>
-        /// <param name="endColumn"></param>
-        private void MarkSequencePoint(string file, int startLine, int startColumn, int endLine, int endColumn)
+        /// <param name="element">The element to mark.</param>
+        private void MarkSequencePoint(ISyntaxElement element)
         {
-            if(_isDebug && file != null)
+            if (!_isDebug || element.Position.File == null)
+                return;
+
+            var line = element.Position.Line;
+            var end = 0;
+            while (true)
             {
-                if(!_documents.TryGetValue(file, out var writer))
+                if (element.Position.Line > line)
+                    line = element.Position.Line;
+                if (element.IsToken)
                 {
-                    writer = _module.DefineDocument(file, Guid.Empty, Guid.Empty, Guid.Empty);
-                    _documents.Add(file, writer);
+                    end = element.Position.Column + ((ISyntaxToken)element).Text.Length + 2;
+                    break;
                 }
-                emit.MarkSequencePoint(writer, startLine, startColumn, endLine, endColumn);
+                else
+                {
+                    var node = element as ISyntaxNode;
+                    if (node.Children.Count == 0)
+                    {
+                        end = node.Position.Column + (node.Value == null ? 0 : node.Value.Length) + 2;
+                        break;
+                    }
+                    else
+                    {
+                        element = node.Children[node.Children.Count - 1];
+                    }
+                }
             }
+
+            if(!_documents.TryGetValue(element.Position.File, out var writer))
+            {
+                writer = _module.DefineDocument(element.Position.File, Guid.Empty, Guid.Empty, Guid.Empty);
+                _documents.Add(element.Position.File, writer);
+            }
+            emit.MarkSequencePoint(writer, element.Position.Line, element.Position.Index, line, end);
         }
 
         private void ScriptStart(string scriptName, MethodBuilder method, Type[] args)
@@ -1853,6 +1875,7 @@ namespace TaffyScriptCompiler.Backend
             }
             else
             {
+                MarkSequencePoint(functionCall);
                 GetAddressIfPossible(nameElem);
                 var top = emit.GetTop();
                 if(top == typeof(TsObject))
@@ -1882,6 +1905,7 @@ namespace TaffyScriptCompiler.Backend
 
             if(symbol.Type == SymbolType.Variable)
             {
+                MarkSequencePoint(functionCall);
                 emit.LdLocalA(_locals[symbol]);
                 LoadFunctionArguments(functionCall);
                 emit.Call(typeof(TsObject).GetMethod("DelegateInvoke", new[] { typeof(TsObject[]) }));
@@ -1915,40 +1939,7 @@ namespace TaffyScriptCompiler.Backend
 
             UnresolveNamespace();
 
-            if (_isDebug)
-            {
-                var line = functionCall.Position.Line;
-                var end = 0;
-                ISyntaxElement element = functionCall;
-                while(true)
-                {
-                    if (element.Position.Line > line)
-                        line = element.Position.Line;
-                    if (element.IsToken)
-                    {
-                        end = element.Position.Column + ((ISyntaxToken)element).Text.Length + 2;
-                        break;
-                    }
-                    else
-                    {
-                        var node = element as ISyntaxNode;
-                        if (node.Children.Count == 0)
-                        {
-                            end = node.Position.Column + (node.Value == null ? 0 : node.Value.Length) + 2;
-                            break;
-                        }
-                        else
-                        {
-                            element = node.Children[node.Children.Count - 1];
-                        }
-                    }
-                }
-                MarkSequencePoint(functionCall.Position.File ?? "",
-                                  functionCall.Position.Line,
-                                  functionCall.Position.Column,
-                                  line,
-                                  end);
-            }
+            MarkSequencePoint(functionCall);
 
             //Load the target
             emit.LdArg(0);
@@ -1991,8 +1982,7 @@ namespace TaffyScriptCompiler.Backend
 
         private void CallEvent(string name, bool loadId, FunctionCallNode functionCall, TokenPosition start)
         {
-            if (_isDebug)
-                MarkSequencePoint(start.File ?? "", start.Line, start.Column, start.Line, start.Column + name.Length + 2);
+            MarkSequencePoint(functionCall);
 
             if (loadId)
                 emit.LdArg(0);
@@ -2427,7 +2417,7 @@ namespace TaffyScriptCompiler.Backend
                 {
                     var name = newNode.Value;
                     var pos = newNode.Position;
-                    MarkSequencePoint(pos.File ?? "", pos.Line, pos.Column, pos.Line, pos.Column + newNode.Value.Length);
+                    MarkSequencePoint(newNode);
                     var ctor = typeof(TsInstance).GetConstructor(new[] { typeof(string), typeof(TsObject[]) });
                     var ns = GetAssetNamespace(symbol);
                     if (ns != "")
