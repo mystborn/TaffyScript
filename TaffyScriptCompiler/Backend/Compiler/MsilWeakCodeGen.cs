@@ -148,6 +148,8 @@ namespace TaffyScriptCompiler.Backend
 
         private string _resolveNamespace = "";
 
+        private LocalBuilder _argumentCount = null;
+
         #endregion
 
         #region Properties
@@ -805,6 +807,7 @@ namespace TaffyScriptCompiler.Backend
             _locals.Clear();
             _secrets.Clear();
             _secret = 0;
+            _argumentCount = null;
         }
 
         private LocalBuilder GetLocal() => GetLocal(typeof(TsObject));
@@ -1572,8 +1575,8 @@ namespace TaffyScriptCompiler.Backend
                 CallInstanceMethod(TsTypes.ObjectCasts[typeof(bool)], conditionalNode.Test.Position);
             else if (top == typeof(float))
                 emit.ConvertInt(false);
-            else
-                _errors.Add(new CompileException($"Detected invalid syntax {conditionalNode.Test.Parent}"));
+            else if(top != typeof(bool))
+                _errors.Add(new CompileException($"Detected invalid syntax {conditionalNode.Test.Position}"));
             var brFalse = emit.DefineLabel();
             var brFinal = emit.DefineLabel();
             emit.BrFalse(brFalse);
@@ -2827,9 +2830,24 @@ namespace TaffyScriptCompiler.Backend
                     emit.LdArg(0);
                     break;
                 case "argument_count":
-                    emit.LdArg(1)
-                        .LdLen()
-                        .ConvertFloat();
+                    if(_argumentCount == null)
+                    {
+                        _argumentCount = emit.DeclareLocal(typeof(float), "argument_count");
+                        var isNull = emit.DefineLabel();
+                        var end = emit.DefineLabel();
+                        emit.LdArg(1)
+                            .Dup()
+                            .BrFalse(isNull)
+                            .LdLen()
+                            .ConvertFloat()
+                            .Br(end)
+                            .MarkLabel(isNull)
+                            .Pop()
+                            .LdFloat(0)
+                            .MarkLabel(end)
+                            .StLocal(_argumentCount);
+                    }
+                    emit.LdLocal(_argumentCount);
                     break;
                 case "global":
                     if (_needAddress)

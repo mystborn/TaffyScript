@@ -1,0 +1,25 @@
+using UnitTest;
+
+namespace LanguageTests {
+    script run_ternary_tests() {
+        var tests = new obj_unit_test("Ternary Tests", 
+                                      ternary_assign,
+                                      ternary_argument_assign);
+
+        tests.run_tests();
+        tests.destroy();
+    }
+
+    script ternary_assign() {
+        test_it("i = bool ? n1 : n2");
+        var test = true;
+        var i = test == true ? 2 : 4;
+        assert_equal(i, 2);
+    }
+
+    script ternary_argument_assign() {
+        test_it("i = argument_count == 0 ? '' : arg0");
+        var i = argument_count == 0 ? "moo" : "cow";
+        assert_equal(i, "moo");
+    }
+}

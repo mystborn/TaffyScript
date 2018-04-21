@@ -16,6 +16,7 @@ namespace LanguageTests {
         show_debug_message("");
         run_prefix_tests();
         show_debug_message("");
+        run_ternary_tests();
     }
 
     script array_literal() {

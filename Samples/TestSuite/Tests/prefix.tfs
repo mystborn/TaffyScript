@@ -4,6 +4,10 @@ namespace LanguageTests {
     script run_prefix_tests() {
         var obj = new obj_prefix();
         var tests = new obj_unit_test("Prefix Tests",
+                                      prefix_negate,
+                                      prefix_positive,
+                                      prefix_not,
+                                      prefix_complement,
                                       prefix_increment_array,
                                       prefix_decrement_array,
                                       prefix_increment_list,
@@ -28,6 +32,37 @@ namespace LanguageTests {
         tests.run_tests();
         tests.destroy();
         obj.destroy();
+    }
+
+    script prefix_negate() {
+        test_it("-i");
+        var i = 2;
+        var j = -i;
+        assert_equal(j, -2);
+    }
+
+    script prefix_positive() {
+        test_it("+i");
+        var i = 2;
+        var j = +i;
+        assert_equal(j, 2);
+        i = -2;
+        j = +i;
+        assert_equal(j, -2);
+    }
+
+    script prefix_not() {
+        test_it("!bool");
+        var i = true;
+        var j = !i;
+        assert_equal(j, false);
+    }
+
+    script prefix_complement() {
+        test_it("~i");
+        var i = 2;
+        var j = ~i;
+        assert_equal(j, -3);
     }
 
     script prefix_increment_array() {
