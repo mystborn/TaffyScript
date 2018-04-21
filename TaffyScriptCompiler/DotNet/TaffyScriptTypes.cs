@@ -34,7 +34,7 @@ namespace TaffyScriptCompiler
                 { typeof(double), objType.GetMethod("GetDouble") },
                 { typeof(string), objType.GetMethod("GetString") },
                 { typeof(TsInstance), objType.GetMethod("GetInstance") },
-                { typeof(TsScript), objType.GetMethod("GetDelegate") },
+                { typeof(TsDelegate), objType.GetMethod("GetDelegate") },
                 { typeof(TsObject[]), objType.GetMethod("GetArray1D") },
                 { typeof(TsObject[][]), objType.GetMethod("GetArray2D") }
             };

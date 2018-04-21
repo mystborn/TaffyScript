@@ -2,32 +2,16 @@ using UnitTest;
 
 namespace LanguageTests {
     script main {
-        var tests = new obj_unit_test("Operator Tests", 
-                                      addition,
-                                      array_literal,
-                                      assignment,
-                                      postfix,
-                                      prefix,
-                                      script_tests,
-                                      scr_comp_tests);
-        tests.run_tests();
-        tests.destroy();
-    }
-
-    script addition() {
-        test_it("Addition");
-        var left = 30;
-        var right = 10;
-        assert_equal(left + right, 40);
-        assert_equal(left + 10, 40);
-        assert_equal(30 + right, 40);
-        assert_equal(30 + 10, 40);
-        left = "hello ";
-        right = "world";
-        assert_equal(left + right, "hello world");
-        assert_equal(left + "world", "hello world");
-        assert_equal("hello " + right, "hello world");
-        assert_equal("hello " + "world", "hello world");
+        run_addition_tests();
+        show_debug_message("");
+        run_subtraction_tests();
+        show_debug_message("");
+        run_multiplication_tests();
+        show_debug_message("");
+        run_division_tests();
+        show_debug_message("");
+        run_modulus_tests();
+        show_debug_message("");
     }
 
     script array_literal() {

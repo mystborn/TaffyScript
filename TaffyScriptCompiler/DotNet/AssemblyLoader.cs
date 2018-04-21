@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 
@@ -57,7 +58,7 @@ namespace TaffyScriptCompiler.DotNet
         /// <param name="asm"></param>
         public void InitializeAssembly(Assembly asm)
         {
-            _loadedAssemblies[asm.Location] = asm;
+            _loadedAssemblies[asm.GetName().Name] = asm;
             var namespaces = asm.GetExportedTypes()
                                 .Select(t => t.Namespace)
                                 .Where(t => t != null)

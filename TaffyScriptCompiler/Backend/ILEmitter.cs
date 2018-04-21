@@ -302,6 +302,14 @@ namespace TaffyScriptCompiler.Backend
             return this;
         }
 
+        public ILEmitter Div()
+        {
+            //Only pop first type, reload second.
+            _types.Pop();
+            _generator.Emit(OpCodes.Div);
+            return this;
+        }
+
         public ILEmitter Dup()
         {
             _generator.Emit(OpCodes.Dup);
@@ -650,6 +658,14 @@ namespace TaffyScriptCompiler.Backend
             if(removeTop)
                 _types.Pop();
             _generator.Emit(OpCodes.Pop);
+            return this;
+        }
+
+        public ILEmitter Rem()
+        {
+            //Only pop first type, reload second.
+            _types.Pop();
+            _generator.Emit(OpCodes.Rem);
             return this;
         }
 

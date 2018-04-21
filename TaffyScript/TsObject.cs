@@ -482,23 +482,23 @@ namespace TaffyScript
         /// <param name="index">The array index.</param>
         /// <param name="right">The value of the index.</param>
         public void ArraySet(TsObject index, TsObject right)
-            => ArraySet(index.GetFloat(), right);
+            => ArraySet((int)index, right);
 
         /// <summary>
         /// Sets the value at the given index in the 1D array held by this object.
         /// </summary>
         /// <param name="index">The array index.</param>
         /// <param name="right">The value of the index.</param>
-        public void ArraySet(float index, TsObject right)
+        public void ArraySet(int index, TsObject right)
         {
-            var real = (int)index;
-            if (real < 0)
+            if (index < 0)
                 throw new ArgumentOutOfRangeException("index");
+
             if (Type != VariableType.Array1)
             {
                 Type = VariableType.Array1;
-                var temp = new TsObject[real + 1];
-                temp[real] = right;
+                var temp = new TsObject[index + 1];
+                temp[index] = right;
                 Value = new TsMutableValue<TsObject[]>(temp);
                 return;
             }
@@ -506,12 +506,12 @@ namespace TaffyScript
             var arr = self.StrongValue;
             if (index >= arr.Length)
             {
-                var temp = new TsObject[real + 1];
+                var temp = new TsObject[index + 1];
                 Array.Copy(arr, 0, temp, 0, arr.Length);
                 arr = temp;
                 self.StrongValue = temp;
             }
-            arr[real] = right;
+            arr[index] = right;
         }
 
         /// <summary>
@@ -521,7 +521,7 @@ namespace TaffyScript
         /// <param name="index2">The index of the second dimension.</param>
         /// <param name="right">The value of the index.</param>
         public void ArraySet(TsObject index1, TsObject index2, TsObject right)
-            => ArraySet(index1.GetFloat(), index2.GetFloat(), right);
+            => ArraySet((int)index1, (int)index2, right);
 
         /// <summary>
         /// Sets the value at the given indeces in the 2D array held by this object.
@@ -529,8 +529,8 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <param name="right">The value of the index.</param>
-        public void ArraySet(float index1, TsObject index2, TsObject right)
-            => ArraySet(index1, index2.GetFloat(), right);
+        public void ArraySet(int index1, TsObject index2, TsObject right)
+            => ArraySet(index1, (int)index2, right);
 
         /// <summary>
         /// Sets the value at the given indeces in the 2D array held by this object.
@@ -538,8 +538,8 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <param name="right">The value of the index.</param>
-        public void ArraySet(TsObject index1, float index2, TsObject right)
-            => ArraySet(index1.GetFloat(), index2, right);
+        public void ArraySet(TsObject index1, int index2, TsObject right)
+            => ArraySet((int)index1, index2, right);
 
         /// <summary>
         /// Sets the value at the given indeces in the 2D array held by this object.
@@ -547,38 +547,38 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <param name="right">The value of the index.</param>
-        public void ArraySet(float index1, float index2, TsObject right)
+        public void ArraySet(int index1, int index2, TsObject right)
         {
-            int real1 = (int)index1;
-            int real2 = (int)index2;
-            if (real1 < 0 || index2 < 0)
-                throw new IndexOutOfRangeException();
+            if (index1 < 0 || index2 < 0)
+                throw new ArgumentOutOfRangeException($"{(index1 < 0 ? nameof(index1) : nameof(index2))}");
+
             if (Type != VariableType.Array2)
             {
                 Type = VariableType.Array2;
-                var temp = new TsObject[real1 + 1][];
-                var inner = new TsObject[real2 + 1];
-                inner[real2] = right;
-                temp[real1] = inner;
+                var temp = new TsObject[index1 + 1][];
+                var inner = new TsObject[index2 + 1];
+                inner[index2] = right;
+                temp[index1] = inner;
                 Value = new TsMutableValue<TsObject[][]>(temp);
                 return;
             }
+
             var self = (TsMutableValue<TsObject[][]>)Value;
-            if(real1 >= self.StrongValue.Length)
+            if(index1 >= self.StrongValue.Length)
             {
-                var temp = new TsObject[real1 + 1][];
+                var temp = new TsObject[index1 + 1][];
                 Array.Copy(self.StrongValue, 0, temp, 0, self.StrongValue.Length);
                 self.StrongValue = temp;
             }
-            if (self.StrongValue[real1] == null)
-                self.StrongValue[real1] = new TsObject[real2 + 1];
-            else if(real2 >= self.StrongValue[real1].Length)
+            if (self.StrongValue[index1] == null)
+                self.StrongValue[index1] = new TsObject[index2 + 1];
+            else if(index2 >= self.StrongValue[index1].Length)
             {
-                var temp = new TsObject[real2 + 1];
-                Array.Copy(self.StrongValue[real1], 0, temp, 0, self.StrongValue[real2].Length);
-                self.StrongValue[real1] = temp;
+                var temp = new TsObject[index2 + 1];
+                Array.Copy(self.StrongValue[index1], 0, temp, 0, self.StrongValue[index2].Length);
+                self.StrongValue[index1] = temp;
             }
-            self.StrongValue[real1][real2] = right;
+            self.StrongValue[index1][index2] = right;
         }
 
         /// <summary>
@@ -587,20 +587,16 @@ namespace TaffyScript
         /// <param name="index">The index of the value.</param>
         /// <returns></returns>
         public TsObject ArrayGet(TsObject index)
-            => ArrayGet(index.GetFloat());
+            => ArrayGet((int)index);
 
         /// <summary>
         /// Gets the value at the given index in the 1D array held by this object.
         /// </summary>
         /// <param name="index">The index of the value.</param>
         /// <returns></returns>
-        public TsObject ArrayGet(float index)
+        public TsObject ArrayGet(int index)
         {
-            var real = (int)index;
-            var arr = GetArray1D();
-            if (real < 0 || real >= arr.Length)
-                throw new IndexOutOfRangeException();
-            return arr[real];
+            return GetArray1D()[index];
         }
 
         /// <summary>
@@ -610,7 +606,7 @@ namespace TaffyScript
         /// <param name="index2">The index of the second dimension.</param>
         /// <returns></returns>
         public TsObject ArrayGet(TsObject index1, TsObject index2)
-            => ArrayGet((float)index1, (float)index2);
+            => ArrayGet((int)index1, (int)index2);
 
         /// <summary>
         /// Gets the value at the given indeces in the 2D array held by this object.
@@ -618,8 +614,8 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <returns></returns>
-        public TsObject ArrayGet(TsObject index1, float index2)
-            => ArrayGet((float)index1, index2);
+        public TsObject ArrayGet(TsObject index1, int index2)
+            => ArrayGet((int)index1, index2);
 
         /// <summary>
         /// Gets the value at the given indeces in the 2D array held by this object.
@@ -627,8 +623,8 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <returns></returns>
-        public TsObject ArrayGet(float index1, TsObject index2)
-            => ArrayGet(index1, (float)index2);
+        public TsObject ArrayGet(int index1, TsObject index2)
+            => ArrayGet(index1, (int)index2);
 
         /// <summary>
         /// Gets the value at the given indeces in the 2D array held by this object.
@@ -636,14 +632,9 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <returns></returns>
-        public TsObject ArrayGet(float index1, float index2)
+        public TsObject ArrayGet(int index1, int index2)
         {
-            var real1 = (int)index1;
-            var real2 = (int)index2;
-            var arr = GetArray2D();
-            if (real1 < 0 || real1 >= arr.Length || real2 < 0 || real2 >= arr[real1].Length)
-                throw new IndexOutOfRangeException();
-            return arr[real1][real2];
+            return GetArray2D()[index1][index2];
         }
 
         #endregion
@@ -773,6 +764,26 @@ namespace TaffyScript
             return right.GetString();
         }
 
+        public static explicit operator TsInstance(TsObject right)
+        {
+            return right.GetInstance();
+        }
+
+        public static explicit operator TsDelegate(TsObject right)
+        {
+            return right.GetDelegate();
+        }
+
+        public static explicit operator TsObject[](TsObject right)
+        {
+            return right.GetArray1D();
+        }
+
+        public static explicit operator TsObject[][](TsObject right)
+        {
+            return right.GetArray2D();
+        }
+
         public static implicit operator TsObject(bool right)
         {
             return new TsObject(right);
@@ -834,6 +845,26 @@ namespace TaffyScript
         }
 
         public static implicit operator TsObject(string right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(TsInstance right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(TsDelegate right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(TsObject[] right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(TsObject[][] right)
         {
             return new TsObject(right);
         }

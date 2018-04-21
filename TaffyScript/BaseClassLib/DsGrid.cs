@@ -12,7 +12,7 @@ namespace TaffyScript
     /// </summary>
     public class DsGrid
     {
-        private static readonly ClassBinder<DsGrid> _grids = new ClassBinder<DsGrid>();
+        private static readonly ClassBinder<Grid<TsObject>> _grids = new ClassBinder<Grid<TsObject>>();
 
         private TsObject[,] _source;
 
@@ -78,15 +78,15 @@ namespace TaffyScript
 
             if (x1 < 0)
                 throw new ArgumentOutOfRangeException("x1");
-            else if (x2 >= src._source.GetLength(0))
+            else if (x2 >= src.Width)
                 throw new ArgumentOutOfRangeException("x2");
             else if (y1 < 0)
                 throw new ArgumentOutOfRangeException("y1");
-            else if (y2 >= src._source.GetLength(1))
+            else if (y2 >= src.Height)
                 throw new ArgumentOutOfRangeException("y2");
-            else if (xpos < 0 || xpos + xLength >= dest._source.GetLength(0))
+            else if (xpos < 0 || xpos + xLength >= dest.Width)
                 throw new ArgumentOutOfRangeException("xpos");
-            else if (ypos < 0 || ypos + yLength >= dest._source.GetLength(1))
+            else if (ypos < 0 || ypos + yLength >= dest.Height)
                 throw new ArgumentOutOfRangeException("ypos");
 
             for(var w = 0; w < xLength; w++)
@@ -119,10 +119,10 @@ namespace TaffyScript
         /// <param name="value">The new value.</param>
         public static void DsGridClear(int index, TsObject value)
         {
-            var grid = _grids[index]._source;
-            for(var w = 0; w < grid.GetLength(0); w++)
+            var grid = _grids[index];
+            for(var w = 0; w < grid.Width; w++)
             {
-                for(var h = 0; h < grid.GetLength(1); h++)
+                for(var h = 0; h < grid.Height; h++)
                 {
                     grid[w, h] = value;
                 }
@@ -138,9 +138,9 @@ namespace TaffyScript
         {
             var dst = _grids[destination];
             var src = _grids[source];
-            var xLength = Math.Max(dst._source.GetLength(0), src._source.GetLength(0));
-            var yLength = Math.Min(dst._source.GetLength(1), src._source.GetLength(1));
-            DsGridSetGridRegion(dst, src, 0, 0, xLength - 1, yLength - 1, 0, 0);
+            var xLength = Math.Min(dst.Width, src.Width) - 1;
+            var yLength = Math.Min(dst.Height, src.Height) - 1;
+            dst.SetGridRegion(src, 0, 0, xLength, yLength, 0, 0);
         }
 
         /// <summary>
@@ -150,13 +150,8 @@ namespace TaffyScript
         /// <param name="h">Grid height</param>
         /// <returns>Grid id</returns>
         public static int DsGridCreate(int w, int h)
-        {
-            if (w < 0)
-                throw new ArgumentOutOfRangeException("w");
-            else if (h < 0)
-                throw new ArgumentOutOfRangeException("h");
-            
-            return _grids.Add(new DsGrid(w, h));
+        {   
+            return _grids.Add(new Grid<TsObject>(w, h));
         }
 
         /// <summary>
@@ -276,6 +271,11 @@ namespace TaffyScript
             return mean;
         }
 
+        public static Grid<TsObject> DsGridGetGrid(int id)
+        {
+            return _grids[id];
+        }
+
         /// <summary>
         /// Gets the maximum value within a region.
         /// </summary>
@@ -377,7 +377,7 @@ namespace TaffyScript
         /// <returns>Height</returns>
         public static int DsGridHeight(int index)
         {
-            return _grids[index]._source.GetLength(1);
+            return _grids[index].Height;
         }
 
         /// <summary>
@@ -425,15 +425,15 @@ namespace TaffyScript
 
             if (x1 < 0)
                 throw new ArgumentOutOfRangeException("x1");
-            else if (x2 >= src._source.GetLength(0))
+            else if (x2 >= src.Width)
                 throw new ArgumentOutOfRangeException("x2");
             else if (y1 < 0)
                 throw new ArgumentOutOfRangeException("y1");
-            else if (y2 >= src._source.GetLength(1))
+            else if (y2 >= src.Height)
                 throw new ArgumentOutOfRangeException("y2");
-            else if (xpos < 0 || xpos + xLength >= dest._source.GetLength(0))
+            else if (xpos < 0 || xpos + xLength >= dest.Width)
                 throw new ArgumentOutOfRangeException("xpos");
-            else if (ypos < 0 || ypos + yLength >= dest._source.GetLength(1))
+            else if (ypos < 0 || ypos + yLength >= dest.Height)
                 throw new ArgumentOutOfRangeException("ypos");
 
             for (var w = 0; w < xLength; w++)
@@ -510,7 +510,7 @@ namespace TaffyScript
         {
             var dest = _grids[index];
             var src = _grids[source];
-            DsGridSetGridRegion(dest, src, x1, y1, x2, y2, xpos, ypos);
+            dest.SetGridRegion(src, x1, y1, x2, y2, xpos, ypos);
         }
 
         /// <summary>
@@ -533,7 +533,7 @@ namespace TaffyScript
         /// <param name="index">Grid id</param>
         public static void DsGridShuffle(int index)
         {
-            Extensions.Shuffle(_grids[index]._source);
+            _grids[index].Shuffle();
         }
 
         /// <summary>
@@ -544,18 +544,7 @@ namespace TaffyScript
         /// <param name="ascending">Whether the values should be sorted in ascending or descending order.</param>
         public static void DsGridSort(int index, int column, bool ascending)
         {
-            var src = _grids[index]._source;
-            if (column < 0 || column >= src.GetLength(0))
-                throw new ArgumentOutOfRangeException(nameof(column));
-
-            var height = src.GetLength(1);
-            var temp = new TsObject[height];
-            for (var i = 0; i < height; i++)
-                temp[i] = src[column, i];
-
-            Array.Sort(temp);
-            for (var i = 0; i < height; i++)
-                src[column, i] = temp[i];
+            _grids[index].Sort(column, ascending);
         }
 
         /// <summary>
@@ -664,278 +653,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static int DsGridWidth(int index)
         {
-            return _grids[index]._source.GetLength(0);
-        }
-
-        /// <summary>
-        /// Copies the contents in a source grid to a destination grid.
-        /// </summary>
-        /// <param name="dst">The destination grid</param>
-        /// <param name="src">The source grid</param>
-        /// <param name="x1">The left position of the source region to copy</param>
-        /// <param name="y1">The top position of the source region to copy</param>
-        /// <param name="x2">The right position of the source region to copy</param>
-        /// <param name="y2">The bottom position of the source region to copy</param>
-        /// <param name="xpos">The x position in the destination grid to add the source region to.</param>
-        /// <param name="ypos">The y position in the destination grid to add the source region to.</param>
-        public static void DsGridSetGridRegion(DsGrid dst, DsGrid src, int x1, int y1, int x2, int y2, int xpos, int ypos)
-        {
-            var xLength = x2 - x1;
-            var yLength = y2 - y1;
-            var srcXLength = src._source.GetLength(0);
-            var dstXLength = dst._source.GetLength(0);
-
-            if (x1 < 0)
-                throw new ArgumentOutOfRangeException("x1");
-            else if (x2 >= srcXLength)
-                throw new ArgumentOutOfRangeException("x2");
-            else if (y1 < 0)
-                throw new ArgumentOutOfRangeException("y1");
-            else if (y2 >= src._source.GetLength(1))
-                throw new ArgumentOutOfRangeException("y2");
-            else if (xpos < 0 || xpos + xLength >= dstXLength)
-                throw new ArgumentOutOfRangeException("xpos");
-            else if (ypos < 0 || ypos + yLength >= dst._source.GetLength(1))
-                throw new ArgumentOutOfRangeException("ypos");
-
-            var srcOffset = y1 * src._source.GetLength(0) + x1;
-            var dstOffset = ypos * dst._source.GetLength(0) + xpos;
-            for (var h = y1; h <= y2; h++)
-            {
-                Array.Copy(src._source, srcOffset, dst._source, dstOffset, xLength);
-                srcOffset += srcXLength;
-                dstOffset += dstXLength;
-            }
-        }
-
-        /// <summary>
-        /// Performs an action on each value in a region.
-        /// </summary>
-        /// <param name="x1">The left position of the region</param>
-        /// <param name="y1">The top position of the region</param>
-        /// <param name="x2">The right position of the region</param>
-        /// <param name="y2">The bottom position of the region</param>
-        /// <param name="action">The action to perform (Takes in x-position, y-position, and the grid calling the action)</param>
-        public void OverRegion(int x1, int y1, int x2, int y2, Action<int, int, DsGrid> action)
-        {
-            if (x1 < 0)
-                throw new ArgumentOutOfRangeException("x1");
-            else if (x2 >= _source.GetLength(0))
-                throw new ArgumentOutOfRangeException("x2");
-            else if (y1 < 0)
-                throw new ArgumentOutOfRangeException("y1");
-            else if (y2 >= _source.GetLength(1))
-                throw new ArgumentOutOfRangeException("y2");
-
-            for (var w = x1; w <= x2; w++)
-                for (var h = y1; h <= y2; h++)
-                    action(w, h, this);
-        }
-
-        /// <summary>
-        /// Performs an action on each value within a region.
-        /// </summary>
-        /// <param name="xm">The x position of the center of the disk</param>
-        /// <param name="ym">The y position of the center of the disk</param>
-        /// <param name="radius">The radius of the disk</param>
-        /// <param name="action">The action to perform (Takes in x-position, y-position, and the grid calling the action)</param>
-        public void OverDisk(int xm, int ym, int radius, Action<int, int, DsGrid> action)
-        {
-            var xEnd = xm + radius;
-            var yEnd = xm + radius;
-            var xStart = xm - radius;
-            var yStart = ym - radius;
-            if (xStart < 0 || xEnd >= _source.GetLength(0))
-                throw new ArgumentOutOfRangeException("xm");
-            else if (yStart < 0 || yEnd >= _source.GetLength(1))
-                throw new ArgumentOutOfRangeException("ym");
-
-            var r2 = radius * radius;
-
-            for(var w = -radius; w <= radius; w++)
-                for(var h = -radius; h <= radius; h++)
-                    if ((w * w) + (h * h) <= r2)
-                        action(w + xm, h + ym, this);
-        }
-
-        /// <summary>
-        /// Determines if a value is within a disk.
-        /// </summary>
-        /// <param name="xm">The x position of the center of the disk</param>
-        /// <param name="ym">The y position of the center of the disk</param>
-        /// <param name="radius">The radius of the disk</param>
-        /// <param name="val">The value to find</param>
-        /// <returns></returns>
-        public bool InDisk(int xm, int ym, int radius, TsObject val)
-        {
-            var xEnd = xm + radius;
-            var yEnd = xm + radius;
-            var xStart = xm - radius;
-            var yStart = ym - radius;
-            if (xStart < 0 || xEnd >= _source.GetLength(0))
-                throw new ArgumentOutOfRangeException("xm");
-            else if (yStart < 0 || yEnd >= _source.GetLength(1))
-                throw new ArgumentOutOfRangeException("ym");
-
-            var r2 = radius * radius;
-
-            for (var w = -radius; w <= radius; w++)
-            {
-                for (var h = -radius; h <= radius; h++)
-                {
-                    if ((w * w) + (h * h) <= r2)
-                    {
-                        if (_source[w + xm, h + ym] == val)
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Determines if a value is within a disk, performing an event if it is found.
-        /// </summary>
-        /// <param name="xm">The x position of the center of the disk</param>
-        /// <param name="ym">The y position of the center of the disk</param>
-        /// <param name="radius">The radius of the disk</param>
-        /// <param name="val">The value to find</param>
-        /// <param name="result">The result of setter</param>
-        /// <param name="setter">The action to perform if the value is found.</param>
-        /// <returns></returns>
-        public bool InDisk<T>(int xm, int ym, int radius, TsObject val, out T result, Func<int, int, T> setter)
-        {
-            var xEnd = xm + radius;
-            var yEnd = xm + radius;
-            var xStart = xm - radius;
-            var yStart = ym - radius;
-            if (xStart < 0 || xEnd >= _source.GetLength(0))
-                throw new ArgumentOutOfRangeException("xm");
-            else if (yStart < 0 || yEnd >= _source.GetLength(1))
-                throw new ArgumentOutOfRangeException("ym");
-
-            var r2 = radius * radius;
-            result = default(T);
-
-            for (var w = -radius; w <= radius; w++)
-            {
-                for (var h = -radius; h <= radius; h++)
-                {
-                    if ((w * w) + (h * h) <= r2)
-                    {
-                        var ex = w + xm;
-                        var ey = h + ym;
-                        if (_source[ex, ey] == val)
-                        {
-                            result = setter(ex, ey);
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Determines if a value is within a region.
-        /// </summary>
-        /// <param name="x1">The left position of the region</param>
-        /// <param name="y1">The top position of the region</param>
-        /// <param name="x2">The right position of the region</param>
-        /// <param name="y2">The bottom position of the region</param>
-        /// <param name="val">The value to find</param>
-        /// <returns></returns>
-        public bool InRegion(int x1, int y1, int x2, int y2, TsObject val)
-        {
-            if (x1 < 0)
-                throw new ArgumentOutOfRangeException("x1");
-            else if (x2 >= _source.GetLength(0))
-                throw new ArgumentOutOfRangeException("x2");
-            else if (y1 < 0)
-                throw new ArgumentOutOfRangeException("y1");
-            else if (y2 >= _source.GetLength(1))
-                throw new ArgumentOutOfRangeException("y2");
-
-            for (var w = x1; w <= x2; w++)
-                for (var h = y1; h <= y2; h++)
-                    if (_source[w, h] == val)
-                        return true;
-
-            return false;
-        }
-
-        /// <summary>
-        /// Determines if a value is within a region, performing an action if it is.
-        /// </summary>
-        /// <param name="x1">The left position of the region</param>
-        /// <param name="y1">The top position of the region</param>
-        /// <param name="x2">The right position of the region</param>
-        /// <param name="y2">The bottom position of the region</param>
-        /// <param name="val">The value to find</param>
-        /// <param name="result">The result of setter</param>
-        /// <param name="setter">The action to perform if the value is found</param>
-        /// <returns></returns>
-        public bool InRegion<T>(int x1, int y1, int x2, int y2, TsObject val, out T result, Func<int, int, T> setter)
-        {
-            if (x1 < 0)
-                throw new ArgumentOutOfRangeException("x1");
-            else if (x2 >= _source.GetLength(0))
-                throw new ArgumentOutOfRangeException("x2");
-            else if (y1 < 0)
-                throw new ArgumentOutOfRangeException("y1");
-            else if (y2 >= _source.GetLength(1))
-                throw new ArgumentOutOfRangeException("y2");
-
-            result = default(T);
-            for (var w = x1; w <= x2; w++)
-            {
-                for (var h = y1; h <= y2; h++)
-                {
-                    if (_source[w, h] == val)
-                    {
-                        result = setter(w, h);
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Resizes the grid to the new width and height.
-        /// </summary>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
-        public void Resize(int width, int height)
-        {
-            if (width < 0)
-                throw new ArgumentOutOfRangeException(nameof(width));
-            else if (height < 0)
-                throw new ArgumentOutOfRangeException(nameof(height));
-
-            var temp = new TsObject[width, height];
-            var zero = new TsObject(0);
-
-            for(var h = 0; h < height; ++h)
-                for(var w = 0; w < width; ++w)
-                    temp[w, h] = 0;
-
-            var srcWidth = _source.GetLength(0);
-            var copyWidth = Math.Min(srcWidth, width);
-            var copyHeight = Math.Min(_source.GetLength(1), height);
-
-            var srcOffset = 0;
-            var dstOffset = 0;
-
-            for(var h = 0; h < copyHeight; ++h)
-            {
-                Array.Copy(_source, srcOffset, temp, dstOffset, copyWidth);
-                srcOffset += srcWidth;
-                dstOffset += width;
-            }
+            return _grids[index].Width;
         }
     }
 }

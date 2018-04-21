@@ -120,6 +120,16 @@ namespace TaffyScript
         }
 
         /// <summary>
+        /// Gets the list with the specified id.
+        /// </summary>
+        /// <param name="id">List id</param>
+        /// <returns></returns>
+        public static List<TsObject> DsListGet(int id)
+        {
+            return _lists[id];
+        }
+
+        /// <summary>
         /// Inserts a value at the specified location.
         /// </summary>
         /// <param name="id">List id</param>
