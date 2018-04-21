@@ -26,9 +26,9 @@ You can now download a precompiled binary from the [releases](https://github.com
 ```cs
 script main {
     show_debug_message("Hello, World!");
-    var user = instance_create(obj_user);
+    var user = new obj_user();
     user.name = "Taffy";
-    instance_destroy(user);
+    user.destroy();
     show_debug_message("Closing...");
 }
 
@@ -50,17 +50,3 @@ object obj_user {
 
 ## Want to contribute?
 If you want to contribute, check out the contributing.ms file in the root of the repo. If you have any further questions, please don't hesitate to ask!
-
-## What's Left?
-* Base class library (High)
-* Constant values i.e. macros (Mid)
-* C style import (Low)
-
-## Breaking Changes
-As mentioned earlier, the language is based off of GML. However, in order to be usable, some things had to change. Here's a list of some the biggest changes.
-* Asset Ids: In GM, all assets (scripts, object, etc) are given a numerical id that you can use to refer to them. In Taffyscript, assets are referred to using their name (aka a string).
-* Asset Declaration: In Taffyscript, you declare all assets and their type inside of the code. No more clicking on the objects folder to find the type that you're looking for.
-* Base Class Library: Being a game engine first, GML had many functions that pertained exclusively to game programming. All of those have been removed. In addition some of the function parameters have been changed to reflect the changes.
-* String Functions: String functions have been altered to use 0-based indexing to be consistent with c#.
-
-I've tried to keep the list of changes as small as possible (sometimes to the decrement of the language). Any code that works in GM will essentially work in TaffyScript, and the reverse is also true.
