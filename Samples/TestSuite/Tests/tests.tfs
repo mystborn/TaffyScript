@@ -12,6 +12,10 @@ namespace LanguageTests {
         show_debug_message("");
         run_modulus_tests();
         show_debug_message("");
+        run_postfix_tests();
+        show_debug_message("");
+        run_prefix_tests();
+        show_debug_message("");
     }
 
     script array_literal() {
@@ -99,36 +103,6 @@ namespace LanguageTests {
 
         argument0 += 1;
         assert_equal(argument0, 37);
-    }
-
-    script postfix() {
-        test_it("Postfix");
-        var i = 0;
-        i++;
-        assert_equal(i, 1);
-        var j = i++;
-        assert_equal(j, 1);
-        assert_equal(i, 2);
-        var obj = new obj_test();
-        obj.val++;
-        assert_equal(obj.val, 31);
-        j = obj.val++;
-        assert_equal(j, 31);
-        assert_equal(obj.val, 32);
-        global.val = 64;
-        global.val++;
-        assert_equal(global.val, 65);
-        j = global.val++;
-        assert_equal(j, 65);
-        assert_equal(global.val, 66);
-        global.obj = obj;
-        global.obj.val++;
-        assert_equal(global.obj.val, 33);
-        j = global.obj.val++;
-        assert_equal(j, 33);
-        assert_equal(global.obj.val, 34);
-        obj.postfix();
-        obj.destroy();
     }
 
     script prefix() {

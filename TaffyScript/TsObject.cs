@@ -395,6 +395,10 @@ namespace TaffyScript
             return ((TsMutableValue<TsObject[][]>)Value).StrongValue;
         }
 
+        /// <summary>
+        /// Gets the delegate held by this object.
+        /// </summary>
+        /// <returns></returns>
         public TsDelegate GetDelegate()
         {
             if (Type != VariableType.Delegate)
@@ -402,6 +406,10 @@ namespace TaffyScript
             return (TsDelegate)Value.WeakValue;
         }
 
+        /// <summary>
+        /// Gets the delegate held by this object without checking its type.
+        /// </summary>
+        /// <returns></returns>
         public TsDelegate GetDelegateUnchecked()
         {
             return (TsDelegate)Value.WeakValue;

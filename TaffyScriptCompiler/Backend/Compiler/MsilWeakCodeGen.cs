@@ -1852,10 +1852,9 @@ namespace TaffyScriptCompiler.Backend
             {
                 GetAddressIfPossible(nameElem);
                 var top = emit.GetTop();
-                LocalBuilder secret = null;
                 if(top == typeof(TsObject))
                 {
-                    secret = GetLocal();
+                    var secret = GetLocal();
                     emit.StLocal(secret);
                     emit.LdLocalA(secret);
                     FreeLocal(secret);
@@ -1866,9 +1865,8 @@ namespace TaffyScriptCompiler.Backend
                     emit.Call(TsTypes.Empty);
                     return;
                 }
-                emit.LdArg(0);
                 LoadFunctionArguments(functionCall);
-                emit.Call(typeof(TsObject).GetMethod("DelegateInvoke", new[] { typeof(TsInstance), typeof(TsObject[]) }));
+                emit.Call(typeof(TsObject).GetMethod("DelegateInvoke", new[] { typeof(TsObject[]) }));
 
                 return;
             }
@@ -2712,11 +2710,11 @@ namespace TaffyScriptCompiler.Backend
                 else if (prefix.Child is ListAccessNode list)
                 {
                     ListAccessSet(list, 2);
-                    emit.Call(typeof(List<int>).GetMethod("get_Item"))
+                    emit.Call(typeof(List<TsObject>).GetMethod("get_Item"))
                         .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
                         .Dup()
                         .StLocal(secret)
-                        .Call(typeof(DsList).GetMethod("set_Item"))
+                        .Call(typeof(List<TsObject>).GetMethod("set_Item"))
                         .LdLocal(secret);
                 }
                 else if (prefix.Child is GridAccessNode grid)

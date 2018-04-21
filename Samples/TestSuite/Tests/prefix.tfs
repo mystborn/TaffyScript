@@ -1,0 +1,264 @@
+using UnitTest;
+
+namespace LanguageTests {
+    script run_prefix_tests() {
+        var obj = new obj_prefix();
+        var tests = new obj_unit_test("Prefix Tests",
+                                      prefix_increment_array,
+                                      prefix_decrement_array,
+                                      prefix_increment_list,
+                                      prefix_decrement_list,
+                                      prefix_increment_grid,
+                                      prefix_decrement_grid,
+                                      prefix_increment_map,
+                                      prefix_decrement_map,
+                                      prefix_increment_local_var,
+                                      prefix_decrement_local_var,
+                                      prefix_increment_global_var,
+                                      prefix_decrement_global_var,
+                                      prefix_increment_local_object_var,
+                                      prefix_decrement_local_object_var,
+                                      prefix_increment_global_object_var,
+                                      prefix_decrement_global_object_var,
+                                      obj.prefix_increment_object_var,
+                                      obj.prefix_decrement_object_var,
+                                      obj.prefix_increment_self_var,
+                                      obj.prefix_decrement_self_var);
+
+        tests.run_tests();
+        tests.destroy();
+        obj.destroy();
+    }
+
+    script prefix_increment_array() {
+        test_it("++array")
+        var arr = [1];
+        ++arr[0];
+        assert_equal(arr[0], 2);
+        var j = ++arr[0];
+        assert_equal(j, 3);
+        assert_equal(arr[0], 3);
+    }
+
+    script prefix_decrement_array() {
+        test_it("--array")
+        var arr = [2];
+        --arr[0];
+        assert_equal(arr[0], 1);
+        var j = --arr[0];
+        assert_equal(j, 0);
+        assert_equal(arr[0], 0);
+    }
+
+    script prefix_increment_list() {
+        test_it("++list");
+        var list = ds_list_create();
+        ds_list_add(list, 2);
+        ++list[| 0];
+        assert_equal(list[| 0], 3);
+        var j = ++list[| 0];
+        assert_equal(j, 4);
+        assert_equal(list[| 0], 4);
+
+        ds_list_destroy(list);
+    }
+
+    script prefix_decrement_list() {
+        test_it("--list");
+        var list = ds_list_create();
+        ds_list_add(list, 2);
+        --list[| 0];
+        assert_equal(list[| 0], 1);
+        var j = --list[| 0];
+        assert_equal(j, 0);
+        assert_equal(list[| 0], 0);
+
+        ds_list_destroy(list);
+    }
+
+    script prefix_increment_grid() {
+        test_it("++grid");
+        var grid = ds_grid_create(2, 2);
+        grid[# 0, 0] = 2;
+        ++grid[# 0, 0];
+        assert_equal(grid[# 0, 0], 3);
+        var j = ++grid[# 0, 0];
+        assert_equal(j, 4);
+        assert_equal(grid[# 0, 0], 4);
+
+        ds_grid_destroy(grid);
+    }
+
+    script prefix_decrement_grid() {
+        test_it("--grid");
+        var grid = ds_grid_create(2, 2);
+        grid[# 0, 0] = 2;
+        --grid[# 0, 0];
+        assert_equal(grid[# 0, 0], 1);
+        var j = --grid[# 0, 0];
+        assert_equal(j, 0);
+        assert_equal(grid[# 0, 0], 0);
+
+        ds_grid_destroy(grid);
+    }
+
+    script prefix_increment_map() {
+        test_it("++map");
+        var map = ds_map_create();
+        map[? "moo"] = 2;
+        ++map[? "moo"];
+        assert_equal(map[? "moo"], 3);
+        var j = ++map[? "moo"];
+        assert_equal(j, 4);
+        assert_equal(map[? "moo"], 4);
+
+        ds_map_destroy(map);
+    }
+
+    script prefix_decrement_map() {
+        test_it("--map");
+        var map = ds_map_create();
+        map[? "moo"] = 2;
+        --map[? "moo"];
+        assert_equal(map[? "moo"], 1);
+        var j = --map[? "moo"];
+        assert_equal(j, 0);
+        assert_equal(map[? "moo"], 0);
+
+        ds_map_destroy(map);
+    }
+
+    script prefix_increment_local_var() {
+        test_it("++local_var");
+        var i = 2;
+        ++i;
+        assert_equal(i, 3);
+        var j = ++i;
+        assert_equal(j, 4);
+        assert_equal(i, 4);
+    }
+
+    script prefix_decrement_local_var() {
+        test_it("--local_var");
+        var i = 2;
+        --i;
+        assert_equal(i, 1);
+        var j = --i;
+        assert_equal(j, 0);
+        assert_equal(i, 0);
+    }
+
+    script prefix_increment_local_object_var() {
+        test_it("++local_object_var");
+        var obj = new obj_prefix();
+        ++obj.val;
+        assert_equal(obj.val, 3);
+        var j = ++obj.val;
+        assert_equal(j, 4);
+        assert_equal(obj.val, 4);
+        obj.destroy();
+    }
+
+    script prefix_decrement_local_object_var() {
+        test_it("--local_object_var");
+        var obj = new obj_prefix();
+        --obj.val;
+        assert_equal(obj.val, 1);
+        var j = --obj.val;
+        assert_equal(j, 0);
+        assert_equal(obj.val, 0);
+        obj.destroy();
+    }
+
+    script prefix_increment_global_var() {
+        test_it("++global_var");
+        global.val = 2;
+        ++global.val;
+        assert_equal(global.val, 3);
+        var j = ++global.val;
+        assert_equal(j, 4);
+        assert_equal(global.val, 4);
+    }
+
+    script prefix_decrement_global_var() {
+        test_it("--global_var");
+        global.val = 2;
+        --global.val;
+        assert_equal(global.val, 1);
+        var j = --global.val;
+        assert_equal(j, 0);
+        assert_equal(global.val, 0);
+    }
+
+    script prefix_increment_global_object_var() {
+        test_it("++global_object_var");
+        global.obj = new obj_prefix();
+        ++global.obj.val;
+        assert_equal(global.obj.val, 3);
+        var j = ++global.obj.val;
+        assert_equal(j, 4);
+        assert_equal(global.obj.val, 4);
+        global.obj.destroy();
+    }
+
+    script prefix_decrement_global_object_var() {
+        test_it("--global_object_var");
+        global.obj = new obj_prefix();
+        --global.obj.val;
+        assert_equal(global.obj.val, 1);
+        var j = --global.obj.val;
+        assert_equal(j, 0);
+        assert_equal(global.obj.val, 0);
+        global.obj.destroy();
+    }
+
+    object obj_prefix {
+        event create() {
+            reset();
+        }
+
+        event reset() {
+            val = 2;
+        }
+
+        event prefix_increment_object_var() {
+            test_it("++obj_var")
+            reset();
+            ++val;
+            assert_equal(val, 3);
+            var j = ++val;
+            assert_equal(j, 4);
+            assert_equal(val, 4);
+        }
+
+        event prefix_decrement_object_var() {
+            test_it("--obj_var");
+            reset();
+            --val;
+            assert_equal(val, 1);
+            var j = --val;
+            assert_equal(j, 0);
+            assert_equal(val, 0);
+        }
+
+        event prefix_increment_self_var() {
+            test_it("++self_var");
+            reset();
+            ++self.val;
+            assert_equal(val, 3);
+            var j = ++self.val;
+            assert_equal(j, 4);
+            assert_equal(val, 4);
+        }
+
+        event prefix_decrement_self_var() {
+            test_it("--self_var");
+            reset();
+            --self.val;
+            assert_equal(val, 1);
+            var j = --self.val;
+            assert_equal(j, 0);
+            assert_equal(val, 0);
+        }
+    }
+}

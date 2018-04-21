@@ -12,7 +12,7 @@ namespace TaffyScript
     /// </summary>
     public class DsMap
     {
-        private static readonly ClassBinder<Dictionary<TsObject, TsObject>> _maps;
+        private static readonly ClassBinder<Dictionary<TsObject, TsObject>> _maps = new ClassBinder<Dictionary<TsObject, TsObject>>();
 
         /// <summary>
         /// Adds a value to a map with the given key.
