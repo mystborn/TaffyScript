@@ -1,3 +1,32 @@
+# Release 1.6.1.0
+_General fixes and updates related to the script rework. Many bug fixes and performance enhancements._
+
+* Where possible, BCL now imports directly from the Math class.
+* Updated BCL implementation to conform to script rework.
+   * Updated BCL generator import signatures
+* Updated Moddable sample to use new language feautres.
+* Continuing to add more comprehensive test coverage.
+* Updated Threading Sample to conform to script rework.
+* Added warning when importing an invalid WeakMethod.
+* Improved default arguments to include readonly constants.
+* Improved (Class/Struct)Binders.
+* Ds* classes now use ClassBinder
+* Fixed bug when calling imported method before actually importing it.
+* Fixed bug with default args with certain constant values.
+* Changed Token.Type from a string to an enum to improve performance and enforce static types.
+* Improved Tokenizer creation speed/memory footprint.
+* Added another project to the TestSuite that allows methods to run in a try block.
+* Created a Grid<T> class.
+* Better performance when getting/setting array values.
+* Implicitly cast TsInstance and TsDelegate to TsObject, explicit vice versa.
+* Better errors when an invalid addition/subtraction operation is detected.
+* Better performance with data structures when reading and writing in a single operation (++, --, +=, etc).
+* Compiler no longer breaks when trying to call an import method it couldn't find. Still adds an error to the output.
+* Fixed bug when dividing/modulo two constants.
+* Fixed bug with ternary operator when evaluating bools
+* Fixed bug with argument_count when there are zero args.
+* Compiler now emits better sequence points.
+
 # Release 1.6.0.0
 This release is the largest to date, after the initial of course.
 ### Script Rework
