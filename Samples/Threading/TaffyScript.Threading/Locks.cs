@@ -14,12 +14,12 @@ namespace TaffyScript.Threading.Extern
         }
 
         [WeakMethod]
-        public static TsObject MoniterTryEnter(TsObject[] args)
+        public static TsObject MoniterTryEnter(TsInstance inst, TsObject[] args)
         {
             if (args.Length < 1)
                 throw new ArgumentOutOfRangeException("args", "There must be at least one argument to call moniter_try_enter");
             if (args.Length == 2)
-                return Monitor.TryEnter(args[0].GetValue(), args[1].GetInt());
+                return Monitor.TryEnter(args[0].GetValue(), (int)args[1]);
             else
                 return Monitor.TryEnter(args[0].GetValue());
         }

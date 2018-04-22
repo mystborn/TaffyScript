@@ -11,17 +11,18 @@ namespace Moddable
     {
         private TsInstance _source;
 
-        public string Name => _source["name"].GetString();
-        public string PlayerObjectType => _source["player"].GetString();
+        public string Name => (string)_source["name"];
+        public string PlayerObjectType => (string)_source["player"];
 
         public PlayerSelect(string typeName)
         {
-            _source = TsInstance.InstanceCreate(typeName).GetInstance();
+            _source = new TsInstance(typeName);
         }
 
         public void Destroy()
         {
-            TsInstance.InstanceDestroy(_source.Id);
+            _source.Destroy();
+            _source = null;
         }
     }
 }

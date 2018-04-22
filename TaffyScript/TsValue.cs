@@ -24,18 +24,18 @@ namespace TaffyScript
     }
 
     /// <summary>
-    /// Represents a strongly typed TaffyScript value as a struct.
+    /// Wraps an immutable TaffyScript value.
     /// <para>
-    /// Used for reals and strings.
+    /// I.E. numbers, strings, and delegates.
     /// </para>
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public struct TsValue<T> : ITsValue
+    public struct TsImmutableValue<T> : ITsValue
     {
         public T StrongValue { get; }
         public object WeakValue => StrongValue;
 
-        public TsValue(T value)
+        public TsImmutableValue(T value)
         {
             StrongValue = value;
         }
@@ -47,18 +47,18 @@ namespace TaffyScript
     }
 
     /// <summary>
-    /// Represents a strongly typed TaffyScript value.
+    /// Wraps a mutable TaffyScript value.
     /// <para>
-    /// Used for arrays
+    /// I.E. arrays.
     /// </para>
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class TsValueArray<T> : ITsValue<T>
+    public class TsMutableValue<T> : ITsValue<T>
     {
         public T StrongValue { get; set; }
         public object WeakValue => StrongValue;
 
-        public TsValueArray(T value)
+        public TsMutableValue(T value)
         {
             StrongValue = value;
         }

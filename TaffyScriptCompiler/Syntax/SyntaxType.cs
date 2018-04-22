@@ -47,7 +47,6 @@ namespace TaffyScriptCompiler
         Script,
         ArgumentAccess,
         Object,
-        Event,
         Usings,
         Namespace,
         New,

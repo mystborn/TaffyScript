@@ -1,0 +1,491 @@
+using UnitTest;
+
+namespace LanguageTests {
+    script run_addition_tests() {
+        var tests = new obj_unit_test("Addition Tests",
+                                       number_var_plus_number_var,
+                                       number_var_plus_number_literal,
+                                       number_literal_plus_number_var,
+                                       number_literal_plus_number_literal,
+                                       string_var_plus_string_var,
+                                       string_var_plus_string_literal,
+                                       string_literal_plus_string_var,
+                                       string_literal_plus_string_literal,
+                                       run_addition_faulty_tests);
+
+        tests.run_tests();
+        tests.destroy();
+    }
+
+    script run_addition_faulty_tests() {
+        assert(try_expect(number_var_plus_string_var, "InvalidOperationException"));
+        assert(try_expect(number_var_plus_string_literal, "InvalidOperationException"));
+        assert(try_expect(number_literal_plus_string_var, "InvalidOperationException"));
+        assert(try_expect(number_var_plus_array1, "InvalidOperationException"));
+        assert(try_expect(number_literal_plus_array1, "InvalidOperationException"));
+        assert(try_expect(number_var_plus_array2, "InvalidOperationException"));
+        assert(try_expect(number_literal_plus_array2, "InvalidOperationException"));
+        assert(try_expect(number_var_plus_delegate_var, "InvalidOperationException"));
+        assert(try_expect(number_var_plus_delegate_literal, "InvalidOperationException"));
+        assert(try_expect(number_literal_plus_delegate_var, "InvalidOperationException"));
+        assert(try_expect(number_literal_plus_delegate_literal, "InvalidOperationException"));
+        assert(try_expect(string_var_plus_number_var, "InvalidOperationException"));
+        assert(try_expect(string_var_plus_number_literal, "InvalidOperationException"));
+        assert(try_expect(string_literal_plus_number_var, "InvalidOperationException"));
+        assert(try_expect(string_var_plus_array1, "InvalidOperationException"));
+        assert(try_expect(string_literal_plus_array1, "InvalidOperationException"));
+        assert(try_expect(string_var_plus_array2, "InvalidOperationException"));
+        assert(try_expect(string_literal_plus_array2, "InvalidOperationException"));
+        assert(try_expect(string_var_plus_delegate_var, "InvalidOperationException"));
+        assert(try_expect(string_var_plus_delegate_literal, "InvalidOperationException"));
+        assert(try_expect(string_literal_plus_delegate_var, "InvalidOperationException"));
+        assert(try_expect(string_literal_plus_delegate_literal, "InvalidOperationException"));
+        assert(try_expect(array1_plus_number_var, "InvalidOperationException"));
+        assert(try_expect(array1_plus_number_literal, "InvalidOperationException"));
+        assert(try_expect(array1_plus_string_var, "InvalidOperationException"));
+        assert(try_expect(array1_plus_string_literal, "InvalidOperationException"));
+        assert(try_expect(array1_plus_array1, "InvalidOperationException"));
+        assert(try_expect(array1_plus_array2, "InvalidOperationException"));
+        assert(try_expect(array1_plus_delegate_var, "InvalidOperationException"));
+        assert(try_expect(array1_plus_delegate_literal, "InvalidOperationException"));
+        assert(try_expect(array2_plus_number_var, "InvalidOperationException"));
+        assert(try_expect(array2_plus_number_literal, "InvalidOperationException"));
+        assert(try_expect(array2_plus_string_var, "InvalidOperationException"));
+        assert(try_expect(array2_plus_string_literal, "InvalidOperationException"));
+        assert(try_expect(array2_plus_array1, "InvalidOperationException"));
+        assert(try_expect(array2_plus_array2, "InvalidOperationException"));
+        assert(try_expect(array2_plus_delegate_var, "InvalidOperationException"));
+        assert(try_expect(array2_plus_delegate_literal, "InvalidOperationException"));
+        assert(try_expect(delegate_var_plus_number_var, "InvalidOperationException"));
+        assert(try_expect(delegate_var_plus_number_literal, "InvalidOperationException"));
+        assert(try_expect(delegate_literal_plus_number_var, "InvalidOperationException"));
+        assert(try_expect(delegate_literal_plus_number_literal, "InvalidOperationException"));
+        assert(try_expect(delegate_var_plus_string_var, "InvalidOperationException"));
+        assert(try_expect(delegate_var_plus_string_literal, "InvalidOperationException"));
+        assert(try_expect(delegate_literal_plus_string_var, "InvalidOperationException"));
+        assert(try_expect(delegate_literal_plus_string_literal, "InvalidOperationException"));
+        assert(try_expect(delegate_var_plus_array1, "InvalidOperationException"));
+        assert(try_expect(delegate_literal_plus_array1, "InvalidOperationException"));
+        assert(try_expect(delegate_var_plus_array2, "InvalidOperationException"));
+        assert(try_expect(delegate_literal_plus_array2, "InvalidOperationException"));
+        assert(try_expect(delegate_var_plus_delegate_var, "InvalidOperationException"));
+        assert(try_expect(delegate_var_plus_delegate_literal, "InvalidOperationException"));
+        assert(try_expect(delegate_literal_plus_delegate_var, "InvalidOperationException"));
+        assert(try_expect(delegate_literal_plus_delegate_literal, "InvalidOperationException"));
+        test_it("Faulty Addition");
+    }
+
+    script number_var_plus_number_var() {
+        test_it("n + n");
+        var n1 = 1;
+        var n2 = 1;
+        var result = n1 + n2;
+        assert_equal(result, 2);
+    }
+
+    script number_var_plus_number_literal() {
+        test_it("n + 1");
+        var n = 1;
+        var result = n + 1;
+        assert_equal(result, 2);
+    }
+
+    script number_literal_plus_number_var() {
+        test_it("1 + n");
+        var n = 1;
+        var result = 1 + n;
+        assert_equal(result, 2);
+    }
+
+    script number_literal_plus_number_literal() {
+        test_it("1 + 1");
+        var result = 1 + 1;
+        assert_equal(result, 2);
+    }
+
+    script number_var_plus_string_var() {
+        test_it("n + s");
+        var n = 60;
+        var s = "";
+        var result = n + s;
+    }
+
+    script number_var_plus_string_literal() {
+        test_it("n + ''");
+        var n = 1;
+        var result = n + "";
+    }
+
+    script number_literal_plus_string_var() {
+        test_it("1 + s");
+        var s = "";
+        var result = 1 + s;
+    }
+
+    script number_var_plus_array1() {
+        test_it("n + a1");
+        var n = 1;
+        var arr = [];
+        var result = n + arr;
+    }
+
+    script number_literal_plus_array1() {
+        test_it("1 + a1");
+        var arr = [];
+        var result = 1 + arr;
+    }
+
+    script number_var_plus_array2() {
+        test_it("n + a2");
+        var n = 1;
+        var arr;
+        arr[0, 0] = 0;
+        var result = n + arr;
+    }
+
+    script number_literal_plus_array2() {
+        test_it("1 + a2");
+        var arr;
+        arr[0, 0] = 0;
+        var result = 1 + arr;
+    }
+
+    script number_var_plus_delegate_var() {
+        test_it("n + d");
+        var n = 1;
+        var del = nop;
+        var result = n + del;
+    }
+
+    script number_var_plus_delegate_literal() {
+        test_it("n + nop");
+        var n = 1;
+        var result = n + nop;
+    }
+
+    script number_literal_plus_delegate_var() {
+        test_it("1 + d");
+        var del = nop;
+        var result = 1 + del;
+    }
+
+    script number_literal_plus_delegate_literal() {
+        test_it("1 + nop");
+        var result = 1 + nop;
+    }
+
+    script string_var_plus_number_var() {
+        test_it("s + n");
+        var s = "";
+        var n = 50;
+        var result = s + n;
+    }
+
+    script string_var_plus_number_literal() {
+        test_it("s + 1");
+        var s = "";
+        var result = s + 5;
+    }
+
+    script string_literal_plus_number_var() {
+        test_it("'' + n");
+        var n = 50;
+        var result = "" + n;
+    }
+
+    script string_var_plus_string_var() {
+        test_it("s + s");
+        var s1 = "cow";
+        var s2 = "moo";
+        var result = s1 + s2;
+        assert_equal(result, "cowmoo");
+    }
+
+    script string_var_plus_string_literal() {
+        test_it("s + ''");
+        var s = "cow";
+        var result = s + "moo";
+        assert_equal(result, "cowmoo");
+    }
+
+    script string_literal_plus_string_var() {
+        test_it("'' + s");
+        var s = "moo";
+        var result = "cow" + s;
+        assert_equal(result, "cowmoo");
+    }
+
+    script string_literal_plus_string_literal() {
+        test_it("'' + ''");
+        var result = "cow" + "moo";
+        assert_equal(result, "cowmoo");
+    }
+
+    script string_var_plus_array1() {
+        test_it("s + a1");
+        var s = "";
+        var arr = [];
+        var result = s + arr;
+    }
+
+    script string_literal_plus_array1() {
+        test_it("'' + a1");
+        var arr = [];
+        var result = "" + arr;
+    }
+
+    script string_var_plus_array2() {
+        test_it("s + a2");
+        var s = "";
+        var arr;
+        arr[0, 0] = 30;
+        var result = s + arr;
+    }
+
+    script string_literal_plus_array2() {
+        test_it("'' + a2");
+        var arr;
+        arr[0, 0] = 30;
+        var result = "" + arr;
+    }
+
+    script string_var_plus_delegate_var() {
+        test_it("s + d");
+        var s = "";
+        var del = nop;
+        var result = s + del;
+    }
+
+    script string_var_plus_delegate_literal() {
+        test_it("s + nop");
+        var s = "";
+        var result = s + nop;
+    }
+
+    script string_literal_plus_delegate_var() {
+        test_it("'' + d");
+        var del = nop;
+        var result = "" + del;
+    }
+
+    script string_literal_plus_delegate_literal() {
+        test_it("'' + nop");
+        var result = "" + nop;
+    }
+
+    script array1_plus_number_var() {
+        test_it("a1 + n");
+        var arr = [];
+        var n = 1;
+        var result = arr + n;
+    }
+
+    script array1_plus_number_literal() {
+        test_it("a1 + 1");
+        var arr = [];
+        var result = arr + 1;
+    }
+
+    script array1_plus_string_var() {
+        test_it("a1 + s");
+        var arr = [];
+        var s = "";
+        var result = arr + s;
+    }
+
+    script array1_plus_string_literal() {
+        test_it("a1 + ''");
+        var arr = [];
+        var result = arr + "";
+    }
+
+    script array1_plus_array1() {
+        test_it("a1 + a1");
+        var arr1 = [];
+        var arr2 = [];
+        var result = arr1 + arr2;
+    }
+
+    script array1_plus_array2() {
+        test_it("a1 + a2");
+        var arr1 = [];
+        var arr2;
+        arr2[0, 0] = 0;
+        var result = arr1 + arr2;
+    }
+
+    script array1_plus_delegate_var() {
+        test_it("a1 + d");
+        var arr = [];
+        var del = nop;
+        var result = arr + del;
+    }
+
+    script array1_plus_delegate_literal() {
+        test_it("a1 + nop");
+        var arr = [];
+        var result = arr + nop;
+    }
+
+    script array2_plus_number_var() {
+        test_it("a2 + n");
+        var arr;
+        arr[0, 0] = 0;
+        var n = 1;
+        var result = arr + n;
+    }
+
+    script array2_plus_number_literal() {
+        test_it("a2 + 1");
+        var arr;
+        arr[0, 0] = 0;
+        var result = arr + 1;
+    }
+
+    script array2_plus_string_var() {
+        test_it("a2 + s");
+        var arr;
+        arr[0, 0] = 0;
+        var s = "";
+        var result = arr + s;
+    }
+
+    script array2_plus_string_literal() {
+        test_it("a2 + ''");
+        var arr;
+        arr[0, 0] = 0;
+        var result = arr + "";
+    }
+
+    script array2_plus_array1() {
+        test_it("a2 + a1");
+        var arr1;
+        arr1[0, 0] = 0;
+        var arr2 = [];
+        var result = arr1 + arr2;
+    }
+
+    script array2_plus_array2() {
+        test_it("a2 + a2");
+        var arr1;
+        arr1[0, 0] = 0;
+        var arr2;
+        arr2[0, 0] = 0;
+        var result = arr1 + arr2;
+    }
+
+    script  array2_plus_delegate_var() {
+        test_it("a2 + d");
+        var arr;
+        arr[0, 0] = 0;
+        var del = nop;
+        var result = arr + del;
+    }
+
+    script array2_plus_delegate_literal() {
+        test_it("a2 + nop");
+        var arr;
+        arr[0, 0] = 0;
+        var result = arr + nop;
+    }
+
+    script delegate_var_plus_number_var() {
+        test_it("d + n");
+        var del = nop;
+        var n = 1;
+        var result = del + n;
+    }
+
+    script delegate_var_plus_number_literal() {
+        test_it("d + 1");
+        var del = nop;
+        var result = del + 1;
+    }
+
+    script delegate_literal_plus_number_var() {
+        test_it("nop + n");
+        var n = 1;
+        var result = nop + n;
+    }
+
+    script delegate_literal_plus_number_literal() {
+        test_it("nop + 1");
+        var result = nop + 1;
+    }
+
+    script delegate_var_plus_string_var() {
+        test_it("d + s");
+        var del = nop;
+        var s = "";
+        var result = del + s;
+    }
+
+    script delegate_var_plus_string_literal() {
+        test_it("d + ''");
+        var del = nop;
+        var result = del + "";
+    }
+
+    script delegate_literal_plus_string_var() {
+        test_it("nop + s");
+        var s = "";
+        var result = nop + s;
+    }
+
+    script delegate_literal_plus_string_literal() {
+        test_it("nop + ''");
+        var result = nop + "";
+    }
+
+    script delegate_var_plus_array1() {
+        test_it("d + a1");
+        var del = nop;
+        var arr = [];
+        var result = del + arr;
+    }
+
+    script delegate_literal_plus_array1() {
+        test_it("nop + a1");
+        var arr = [];
+        var result = nop + arr;
+    }
+
+    script delegate_var_plus_array2() {
+        test_it("d + a2");
+        var del = nop;
+        var arr;
+        arr[0, 0] = 0;
+        var result = del + arr;
+    }
+
+    script delegate_literal_plus_array2() {
+        test_it("nop + a2");
+        var arr;
+        arr[0, 0] = 0;
+        var result = nop + arr;
+    }
+
+    script delegate_var_plus_delegate_var() {
+        test_it("d + d");
+        var del1 = nop;
+        var del2 = nop;
+        var result = del1 + del2;
+    }
+
+    script delegate_var_plus_delegate_literal() {
+        test_it("d + nop");
+        var del = nop;
+        var result = del + nop;
+    }
+
+    script delegate_literal_plus_delegate_var() {
+        test_it("nop + d");
+        var del = nop;
+        var result = nop + del;
+    }
+
+    script delegate_literal_plus_delegate_literal() {
+        test_it("nop + nop");
+        var result = nop + nop;
+    }
+}

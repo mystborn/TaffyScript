@@ -8,9 +8,21 @@ namespace TaffyScript
 {
     public static partial class Bcl
     {
-        public static Random Rng = new Random(123456789);
+        /// <summary>
+        /// Gets the random number generator used by TaffyScript.
+        /// </summary>
+        public static Random Rng { get; private set; } = new Random(123456789);
+
+        /// <summary>
+        /// Gets the seed used by <see cref="Rng"/>.
+        /// </summary>
         public static int RandomSeed { get; private set; } = 123456789;
-        
+
+        /// <summary>
+        /// Converts any TaffyScript object to a TaffyScript string.
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
         public static TsObject ToString(TsObject obj)
         {
             if (obj.Type != VariableType.String)
@@ -18,7 +30,13 @@ namespace TaffyScript
             else
                 return obj;
         }
-        
+
+        /// <summary>
+        /// Calculates the difference between two angles in degrees.
+        /// </summary>
+        /// <param name="ang1">The first angle.</param>
+        /// <param name="ang2">The second angle.</param>
+        /// <returns></returns>
         public static TsObject AngleDifference(float ang1, float ang2)
         {
             var result = ang1 - ang2;
@@ -41,30 +59,20 @@ namespace TaffyScript
             return new TsObject(result);
         }
 
-        public static TsObject ArcCos(float x)
-        {
-            return new TsObject((float)Math.Acos(x));
-        }
-        
-        public static TsObject ArcSin(float x)
-        {
-            return new TsObject((float)Math.Asin(x));
-        }
-        
-        public static TsObject ArcTan(float x)
-        {
-            return new TsObject((float)Math.Atan(x));
-        }
-        
-        public static TsObject ArcTan2(float y, float x)
-        {
-            return new TsObject((float)Math.Atan2(y, x));
-        }
-        
+        /// <summary>
+        /// Copies one TS array into another, resizing the destination if needed.
+        /// </summary>
+        /// <param name="dest"></param>
+        /// <param name="destIndex"></param>
+        /// <param name="src"></param>
+        /// <param name="srcIndex"></param>
+        /// <param name="length"></param>
+        /// <returns></returns>
         public static TsObject ArrayCopy(TsObject dest, int destIndex, TsObject src, int srcIndex, int length)
         {
-            var destWrapper = dest.Value as TsValueArray<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "dest");
-            var srcWrapper = src.Value as TsValueArray<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "src");
+            //We need to get the value wrapper in case we need to resize the internal array.
+            var destWrapper = dest.Value as TsMutableValue<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "dest");
+            var srcWrapper = src.Value as TsMutableValue<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "src");
             var destValue = destWrapper.StrongValue;
             var srcValue = srcWrapper.StrongValue;
             if (destIndex + length >= destValue.Length)
@@ -78,8 +86,14 @@ namespace TaffyScript
             return TsObject.Empty();
         }
 
+        /// <summary>
+        /// Creates a TS array of empty objects.
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
         [WeakMethod]
-        public static TsObject ArrayCreate(TsObject[] args)
+        public static TsObject ArrayCreate(TsInstance target, TsObject[] args)
         {
             var size = args[0].GetInt();
             var value = TsObject.Empty();
@@ -91,7 +105,13 @@ namespace TaffyScript
 
             return new TsObject(result);
         }
-        
+
+        /// <summary>
+        /// Determines if the values of two arrays are equal.
+        /// </summary>
+        /// <param name="var1"></param>
+        /// <param name="var2"></param>
+        /// <returns></returns>
         public static TsObject ArrayEquals(TsObject[] var1, TsObject[] var2)
         {
             if (var1.Length != var2.Length)
@@ -114,7 +134,7 @@ namespace TaffyScript
         {
             return new TsObject(array.Length);
         }
-        
+
         public static TsObject ArrayLength2D(TsObject[][] array, int n)
         {
             if (array[n] == null)
@@ -122,25 +142,19 @@ namespace TaffyScript
             else
                 return new TsObject(array[n].Length);
         }
-        
+
         public static TsObject Base64Encode(string str)
         {
             return new TsObject(Convert.ToBase64String(Encoding.Unicode.GetBytes(str)));
         }
-        
+
         public static TsObject Base64Decode(string str)
         {
             return new TsObject(Encoding.Unicode.GetString(Convert.FromBase64String(str)));
         }
 
-
-        public static float Ceil(float x)
-        {
-            return (float)Math.Ceiling(x);
-        }
-
         [WeakMethod]
-        public static TsObject Choose(TsObject[] args)
+        public static TsObject Choose(TsInstance target, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentException("There must be at least one argument passed to Choose.");
@@ -152,21 +166,9 @@ namespace TaffyScript
             return val < min ? min : (val > max ? max : val);
         }
 
-        public static bool CodeIsCompiled()
-        {
-            return true;
-        }
-
         public static float DotProduct(float x1, float y1, float x2, float y2)
         {
             return (x1 * x2) + (y1 + y2);
-        }
-
-        public static void EventInherited()
-        {
-            var inst = TsObject.Id.Peek().GetInstance();
-            if (TsInstance.TryGetEvent(inst.Parent, TsInstance.EventType.Peek(), out var ev))
-                ev(inst);
         }
 
         public static string EnvironmentGetVariable(string name)
@@ -174,57 +176,37 @@ namespace TaffyScript
             return Environment.GetEnvironmentVariable(name);
         }
 
-        public static void EventPerform(string name)
+        [WeakMethod]
+        public static TsObject EventInherited(TsInstance inst, TsObject[] args)
         {
-            var inst = TsObject.Id.Peek().GetInstance();
-            if (TsInstance.TryGetEvent(inst.ObjectType, name, out var ev))
-                ev(inst);
-        }
-
-        public static void EventPerformObject(string type, string eventName)
-        {
-            var inst = TsObject.Id.Peek().GetInstance();
-            if (TsInstance.TryGetEvent(type, eventName, out var ev))
-                ev(inst);
-        }
-
-        public static float Exp(float n)
-        {
-            return (float)Math.Exp(n);
-        }
-
-        public static float Floor(float n)
-        {
-            return (float)Math.Floor(n);
-        }
-
-        public static float Ln(float n)
-        {
-            return (float)Math.Log(n);
-        }
-
-        public static float Log10(float n)
-        {
-            return (float)Math.Log10(n);
-        }
-
-        public static float Log2(float val)
-        {
-            return (float)Math.Log(val, 2);
-        }
-
-        public static float LogN(float n, float val)
-        {
-            return (float)Math.Log(val, n);
+            if (TsInstance.TryGetDelegate(inst.Parent, TsInstance.EventType.Peek(), out var ev))
+                return ev.Invoke(inst, args);
+            return TsObject.Empty();
         }
 
         [WeakMethod]
-        public static TsObject Max(TsObject[] args)
+        public static TsObject EventPerform(TsInstance inst, TsObject[] args)
+        {
+            if (TsInstance.TryGetDelegate(inst.ObjectType, (string)args[0], out var ev))
+                return ev.Invoke(inst);
+            return TsObject.Empty();
+        }
+
+        [WeakMethod]
+        public static TsObject EventPerformObject(TsInstance inst, TsObject[] args)
+        {
+            if (TsInstance.TryGetDelegate((string)args[0], (string)args[1], out var ev))
+                return ev.Invoke(inst);
+            return TsObject.Empty();
+        }
+
+        [WeakMethod]
+        public static TsObject Max(TsInstance target, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
             var max = args[0].GetFloat();
-            for(var i = 1; i < args.Length; i++)
+            for (var i = 1; i < args.Length; i++)
             {
                 var num = args[i].GetFloat();
                 if (num > max)
@@ -234,7 +216,7 @@ namespace TaffyScript
         }
 
         [WeakMethod]
-        public static TsObject Min(TsObject[] args)
+        public static TsObject Min(TsInstance target, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
@@ -291,22 +273,22 @@ namespace TaffyScript
         }
 
         [WeakMethod]
-        public static TsObject ScriptExecute(TsObject[] args)
+        public static TsObject ScriptExecute(TsInstance target, TsObject[] args)
         {
             if (args.Length < 1)
                 throw new ArgumentException("You must pass at least a script name to script_execute.");
             var name = args[0].GetString();
-            if (!TsInstance.Scripts.TryGetValue(name, out var function))
+            if (!TsInstance.GlobalScripts.TryGetValue(name, out var function))
                 throw new ArgumentException($"Tried to execute a non-existant function: {name}");
             var parameters = new TsObject[args.Length - 1];
             if (parameters.Length != 0)
                 Array.Copy(args, 1, parameters, 0, parameters.Length);
-            return function(parameters);
+            return function.Invoke(target, parameters);
         }
 
         public static bool ScriptExists(string name)
         {
-            return TsInstance.Scripts.ContainsKey(name);
+            return TsInstance.GlobalScripts.ContainsKey(name);
         }
 
         public static void ShowError(string message, bool throws)
@@ -318,19 +300,9 @@ namespace TaffyScript
                 Console.WriteLine(error);
         }
 
-        public static float Sign(float n)
-        {
-            return Math.Sign(n);
-        }
-
         public static float Square(float n)
         {
             return n * n;
-        }
-
-        public static float Sqrt(float n)
-        {
-            return (float)Math.Sqrt(n);
         }
 
         public static int StringByteAt(string str, int index)
@@ -376,7 +348,7 @@ namespace TaffyScript
             //Test with regex to see if that's faster.
             //return System.Text.RegularExpressions.Regex.Replace(str, @"[^\d]", "");
             var sb = new StringBuilder();
-            for(var i = 0; i < str.Length; i++)
+            for (var i = 0; i < str.Length; i++)
             {
                 //Good ol fashioned C trick.
                 if (str[i] >= '0' && str[i] <= '9')
@@ -448,7 +420,7 @@ namespace TaffyScript
         public static string StringReplace(string str, string subString, string newString)
         {
             var index = str.IndexOf(subString);
-            if(index != -1)
+            if (index != -1)
                 return str.Substring(0, index) + newString + str.Substring(index + subString.Length);
 
             return str;

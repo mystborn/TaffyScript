@@ -34,6 +34,7 @@ namespace TaffyScriptCompiler
                 { typeof(double), objType.GetMethod("GetDouble") },
                 { typeof(string), objType.GetMethod("GetString") },
                 { typeof(TsInstance), objType.GetMethod("GetInstance") },
+                { typeof(TsDelegate), objType.GetMethod("GetDelegate") },
                 { typeof(TsObject[]), objType.GetMethod("GetArray1D") },
                 { typeof(TsObject[][]), objType.GetMethod("GetArray2D") }
             };
@@ -54,6 +55,7 @@ namespace TaffyScriptCompiler
                 { typeof(double), objType.GetConstructor(new[] { typeof(double) }) },
                 { typeof(string), objType.GetConstructor(new[] { typeof(string) }) },
                 { typeof(TsInstance), objType.GetConstructor(new[] { typeof(TsInstance) }) },
+                { typeof(TsDelegate), objType.GetConstructor(new[] { typeof(TsDelegate) }) },
                 { typeof(TsObject[]), objType.GetConstructor(new[] { typeof(TsObject[]) }) },
                 { typeof(TsObject[][]), objType.GetConstructor(new[] { typeof(TsObject[][]) }) }
             };
@@ -74,6 +76,7 @@ namespace TaffyScriptCompiler
                 { "double", typeof(double) },
                 { "string", typeof(string) },
                 { "instance", typeof(TsInstance) },
+                { "delegate", typeof(TsDelegate) },
                 { "array1d", typeof(TsObject[]) },
                 { "array2d", typeof(TsObject[][]) },
                 { "object", typeof(TsObject) }

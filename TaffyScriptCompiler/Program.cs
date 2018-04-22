@@ -26,7 +26,7 @@ namespace TaffyScriptCompiler
             if (extra.Count != 0)
                 path = extra[0];
 
-            if(generateBuild)
+            if (generateBuild)
             {
                 var build = new BuildConfig();
                 build.References.Add("TaffyScript.BCL.dll");

@@ -78,8 +78,10 @@
     <Compile Include="Front End\LexicalAnalysis\Token.cs" />
     <Compile Include="Front End\LexicalAnalysis\Tokenizer.cs" />
     <Compile Include="Front End\LexicalAnalysis\TokenPosition.cs" />
+    <Compile Include="Front End\LexicalAnalysis\TokenType.cs" />
     <Compile Include="Front End\LexicalAnalysis\UnrecognizedTokenException.cs" />
     <Compile Include="Symbols\EnumLeaf.cs" />
+    <Compile Include="Symbols\ImportLeaf.cs" />
     <Compile Include="Symbols\InvalidSymbolException.cs" />
     <Compile Include="Symbols\ISymbol.cs" />
     <Compile Include="Symbols\SymbolLeaf.cs" />
@@ -106,7 +108,6 @@
     <Compile Include="Syntax\Concrete\EndToken.cs" />
     <Compile Include="Syntax\Concrete\EnumDeclaration.cs" />
     <Compile Include="Syntax\Concrete\Equality.cs" />
-    <Compile Include="Syntax\Concrete\EventNode.cs" />
     <Compile Include="Syntax\Concrete\ExitToken.cs" />
     <Compile Include="Syntax\Concrete\ExplicitArrayAccess.cs" />
     <Compile Include="Syntax\Concrete\For.cs" />

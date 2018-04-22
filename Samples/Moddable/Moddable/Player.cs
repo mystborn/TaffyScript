@@ -15,30 +15,30 @@ namespace Moddable
     public class Player
     {
         private const string Parent = "GameBase.obj_player";
+        private const string StepEvent = "step";
 
         private TsInstance _source;
-        private InstanceEvent _step = null;
+        private TsDelegate _step = null;
         private Texture2D _texture;
 
         public float X
         {
-            get => _source["x"].GetNum();
-            set => _source["x"] = (TsObject)value;
+            get => (float)_source["x"];
+            set => _source["x"] = value;
         }
 
         public float Y
         {
-            get => _source["y"].GetNum();
-            set => _source["y"] = (TsObject)value;
+            get => (float)_source["y"];
+            set => _source["y"] = value;
         }
 
         public Player(string playerType, Texture2D texture)
         {
             if (playerType == Parent || TsInstance.ObjectIsAncestor(playerType, Parent))
             {
-                _source = TsInstance.InstanceCreate(playerType).GetInstance();
-                if (TsInstance.TryGetEvent(playerType, "step", out var step))
-                    _step = step;
+                _source = new TsInstance(playerType);
+                _step = _source.GetDelegate(StepEvent);
                 _texture = texture;
             }
             else
@@ -53,6 +53,12 @@ namespace Moddable
         public void Draw(SpriteBatch batch)
         {
             batch.Draw(_texture, new Vector2(X, Y), Color.White);
+        }
+
+        public void Destroy()
+        {
+            _source.Destroy();
+            _source = null;
         }
     }
 }

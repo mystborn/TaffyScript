@@ -4,23 +4,31 @@
 
 namespace UnitTest {
     object obj_unit_test {
-        event create {
+        event create(test_suite_name) {
+            if(argument_count < 2)
+                show_error("You must provide at least the test suite name and one test.", true);
+
             test_number = 0;
             tests_failed = false;
-            test_suite = "";
+            test_suite = test_suite_name;
             test_description = "";
             tests = ds_list_create();
+            for(var i = 1; i < argument_count; i++) {
+                ds_list_add(tests, argument[i]);
+            }
         }
 
-        event destroy {
+        event destroy() {
             ds_list_destroy(tests);
         }
 
-        event run_tests {
+        event run_tests() {
             var count = ds_list_size(tests);
             for(var i = 0; i < count; i++) {
+                global._unit_test = self;
                 test_description = "";
-                script_execute(tests[| i]);
+                tests[| i]();
+                show_debug_message(string(test_description) + " tests have passed.");
             }
             if(tests_failed)
                 show_error("Not all tests passed. See output for more info.", true);
@@ -29,47 +37,24 @@ namespace UnitTest {
         }
     }
 
-    script scr_create_test_suite {
-        //scr_create_test(test_suite_name, ..scripts)
-        if(argument_count < 2)
-            show_error("You must provide at least the test suite name and one test.", true);
-        
-        var unit_test = instance_create(obj_unit_test);
-        unit_test.test_suite = argument0;
-        for(var i = 1; i < argument_count; i++) {
-            unit_test.tests[| i - 1] = argument[i];
-        }
-
-        return unit_test;
-    }
-
-    script scr_run_tests {
-        var unit_test = argument0;
-        with(unit_test){
-            event_perform("run_tests");
-        }
-    }
-
     script test_it {
-        test_description = argument0;
+        global._unit_test.test_description = argument0;
     }
 
     script assert {
         if(argument_count == 1)
-            assert_equal(argument0);
+            assert_is_true(argument0);
         else
-            assert_equal(argument0, argument1);
+            assert_is_true(argument0, argument1);
     }
 
     script assert_equal {
-        test_number++;
+        global._unit_test.test_number++;
         if(argument0 != argument1) {
             var msg;
             if(argument_count > 2)
                 msg = argument2;
             else {
-                show_debug_message(argument0);
-                show_debug_message(argument1);
                 msg = scr_ut_create_assert_error(string(argument0) + " is not " + string(argument1));
             }
 
@@ -78,7 +63,7 @@ namespace UnitTest {
     }
 
     script assert_not_equal {
-        test_number++;
+        global._unit_test.test_number++;
         if(argument0 == argument1) {
             var msg;
             if(argument_count > 2)
@@ -91,7 +76,7 @@ namespace UnitTest {
     }
 
     script assert_exists {
-        test_number++;
+        global._unit_test.test_number++;
         if(!instance_exists(argument0)){
             var msg;
             if(argument_count > 1)
@@ -104,7 +89,7 @@ namespace UnitTest {
     }
 
     script assert_does_not_exist {
-        test_number++;
+        global._unit_test.test_number++;
         if(instance_exists(argument0)){
             var msg;
             if(argument_count > 1)
@@ -131,7 +116,7 @@ namespace UnitTest {
     }
 
     script assert_is_undefined {
-        test_number++;
+        global._unit_test.test_number++;
         if(!is_undefined(argument0)) {
             var msg;
             if(argument_count > 1)
@@ -142,14 +127,18 @@ namespace UnitTest {
     }
 
     script scr_ut_create_assert_error {
-        return "ASSERT ERROR - " + string(argument0) + " - ASSERT #" + string(test_number);
+        return "ASSERT ERROR - " + string(argument0) + " - ASSERT #" + string(global._unit_test.test_number);
     }
 
     script test_fail {
         var msg = argument0;
         show_debug_message(msg);
+        show_debug_message(global._unit_test.test_description);
         show_debug_message("In suite " + test_suite);
 
-        tests_failed = true;
+        global._unit_test.tests_failed = true;
     }
+
+    import TestHelper.Try(instance, array) as try;
+    import TestHelper.TryExpect(instance, array) as try_expect;
 }

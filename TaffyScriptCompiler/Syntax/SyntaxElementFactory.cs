@@ -127,8 +127,6 @@ namespace TaffyScriptCompiler.Syntax
                     return new ScriptNode(value, position);
                 case SyntaxType.Object:
                     return new ObjectNode(value, position);
-                case SyntaxType.Event:
-                    return new EventNode(value, position);
                 case SyntaxType.New:
                     return new NewNode(value, position);
                 default:

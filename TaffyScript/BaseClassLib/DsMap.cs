@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TaffyScript.Collections;
 
 namespace TaffyScript
 {
@@ -11,8 +12,7 @@ namespace TaffyScript
     /// </summary>
     public class DsMap
     {
-        private readonly static List<Dictionary<TsObject, TsObject>> _maps = new List<Dictionary<TsObject, TsObject>>();
-        private readonly static Queue<int> _mapSlots = new Queue<int>();
+        private static readonly ClassBinder<Dictionary<TsObject, TsObject>> _maps = new ClassBinder<Dictionary<TsObject, TsObject>>();
 
         /// <summary>
         /// Adds a value to a map with the given key.
@@ -23,7 +23,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static bool DsMapAdd(int id, TsObject key, TsObject value)
         {
-            var map = GetMap(id);
+            var map = _maps[id];
             if (map.ContainsKey(key))
                 return false;
             map.Add(key, value);
@@ -36,7 +36,7 @@ namespace TaffyScript
         /// <param name="id"></param>
         public static void DsMapClear(int id)
         {
-            GetMap(id).Clear();
+            _maps[id].Clear();
         }
 
         /// <summary>
@@ -46,8 +46,8 @@ namespace TaffyScript
         /// <param name="source">The source map id</param>
         public static void DsMapCopy(int id, int source)
         {
-            var dst = GetMap(id);
-            var src = GetMap(source);
+            var dst = _maps[id];
+            var src = _maps[source];
 
             dst.Clear();
             foreach (var kvp in src)
@@ -60,18 +60,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static int DsMapCreate()
         {
-            int index;
-            if (_mapSlots.Count == 0)
-            {
-                index = _maps.Count;
-                _maps.Add(new Dictionary<TsObject, TsObject>());
-            }
-            else
-            {
-                index = _mapSlots.Dequeue();
-                _maps[index] = new Dictionary<TsObject, TsObject>();
-            }
-            return index;
+            return _maps.Add(new Dictionary<TsObject, TsObject>());
         }
 
         /// <summary>
@@ -81,7 +70,7 @@ namespace TaffyScript
         /// <param name="key">The key to delete</param>
         public static void DsMapDelete(int id, TsObject key)
         {
-            GetMap(id).Remove(key);
+            _maps[id].Remove(key);
         }
 
         /// <summary>
@@ -95,8 +84,7 @@ namespace TaffyScript
             if (_maps[id] == null)
                 throw new DataStructureDestroyedException("ds_map", id);
 
-            _maps[id] = null;
-            _mapSlots.Enqueue(id);
+            _maps.Remove(id);
         }
 
         /// <summary>
@@ -106,7 +94,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static bool DsMapEmpty(int id)
         {
-            return GetMap(id).Count == 0;
+            return _maps[id].Count == 0;
         }
 
         /// <summary>
@@ -117,7 +105,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static bool DsMapExists(int id, TsObject key)
         {
-            return GetMap(id).ContainsKey(key);
+            return _maps[id].ContainsKey(key);
         }
 
         /// <summary>
@@ -128,9 +116,14 @@ namespace TaffyScript
         /// <returns></returns>
         public static TsObject DsMapFindValue(int id, TsObject key)
         {
-            if (GetMap(id).TryGetValue(key, out var result))
+            if (_maps[id].TryGetValue(key, out var result))
                 return result;
             return TsObject.Empty();
+        }
+
+        public static Dictionary<TsObject, TsObject> DsMapGet(int id)
+        {
+            return _maps[id];
         }
 
         /// <summary>
@@ -140,7 +133,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static TsObject[] DsMapKeys(int id)
         {
-            return GetMap(id).Keys.ToArray();
+            return _maps[id].Keys.ToArray();
         }
 
         /// <summary>
@@ -151,7 +144,7 @@ namespace TaffyScript
         /// <param name="value">The new value</param>
         public static void DsMapReplace(int id, TsObject key, TsObject value)
         {
-            GetMap(id)[key] = value;
+            _maps[id][key] = value;
         }
 
         /// <summary>
@@ -161,14 +154,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static int DsMapSize(int id)
         {
-            return GetMap(id).Count;
-        }
-
-        private static Dictionary<TsObject, TsObject> GetMap(int id)
-        {
-            if (id < 0 || id >= _maps.Count || _maps[id] == null)
-                throw new ArgumentOutOfRangeException("index");
-            return _maps[id];
+            return _maps[id].Count;
         }
     }
 }

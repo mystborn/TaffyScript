@@ -11,16 +11,21 @@ namespace TaffyScript
     /// </summary>
     public struct TsObject
     {
+        #region Constants
+
         public const float All = -3f;
         public const float Noone = -4f;
 
-        /// <summary>
-        /// Gets a stack trace of the currently executing instances.
-        /// </summary>
-        public static Stack<TsObject> Id { get; } = new Stack<TsObject>();
+        #endregion
+
+        #region Properties
 
         public VariableType Type { get; private set; }
         public ITsValue Value { get; private set; }
+
+        #endregion
+
+        #region Constructors
 
         private TsObject(VariableType type, ITsValue value)
         {
@@ -35,7 +40,7 @@ namespace TaffyScript
         public TsObject(bool value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value ? 1 : 0);
+            Value = new TsImmutableValue<float>(value ? 1 : 0);
         }
 
         /// <summary>
@@ -45,7 +50,7 @@ namespace TaffyScript
         public TsObject(char value)
         {
             Type = VariableType.String;
-            Value = new TsValue<string>(value.ToString());
+            Value = new TsImmutableValue<string>(value.ToString());
         }
 
         /// <summary>
@@ -55,7 +60,7 @@ namespace TaffyScript
         public TsObject(byte value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -65,7 +70,7 @@ namespace TaffyScript
         public TsObject(sbyte value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -75,7 +80,7 @@ namespace TaffyScript
         public TsObject(short value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -85,7 +90,7 @@ namespace TaffyScript
         public TsObject(ushort value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -95,7 +100,7 @@ namespace TaffyScript
         public TsObject(int value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -105,7 +110,7 @@ namespace TaffyScript
         public TsObject(uint value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -115,7 +120,7 @@ namespace TaffyScript
         public TsObject(long value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -125,7 +130,7 @@ namespace TaffyScript
         public TsObject(ulong value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -135,7 +140,7 @@ namespace TaffyScript
         public TsObject(float value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(value);
+            Value = new TsImmutableValue<float>(value);
         }
 
         /// <summary>
@@ -145,7 +150,7 @@ namespace TaffyScript
         public TsObject(double value)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>((float)value);
+            Value = new TsImmutableValue<float>((float)value);
         }
 
         /// <summary>
@@ -155,7 +160,7 @@ namespace TaffyScript
         public TsObject(string value)
         {
             Type = VariableType.String;
-            Value = new TsValue<string>(value);
+            Value = new TsImmutableValue<string>(value);
         }
 
         /// <summary>
@@ -165,7 +170,7 @@ namespace TaffyScript
         public TsObject(TsInstance instance)
         {
             Type = VariableType.Real;
-            Value = new TsValue<float>(instance.Id);
+            Value = new TsImmutableValue<float>(instance.Id);
         }
 
         /// <summary>
@@ -175,17 +180,27 @@ namespace TaffyScript
         public TsObject(TsObject[] array)
         {
             Type = VariableType.Array1;
-            Value = new TsValueArray<TsObject[]>(array);
+            Value = new TsMutableValue<TsObject[]>(array);
         }
 
         /// <summary>
-        /// Creates a TaffyScript object from a 2D array
+        /// Creates a TaffyScript object from a 2D array.
         /// </summary>
         /// <param name="array">The value of the object.</param>
         public TsObject(TsObject[][] array)
         {
             Type = VariableType.Array2;
-            Value = new TsValueArray<TsObject[][]>(array);
+            Value = new TsMutableValue<TsObject[][]>(array);
+        }
+
+        /// <summary>
+        /// Creates a TaffyScript object from a <see cref="TsDelegate"/>.
+        /// </summary>
+        /// <param name="script">The value of the object.</param>
+        public TsObject(TsDelegate script)
+        {
+            Type = VariableType.Delegate;
+            Value = new TsImmutableValue<TsDelegate>(script);
         }
 
         /// <summary>
@@ -193,13 +208,15 @@ namespace TaffyScript
         /// </summary>
         public static TsObject Empty()
         {
-            return new TsObject(VariableType.Null, new TsValue<object>(null));
+            return new TsObject(VariableType.Null, new TsImmutableValue<object>(null));
         }
 
         public static TsObject NooneObject()
         {
             return new TsObject(Noone);
         }
+
+        #endregion
 
         #region Raw Values
 
@@ -302,7 +319,7 @@ namespace TaffyScript
                 return 0;
             if (Type != VariableType.Real)
                 throw new InvalidTsTypeException($"Variable is supposed to be of type Real, is {Type} instead.");
-            return ((TsValue<float>)Value).StrongValue;
+            return ((TsImmutableValue<float>)Value).StrongValue;
         }
 
         /// <summary>
@@ -320,7 +337,7 @@ namespace TaffyScript
         /// <returns></returns>
         public float GetFloatUnchecked()
         {
-            return ((TsValue<float>)Value).StrongValue;
+            return ((TsImmutableValue<float>)Value).StrongValue;
         }
 
         /// <summary>
@@ -333,7 +350,7 @@ namespace TaffyScript
                 return "";
             if (Type != VariableType.String)
                 throw new InvalidTsTypeException($"Variable is supposed to be of type String, is {Type} instead.");
-            return ((TsValue<string>)Value).StrongValue;
+            return ((TsImmutableValue<string>)Value).StrongValue;
         }
 
         /// <summary>
@@ -342,7 +359,7 @@ namespace TaffyScript
         /// <returns></returns>
         public string GetStringUnchecked()
         {
-            return ((TsValue<string>)Value).StrongValue;
+            return ((TsImmutableValue<string>)Value).StrongValue;
         }
 
         /// <summary>
@@ -364,7 +381,7 @@ namespace TaffyScript
         {
             if (Type != VariableType.Array1)
                 throw new InvalidTsTypeException($"Variable is supposed to be of type Array1D, is {Type} instead.");
-            return ((TsValueArray<TsObject[]>)Value).StrongValue;
+            return ((TsMutableValue<TsObject[]>)Value).StrongValue;
         }
 
         /// <summary>
@@ -375,7 +392,27 @@ namespace TaffyScript
         {
             if (Type != VariableType.Array2)
                 throw new InvalidTsTypeException($"Variable is supposed to be of type Array2D, is {Type} instead.");
-            return ((TsValueArray<TsObject[][]>)Value).StrongValue;
+            return ((TsMutableValue<TsObject[][]>)Value).StrongValue;
+        }
+
+        /// <summary>
+        /// Gets the delegate held by this object.
+        /// </summary>
+        /// <returns></returns>
+        public TsDelegate GetDelegate()
+        {
+            if (Type != VariableType.Delegate)
+                throw new InvalidTsTypeException($"Variable is supposed to be of type Delegate, is {Type} instead.");
+            return (TsDelegate)Value.WeakValue;
+        }
+
+        /// <summary>
+        /// Gets the delegate held by this object without checking its type.
+        /// </summary>
+        /// <returns></returns>
+        public TsDelegate GetDelegateUnchecked()
+        {
+            return (TsDelegate)Value.WeakValue;
         }
 
         /// <summary>
@@ -385,38 +422,13 @@ namespace TaffyScript
         public object GetValue()
         {
             if (Value == null)
-                return 0;
+                return null;
             return Value.WeakValue;
         }
 
         #endregion
 
         #region Member Access
-
-        /// <summary>
-        /// Gets the id of the currently executing instance
-        /// </summary>
-        /// <returns></returns>
-        public static TsObject GetId()
-        {
-            return Id.Peek();
-        }
-
-        /// <summary>
-        /// Attempts to get the id of the currently executing instance.
-        /// </summary>
-        /// <param name="id">If found, the instance id</param>
-        /// <returns></returns>
-        public static bool TryGetId(out TsObject id)
-        {
-            if(Id.Count != 0)
-            {
-                id = Id.Peek();
-                return true;
-            }
-            id = Empty();
-            return false;
-        }
 
         /// <summary>
         /// Sets a variable of the given name on the instance with an id that matches the value of this object to a float value.
@@ -462,7 +474,9 @@ namespace TaffyScript
         public TsObject MemberGet(string name)
         {
             if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
+            {
                 throw new InvalidInstanceException();
+            }
             return inst[name];
         }
 
@@ -476,36 +490,36 @@ namespace TaffyScript
         /// <param name="index">The array index.</param>
         /// <param name="right">The value of the index.</param>
         public void ArraySet(TsObject index, TsObject right)
-            => ArraySet(index.GetFloat(), right);
+            => ArraySet((int)index, right);
 
         /// <summary>
         /// Sets the value at the given index in the 1D array held by this object.
         /// </summary>
         /// <param name="index">The array index.</param>
         /// <param name="right">The value of the index.</param>
-        public void ArraySet(float index, TsObject right)
+        public void ArraySet(int index, TsObject right)
         {
-            var real = (int)index;
-            if (real < 0)
+            if (index < 0)
                 throw new ArgumentOutOfRangeException("index");
+
             if (Type != VariableType.Array1)
             {
                 Type = VariableType.Array1;
-                var temp = new TsObject[real + 1];
-                temp[real] = right;
-                Value = new TsValueArray<TsObject[]>(temp);
+                var temp = new TsObject[index + 1];
+                temp[index] = right;
+                Value = new TsMutableValue<TsObject[]>(temp);
                 return;
             }
-            var self = (TsValueArray<TsObject[]>)Value;
+            var self = (TsMutableValue<TsObject[]>)Value;
             var arr = self.StrongValue;
             if (index >= arr.Length)
             {
-                var temp = new TsObject[real + 1];
+                var temp = new TsObject[index + 1];
                 Array.Copy(arr, 0, temp, 0, arr.Length);
                 arr = temp;
                 self.StrongValue = temp;
             }
-            arr[real] = right;
+            arr[index] = right;
         }
 
         /// <summary>
@@ -515,7 +529,7 @@ namespace TaffyScript
         /// <param name="index2">The index of the second dimension.</param>
         /// <param name="right">The value of the index.</param>
         public void ArraySet(TsObject index1, TsObject index2, TsObject right)
-            => ArraySet(index1.GetFloat(), index2.GetFloat(), right);
+            => ArraySet((int)index1, (int)index2, right);
 
         /// <summary>
         /// Sets the value at the given indeces in the 2D array held by this object.
@@ -523,8 +537,8 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <param name="right">The value of the index.</param>
-        public void ArraySet(float index1, TsObject index2, TsObject right)
-            => ArraySet(index1, index2.GetFloat(), right);
+        public void ArraySet(int index1, TsObject index2, TsObject right)
+            => ArraySet(index1, (int)index2, right);
 
         /// <summary>
         /// Sets the value at the given indeces in the 2D array held by this object.
@@ -532,8 +546,8 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <param name="right">The value of the index.</param>
-        public void ArraySet(TsObject index1, float index2, TsObject right)
-            => ArraySet(index1.GetFloat(), index2, right);
+        public void ArraySet(TsObject index1, int index2, TsObject right)
+            => ArraySet((int)index1, index2, right);
 
         /// <summary>
         /// Sets the value at the given indeces in the 2D array held by this object.
@@ -541,38 +555,38 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <param name="right">The value of the index.</param>
-        public void ArraySet(float index1, float index2, TsObject right)
+        public void ArraySet(int index1, int index2, TsObject right)
         {
-            int real1 = (int)index1;
-            int real2 = (int)index2;
-            if (real1 < 0 || index2 < 0)
-                throw new IndexOutOfRangeException();
+            if (index1 < 0 || index2 < 0)
+                throw new ArgumentOutOfRangeException($"{(index1 < 0 ? nameof(index1) : nameof(index2))}");
+
             if (Type != VariableType.Array2)
             {
                 Type = VariableType.Array2;
-                var temp = new TsObject[real1 + 1][];
-                var inner = new TsObject[real2 + 1];
-                inner[real2] = right;
-                temp[real1] = inner;
-                Value = new TsValueArray<TsObject[][]>(temp);
+                var temp = new TsObject[index1 + 1][];
+                var inner = new TsObject[index2 + 1];
+                inner[index2] = right;
+                temp[index1] = inner;
+                Value = new TsMutableValue<TsObject[][]>(temp);
                 return;
             }
-            var self = (TsValueArray<TsObject[][]>)Value;
-            if(real1 >= self.StrongValue.Length)
+
+            var self = (TsMutableValue<TsObject[][]>)Value;
+            if(index1 >= self.StrongValue.Length)
             {
-                var temp = new TsObject[real1 + 1][];
+                var temp = new TsObject[index1 + 1][];
                 Array.Copy(self.StrongValue, 0, temp, 0, self.StrongValue.Length);
                 self.StrongValue = temp;
             }
-            if (self.StrongValue[real1] == null)
-                self.StrongValue[real1] = new TsObject[real2 + 1];
-            else if(real2 >= self.StrongValue[real1].Length)
+            if (self.StrongValue[index1] == null)
+                self.StrongValue[index1] = new TsObject[index2 + 1];
+            else if(index2 >= self.StrongValue[index1].Length)
             {
-                var temp = new TsObject[real2 + 1];
-                Array.Copy(self.StrongValue[real1], 0, temp, 0, self.StrongValue[real2].Length);
-                self.StrongValue[real1] = temp;
+                var temp = new TsObject[index2 + 1];
+                Array.Copy(self.StrongValue[index1], 0, temp, 0, self.StrongValue[index2].Length);
+                self.StrongValue[index1] = temp;
             }
-            self.StrongValue[real1][real2] = right;
+            self.StrongValue[index1][index2] = right;
         }
 
         /// <summary>
@@ -581,20 +595,16 @@ namespace TaffyScript
         /// <param name="index">The index of the value.</param>
         /// <returns></returns>
         public TsObject ArrayGet(TsObject index)
-            => ArrayGet(index.GetFloat());
+            => ArrayGet((int)index);
 
         /// <summary>
         /// Gets the value at the given index in the 1D array held by this object.
         /// </summary>
         /// <param name="index">The index of the value.</param>
         /// <returns></returns>
-        public TsObject ArrayGet(float index)
+        public TsObject ArrayGet(int index)
         {
-            var real = (int)index;
-            var arr = GetArray1D();
-            if (real < 0 || real >= arr.Length)
-                throw new IndexOutOfRangeException();
-            return arr[real];
+            return GetArray1D()[index];
         }
 
         /// <summary>
@@ -604,7 +614,7 @@ namespace TaffyScript
         /// <param name="index2">The index of the second dimension.</param>
         /// <returns></returns>
         public TsObject ArrayGet(TsObject index1, TsObject index2)
-            => ArrayGet((float)index1, (float)index2);
+            => ArrayGet((int)index1, (int)index2);
 
         /// <summary>
         /// Gets the value at the given indeces in the 2D array held by this object.
@@ -612,8 +622,8 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <returns></returns>
-        public TsObject ArrayGet(TsObject index1, float index2)
-            => ArrayGet((float)index1, index2);
+        public TsObject ArrayGet(TsObject index1, int index2)
+            => ArrayGet((int)index1, index2);
 
         /// <summary>
         /// Gets the value at the given indeces in the 2D array held by this object.
@@ -621,8 +631,8 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <returns></returns>
-        public TsObject ArrayGet(float index1, TsObject index2)
-            => ArrayGet(index1, (float)index2);
+        public TsObject ArrayGet(int index1, TsObject index2)
+            => ArrayGet(index1, (int)index2);
 
         /// <summary>
         /// Gets the value at the given indeces in the 2D array held by this object.
@@ -630,17 +640,28 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <returns></returns>
-        public TsObject ArrayGet(float index1, float index2)
+        public TsObject ArrayGet(int index1, int index2)
         {
-            var real1 = (int)index1;
-            var real2 = (int)index2;
-            var arr = GetArray2D();
-            if (real1 < 0 || real1 >= arr.Length || real2 < 0 || real2 >= arr[real1].Length)
-                throw new IndexOutOfRangeException();
-            return arr[real1][real2];
+            return GetArray2D()[index1][index2];
         }
 
         #endregion
+
+        #region Delegate Access
+
+        public TsObject DelegateInvoke(params TsObject[] args)
+        {
+            return GetDelegate().Invoke(args);
+        }
+
+        public TsObject DelegateInvoke(TsInstance target, params TsObject[] args)
+        {
+            return GetDelegate().Invoke(target, args);
+        }
+
+        #endregion
+
+        #region Object Overrides
 
         /// <summary>
         /// Gets the hash code of the underlying value.
@@ -650,13 +671,7 @@ namespace TaffyScript
         {
             if (Type == VariableType.Null)
                 return 0;
-#if Unsafe
-            // Mirrors the operation in Gamemaker more closely,
-            // but is highly unstable in c#
-            return GetMemAddress(GetValue());
-#else
             return GetValue().GetHashCode();
-#endif
         }
 
         /// <summary>
@@ -665,6 +680,8 @@ namespace TaffyScript
         /// <returns></returns>
         public override string ToString()
         {
+            if (Type == VariableType.Null)
+                return "undefined";
             return GetValue().ToString();
         }
 
@@ -678,15 +695,17 @@ namespace TaffyScript
             var held = Value.WeakValue;
             if (held is null)
                 return obj is null;
+            else if (obj is TsObject other)
+                return this == other;
             else
                 return held.Equals(obj);
         }
 
+        #endregion
+
         #region Operators
 
-
-
-        #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
         public static explicit operator bool(TsObject right)
         {
@@ -753,6 +772,26 @@ namespace TaffyScript
             return right.GetString();
         }
 
+        public static explicit operator TsInstance(TsObject right)
+        {
+            return right.GetInstance();
+        }
+
+        public static explicit operator TsDelegate(TsObject right)
+        {
+            return right.GetDelegate();
+        }
+
+        public static explicit operator TsObject[](TsObject right)
+        {
+            return right.GetArray1D();
+        }
+
+        public static explicit operator TsObject[][](TsObject right)
+        {
+            return right.GetArray2D();
+        }
+
         public static implicit operator TsObject(bool right)
         {
             return new TsObject(right);
@@ -814,6 +853,26 @@ namespace TaffyScript
         }
 
         public static implicit operator TsObject(string right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(TsInstance right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(TsDelegate right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(TsObject[] right)
+        {
+            return new TsObject(right);
+        }
+
+        public static implicit operator TsObject(TsObject[][] right)
         {
             return new TsObject(right);
         }
@@ -1291,31 +1350,6 @@ namespace TaffyScript
 
         #endregion
 
-
-        //The unsafe block works just GM does, but it's extremely volatile.
-        //The safe block won't work exactly like GM, but it's close enough.
-        //If absolutely necessary, use the unsafe flag.
-
-#if Unsafe
-
-        private static unsafe int GetMemAddress(object obj)
-        {
-            TypedReference reference = __makeref(obj);
-            var ptr = **(IntPtr**)(&reference);
-            return ptr.ToInt32();
-        }
-
-#else
-
-        private static int GetMemAddress(object obj)
-        {
-            if (obj is null)
-                return 0;
-            return obj.GetHashCode();
-        }
-
-#endif
-
         #region Base Class Library
 
         public static bool IsArray(TsObject obj)
@@ -1331,6 +1365,11 @@ namespace TaffyScript
         public static bool IsString(TsObject obj)
         {
             return obj.Type == VariableType.String;
+        }
+
+        public static bool IsDelegate(TsObject obj)
+        {
+            return obj.Type == VariableType.Delegate;
         }
 
         public static bool IsUndefined(TsObject obj)
@@ -1351,6 +1390,8 @@ namespace TaffyScript
                     return "real";
                 case VariableType.String:
                     return "string";
+                case VariableType.Delegate:
+                    return "script";
                 default:
                     return "unknown";
             }
