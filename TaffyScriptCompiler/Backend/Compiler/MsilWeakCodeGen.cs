@@ -2334,7 +2334,7 @@ namespace TaffyScriptCompiler.Backend
                     }
                     emit.Call(typeof(TsObject).GetMethod("GetInstance"))
                         .Call(typeof(TsInstance).GetMethod("get_Id"))
-                        .New(TsTypes.Constructors[typeof(float)]);
+                        .New(TsTypes.Constructors[typeof(int)]);
                 }
                 else
                     _errors.Add(new CompileException($"Invalid syntax detected {memberAccess.Position}"));

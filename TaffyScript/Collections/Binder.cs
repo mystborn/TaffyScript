@@ -32,6 +32,13 @@ namespace TaffyScript.Collections
         int Add(T item);
 
         /// <summary>
+        /// Determines if the Binder contains an item with the specified index.
+        /// </summary>
+        /// <param name="index">The index of the item.</param>
+        /// <returns>True if the item was found; otherwise false.</returns>
+        bool Contains(int index);
+
+        /// <summary>
         /// Removes the item at the specified index.
         /// </summary>
         /// <param name="index">The index of the item.</param>
@@ -102,6 +109,16 @@ namespace TaffyScript.Collections
             ++_count;
             _binder[index] = item;
             return index;
+        }
+
+        /// <summary>
+        /// Determines if the Binder contains an item with the specified index.
+        /// </summary>
+        /// <param name="index">The index of the item.</param>
+        /// <returns>True if the item was found; otherwise false.</returns>
+        public bool Contains(int index)
+        {
+            return index >= 0 && index < _count && _binder[index] != null;
         }
 
         /// <summary>
@@ -220,6 +237,16 @@ namespace TaffyScript.Collections
 
             ++_count;
             return index;
+        }
+
+        /// <summary>
+        /// Determines if the Binder contains an item with the specified index.
+        /// </summary>
+        /// <param name="index">The index of the item.</param>
+        /// <returns>True if the item was found; otherwise false.</returns>
+        public bool Contains(int index)
+        {
+            return index >= 0 && index < _count && !_binder[index].Equals(Default);
         }
 
         /// <summary>

@@ -49,7 +49,7 @@ namespace TaffyScript
             {
                 result = _backingEnumerator.MoveNext();
             }
-            while (result == true && !TsInstance.InstanceExists(((TsImmutableValue<float>)_backingEnumerator.Current.Value).StrongValue));
+            while (result == true && !TsInstance.InstanceExists((int)_backingEnumerator.Current));
             return result;
         }
 

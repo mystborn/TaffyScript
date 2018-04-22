@@ -368,7 +368,7 @@ namespace TaffyScript
         /// <returns></returns>
         public TsInstance GetInstance()
         {
-            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
+            if (!TsInstance.TryGetInstance(GetInt(), out var inst))
                 throw new InvalidInstanceException();
             return inst;
         }
@@ -437,9 +437,7 @@ namespace TaffyScript
         /// <param name="value">The value of the variable.</param>
         public void MemberSet(string name, float value)
         {
-            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
-                throw new InvalidInstanceException();
-            inst[name] = new TsObject(value);
+            GetInstance()[name] = value;
         }
 
         /// <summary>
@@ -449,9 +447,7 @@ namespace TaffyScript
         /// <param name="value">The value of the variable.</param>
         public void MemberSet(string name, string value)
         {
-            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
-                throw new InvalidInstanceException();
-            inst[name] = new TsObject(value);
+            GetInstance()[name] = value;
         }
 
         /// <summary>
@@ -461,9 +457,7 @@ namespace TaffyScript
         /// <param name="value">The value of the variable.</param>
         public void MemberSet(string name, TsObject value)
         {
-            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
-                throw new InvalidInstanceException();
-            inst[name] = value;
+            GetInstance()[name] = value;
         }
 
         /// <summary>
@@ -473,11 +467,7 @@ namespace TaffyScript
         /// <returns></returns>
         public TsObject MemberGet(string name)
         {
-            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
-            {
-                throw new InvalidInstanceException();
-            }
-            return inst[name];
+            return GetInstance()[name];
         }
 
         #endregion
@@ -1398,6 +1388,5 @@ namespace TaffyScript
         }
 
         #endregion
-
     }
 }

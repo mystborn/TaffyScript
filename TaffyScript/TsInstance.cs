@@ -14,7 +14,6 @@ namespace TaffyScript
     /// </summary>
     public class TsInstance
     {
-        private const float Start = 100000f;
         private const string CreateEvent = "create";
         private const string DestroyEvent = "destroy";
 
@@ -32,15 +31,7 @@ namespace TaffyScript
         /// <summary>
         /// Keeps a reference to all of the instances that currently exist, to be retrieved via their id.
         /// </summary>
-        /// <remarks>
-        /// This can be changed to be list for a speed increase. Testing needed.
-        /// If changed, when retrieving an instance it should go something like this:
-        /// var index = (int)id - Start;
-        /// return Pool[index];
-        /// Keep in mind there will need be at least one check for null.
-        /// </remarks>
-        private static Dictionary<float, TsInstance> Pool = new Dictionary<float, TsInstance>();
-        private static Queue<float> _availableIds = new Queue<float>();
+        private static ClassBinder<TsInstance> _pool = new ClassBinder<TsInstance>();
 
         private Dictionary<string, TsObject> _vars = new Dictionary<string, TsObject>();
 
@@ -102,7 +93,7 @@ namespace TaffyScript
         /// <summary>
         /// Gets the id of this instance.
         /// </summary>
-        public float Id { get; }
+        public int Id { get; }
 
         /// <summary>
         /// Gets the type of this instance.
@@ -121,9 +112,8 @@ namespace TaffyScript
         /// <param name="args">Any arguments passed to the create event.</param>
         public TsInstance(string instanceType, params TsObject[] args)
         {
-            Id = GetNext();
+            Id = _pool.Add(this);
             ObjectType = instanceType;
-            Pool.Add(Id, this);
             Init(true, args);
         }
 
@@ -134,9 +124,8 @@ namespace TaffyScript
             // This decision is easily reversable if it turns out to be wrong/unneeded.
             // In the meantime, you can still refer to the event by it's string representation.
 
-            Id = GetNext();
+            Id = _pool.Add(this);
             ObjectType = instanceType;
-            Pool.Add(Id, this);
             Init(performEvent, args);
         }
 
@@ -288,14 +277,28 @@ namespace TaffyScript
         /// </remarks>
         public void Destroy()
         {
-            if (Pool.ContainsKey(Id))
+            if(_pool.Contains(Id))
             {
                 if (TryGetDelegate(DestroyEvent, out var destroy))
                     destroy.Invoke(this);
-                Pool.Remove(Id);
-                _availableIds.Enqueue(Id);
+                _pool.Remove(Id);
                 Destroyed?.Invoke(this);
             }
+        }
+
+        public override string ToString()
+        {
+            return $"{ObjectType} {Id}";
+        }
+
+        public override int GetHashCode()
+        {
+            return Id;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is TsInstance inst && inst.Id == Id;
         }
 
         /// <summary>
@@ -389,7 +392,7 @@ namespace TaffyScript
             if (args == null || args.Length == 0)
                 target.Destroy();
             else
-                InstanceDestroy((float)args[0]);
+                InstanceDestroy((int)args[0]);
 
             return TsObject.Empty();
         }
@@ -398,9 +401,9 @@ namespace TaffyScript
         /// Destroys a previously created instance.
         /// </summary>
         /// <param name="id">Instance id</param>
-        public static void InstanceDestroy(float id)
+        public static void InstanceDestroy(int id)
         {
-            if (Pool.TryGetValue(id, out var inst))
+            if (_pool.TryGetValue(id, out var inst))
                 inst.Destroy();
         }
 
@@ -409,9 +412,9 @@ namespace TaffyScript
         /// </summary>
         /// <param name="id">Instance id</param>
         /// <returns></returns>
-        public static bool InstanceExists(float id)
+        public static bool InstanceExists(int id)
         {
-            return Pool.ContainsKey(id);
+            return _pool.Contains(id);
         }
 
         /// <summary>
@@ -585,9 +588,9 @@ namespace TaffyScript
         /// <param name="id">Instance id</param>
         /// <param name="inst">If it exists, the instance with the given id</param>
         /// <returns></returns>
-        public static bool TryGetInstance(float id, out TsInstance inst)
+        public static bool TryGetInstance(int id, out TsInstance inst)
         {
-            return Pool.TryGetValue(id, out inst);
+            return _pool.TryGetValue(id, out inst);
         }
 
         /// <summary>
@@ -596,7 +599,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static IEnumerable<TsObject> Instances()
         {
-            foreach (var inst in Pool.Keys)
+            foreach (var inst in _pool)
             {
                 yield return new TsObject(inst);
             }
@@ -609,7 +612,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static IEnumerable<TsObject> Instances(string type)
         {
-            foreach (var inst in Pool.Values)
+            foreach (var inst in _pool)
                 if (inst.ObjectType == type || ObjectIsAncestor(inst.ObjectType, type))
                     yield return new TsObject(inst.Id);
         }
@@ -617,14 +620,6 @@ namespace TaffyScript
         private static TsInstance InitGlobal()
         {
             return new TsInstance();
-        }
-
-        private static float GetNext()
-        {
-            if (_availableIds.Count == 0)
-                return Pool.Count + Start;
-            else
-                return _availableIds.Dequeue();
         }
     }
 }
