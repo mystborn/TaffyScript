@@ -10,18 +10,18 @@ using MethodImplOptions = System.Runtime.CompilerServices.MethodImplOptions;
 namespace TaffyScript
 {
     /// <summary>
+    /// Delegate used to represent methods to be triggered when a TS instance is destroyed.
+    /// </summary>
+    /// <param name="inst">The instance that was destroyed.</param>
+    public delegate void DestroyedDelegate(TsInstance inst);
+
+    /// <summary>
     /// Represents an instance of an object in TaffyScript.
     /// </summary>
     public class TsInstance
     {
         private const string CreateEvent = "create";
         private const string DestroyEvent = "destroy";
-
-        /// <summary>
-        /// Delegate used to represent methods to be triggered when a TS instance is destroyed.
-        /// </summary>
-        /// <param name="inst">The instance that was destroyed.</param>
-        public delegate void DestroyedDelegate(TsInstance inst);
 
         /// <summary>
         /// Event that gets triggered when this instance is destroyed.

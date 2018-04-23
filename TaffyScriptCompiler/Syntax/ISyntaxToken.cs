@@ -8,6 +8,5 @@ namespace TaffyScriptCompiler.Syntax
 {
     public interface ISyntaxToken : ISyntaxElement
     {
-        string Text { get; }
     }
 }

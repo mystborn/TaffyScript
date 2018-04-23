@@ -39,7 +39,7 @@ namespace TaffyScriptCompiler.Backend
                 return new CompilerResult(errors);
 
             var parser = new Parser();
-            ParseFilesInProjectDirectory(projectDir, parser, new HashSet<string>());
+            ParseFilesInProjectDirectory(projectDir, parser, GetExcludeSet(projectDir, config));
             if(parser.Errors.Count != 0)
                 return new CompilerResult(parser.Errors);
 

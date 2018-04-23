@@ -1,0 +1,33 @@
+// Object imports aren't implemented yed; they may never be.
+// This file shows a potential implementation.
+// Currently it's excluded from the build.
+
+namespace LanguageTests {
+    //Explicitly import class and method.
+    import object List<TsObject> as obj_list {
+        //Import fields and properties.
+        Count as size;
+
+        //Import single constructor. Doesn't have to be parameterless ctor.
+        new();
+
+        //Import methods with a new name.
+        Add(object) as add;
+        Clear() as clear;
+        RemoveAt(int) as delete;
+        get_Item(int) as get;
+        set_Item(int) as set;
+        Insert(int, object) as insert;
+        Sort() as sort;
+    }
+
+    //Auto generate imports from class. Explicitly convert member names to specified casing.
+    import object(case=snake_case) Dictionary<TsObject, TsObject> as obj_map;
+
+    script list_add_many(list) {
+        for(var i = 1; i < argument_count; i++) {
+            list.add(argument[i]);
+        }
+        return list.count;
+    }
+}

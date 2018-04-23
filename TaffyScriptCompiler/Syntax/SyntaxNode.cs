@@ -9,7 +9,7 @@ namespace TaffyScriptCompiler.Syntax
     public abstract class SyntaxNode : ISyntaxNode
     {
         public ISyntaxNode Parent { get; set; }
-        public string Value { get; } = null;
+        public string Text { get; } = null;
         public List<ISyntaxElement> Children { get; } = new List<ISyntaxElement>();
         public TokenPosition Position { get; }
         public bool IsToken => false;
@@ -18,14 +18,14 @@ namespace TaffyScriptCompiler.Syntax
         public SyntaxNode(string value, TokenPosition position)
         {
             Position = position;
-            Value = value;
+            Text = value;
         }
 
         public abstract void Accept(ISyntaxElementVisitor visitor);
 
         public override string ToString()
         {
-            return Type + (Value == null ? "" : (": " + Value));
+            return Type + (Text == null ? "" : (": " + Text));
         }
 
         public void AddChild(ISyntaxElement child)

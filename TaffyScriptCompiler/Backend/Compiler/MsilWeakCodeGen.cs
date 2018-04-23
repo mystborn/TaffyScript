@@ -782,7 +782,7 @@ namespace TaffyScriptCompiler.Backend
                     line = element.Position.Line;
                 if (element.IsToken)
                 {
-                    end = element.Position.Column + ((ISyntaxToken)element).Text.Length + 2;
+                    end = element.Position.Column + element.Text.Length + 2;
                     break;
                 }
                 else
@@ -790,7 +790,7 @@ namespace TaffyScriptCompiler.Backend
                     var node = element as ISyntaxNode;
                     if (node.Children.Count == 0)
                     {
-                        end = node.Position.Column + (node.Value == null ? 0 : node.Value.Length) + 2;
+                        end = node.Position.Column + (node.Text == null ? 0 : node.Text.Length) + 2;
                         break;
                     }
                     else
@@ -859,7 +859,7 @@ namespace TaffyScriptCompiler.Backend
 
         private ISyntaxElement ResolveNamespace(MemberAccessNode node)
         {
-            if (node.Left is ISyntaxToken token && _table.Defined(token.Text, out var symbol) && symbol.Type == SymbolType.Namespace)
+            if (node.Left.Text != null && _table.Defined(node.Left.Text, out var symbol) && symbol.Type == SymbolType.Namespace)
             {
                 _table.Enter(symbol.Name);
                 _resolveNamespace = symbol.Name;
@@ -912,7 +912,7 @@ namespace TaffyScriptCompiler.Backend
         private bool TryResolveNamespace(MemberAccessNode node, out ISyntaxElement resolved)
         {
             resolved = default(ISyntaxElement);
-            if (node.Left is ISyntaxToken token && _table.Defined(token.Text, out var symbol) && symbol.Type == SymbolType.Namespace)
+            if (node.Left.Text != null && _table.Defined(node.Left.Text, out var symbol) && symbol.Type == SymbolType.Namespace)
             {
                 _table.Enter(symbol.Name);
                 _resolveNamespace = symbol.Name;
@@ -1045,44 +1045,44 @@ namespace TaffyScriptCompiler.Backend
             {
                 if (right == typeof(float))
                 {
-                    if (additive.Value == "+")
+                    if (additive.Text == "+")
                         emit.Add();
                     else
                         emit.Sub();
                 }
                 else if (right == typeof(string))
                 {
-                    _errors.Add(new CompileException($"Cannot {additive.Value} types {left} and {right} {additive.Position}"));
+                    _errors.Add(new CompileException($"Cannot {additive.Text} types {left} and {right} {additive.Position}"));
                     return;
                 }
                 else if (right == typeof(TsObject))
-                    emit.Call(GetOperator(additive.Value, left, right, additive.Position));
+                    emit.Call(GetOperator(additive.Text, left, right, additive.Position));
                 else
                 {
-                    _errors.Add(new CompileException($"Cannot {additive.Value} types {left} and {right} {additive.Position}"));
+                    _errors.Add(new CompileException($"Cannot {additive.Text} types {left} and {right} {additive.Position}"));
                     return;
                 }
             }
             else if(left == typeof(string))
             {
-                if (additive.Value != "+")
+                if (additive.Text != "+")
                 {
-                    _errors.Add(new CompileException($"Cannot {additive.Value} types {left} and {right} {additive.Position}"));
+                    _errors.Add(new CompileException($"Cannot {additive.Text} types {left} and {right} {additive.Position}"));
                     return;
                 }
                 if (right == typeof(float))
                 {
-                    _errors.Add(new CompileException($"Cannot {additive.Value} types {left} and {right} {additive.Position}"));
+                    _errors.Add(new CompileException($"Cannot {additive.Text} types {left} and {right} {additive.Position}"));
                     return;
                 }
                 else if(right == typeof(string))
                     emit.Call(typeof(string).GetMethod("Concat", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(string), typeof(string) }, null));
                 else if(right == typeof(TsObject))
-                    emit.Call(GetOperator(additive.Value, left, right, additive.Position));
+                    emit.Call(GetOperator(additive.Text, left, right, additive.Position));
             }
             else if(left == typeof(TsObject))
             {
-                var method = GetOperator(additive.Value, left, right, additive.Position);
+                var method = GetOperator(additive.Text, left, right, additive.Position);
                 emit.Call(method);
             }
         }
@@ -1151,7 +1151,7 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(AssignNode assign)
         {
-            if(assign.Value != "=")
+            if(assign.Text != "=")
             {
                 ProcessAssignExtra(assign);
                 return;
@@ -1294,7 +1294,7 @@ namespace TaffyScriptCompiler.Backend
                     else if (top != typeof(TsObject).MakePointerType())
                         _errors.Add(new CompileException($"Invalid syntax detected {member.Left.Position}"));
 
-                    emit.LdStr(((ISyntaxToken)member.Right).Text);
+                    emit.LdStr(member.Right.Text);
                     assign.Right.Accept(this);
                     top = emit.GetTop();
                     if (top == typeof(int))
@@ -1319,7 +1319,7 @@ namespace TaffyScriptCompiler.Backend
 
         private void ProcessAssignExtra(AssignNode assign)
         {
-            var op = assign.Value.Replace("=", "");
+            var op = assign.Text.Replace("=", "");
             if (assign.Left.Type == SyntaxType.ArrayAccess || assign.Left.Type == SyntaxType.ArgumentAccess)
             {
                 //Because this has to access the array location,
@@ -1517,7 +1517,7 @@ namespace TaffyScriptCompiler.Backend
             {
                 var leftConst = bitwise.Left as IConstantToken<float>;
                 if (leftConst == null)
-                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the constant type {(bitwise.Left as IConstantToken).ConstantType} {bitwise.Position}"));
+                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Text} on the constant type {(bitwise.Left as IConstantToken).ConstantType} {bitwise.Position}"));
                 else
                     emit.LdLong((long)leftConst.Value);
             }
@@ -1526,7 +1526,7 @@ namespace TaffyScriptCompiler.Backend
                 GetAddressIfPossible(bitwise.Left);
                 var top = emit.GetTop();
                 if (top != typeof(TsObject) && top != typeof(TsObject).MakePointerType())
-                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the type {emit.GetTop()} {bitwise.Position}"));
+                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Text} on the type {emit.GetTop()} {bitwise.Position}"));
                 emit.Call(TsTypes.ObjectCasts[typeof(long)]);
             }
 
@@ -1534,7 +1534,7 @@ namespace TaffyScriptCompiler.Backend
             {
                 var rightConst = bitwise.Right as IConstantToken<float>;
                 if(rightConst == null)
-                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the constant type {(bitwise.Right as IConstantToken).ConstantType} {bitwise.Position}"));
+                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Text} on the constant type {(bitwise.Right as IConstantToken).ConstantType} {bitwise.Position}"));
                 else
                     emit.LdLong((long)rightConst.Value);
             }
@@ -1543,11 +1543,11 @@ namespace TaffyScriptCompiler.Backend
                 GetAddressIfPossible(bitwise.Right);
                 var top = emit.GetTop();
                 if (top != typeof(TsObject) && top != typeof(TsObject).MakePointerType())
-                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Value} on the type {top} {bitwise.Position}"));
+                    _errors.Add(new CompileException($"Cannot perform operator {bitwise.Text} on the type {top} {bitwise.Position}"));
                 emit.Call(TsTypes.ObjectCasts[typeof(long)]);
             }
 
-            switch(bitwise.Value)
+            switch(bitwise.Text)
             {
                 case "|":
                     emit.Or();
@@ -1560,7 +1560,7 @@ namespace TaffyScriptCompiler.Backend
                     break;
                 default:
                     //Should be impossible.
-                    _errors.Add(new CompileException($"Invalid bitwise operator detected: {bitwise.Value} {bitwise.Position}"));
+                    _errors.Add(new CompileException($"Invalid bitwise operator detected: {bitwise.Text} {bitwise.Position}"));
                     break;
             }
             emit.ConvertFloat();
@@ -1650,7 +1650,7 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(DeclareNode declare)
         {
-            if (_table.Defined(declare.Value, out var symbol) && symbol.Type == SymbolType.Variable && _locals.TryGetValue(symbol, out var local))
+            if (_table.Defined(declare.Text, out var symbol) && symbol.Type == SymbolType.Variable && _locals.TryGetValue(symbol, out var local))
             {
                 emit.Call(TsTypes.Empty)
                     .StLocal(local);
@@ -1704,7 +1704,7 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(EnumNode enumNode)
         {
-            var name = $"{_namespace}.{enumNode.Value}".TrimStart('.');
+            var name = $"{_namespace}.{enumNode.Text}".TrimStart('.');
             var type = _module.DefineEnum(name, TypeAttributes.Public, typeof(long));
 
             long current = 0;
@@ -1718,10 +1718,10 @@ namespace TaffyScriptCompiler.Backend
                         _errors.Add(new InvalidSymbolException($"Enum value must be equal to an integer constant {expr.Position}."));
                 }
                 else if (expr.Type != SyntaxType.Declare)
-                    _errors.Add(new CompileException($"Encountered error while compiling enum {enumNode.Value} {expr.Position}."));
+                    _errors.Add(new CompileException($"Encountered error while compiling enum {enumNode.Text} {expr.Position}."));
 
-                _enums[name, expr.Value] = current;
-                type.DefineLiteral(expr.Value, current++);
+                _enums[name, expr.Text] = current;
+                type.DefineLiteral(expr.Text, current++);
             }
 
             type.CreateType();
@@ -1744,7 +1744,7 @@ namespace TaffyScriptCompiler.Backend
                 right = typeof(float);
             }
 
-            TestEquality(equality.Value, left, right, equality.Position);
+            TestEquality(equality.Text, left, right, equality.Position);
         }
 
         private void TestEquality(string op, Type left, Type right, TokenPosition pos)
@@ -1855,13 +1855,14 @@ namespace TaffyScriptCompiler.Backend
                 {
                     //explicit namespace -> function call
                     //e.g. name.space.func_name();
-                    name = ((ISyntaxToken)nameElem).Text;
+                    name = nameElem.Text;
                 }
                 else
                 {
                     //instance script call
                     //e.g. inst.script_name();
-                    name = (memberAccess.Right as ISyntaxToken)?.Text;
+                    //name = (memberAccess.Right as ISyntaxToken)?.Text;
+                    name = (memberAccess.Right as VariableToken)?.Text;
                     if (name == null)
                     {
                         _errors.Add(new CompileException($"Invalid id for script/event {memberAccess.Right.Position}"));
@@ -2192,7 +2193,7 @@ namespace TaffyScriptCompiler.Backend
                 CallInstanceMethod(TsTypes.ObjectCasts[typeof(bool)], logical.Left.Position);
             else if (left != typeof(bool))
                 _errors.Add(new CompileException($"Encountered invalid syntax {logical.Left.Position}"));
-            if (logical.Value == "&&")
+            if (logical.Text == "&&")
             {
                 emit.Dup()
                     .BrFalse(end)
@@ -2365,7 +2366,7 @@ namespace TaffyScriptCompiler.Backend
             {
                 if (right == typeof(float))
                 {
-                    switch (multiplicative.Value)
+                    switch (multiplicative.Text)
                     {
                         case "*":
                             emit.Mul();
@@ -2379,30 +2380,30 @@ namespace TaffyScriptCompiler.Backend
                     }
                 }
                 else if (right == typeof(string))
-                    _errors.Add(new CompileException($"Cannot {multiplicative.Value} types {left} and {right} {multiplicative.Position}"));
+                    _errors.Add(new CompileException($"Cannot {multiplicative.Text} types {left} and {right} {multiplicative.Position}"));
                 else if (right == typeof(TsObject))
-                    emit.Call(GetOperator(multiplicative.Value, left, right, multiplicative.Position));
+                    emit.Call(GetOperator(multiplicative.Text, left, right, multiplicative.Position));
                 else
-                    _errors.Add(new CompileException($"Cannot {multiplicative.Value} types {left} and {right} {multiplicative.Position}"));
+                    _errors.Add(new CompileException($"Cannot {multiplicative.Text} types {left} and {right} {multiplicative.Position}"));
             }
             else if (left == typeof(string)) {
-                _errors.Add(new CompileException($"Cannot {multiplicative.Value} types {left} and {right} {multiplicative.Position}"));
+                _errors.Add(new CompileException($"Cannot {multiplicative.Text} types {left} and {right} {multiplicative.Position}"));
             }
             else if (left == typeof(TsObject))
-                emit.Call(GetOperator(multiplicative.Value, left, right, multiplicative.Position));
+                emit.Call(GetOperator(multiplicative.Text, left, right, multiplicative.Position));
         }
 
         public void Visit(NamespaceNode namespaceNode)
         {
             var parent = _namespace;
             if (parent == "")
-                _namespace = namespaceNode.Value;
+                _namespace = namespaceNode.Text;
             else
-                _namespace += "." + namespaceNode.Value;
-            _table.EnterNamespace(namespaceNode.Value);
+                _namespace += "." + namespaceNode.Text;
+            _table.EnterNamespace(namespaceNode.Text);
             var temp = _table;
             _table = CopyTable(_table);
-            temp.ExitNamespace(namespaceNode.Value);
+            temp.ExitNamespace(namespaceNode.Text);
             CopyTable(temp, _table, namespaceNode.Position);
             AcceptDeclarations(namespaceNode);
             _namespace = parent;
@@ -2411,11 +2412,11 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(NewNode newNode)
         {
-            if(_table.Defined(newNode.Value, out var symbol))
+            if(_table.Defined(newNode.Text, out var symbol))
             {
                 if(symbol.Type == SymbolType.Object)
                 {
-                    var name = newNode.Value;
+                    var name = newNode.Text;
                     var pos = newNode.Position;
                     MarkSequencePoint(newNode);
                     var ctor = typeof(TsInstance).GetConstructor(new[] { typeof(string), typeof(TsObject[]) });
@@ -2453,24 +2454,24 @@ namespace TaffyScriptCompiler.Backend
                 }
                 else
                 {
-                    _errors.Add(new CompileException($"Tried to create an instance of something that wasn't an object: {newNode.Value} {newNode.Position}"));
+                    _errors.Add(new CompileException($"Tried to create an instance of something that wasn't an object: {newNode.Text} {newNode.Position}"));
                     emit.Call(TsTypes.Empty);
                 }
             }
             else
             {
-                _errors.Add(new CompileException($"Tried to create an instance of a type that doesn't exist: {newNode.Value} {newNode.Position}"));
+                _errors.Add(new CompileException($"Tried to create an instance of a type that doesn't exist: {newNode.Text} {newNode.Position}"));
                 emit.Call(TsTypes.Empty);
             }
         }
 
         public void Visit(ObjectNode objectNode)
         {
-            var name = $"{_namespace}.{objectNode.Value}";
+            var name = $"{_namespace}.{objectNode.Text}";
             if (name.StartsWith("."))
                 name = name.TrimStart('.');
             var type = _module.DefineType(name, TypeAttributes.Public);
-            _table.Enter(objectNode.Value);
+            _table.Enter(objectNode.Text);
             var parentNode = objectNode.Inherits as IConstantToken<string>;
             if (parentNode == null)
                 _errors.Add(new CompileException($"Invalid syntax detected {objectNode.Inherits.Position}"));
@@ -2510,11 +2511,11 @@ namespace TaffyScriptCompiler.Backend
             for(var i = 1; i < objectNode.Children.Count; i++)
             {
                 var script = (ScriptNode)objectNode.Children[i];
-                var method = type.DefineMethod(script.Value, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), input);
-                ScriptStart(script.Value, method, input);
+                var method = type.DefineMethod(script.Text, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), input);
+                ScriptStart(script.Text, method, input);
 
                 emit.Call(eventType)
-                    .LdStr(script.Value)
+                    .LdStr(script.Text)
                     .Call(push);
 
                 ProcessScriptArguments(script);
@@ -2536,11 +2537,11 @@ namespace TaffyScriptCompiler.Backend
                     init.Dup();
 
                 init.LdStr(name)
-                    .LdStr(script.Value)
+                    .LdStr(script.Text)
                     .LdNull()
                     .LdFtn(method)
                     .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                    .LdStr(script.Value)
+                    .LdStr(script.Text)
                     .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
                     .Call(addMethod);
             }
@@ -2564,7 +2565,7 @@ namespace TaffyScriptCompiler.Backend
                     .LdObj(typeof(TsObject))
                     .StLocal(secret)
                     .LdObj(typeof(TsObject))
-                    .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                    .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
                     .StObj(typeof(TsObject))
                     .LdLocal(secret);
             }
@@ -2574,7 +2575,7 @@ namespace TaffyScriptCompiler.Backend
                 emit.Call(typeof(List<TsObject>).GetMethod("get_Item"))
                     .StLocal(secret)
                     .LdLocal(secret)
-                    .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                    .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
                     .Call(typeof(List<TsObject>).GetMethod("set_Item"))
                     .LdLocal(secret);
             }
@@ -2584,7 +2585,7 @@ namespace TaffyScriptCompiler.Backend
                 emit.Call(typeof(Grid<TsObject>).GetMethod("get_Item"))
                     .StLocal(secret)
                     .LdLocal(secret)
-                    .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                    .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
                     .Call(typeof(Grid<TsObject>).GetMethod("set_Item"))
                     .LdLocal(secret);
             }
@@ -2594,7 +2595,7 @@ namespace TaffyScriptCompiler.Backend
                 emit.Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("get_Item"))
                     .StLocal(secret)
                     .LdLocal(secret)
-                    .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                    .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
                     .Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("set_Item"))
                     .LdLocal(secret);
             }
@@ -2603,14 +2604,14 @@ namespace TaffyScriptCompiler.Backend
                 if (_table.Defined(variable.Text, out var symbol))
                 {
                     if (symbol.Type != SymbolType.Variable)
-                        _errors.Add(new CompileException($"Cannot perform {postfix.Value} on an identifier that is not a variable {postfix.Position}"));
+                        _errors.Add(new CompileException($"Cannot perform {postfix.Text} on an identifier that is not a variable {postfix.Position}"));
                     GetAddressIfPossible(variable);
                     emit.Dup()
                         .Dup()
                         .LdObj(typeof(TsObject))
                         .StLocal(secret)
                         .LdObj(typeof(TsObject))
-                        .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                        .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
                         .StObj(typeof(TsObject))
                         .LdLocal(secret);
                 }
@@ -2620,7 +2621,7 @@ namespace TaffyScriptCompiler.Backend
                     emit.Call(typeof(TsInstance).GetMethod("GetVariable"))
                         .StLocal(secret)
                         .LdLocal(secret)
-                        .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                        .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
                         .Call(typeof(TsInstance).GetMethod("set_Item", new[] { typeof(string), typeof(TsObject) }))
                         .LdLocal(secret);
                 }
@@ -2646,7 +2647,7 @@ namespace TaffyScriptCompiler.Backend
                     loadTarget()
                         .LdStr(value.Text)
                         .LdLocal(secret)
-                        .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                        .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
                         .Call(typeof(TsInstance).GetMethod("set_Item"));
                 }
                 else
@@ -2662,7 +2663,7 @@ namespace TaffyScriptCompiler.Backend
                         .LdLocalA(target)
                         .LdStr(value.Text)
                         .LdLocal(secret)
-                        .Call(GetOperator(postfix.Value, typeof(TsObject), postfix.Position))
+                        .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
                         .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), typeof(TsObject) }));
 
                     FreeLocal(target);
@@ -2687,7 +2688,7 @@ namespace TaffyScriptCompiler.Backend
             //Todo: Only load result if not parent != block
 
             //These operators need special handling
-            if (prefix.Value == "++" || prefix.Value == "--")
+            if (prefix.Text == "++" || prefix.Text == "--")
             {
                 var secret = GetLocal();
                 if (prefix.Child.Type == SyntaxType.ArrayAccess || prefix.Child.Type == SyntaxType.ArgumentAccess)
@@ -2696,7 +2697,7 @@ namespace TaffyScriptCompiler.Backend
                     emit.Dup()
                         .Dup()
                         .LdObj(typeof(TsObject))
-                        .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                        .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                         .StObj(typeof(TsObject))
                         .LdObj(typeof(TsObject));
                 }
@@ -2704,7 +2705,7 @@ namespace TaffyScriptCompiler.Backend
                 {
                     ListAccessSet(list, 2);
                     emit.Call(typeof(List<TsObject>).GetMethod("get_Item"))
-                        .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                        .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                         .Dup()
                         .StLocal(secret)
                         .Call(typeof(List<TsObject>).GetMethod("set_Item"))
@@ -2714,7 +2715,7 @@ namespace TaffyScriptCompiler.Backend
                 {
                     GridAccessSet(grid);
                     emit.Call(typeof(Grid<TsObject>).GetMethod("get_Item"))
-                        .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                        .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                         .Dup()
                         .StLocal(secret)
                         .Call(typeof(Grid<TsObject>).GetMethod("set_Item"))
@@ -2724,7 +2725,7 @@ namespace TaffyScriptCompiler.Backend
                 {
                     MapAccessSet(map);
                     emit.Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("get_Item"))
-                        .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                        .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                         .Dup()
                         .StLocal(secret)
                         .Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("set_Item"))
@@ -2737,7 +2738,7 @@ namespace TaffyScriptCompiler.Backend
                         if (symbol.Type != SymbolType.Variable)
                             _errors.Add(new CompileException($"Tried to access an identifier that wasn't a variable {prefix.Child.Position}"));
                         variable.Accept(this);
-                        emit.Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                        emit.Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                             .StLocal(_locals[symbol])
                             .LdLocal(_locals[symbol]);
                     }
@@ -2745,7 +2746,7 @@ namespace TaffyScriptCompiler.Backend
                     {
                         SelfAccessSet(variable);
                         emit.Call(typeof(TsInstance).GetMethod("get_Item"))
-                            .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                            .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                             .StLocal(secret)
                             .LdLocal(secret)
                             .Call(typeof(TsInstance).GetMethod("set_Item"))
@@ -2769,7 +2770,7 @@ namespace TaffyScriptCompiler.Backend
                         loadTarget()
                             .LdStr(value.Text)
                             .Call(typeof(TsInstance).GetMethod("get_Item"))
-                            .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                            .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                             .StLocal(secret)
                             .LdLocal(secret)
                             .Call(typeof(TsInstance).GetMethod("set_Item"))
@@ -2786,7 +2787,7 @@ namespace TaffyScriptCompiler.Backend
                             .LdLocalA(target)
                             .LdStr(value.Text)
                             .Call(typeof(TsObject).GetMethod("MemberGet"))
-                            .Call(GetOperator(prefix.Value, typeof(TsObject), prefix.Position))
+                            .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                             .StLocal(secret)
                             .LdLocal(secret)
                             .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), typeof(TsObject) }))
@@ -2804,10 +2805,10 @@ namespace TaffyScriptCompiler.Backend
             {
                 prefix.Child.Accept(this);
                 var top = emit.GetTop();
-                if (prefix.Value == "-" && (top == typeof(float) || top == typeof(int) || top == typeof(bool)))
+                if (prefix.Text == "-" && (top == typeof(float) || top == typeof(int) || top == typeof(bool)))
                     emit.Neg();
-                else if(prefix.Value != "+")
-                    emit.Call(GetOperator(prefix.Value, emit.GetTop(), prefix.Position));
+                else if(prefix.Text != "+")
+                    emit.Call(GetOperator(prefix.Text, emit.GetTop(), prefix.Position));
             }
         }
 
@@ -2896,7 +2897,7 @@ namespace TaffyScriptCompiler.Backend
             {
                 if (right == typeof(float))
                 {
-                    switch (relational.Value)
+                    switch (relational.Text)
                     {
                         case "<":
                             emit.Clt();
@@ -2911,15 +2912,15 @@ namespace TaffyScriptCompiler.Backend
                             emit.Cge();
                             break;
                         default:
-                            _errors.Add(new CompileException($"Cannot {relational.Value} types {left} and {right} {relational.Position}"));
+                            _errors.Add(new CompileException($"Cannot {relational.Text} types {left} and {right} {relational.Position}"));
                             break;
                     }
                 }
                 else if (right == typeof(TsObject))
-                    emit.Call(GetOperator(relational.Value, left, right, relational.Position));
+                    emit.Call(GetOperator(relational.Text, left, right, relational.Position));
             }
             else if (left == typeof(TsObject))
-                emit.Call(GetOperator(relational.Value, left, right, relational.Position));
+                emit.Call(GetOperator(relational.Text, left, right, relational.Position));
             else
                 _errors.Add(new CompileException($"Invalid syntax detected {relational.Position}"));
 
@@ -2990,7 +2991,7 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(ScriptNode script)
         {
-            var name = script.Value;
+            var name = script.Text;
             var mb = StartMethod(name, _namespace);
             _inGlobalScript = true;
             ScriptStart(name, mb, new[] { typeof(TsInstance), typeof(TsObject[]) });
@@ -3116,7 +3117,7 @@ namespace TaffyScriptCompiler.Backend
             {
                 if (right == typeof(int))
                 {
-                    emit.Call(GetOperator(shift.Value, left, right, shift.Position))
+                    emit.Call(GetOperator(shift.Text, left, right, shift.Position))
                         .ConvertFloat();
                 }
                 else
@@ -3125,7 +3126,7 @@ namespace TaffyScriptCompiler.Backend
             else if (left == typeof(TsObject))
             {
                 if (right == typeof(int))
-                    emit.Call(GetOperator(shift.Value, left, right, shift.Position));
+                    emit.Call(GetOperator(shift.Text, left, right, shift.Position));
                 else
                     _errors.Add(new CompileException($"Must shift by a real value {shift.Right.Position}"));
             }

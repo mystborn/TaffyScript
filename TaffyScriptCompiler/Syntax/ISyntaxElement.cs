@@ -11,6 +11,7 @@ namespace TaffyScriptCompiler.Syntax
     {
         ISyntaxNode Parent { get; set; }
         SyntaxType Type { get; }
+        string Text { get; }
         TokenPosition Position { get; }
         bool IsToken { get; }
         void Accept(ISyntaxElementVisitor visitor);

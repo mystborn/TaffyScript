@@ -1,0 +1,42 @@
+// Structs aren't implemented yed; they may never be.
+// This file shows a potential implementation.
+// Currently it's excluded from the build.
+
+using UnitTest;
+
+namespace LanguageTests {
+    struct point {
+        x : int;
+        y : int;
+    }
+
+    script point_create(x, y) {
+        var p = new point();
+        p.x = x;
+        p.y = y;
+
+        return p;
+    }
+
+    struct node {
+        next;
+        previous;
+        value;
+    }
+
+    script node_create_after(before, value) {
+        var n = new node();
+        n.value = value;
+
+        if(before == noone) {
+            n.next = noone;
+            n.previous = noone;
+        } else {
+            n.next = before.next;
+            n.previous = before;
+            before.next = n;
+        }
+        
+        return n;
+    }
+}
