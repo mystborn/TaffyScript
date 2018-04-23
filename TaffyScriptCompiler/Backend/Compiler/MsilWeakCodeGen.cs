@@ -3248,6 +3248,7 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(WithNode with)
         {
+            throw new NotImplementedException();/*
             with.Condition.Accept(this);
             var top = emit.GetTop();
             if(top == typeof(int) || top == typeof(bool))
@@ -3287,9 +3288,7 @@ namespace TaffyScriptCompiler.Backend
                 .Call(typeof(TsInstance).GetMethod("set_Other"));
 
             FreeLocal(other);
-            FreeLocal(gen);
-
-
+            FreeLocal(gen);*/
         }
 
         #endregion

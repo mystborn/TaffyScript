@@ -107,7 +107,9 @@ namespace TaffyScript
         /// <param name="args">Any arguments passed to the create event.</param>
         public TsInstance(string instanceType, params TsObject[] args)
         {
+#if KeepRef
             References.Register(this);
+#endif
             ObjectType = instanceType;
             Init(true, args);
         }
@@ -118,8 +120,10 @@ namespace TaffyScript
             // However at this point in time, I've decided that it's too much of a time sink.
             // This decision is easily reversable if it turns out to be wrong/unneeded.
             // In the meantime, you can still refer to the event by it's string representation.
-            
+
+#if KeepRef
             References.Register(this);
+#endif
             ObjectType = instanceType;
             Init(performEvent, args);
         }
@@ -394,28 +398,7 @@ namespace TaffyScript
             return TsObject.Empty();
         }
 
-#if !KeepRef
-
-        /// <summary>
-        /// Destroys a previously created instance.
-        /// </summary>
-        /// <param name="id">Instance id</param>
-        public static void InstanceDestroy(int id)
-        {
-            if (_pool.TryGetValue(id, out var inst))
-                inst.Destroy();
-        }
-
-        /// <summary>
-        /// Determines if an instance with the given id exists.
-        /// </summary>
-        /// <param name="id">Instance id</param>
-        /// <returns></returns>
-        public static bool InstanceExists(int id)
-        {
-            return _pool.Contains(id);
-        }
-
+#if KeepRef
         /// <summary>
         /// Finds the nth occurence of the specified instance.
         /// </summary>
@@ -425,10 +408,11 @@ namespace TaffyScript
         public static TsObject InstanceFind(string obj, int n)
         {
             var i = 0;
-            foreach(var inst in Instances(obj))
+            var iter = References.EnumerateType(obj);
+            while(iter.MoveNext())
             {
                 if (i++ == n)
-                    return inst;
+                    return new TsObject(iter.Current);
             }
             return TsObject.NooneObject();
         }
@@ -440,7 +424,13 @@ namespace TaffyScript
         /// <returns></returns>
         public static int InstanceNumber(string obj)
         {
-            return Instances(obj).Count();
+            var i = 0;
+            var iter = References.EnumerateType(obj);
+            while(iter.MoveNext())
+            {
+                i++;
+            }
+            return i;
         }
 
 #endif
@@ -581,45 +571,6 @@ namespace TaffyScript
             throw new NotImplementedException();
             //inst._vars[name] = value;
         }
-
-#if !KeepRef
-
-        /// <summary>
-        /// Attempts to get an instance from an id
-        /// </summary>
-        /// <param name="id">Instance id</param>
-        /// <param name="inst">If it exists, the instance with the given id</param>
-        /// <returns></returns>
-        public static bool TryGetInstance(int id, out TsInstance inst)
-        {
-            return _pool.TryGetValue(id, out inst);
-        }
-
-        /// <summary>
-        /// Gets a collection of all of the current instances
-        /// </summary>
-        /// <returns></returns>
-        public static IEnumerable<TsObject> Instances()
-        {
-            foreach (var inst in _pool)
-            {
-                yield return new TsObject(inst);
-            }
-        }
-
-        /// <summary>
-        /// Gets a collection of all of the instances of a specified type.
-        /// </summary>
-        /// <param name="type">The type to get the instances of</param>
-        /// <returns></returns>
-        public static IEnumerable<TsObject> Instances(string type)
-        {
-            foreach (var inst in _pool)
-                if (inst.ObjectType == type || ObjectIsAncestor(inst.ObjectType, type))
-                    yield return new TsObject(inst.Id);
-        }
-
-#endif
 
         private static TsInstance InitGlobal()
         {

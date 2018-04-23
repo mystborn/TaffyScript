@@ -12,7 +12,7 @@ namespace TaffyScript
 {
     public static class References
     {
-        private static FastList<WeakReference<ITsInstance>> _instances = new FastList<WeakReference<ITsInstance>>();
+        private static FastList<WeakReference<ITsInstance>> _instances = new FastList<WeakReference<ITsInstance>>(100000);
         internal static FastList<WeakReference<ITsInstance>> Instances => _instances;
 
         public static void Register(TsInstance inst)

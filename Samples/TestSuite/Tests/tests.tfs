@@ -19,6 +19,27 @@ namespace LanguageTests {
         run_ternary_tests();
     }
 
+    script timer_entry {
+        var time_result = time_invoke(scr_object_cycle, 100000);
+        show_debug_message("Object Cycle:");
+        show_debug_message("  Milliseconds: " + string(time_result.ms));
+        show_debug_message("  Ticks: " + string(time_result.ticks));
+        time_result = time_invoke(gc_collect);
+        show_debug_message("Collect Garbage:");
+        show_debug_message("  Milliseconds: " + string(time_result.ms));
+        show_debug_message("  Ticks: " + string(time_result.ticks));
+        time_result = time_invoke(scr_obj_create, 100000);
+        show_debug_message("Object Create:");
+        show_debug_message("  Milliseconds: " + string(time_result.ms));
+        show_debug_message("  Ticks: " + string(time_result.ticks));
+        time_result = time_invoke(gc_collect);
+        show_debug_message("Collect Garbage:");
+        show_debug_message("  Milliseconds: " + string(time_result.ms));
+        show_debug_message("  Ticks: " + string(time_result.ticks));
+
+
+    }
+
     script array_literal() {
         test_it("Array Literal");
         var arr = [0, 1, 6];

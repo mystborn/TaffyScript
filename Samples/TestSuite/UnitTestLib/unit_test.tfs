@@ -138,7 +138,4 @@ namespace UnitTest {
 
         global._unit_test.tests_failed = true;
     }
-
-    import TestHelper.Try(instance, array) as try;
-    import TestHelper.TryExpect(instance, array) as try_expect;
 }

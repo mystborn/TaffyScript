@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -59,6 +60,32 @@ namespace TaffyScript.Tests
             }
 
             return false;
+        }
+
+        [WeakMethod]
+        public static TsObject TimeInvoke(ITsInstance target, TsObject[] args)
+        {
+            var del = (TsDelegate)args[0];
+            TsObject[] delArgs = null;
+            if(args.Length > 1)
+            {
+                delArgs = new TsObject[args.Length - 1];
+                Array.Copy(args, 1, delArgs, 0, delArgs.Length);
+            }
+
+            var timer = new Stopwatch();
+            timer.Start();
+            del.Invoke(delArgs);
+            timer.Stop();
+            var result = new TsInstance("obj_timer_result");
+            result["ms"] = timer.ElapsedMilliseconds;
+            result["ticks"] = timer.ElapsedTicks;
+            return result;
+        }
+
+        public static void CollectGarbage()
+        {
+            GC.Collect();
         }
     }
 }
