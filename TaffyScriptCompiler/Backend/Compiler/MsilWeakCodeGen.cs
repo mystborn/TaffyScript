@@ -1372,7 +1372,7 @@ namespace TaffyScriptCompiler.Backend
                 else
                 {
                     SelfAccessSet(variable);
-                    emit.Call(typeof(TsInstance).GetMethod("GetVariable"));
+                    emit.Call(typeof(TsInstance).GetMethod("GetMember"));
                     assign.Right.Accept(this);
                     var result = emit.GetTop();
                     if (result == typeof(int) || result == typeof(bool))
@@ -2618,7 +2618,7 @@ namespace TaffyScriptCompiler.Backend
                 else
                 {
                     SelfAccessSet(variable);
-                    emit.Call(typeof(TsInstance).GetMethod("GetVariable"))
+                    emit.Call(typeof(TsInstance).GetMethod("GetMember"))
                         .StLocal(secret)
                         .LdLocal(secret)
                         .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
@@ -3264,7 +3264,7 @@ namespace TaffyScriptCompiler.Backend
             {
                 emit.LdArg(0)
                     .LdStr(variableToken.Text)
-                    .Call(typeof(TsInstance).GetMethod("GetVariable", BindingFlags.Public | BindingFlags.Instance));
+                    .Call(typeof(TsInstance).GetMethod("GetMember"));
             }
         }
 

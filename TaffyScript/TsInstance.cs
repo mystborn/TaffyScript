@@ -18,7 +18,7 @@ namespace TaffyScript
     /// <summary>
     /// Represents an instance of an object in TaffyScript.
     /// </summary>
-    public class TsInstance
+    public class TsInstance : ITsInstance
     {
         private const string CreateEvent = "create";
         private const string DestroyEvent = "destroy";
@@ -28,10 +28,14 @@ namespace TaffyScript
         /// </summary>
         public event DestroyedDelegate Destroyed;
 
+#if !KeepRef
+
         /// <summary>
         /// Keeps a reference to all of the instances that currently exist, to be retrieved via their id.
         /// </summary>
         private static ClassBinder<TsInstance> _pool = new ClassBinder<TsInstance>();
+
+#endif
 
         private Dictionary<string, TsObject> _vars = new Dictionary<string, TsObject>();
 
@@ -86,7 +90,7 @@ namespace TaffyScript
         [System.Runtime.CompilerServices.IndexerName("Item")]
         public TsObject this[string variableName]
         {
-            get => GetVariable(variableName);
+            get => GetMember(variableName);
             set => _vars[variableName] = value;
         }
 
@@ -112,7 +116,11 @@ namespace TaffyScript
         /// <param name="args">Any arguments passed to the create event.</param>
         public TsInstance(string instanceType, params TsObject[] args)
         {
+#if KeepRef
+            References.Register(this);
+#else
             Id = _pool.Add(this);
+#endif
             ObjectType = instanceType;
             Init(true, args);
         }
@@ -124,7 +132,11 @@ namespace TaffyScript
             // This decision is easily reversable if it turns out to be wrong/unneeded.
             // In the meantime, you can still refer to the event by it's string representation.
 
+#if KeepRef
+            References.Register(this);
+#else
             Id = _pool.Add(this);
+#endif
             ObjectType = instanceType;
             Init(performEvent, args);
         }
@@ -232,12 +244,17 @@ namespace TaffyScript
         /// <param name="name">The name of the variable</param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TsObject GetVariable(string name)
+        public TsObject GetMember(string name)
         {
             if (TryGetVariable(name, out var result))
                 return result;
             else
                 throw new MissingFieldException($"Tried to access non-existant variable {name} on object of type {ObjectType}");
+        }
+
+        public void SetMember(string name, TsObject value)
+        {
+            _vars[name] = value;
         }
 
         /// <summary>
@@ -277,6 +294,12 @@ namespace TaffyScript
         /// </remarks>
         public void Destroy()
         {
+#if KeepRef
+            if (TryGetDelegate(DestroyEvent, out var destroy))
+                destroy.Invoke(this);
+            Destroyed?.Invoke(this);
+#else
+
             if(_pool.Contains(Id))
             {
                 if (TryGetDelegate(DestroyEvent, out var destroy))
@@ -284,6 +307,8 @@ namespace TaffyScript
                 _pool.Remove(Id);
                 Destroyed?.Invoke(this);
             }
+
+#endif
         }
 
         public override string ToString()
@@ -392,10 +417,12 @@ namespace TaffyScript
             if (args == null || args.Length == 0)
                 target.Destroy();
             else
-                InstanceDestroy((int)args[0]);
+                args[0].GetInstance().Destroy();
 
             return TsObject.Empty();
         }
+
+#if !KeepRef
 
         /// <summary>
         /// Destroys a previously created instance.
@@ -443,6 +470,8 @@ namespace TaffyScript
         {
             return Instances(obj).Count();
         }
+
+#endif
 
         /// <summary>
         /// Gets the object type of an instance.
@@ -582,6 +611,8 @@ namespace TaffyScript
             inst._vars[name] = value;
         }
 
+#if !KeepRef
+
         /// <summary>
         /// Attempts to get an instance from an id
         /// </summary>
@@ -616,6 +647,8 @@ namespace TaffyScript
                 if (inst.ObjectType == type || ObjectIsAncestor(inst.ObjectType, type))
                     yield return new TsObject(inst.Id);
         }
+
+#endif
 
         private static TsInstance InitGlobal()
         {
