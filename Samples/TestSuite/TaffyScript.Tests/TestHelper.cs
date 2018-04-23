@@ -10,7 +10,7 @@ namespace TaffyScript.Tests
     public static class TestHelper
     {
         [WeakMethod]
-        public static TsObject Try(TsInstance target, TsObject[] args)
+        public static TsObject Try(ITsInstance target, TsObject[] args)
         {
             var del = (TsDelegate)args[0];
             TsObject[] delArgs = null;
@@ -39,7 +39,7 @@ namespace TaffyScript.Tests
         }
 
         [WeakMethod]
-        public static TsObject TryExpect(TsInstance target, TsObject[] args)
+        public static TsObject TryExpect(ITsInstance target, TsObject[] args)
         {
             var del = (TsDelegate)args[0];
             TsObject[] delArgs = null;

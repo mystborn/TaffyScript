@@ -27,7 +27,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;KeepRef</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Release\TaffyScript.xml</DocumentationFile>
@@ -62,7 +62,6 @@
     <Compile Include="TsObject.cs" />
     <Compile Include="TsValue.cs" />
     <Compile Include="BaseClassLib\DsGrid.cs" />
-    <Compile Include="InstanceEnumerator.cs" />
     <Compile Include="Exceptions\InvalidTsTypeException.cs" />
     <Compile Include="Exceptions\InvalidInstanceException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

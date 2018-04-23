@@ -28,15 +28,6 @@ namespace TaffyScript
         /// </summary>
         public event DestroyedDelegate Destroyed;
 
-#if !KeepRef
-
-        /// <summary>
-        /// Keeps a reference to all of the instances that currently exist, to be retrieved via their id.
-        /// </summary>
-        private static ClassBinder<TsInstance> _pool = new ClassBinder<TsInstance>();
-
-#endif
-
         private Dictionary<string, TsObject> _vars = new Dictionary<string, TsObject>();
 
         /// <summary>
@@ -116,11 +107,7 @@ namespace TaffyScript
         /// <param name="args">Any arguments passed to the create event.</param>
         public TsInstance(string instanceType, params TsObject[] args)
         {
-#if KeepRef
             References.Register(this);
-#else
-            Id = _pool.Add(this);
-#endif
             ObjectType = instanceType;
             Init(true, args);
         }
@@ -131,12 +118,8 @@ namespace TaffyScript
             // However at this point in time, I've decided that it's too much of a time sink.
             // This decision is easily reversable if it turns out to be wrong/unneeded.
             // In the meantime, you can still refer to the event by it's string representation.
-
-#if KeepRef
+            
             References.Register(this);
-#else
-            Id = _pool.Add(this);
-#endif
             ObjectType = instanceType;
             Init(performEvent, args);
         }
@@ -265,7 +248,7 @@ namespace TaffyScript
         public void ChangeType(string type, bool performEvents)
         {
             if (performEvents && TryGetDelegate(DestroyEvent, out var destroy))
-                destroy.Invoke(this);
+                destroy.Invoke(this, null);
 
             ObjectType = type;
             Init(performEvents);
@@ -281,7 +264,7 @@ namespace TaffyScript
             var copy = new TsInstance(ObjectType, false);
             copy._vars = new Dictionary<string, TsObject>(_vars);
             if (performEvents && TryGetDelegate(ObjectType, out var create))
-                create.Invoke(copy);
+                create.Invoke(copy, null);
 
             return copy;
         }
@@ -294,21 +277,9 @@ namespace TaffyScript
         /// </remarks>
         public void Destroy()
         {
-#if KeepRef
             if (TryGetDelegate(DestroyEvent, out var destroy))
-                destroy.Invoke(this);
+                destroy.Invoke(this, null);
             Destroyed?.Invoke(this);
-#else
-
-            if(_pool.Contains(Id))
-            {
-                if (TryGetDelegate(DestroyEvent, out var destroy))
-                    destroy.Invoke(this);
-                _pool.Remove(Id);
-                Destroyed?.Invoke(this);
-            }
-
-#endif
         }
 
         public override string ToString()
@@ -364,9 +335,9 @@ namespace TaffyScript
         /// <param name="newObj">The name of the new type</param>
         /// <param name="performEvents">Determines whether or not to perform the destroy and create events when changing.</param>
         [WeakMethod]
-        public static TsObject InstanceChange(TsInstance inst, TsObject[] args)
+        public static TsObject InstanceChange(ITsInstance inst, TsObject[] args)
         {
-            inst.ChangeType((string)args[0], (bool)args[1]);
+            ((TsInstance)inst).ChangeType((string)args[0], (bool)args[1]);
             return TsObject.Empty();
         }
 
@@ -375,9 +346,10 @@ namespace TaffyScript
         /// </summary>
         /// <param name="performEvents">Determines whther or not to perform the create event on the copy.</param>
         /// <returns></returns>
-        public static float InstanceCopy(TsInstance inst, TsObject[] args)
+        [WeakMethod]
+        public static float InstanceCopy(ITsInstance inst, TsObject[] args)
         {
-            return inst.Copy((bool)args[0]).Id;
+            return ((TsInstance)inst).Copy((bool)args[0]).Id;
         }
 
         /// <summary>
@@ -391,7 +363,7 @@ namespace TaffyScript
         /// </param>
         /// <returns></returns>
         [WeakMethod]
-        public static TsObject InstanceCreate(TsInstance target, TsObject[] args)
+        public static TsObject InstanceCreate(ITsInstance target, TsObject[] args)
         {
             TsInstance inst;
             if (args.Length > 1)
@@ -412,7 +384,7 @@ namespace TaffyScript
         /// <param name="target">Currently executing instance if any.</param>
         /// <param name="args">Optionally contains the id of the instance.</param>
         [WeakMethod]
-        public static TsObject InstanceDestroy(TsInstance target, TsObject[] args)
+        public static TsObject InstanceDestroy(ITsInstance target, TsObject[] args)
         {
             if (args == null || args.Length == 0)
                 target.Destroy();
@@ -478,7 +450,7 @@ namespace TaffyScript
         /// </summary>
         /// <param name="inst">Instance to get the type from.</param>
         /// <returns></returns>
-        public static string ObjectGetName(TsInstance inst)
+        public static string ObjectGetName(ITsInstance inst)
         {
             return inst.ObjectType;
         }
@@ -488,7 +460,7 @@ namespace TaffyScript
         /// </summary>
         /// <param name="inst">Instance to get the parent type from.</param>
         /// <returns></returns>
-        public static string ObjectGetParent(TsInstance inst)
+        public static string ObjectGetParent(ITsInstance inst)
         {
             if (Inherits.TryGetValue(inst.ObjectType, out var parent))
                 return parent;
@@ -566,9 +538,9 @@ namespace TaffyScript
         /// <param name="inst">The instance to check</param>
         /// <param name="name">The name of the variable</param>
         /// <returns></returns>
-        public static bool VariableInstanceExists(TsInstance inst, string name)
+        public static bool VariableInstanceExists(ITsInstance inst, string name)
         {
-            return inst._vars.ContainsKey(name);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -577,12 +549,9 @@ namespace TaffyScript
         /// <param name="inst">The instance to get the value from</param>
         /// <param name="name">The name of the variable</param>
         /// <returns></returns>
-        public static TsObject VariableInstanceGet(TsInstance inst, string name)
+        public static TsObject VariableInstanceGet(ITsInstance inst, string name)
         {
-            if (inst._vars.TryGetValue(name, out var result))
-                return result;
-
-            return TsObject.Empty();
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -590,14 +559,15 @@ namespace TaffyScript
         /// </summary>
         /// <param name="inst">The instance to get the variable names from</param>
         /// <returns></returns>
-        public static TsObject[] VariableInstanceGetNames(TsInstance inst)
+        public static TsObject[] VariableInstanceGetNames(ITsInstance inst)
         {
-            var arr = new TsObject[inst._vars.Count];
+            throw new NotImplementedException();
+            /*var arr = new TsObject[inst._vars.Count];
             var i = 0;
             foreach (var key in inst._vars.Keys)
                 arr[i++] = key;
 
-            return arr;
+            return arr;*/
         }
 
         /// <summary>
@@ -606,9 +576,10 @@ namespace TaffyScript
         /// <param name="inst">The instance to set the variable on</param>
         /// <param name="name">The name of the variable</param>
         /// <param name="value">The value to set</param>
-        public static void VariableInstanceSet(TsInstance inst, string name, TsObject value)
+        public static void VariableInstanceSet(ITsInstance inst, string name, TsObject value)
         {
-            inst._vars[name] = value;
+            throw new NotImplementedException();
+            //inst._vars[name] = value;
         }
 
 #if !KeepRef

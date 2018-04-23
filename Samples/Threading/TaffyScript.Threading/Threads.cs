@@ -16,7 +16,7 @@ namespace TaffyScript.Threading.Extern
         private static object _key = new object();
 
         [WeakMethod]
-        public static TsObject TaskStart(TsInstance inst, TsObject[] args)
+        public static TsObject TaskStart(ITsInstance inst, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args");
@@ -44,7 +44,7 @@ namespace TaffyScript.Threading.Extern
         }
 
         [WeakMethod]
-        public static TsObject ThreadFire(TsInstance inst, TsObject[] args)
+        public static TsObject ThreadFire(ITsInstance inst, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args");

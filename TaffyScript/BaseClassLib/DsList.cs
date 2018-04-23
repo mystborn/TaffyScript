@@ -18,7 +18,7 @@ namespace TaffyScript
         /// Adds a value to a list.
         /// </summary>
         [WeakMethod]
-        public static TsObject DsListAdd(TsInstance target, TsObject[] args)
+        public static TsObject DsListAdd(ITsInstance target, TsObject[] args)
         {
             if (args.Length < 2)
                 throw new ArgumentNullException("When calling ds_list_add, at least 2 arguments must be provided.");
@@ -159,7 +159,7 @@ namespace TaffyScript
         /// list[| 0] = "foo";
         /// </remarks>
         [WeakMethod]
-        public static TsObject DsListSet(TsInstance target, TsObject[] args)
+        public static TsObject DsListSet(ITsInstance target, TsObject[] args)
         {
             if (args.Length < 3)
                 throw new ArgumentException("When calling ds_list_set, at least 3 arguments must be provided.");

@@ -167,10 +167,10 @@ namespace TaffyScript
         /// Creates a TaffyScript object from an instances id.
         /// </summary>
         /// <param name="instance">The instance to get the id from.</param>
-        public TsObject(TsInstance instance)
+        public TsObject(ITsInstance instance)
         {
-            Type = VariableType.Real;
-            Value = new TsImmutableValue<float>(instance.Id);
+            Type = VariableType.Instance;
+            Value = new TsImmutableValue<ITsInstance>(instance);
         }
 
         /// <summary>
@@ -366,11 +366,9 @@ namespace TaffyScript
         /// Gets the instance that has an id matching the value held by this object.
         /// </summary>
         /// <returns></returns>
-        public TsInstance GetInstance()
+        public ITsInstance GetInstance()
         {
-            if (!TsInstance.TryGetInstance(GetInt(), out var inst))
-                throw new InvalidInstanceException();
-            return inst;
+            return (ITsInstance)Value.WeakValue;
         }
 
         /// <summary>
@@ -764,7 +762,7 @@ namespace TaffyScript
 
         public static explicit operator TsInstance(TsObject right)
         {
-            return right.GetInstance();
+            return (TsInstance)right.GetInstance();
         }
 
         public static explicit operator TsDelegate(TsObject right)
