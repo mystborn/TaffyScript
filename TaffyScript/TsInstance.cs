@@ -107,9 +107,6 @@ namespace TaffyScript
         /// <param name="args">Any arguments passed to the create event.</param>
         public TsInstance(string instanceType, params TsObject[] args)
         {
-#if KeepRef
-            References.Register(this);
-#endif
             ObjectType = instanceType;
             Init(true, args);
         }
@@ -120,10 +117,7 @@ namespace TaffyScript
             // However at this point in time, I've decided that it's too much of a time sink.
             // This decision is easily reversable if it turns out to be wrong/unneeded.
             // In the meantime, you can still refer to the event by it's string representation.
-
-#if KeepRef
-            References.Register(this);
-#endif
+            
             ObjectType = instanceType;
             Init(performEvent, args);
         }
@@ -397,43 +391,6 @@ namespace TaffyScript
 
             return TsObject.Empty();
         }
-
-#if KeepRef
-        /// <summary>
-        /// Finds the nth occurence of the specified instance.
-        /// </summary>
-        /// <param name="obj">The object type to find</param>
-        /// <param name="n">The index of the object</param>
-        /// <returns></returns>
-        public static TsObject InstanceFind(string obj, int n)
-        {
-            var i = 0;
-            var iter = References.EnumerateType(obj);
-            while(iter.MoveNext())
-            {
-                if (i++ == n)
-                    return new TsObject(iter.Current);
-            }
-            return TsObject.NooneObject();
-        }
-
-        /// <summary>
-        /// Gets the number of instances of a given type.
-        /// </summary>
-        /// <param name="obj">The name of the object type</param>
-        /// <returns></returns>
-        public static int InstanceNumber(string obj)
-        {
-            var i = 0;
-            var iter = References.EnumerateType(obj);
-            while(iter.MoveNext())
-            {
-                i++;
-            }
-            return i;
-        }
-
-#endif
 
         /// <summary>
         /// Gets the object type of an instance.
