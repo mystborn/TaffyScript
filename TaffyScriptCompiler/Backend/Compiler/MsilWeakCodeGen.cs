@@ -399,15 +399,33 @@ namespace TaffyScriptCompiler.Backend
                         {
                             var line = reader.ReadLine();
                             var input = line.Split(':');
-                            var external = input[2];
-                            var owner = external.Remove(external.LastIndexOf('.'));
-                            var methodName = external.Substring(owner.Length + 1);
-                            var type = _typeParser.GetType(owner);
-                            var method = GetMethodToImport(type, methodName, ScriptArgs);
-                            var count = _table.EnterNamespace(input[0]);
-                            _table.AddLeaf(input[1], SymbolType.Script, SymbolScope.Global);
-                            _table.Exit(count);
-                            _methods[input[0], input[1]] = method;
+                            var importType = (ImportType)byte.Parse(input[0]);
+                            switch(importType)
+                            {
+                                case ImportType.Script:
+                                    var external = input[3];
+                                    var owner = external.Remove(external.LastIndexOf('.'));
+                                    var methodName = external.Substring(owner.Length + 1);
+                                    var type = _typeParser.GetType(owner);
+                                    var method = GetMethodToImport(type, methodName, ScriptArgs);
+                                    var count = _table.EnterNamespace(input[1]);
+                                    _table.AddLeaf(input[2], SymbolType.Script, SymbolScope.Global);
+                                    _table.Exit(count);
+                                    _methods[input[1], input[2]] = method;
+                                    break;
+                                case ImportType.Object:
+                                    external = input[3];
+                                    type = _typeParser.GetType(external);
+                                    count = _table.EnterNamespace(input[1]);
+                                    var leaf = new ImportObjectLeaf(_table.Current, input[2], null)
+                                    {
+                                        HasImportedObject = true,
+                                        Constructor = type.GetConstructors().First()
+                                    };
+                                    _table.AddChild(leaf);
+                                    _table.Exit(count);
+                                    break;
+                            }
                         }
                     }
                 }
@@ -2081,8 +2099,10 @@ namespace TaffyScriptCompiler.Backend
                 if(IsMethodValid(method))
                 {
                     _methods.Add(_namespace, internalName, method);
+                    SpecialImports.Write((byte)ImportType.Script);
+                    SpecialImports.Write(':');
                     SpecialImports.Write(_namespace);
-                    SpecialImports.Write(":");
+                    SpecialImports.Write(':');
                     SpecialImports.Write(internalName);
                     SpecialImports.Write(':');
                     SpecialImports.WriteLine(externalName);
@@ -3285,7 +3305,19 @@ namespace TaffyScriptCompiler.Backend
             if (importType.IsAbstract || importType.IsEnum || !importType.IsClass)
                 _errors.Add(new CompileException($"Could not import the type {importType.Name}. Imported types must be concrete and currently must be a class."));
 
-            var name = $"{GetAssetNamespace(leaf)}.{importNode.ImportName.Value}".TrimStart('.');
+            var ns = GetAssetNamespace(leaf);
+            if(typeof(ITsInstance).IsAssignableFrom(importType))
+            {
+                SpecialImports.Write((byte)ImportType.Object);
+                SpecialImports.Write(':');
+                SpecialImports.Write(ns);
+                SpecialImports.Write(':');
+                SpecialImports.Write(importNode.ImportName.Text);
+                SpecialImports.Write(':');
+                SpecialImports.WriteLine(importType.Name);
+            }
+
+            var name = $"{ns}.{importNode.ImportName.Value}".TrimStart('.');
             var type = _module.DefineType(name, TypeAttributes.Public, importNode.WeaklyTyped ? typeof(ObjectWrapper) : typeof(Object), new[] { typeof(ITsInstance) });
 
             var source = type.DefineField("_source", importType, FieldAttributes.Private);

@@ -26,8 +26,6 @@ namespace TaffyScriptCompiler
             if (extra.Count != 0)
                 path = extra[0];
 
-            path = @"C:\Users\Chris\Source\Repos\GmParser\Samples\TestSuite\Tests";
-
             if (generateBuild)
             {
                 var build = new BuildConfig();
