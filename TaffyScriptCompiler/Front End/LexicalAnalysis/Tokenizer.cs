@@ -82,7 +82,6 @@ namespace TaffyScriptCompiler.FrontEnd
                 { "case", TokenType.Case },
                 { "default", TokenType.Default },
                 { "enum", TokenType.Enum },
-                { "with", TokenType.With },
                 { "import", TokenType.Import },
                 { "script", TokenType.Script },
                 { "argument", TokenType.Argument },

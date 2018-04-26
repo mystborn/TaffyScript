@@ -79,7 +79,6 @@ namespace TaffyScriptCompiler.FrontEnd
         Using,
         Var,
         While,
-        With,
         Xor,
         XorEquals
     }
