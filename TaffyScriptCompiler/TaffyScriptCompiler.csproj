@@ -80,6 +80,7 @@
     <Compile Include="Front End\LexicalAnalysis\TokenPosition.cs" />
     <Compile Include="Front End\LexicalAnalysis\TokenType.cs" />
     <Compile Include="Front End\LexicalAnalysis\UnrecognizedTokenException.cs" />
+    <Compile Include="StringUtils.cs" />
     <Compile Include="Symbols\EnumLeaf.cs" />
     <Compile Include="Symbols\ImportLeaf.cs" />
     <Compile Include="Symbols\InvalidSymbolException.cs" />
@@ -110,11 +111,16 @@
     <Compile Include="Syntax\Concrete\Equality.cs" />
     <Compile Include="Syntax\Concrete\ExitToken.cs" />
     <Compile Include="Syntax\Concrete\ExplicitArrayAccess.cs" />
+    <Compile Include="Syntax\Concrete\ImportObject\ImportCasing.cs" />
+    <Compile Include="Syntax\Concrete\ImportObject\ImportObject.cs" />
     <Compile Include="Syntax\Concrete\For.cs" />
     <Compile Include="Syntax\Concrete\FunctionCall.cs" />
     <Compile Include="Syntax\Concrete\GridAccess.cs" />
     <Compile Include="Syntax\Concrete\If.cs" />
     <Compile Include="Syntax\Concrete\Import.cs" />
+    <Compile Include="Syntax\Concrete\ImportObject\ImportObjectConstructor.cs" />
+    <Compile Include="Syntax\Concrete\ImportObject\ImportObjectField.cs" />
+    <Compile Include="Syntax\Concrete\ImportObject\ImportObjectMethod.cs" />
     <Compile Include="Syntax\Concrete\ListAccess.cs" />
     <Compile Include="Syntax\Concrete\Logical.cs" />
     <Compile Include="Syntax\Concrete\MapAccess.cs" />
@@ -135,7 +141,6 @@
     <Compile Include="Syntax\Concrete\UsingsNode.cs" />
     <Compile Include="Syntax\Concrete\VariableToken.cs" />
     <Compile Include="Syntax\Concrete\While.cs" />
-    <Compile Include="Syntax\Concrete\With.cs" />
     <Compile Include="Syntax\Concrete\ConstantToken.cs" />
     <Compile Include="Syntax\ConstantType.cs" />
     <Compile Include="Syntax\IConstantToken.cs" />

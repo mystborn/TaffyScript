@@ -36,8 +36,6 @@ namespace LanguageTests {
         show_debug_message("Collect Garbage:");
         show_debug_message("  Milliseconds: " + string(time_result.ms));
         show_debug_message("  Ticks: " + string(time_result.ticks));
-
-
     }
 
     script array_literal() {

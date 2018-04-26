@@ -13,7 +13,7 @@ namespace TaffyScript
     /// Delegate used to represent methods to be triggered when a TS instance is destroyed.
     /// </summary>
     /// <param name="inst">The instance that was destroyed.</param>
-    public delegate void DestroyedDelegate(TsInstance inst);
+    public delegate void DestroyedDelegate(ITsInstance inst);
 
     /// <summary>
     /// Represents an instance of an object in TaffyScript.
@@ -195,6 +195,17 @@ namespace TaffyScript
             if (!TryGetDelegate(name, out var result))
                 throw new ArgumentException($"Type {ObjectType} does not define event {name}");
             return result;
+        }
+
+        /// <summary>
+        /// Calls a script defined or assigned to the instance.
+        /// </summary>
+        /// <param name="scriptName">The name of the script to call.</param>
+        /// <param name="args">Any arguments to pass to the script.</param>
+        /// <returns>Script result.</returns>
+        public TsObject Call(string scriptName, params TsObject[] args)
+        {
+            return GetDelegate(scriptName).Invoke(args);
         }
 
         /// <summary>

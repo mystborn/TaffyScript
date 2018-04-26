@@ -228,6 +228,7 @@ namespace TaffyScriptCompiler.Backend
             // Initialize the basic assemblies needed to compile.
             _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(TsObject)));
             _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(Console)));
+            _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(HashSet<int>)));
 
             // Initialize all specified references.
             foreach (var asm in config.References.Select(s => _assemblyLoader.LoadAssembly(s)))
@@ -633,7 +634,8 @@ namespace TaffyScriptCompiler.Backend
                 SyntaxType.Import,
                 SyntaxType.Namespace,
                 SyntaxType.Object,
-                SyntaxType.Script
+                SyntaxType.Script,
+                SyntaxType.ImportObject
             };
 
             var table = new LookupTable<Type, Type, MethodInfo>
@@ -1033,6 +1035,17 @@ namespace TaffyScriptCompiler.Backend
             }
         }
 
+        private void ConvertTopToObject(ILEmitter emitter)
+        {
+            var top = emitter.GetTop();
+            if(top != typeof(TsObject))
+            {
+                if (typeof(ITsInstance).IsAssignableFrom(top))
+                    top = typeof(ITsInstance);
+                emitter.New(TsTypes.Constructors[top]);
+            }
+        }
+
         #endregion
 
         #region Visitor
@@ -1268,7 +1281,7 @@ namespace TaffyScriptCompiler.Backend
                         emit.LdStr(right.Text);
                         assign.Right.Accept(this);
                         ConvertTopToObject();
-                        emit.Call(typeof(TsInstance).GetMethod("set_Item"));
+                        emit.Call(typeof(ITsInstance).GetMethod("set_Item"));
                     }
                     else
                         _errors.Add(new CompileException($"Cannot access readonly value from global {member.Right.Position}"));
@@ -1993,10 +2006,9 @@ namespace TaffyScriptCompiler.Backend
             else
             {
                 //The object returned by GetDelegate should already have a target.
-                emit.LdStr(name)
-                    .Call(typeof(ITsInstance).GetMethod("GetDelegate", BindingFlags.Instance | BindingFlags.Public));
+                emit.LdStr(name);
                 LoadFunctionArguments(functionCall);
-                emit.Call(typeof(TsDelegate).GetMethod("Invoke", new[] { typeof(TsObject[]) }));
+                emit.Call(typeof(ITsInstance).GetMethod("Call"));
             }
         }
 
@@ -3246,49 +3258,714 @@ namespace TaffyScriptCompiler.Backend
                 .MarkLabel(end);
         }
 
-        public void Visit(WithNode with)
+        public void Visit(ImportObjectNode importNode)
         {
-            throw new NotImplementedException();/*
-            with.Condition.Accept(this);
-            var top = emit.GetTop();
-            if(top == typeof(int) || top == typeof(bool))
-            {
-                emit.New(TsTypes.Constructors[typeof(int)]);
-                top = typeof(TsObject);
-            }
-            if(top == typeof(float))
-            {
-                emit.New(TsTypes.Constructors[typeof(float)]);
-                top = typeof(TsObject);
-            }
-            var start = emit.DefineLabel();
-            var end = emit.DefineLabel();
-            var gen = GetLocal(typeof(IEnumerator<ITsInstance>));
-            var other = GetLocal(typeof(ITsInstance));
-            _loopStart.Push(start);
-            _loopEnd.Push(end);
-            emit.Call(typeof(TsInstance).GetMethod("get_Other"))
-                .StLocal(other)
-                .LdArg(0)
-                .Call(typeof(TsInstance).GetMethod("set_Other"))
-                .Call(typeof(References).GetMethod("GetEnumerator"))
-                .StLocal(gen)
-                .MarkLabel(start)
-                .LdLocalA(gen)
-                .Call(typeof(IEnumerator<ITsInstance>).GetMethod("MoveNext"))
-                .BrFalse(end)
-                .LdLocalA(gen)
-                .Call(typeof(IEnumerator<ITsInstance>).GetMethod("get_Current"))
-                .StArg(0);
-            with.Body.Accept(this);
-            emit.MarkLabel(end)
-                .Call(typeof(TsInstance).GetMethod("get_Other"))
-                .StArg(0)
-                .LdLocal(other)
-                .Call(typeof(TsInstance).GetMethod("set_Other"));
+            var importType = _typeParser.GetType(importNode.Text);
 
-            FreeLocal(other);
-            FreeLocal(gen);*/
+            if (importType.IsAbstract || importType.IsEnum || !importType.IsClass)
+                _errors.Add(new CompileException($"Could not import the type {importType.Name}. Imported types must be concrete and currently must be a class."));
+
+            var name = $"{_namespace}.{importNode.ImportName.Value}".TrimStart('.');
+            Console.WriteLine(name);
+            var type = _module.DefineType(name, TypeAttributes.Public, importNode.WeaklyTyped ? typeof(ObjectWrapper) : typeof(Object), new[] { typeof(ITsInstance) });
+
+            var source = type.DefineField("_source", importType, FieldAttributes.Private);
+            var objectType = type.DefineProperty("ObjectType", PropertyAttributes.None, typeof(string), null);
+            var getObjectType = type.DefineMethod("get_ObjectType",
+                                                  MethodAttributes.Public |
+                                                      MethodAttributes.HideBySig |
+                                                      MethodAttributes.NewSlot |
+                                                      MethodAttributes.SpecialName |
+                                                      MethodAttributes.Virtual |
+                                                      MethodAttributes.Final,
+                                                  typeof(string),
+                                                  Type.EmptyTypes);
+            var gen = getObjectType.GetILGenerator();
+            gen.Emit(OpCodes.Ldstr, name);
+            gen.Emit(OpCodes.Ret);
+
+            objectType.SetGetMethod(getObjectType);
+            var destroyedField = type.DefineField("Destroyed", typeof(DestroyedDelegate), FieldAttributes.Private);
+            var destroyedEvent = type.DefineEvent("Destroyed", EventAttributes.None, typeof(DestroyedDelegate));
+            var eventArgs = new[] { typeof(DestroyedDelegate) };
+
+            var addDestroyed = type.DefineMethod("add_Destroyed",
+                                                 MethodAttributes.Public |
+                                                    MethodAttributes.HideBySig |
+                                                    MethodAttributes.NewSlot |
+                                                    MethodAttributes.SpecialName |
+                                                    MethodAttributes.Virtual |
+                                                    MethodAttributes.Final, 
+                                                 typeof(void),
+                                                 eventArgs);
+
+            emit = new ILEmitter(addDestroyed, eventArgs);
+
+
+            emit.LdArg(0)
+                .Dup()
+                .LdFld(destroyedField)
+                .LdArg(1)
+                .Call(typeof(Delegate).GetMethod("Combine", new[] { typeof(Delegate), typeof(Delegate) }))
+                .CastClass(typeof(DestroyedDelegate))
+                .StFld(destroyedField)
+                .Ret();
+
+            destroyedEvent.SetAddOnMethod(addDestroyed);
+
+            var removeDestroyed = type.DefineMethod("remove_Destroyed",
+                                                    MethodAttributes.Public |
+                                                        MethodAttributes.HideBySig |
+                                                        MethodAttributes.NewSlot |
+                                                        MethodAttributes.SpecialName |
+                                                        MethodAttributes.Virtual |
+                                                        MethodAttributes.Final,
+                                                    typeof(void),
+                                                    eventArgs);
+
+            emit = new ILEmitter(removeDestroyed, eventArgs);
+            emit.LdArg(0)
+                .Dup()
+                .LdFld(destroyedField)
+                .LdArg(1)
+                .Call(typeof(Delegate).GetMethod("Remove", new[] { typeof(Delegate), typeof(Delegate) }))
+                .CastClass(typeof(DestroyedDelegate))
+                .StFld(destroyedField)
+                .Ret();
+
+            destroyedEvent.SetRemoveOnMethod(removeDestroyed);
+
+            var methodFlags = MethodAttributes.Public |
+                              MethodAttributes.HideBySig |
+                              MethodAttributes.NewSlot |
+                              MethodAttributes.Virtual |
+                              MethodAttributes.Final;
+
+            var weakFlags = MethodAttributes.Public |
+                           MethodAttributes.HideBySig;
+
+                                
+
+            var destroy = type.DefineMethod("Destroy", methodFlags);
+
+            emit = new ILEmitter(destroy, Type.EmptyTypes);
+            var notNull = emit.DefineLabel();
+            var end = emit.DefineLabel();
+
+            emit.LdArg(0)
+                .LdFld(destroyedField)
+                .Dup()
+                .BrTrue(notNull)
+                .Pop()
+                .Br(end)
+                .MarkLabel(notNull)
+                .PushType(destroyedField.FieldType)
+                .LdArg(0)
+                .Call(typeof(DestroyedDelegate).GetMethod("Invoke", new[] { typeof(ITsInstance) }))
+                .MarkLabel(end)
+                .LdArg(0)
+                .LdNull() //<- this will have to be changed when importing valuetype
+                .StFld(source)
+                .Ret();
+
+            var callMethod = type.DefineMethod("Call", methodFlags, typeof(TsObject), new[] { typeof(string), typeof(TsObject[]) });
+            var getMemberMethod = type.DefineMethod("GetMember", methodFlags, typeof(TsObject), new[] { typeof(string) });
+            var setMemberMethod = type.DefineMethod("SetMember", methodFlags, typeof(void), new[] { typeof(string), typeof(TsObject) });
+            var tryGetDelegateMethod = type.DefineMethod("TryGetDelegate", methodFlags, typeof(bool), new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
+
+            var call = new ILEmitter(callMethod, new[] { typeof(string), typeof(TsObject[]) });
+            var getm = new ILEmitter(getMemberMethod, new[] { typeof(string) });
+            var setm = new ILEmitter(setMemberMethod, new[] { typeof(string), typeof(TsObject) });
+            var tryd = new ILEmitter(tryGetDelegateMethod, new[] { typeof(string), typeof(TsDelegate) });
+            tryGetDelegateMethod.DefineParameter(2, ParameterAttributes.Out, "del");
+            var paramsAttribute = new CustomAttributeBuilder(typeof(ParamArrayAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
+            callMethod.DefineParameter(2, ParameterAttributes.None, "args").SetCustomAttribute(paramsAttribute);
+
+            var writeOnly = new List<string>();
+            var readOnly = new List<string>();
+            var members = typeof(ObjectWrapper).GetMethod("get_Members", BindingFlags.NonPublic | BindingFlags.Instance);
+            var del = getm.DeclareLocal(typeof(TsDelegate), "del");
+
+            Label getError;
+
+            if (!importNode.AutoImplement)
+            {
+                foreach(var fld in importNode.Fields)
+                {
+                    var field = importType.GetMember(fld.ExternalName, MemberTypes.Field | MemberTypes.Property, BindingFlags.Public | BindingFlags.Instance).FirstOrDefault();
+                    if(field == null)
+                    {
+                        _errors.Add(new CompileException($"Could not find the Field or Property {fld.ExternalName} on the type {importType.Name} {fld.Position}"));
+                        continue;
+                    }
+                    switch(field)
+                    {
+                        case FieldInfo fi:
+                            AddFieldToTypeWrapper(fi, type, fld.ImportName, fld.Position, source, getm, setm);
+                            break;
+                        case PropertyInfo pi:
+                            AddPropertyToTypeWrapper(pi, type, fld.ImportName, fld.Position, source, getm, setm, writeOnly, readOnly);
+                            break;
+                    }
+                }
+
+                foreach(var mthd in importNode.Methods)
+                {
+                    var args = new Type[mthd.ArgumentTypes.Count];
+                    for(var i = 0; i < args.Length; i++)
+                    {
+                        if (TsTypes.BasicTypes.TryGetValue(mthd.ArgumentTypes[i], out var argType))
+                            args[i] = argType;
+                        else
+                            _errors.Add(new CompileException($"Could not import the method {mthd.ExternalName} because one of the arguments was invalid {mthd.ArgumentTypes[i]} {mthd.Position}"));
+                    }
+
+                    var method = importType.GetMethod(mthd.ExternalName, BindingFlags.Public | BindingFlags.Instance, null, args, null);
+                    AddMethodToTypeWrapper(method, weakFlags, type, mthd.ImportName, mthd.Position, source, call, tryd, readOnly);
+                }
+
+                var ctorArgNames = importNode.Constructor.ArgumentTypes;
+                var ctorArgs = new Type[ctorArgNames.Count];
+                for (var i = 0; i < ctorArgs.Length; i++)
+                {
+                    if (TsTypes.BasicTypes.TryGetValue(ctorArgNames[i], out var argType))
+                        ctorArgs[i] = argType;
+                    else
+                        _errors.Add(new CompileException($"Could not import the constructor for the type {name} because one of the arguments was invalid {ctorArgs[i]} {importNode.Constructor.Position}"));
+                }
+
+                var ctor = importType.GetConstructor(ctorArgs);
+                if (ctor is null)
+                    _errors.Add(new CompileException($"Could not find ctor on the type {name} with the arguments {string.Join(", ", ctorArgNames)}"));
+                else
+                    AddConstructorToTypeWrapper(ctor, type, source, importNode.WeaklyTyped);
+            }
+            else
+            {
+                var publicMembers = importType.GetMembers(BindingFlags.Public | BindingFlags.Instance);
+                Func<string, string> transformName;
+                switch(importNode.Casing)
+                {
+                    case ImportCasing.Camel:
+                        transformName = StringUtils.ConvertToCamelCase;
+                        break;
+                    case ImportCasing.Pascal:
+                        transformName = StringUtils.ConvertToPascalCase;
+                        break;
+                    case ImportCasing.Snake:
+                        transformName = StringUtils.ConvertToSnakeCase;
+                        break;
+                    default:
+                        transformName = (s) => s;
+                        break;
+                }
+                bool foundIndexer = false;
+                bool foundConstructor = false;
+                Type memberType;
+                var validMethods = new HashSet<MethodInfo>();
+                var ignoreMethods = new HashSet<string>();
+                foreach(var publicMember in publicMembers)
+                {
+                    switch(publicMember)
+                    {
+                        case FieldInfo fi:
+                            memberType = fi.FieldType;
+                            if (typeof(ITsInstance).IsAssignableFrom(memberType))
+                                memberType = typeof(ITsInstance);
+                            if (memberType == typeof(TsObject) || TsTypes.ObjectCasts.ContainsKey(memberType))
+                                AddFieldToTypeWrapper(fi, type, transformName(fi.Name), importNode.Position, source, getm, setm);
+                            break;
+                        case PropertyInfo pi:
+                            memberType = pi.PropertyType;
+                            if (typeof(ITsInstance).IsAssignableFrom(memberType))
+                                memberType = typeof(ITsInstance);
+                            if (memberType == typeof(TsObject) || TsTypes.ObjectCasts.ContainsKey(memberType))
+                            {
+                                if((pi.CanRead && pi.GetMethod.GetParameters().Length > 0) || 
+                                    (pi.CanWrite && pi.SetMethod.GetParameters().Length > 1))
+                                {
+                                    if (foundIndexer)
+                                        continue;
+                                    if(pi.CanRead && IsMethodSupported(pi.GetMethod))
+                                    {
+                                        foundIndexer = true;
+                                        AddMethodToTypeWrapper(pi.GetMethod, weakFlags, type, transformName("get"), importNode.Position, source, call, tryd, readOnly);
+                                    }
+                                    if(pi.CanWrite && IsMethodSupported(pi.SetMethod))
+                                    {
+                                        foundIndexer = true;
+                                        AddMethodToTypeWrapper(pi.SetMethod, weakFlags, type, transformName("set"), importNode.Position, source, call, tryd, readOnly);
+                                    }
+                                }
+                                else
+                                {
+                                    AddPropertyToTypeWrapper(pi, type, transformName(pi.Name), importNode.Position, source, getm, setm, writeOnly, readOnly);
+                                }
+                                if(pi.CanRead)
+                                {
+                                    validMethods.Remove(pi.GetMethod);
+                                    ignoreMethods.Add(pi.GetMethod.Name);
+                                }
+                                if(pi.CanWrite)
+                                {
+                                    validMethods.Remove(pi.SetMethod);
+                                    ignoreMethods.Add(pi.SetMethod.Name);
+                                }
+                            }
+                            break;
+                        case MethodInfo mi:
+                            if (!ignoreMethods.Contains(mi.Name) && IsMethodSupported(mi))
+                            {
+                                validMethods.Add(mi);
+                                ignoreMethods.Add(mi.Name);
+                            }
+                            break;
+                        case ConstructorInfo ci:
+                            if(!foundConstructor && AreMethodParametersSupported(ci.GetParameters()))
+                            {
+                                AddConstructorToTypeWrapper(ci, type, source, importNode.WeaklyTyped);
+                                foundConstructor = true;
+                            }
+                            break;
+                    }
+                }
+                foreach(var mi in validMethods)
+                    AddMethodToTypeWrapper(mi, weakFlags, type, transformName(mi.Name), importNode.Position, source, call, tryd, readOnly);
+
+                if (!foundConstructor)
+                    _errors.Add(new CompileException($"No valid constructor was found for the imported type {importType} {importNode.Position}"));
+            }
+
+            if (importNode.WeaklyTyped)
+            {
+                if (readOnly.Count > 0)
+                {
+                    var setError = setm.DefineLabel();
+                    for (var i = 0; i < readOnly.Count; i++)
+                    {
+                        setm.LdArg(1)
+                            .LdStr(readOnly[i])
+                            .Call(GetOperator("==", typeof(string), typeof(string), new TokenPosition(0, 0, 0, null)))
+                            .BrTrue(setError);
+                    }
+                    setm.LdArg(0)
+                        .Call(members)
+                        .LdArg(1)
+                        .LdArg(2)
+                        .Call(typeof(Dictionary<string, TsObject>).GetMethod("set_Item"))
+                        .Ret()
+                        .MarkLabel(setError)
+                        .LdStr($"Member {{0}} on type {name} is readonly")
+                        .LdArg(1)
+                        .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                        .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                        .Throw();
+                }
+                else
+                {
+                    setm.LdArg(0)
+                        .Call(members)
+                        .LdArg(1)
+                        .LdArg(2)
+                        .Call(typeof(Dictionary<string, TsObject>).GetMethod("set_Item"))
+                        .Ret();
+                }
+                var member = call.DeclareLocal(typeof(TsObject), "member");
+                var callError = call.DefineLabel();
+                call.LdArg(0)
+                    .Call(members)
+                    .LdArg(1)
+                    .LdLocalA(member)
+                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
+                    .BrFalse(callError)
+                    .LdLocalA(member)
+                    .Call(typeof(TsObject).GetMethod("get_Type"))
+                    .LdInt((int)VariableType.Delegate)
+                    .Bne(callError)
+                    .LdLocalA(member)
+                    .Call(typeof(TsObject).GetMethod("GetDelegateUnchecked"))
+                    .LdArg(2)
+                    .Call(typeof(TsDelegate).GetMethod("Invoke", new[] { typeof(TsObject[]) }))
+                    .Ret()
+                    .MarkLabel(callError)
+                    .LdStr($"The type {name} does not define a script called {{0}}")
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                    .Throw();
+
+                member = tryd.DeclareLocal(typeof(TsObject), "member");
+                var tryFail = tryd.DefineLabel();
+                tryd.LdArg(0)
+                    .Call(members)
+                    .LdArg(1)
+                    .LdLocalA(member)
+                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
+                    .BrFalse(tryFail)
+                    .LdLocalA(member)
+                    .Call(typeof(TsObject).GetMethod("get_Type"))
+                    .LdInt((int)VariableType.Delegate)
+                    .Bne(tryFail)
+                    .LdArg(2)
+                    .LdLocalA(member)
+                    .Call(typeof(TsObject).GetMethod("GetDelegateUnchecked"))
+                    .StIndRef()
+                    .LdBool(true)
+                    .Ret()
+                    .MarkLabel(tryFail)
+                    .LdArg(2)
+                    .LdNull()
+                    .StIndRef()
+                    .LdBool(false)
+                    .Ret();
+
+                getError = getm.DefineLabel();
+                var getMember = getm.DefineLabel();
+                member = getm.DeclareLocal(typeof(TsObject), "member");
+                foreach (var wo in writeOnly)
+                {
+                    getm.LdArg(1)
+                        .LdStr(wo)
+                        .Call(GetOperator("==", typeof(string), typeof(string), new TokenPosition(0, 0, 0, null)))
+                        .BrTrue(getError);
+                }
+                getm.LdArg(0)
+                    .LdArg(1)
+                    .LdLocalA(del)
+                    .Call(tryGetDelegateMethod, 3, typeof(bool))
+                    .BrFalse(getMember)
+                    .LdLocal(del)
+                    .New(TsTypes.Constructors[typeof(TsDelegate)])
+                    .Ret()
+                    .MarkLabel(getMember)
+                    .LdArg(0)
+                    .Call(members)
+                    .LdArg(1)
+                    .LdLocalA(member)
+                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
+                    .BrFalse(getError)
+                    .LdLocal(member)
+                    .Ret()
+                    .MarkLabel(getError)
+                    .LdStr($"Member with the name {{0}} is readonly or doesn't exist on the type {name}")
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                    .Throw();
+            }
+            else
+            {
+                setm.LdStr($"Member {{0}} on type {name} is readonly or doesn't exist")
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                    .Throw();
+
+                call.LdStr($"The type {name} does not define a script called {{0}}.")
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                    .Throw();
+
+                tryd.LdArg(2)
+                    .LdNull()
+                    .StIndRef()
+                    .LdBool(false)
+                    .Ret();
+
+                getError = getm.DefineLabel();
+                getm.LdArg(0)
+                    .LdArg(1)
+                    .LdLocalA(del)
+                    .Call(tryGetDelegateMethod, 3, typeof(bool))
+                    .BrFalse(getError)
+                    .LdLocal(del)
+                    .New(TsTypes.Constructors[typeof(TsDelegate)])
+                    .Ret()
+                    .MarkLabel(getError)
+                    .LdStr($"Couldn't find member with the name {{0}} on the type {name}")
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                    .Throw();
+            }
+
+            var getDelegate = type.DefineMethod("GetDelegate", methodFlags, typeof(TsDelegate), new[] { typeof(string) });
+            emit = new ILEmitter(getDelegate, new[] { typeof(string) });
+            del = emit.DeclareLocal(typeof(TsDelegate), "del");
+            getError = emit.DefineLabel();
+
+            emit.LdArg(0)
+                .LdArg(1)
+                .LdLocalA(del)
+                .Call(tryGetDelegateMethod, 3, typeof(bool))
+                .BrFalse(getError)
+                .LdLocal(del)
+                .Ret()
+                .MarkLabel(getError)
+                .LdStr($"The type {name} does not define a script called {{0}}")
+                .LdArg(1)
+                .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                .Throw();
+
+            var indexer = type.DefineProperty("Item", PropertyAttributes.None, typeof(TsObject), new[] { typeof(string) });
+            var indexGet = type.DefineMethod("get_Item",
+                                             MethodAttributes.Public |
+                                                 MethodAttributes.HideBySig |
+                                                 MethodAttributes.NewSlot |
+                                                 MethodAttributes.SpecialName |
+                                                 MethodAttributes.Virtual |
+                                                 MethodAttributes.Final,
+                                             typeof(TsObject),
+                                             new[] { typeof(string) });
+            emit = new ILEmitter(indexGet, new[] { typeof(string) });
+            emit.LdArg(0)
+                .LdArg(1)
+                .Call(getMemberMethod, 2, typeof(TsObject))
+                .Ret();
+
+            indexer.SetGetMethod(indexGet);
+
+            var indexSet = type.DefineMethod("set_Item",
+                                             MethodAttributes.Public |
+                                                 MethodAttributes.HideBySig |
+                                                 MethodAttributes.NewSlot |
+                                                 MethodAttributes.SpecialName |
+                                                 MethodAttributes.Virtual |
+                                                 MethodAttributes.Final,
+                                             typeof(void),
+                                             new[] { typeof(string), typeof(TsObject) });
+            emit = new ILEmitter(indexSet, new[] { typeof(string), typeof(TsObject) });
+            emit.LdArg(0)
+                .LdArg(1)
+                .LdArg(2)
+                .Call(setMemberMethod, 3, typeof(void))
+                .Ret();
+
+            indexer.SetSetMethod(indexSet);
+            var defaultMember = new CustomAttributeBuilder(typeof(DefaultMemberAttribute).GetConstructor(new[] { typeof(string) }), new[] { "Item" });
+            type.SetCustomAttribute(defaultMember);
+
+            type.CreateType();
+        }
+
+        private void AddFieldToTypeWrapper(FieldInfo field, TypeBuilder type, string importName, TokenPosition position, FieldInfo source, ILEmitter getm, ILEmitter setm)
+        {
+            var next = getm.DefineLabel();
+            getm.LdArg(1)
+                .LdStr(importName)
+                .Call(GetOperator("==", typeof(string), typeof(string), position))
+                .BrFalse(next)
+                .LdArg(0)
+                .LdFld(source)
+                .LdFld(field);
+
+            ConvertTopToObject(getm);
+            getm.Ret()
+                .MarkLabel(next);
+
+            next = setm.DefineLabel();
+            setm.LdArg(1)
+                .LdStr(importName)
+                .Call(GetOperator("==", typeof(string), typeof(string), position))
+                .BrFalse(next)
+                .LdArg(0)
+                .LdFld(source)
+                .LdArg(2)
+                .StFld(field)
+                .Ret()
+                .MarkLabel(next);
+        }
+
+        private void AddPropertyToTypeWrapper(PropertyInfo property, 
+                                              TypeBuilder type, 
+                                              string importName, 
+                                              TokenPosition position, 
+                                              FieldInfo source, 
+                                              ILEmitter getm, 
+                                              ILEmitter setm, 
+                                              List<string> writeOnly,
+                                              List<string> readOnly)
+        {
+            if (!property.CanRead)
+                writeOnly.Add(importName);
+            else
+            {
+                var next = getm.DefineLabel();
+                getm.LdArg(1)
+                    .LdStr(importName)
+                    .Call(GetOperator("==", typeof(string), typeof(string), position))
+                    .BrFalse(next)
+                    .LdArg(0)
+                    .LdFld(source)
+                    .Call(property.GetMethod);
+                ConvertTopToObject(getm);
+                getm.Ret()
+                    .MarkLabel(next);
+            }
+
+            if (!property.CanWrite)
+                readOnly.Add(importName);
+            else
+            {
+                var next = setm.DefineLabel();
+                setm.LdArg(1)
+                    .LdStr(importName)
+                    .Call(GetOperator("==", typeof(string), typeof(string), position))
+                    .BrFalse(next)
+                    .LdArg(0)
+                    .LdFld(source)
+                    .LdArg(2)
+                    .Call(property.SetMethod)
+                    .Ret()
+                    .MarkLabel(next);
+            }
+        }
+
+        private void AddMethodToTypeWrapper(MethodInfo method, 
+                                    MethodAttributes weakFlags, 
+                                    TypeBuilder type, 
+                                    string importName, 
+                                    TokenPosition methodPosition, 
+                                    FieldInfo source, 
+                                    ILEmitter call, 
+                                    ILEmitter tryd,
+                                    List<string> readOnly)
+        {
+            var weakMethod = type.DefineMethod(importName, weakFlags, typeof(TsObject), ScriptArgs);
+            var weak = new ILEmitter(weakMethod, ScriptArgs);
+            weak.LdArg(0)
+                .LdFld(source);
+
+            var parameters = method.GetParameters();
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                weak.LdArg(2)
+                    .LdInt(i);
+
+                if (parameters[i].ParameterType == typeof(object))
+                {
+                    weak.LdElem(typeof(TsObject))
+                        .Box(typeof(TsObject));
+                }
+                else if (parameters[i].ParameterType != typeof(TsObject))
+                {
+                    weak.LdElemA(typeof(TsObject))
+                        .Call(TsTypes.ObjectCasts[parameters[i].ParameterType]);
+                }
+                else
+                    weak.LdElem(typeof(TsObject));
+            }
+
+            weak.Call(method);
+            if (method.ReturnType == typeof(void))
+                weak.Call(TsTypes.Empty);
+            else if (TsTypes.Constructors.TryGetValue(method.ReturnType, out var objCtor))
+                weak.New(objCtor);
+            else if (method.ReturnType != typeof(TsObject))
+                _errors.Add(new CompileException($"Imported method { method.Name } had an invalid return type { method.ReturnType}."));
+            weak.Ret();
+
+            var next = call.DefineLabel();
+            call.LdArg(1)
+                .LdStr(importName)
+                .Call(GetOperator("==", typeof(string), typeof(string), methodPosition))
+                .BrFalse(next)
+                .LdArg(0)
+                .LdArg(0)
+                .LdArg(2)
+                .Call(weakMethod, 3, typeof(TsObject))
+                .Ret()
+                .MarkLabel(next);
+
+            next = tryd.DefineLabel();
+            tryd.LdArg(1)
+                .LdStr(importName)
+                .Call(GetOperator("==", typeof(string), typeof(string), methodPosition))
+                .BrFalse(next)
+                .LdArg(2)
+                .LdArg(0)
+                .LdFtn(weakMethod)
+                .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                .LdStr(importName)
+                .LdArg(0)
+                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string), typeof(ITsInstance) }))
+                .StIndRef()
+                .LdBool(true)
+                .Ret()
+                .MarkLabel(next);
+
+            readOnly.Add(importName);
+        }
+
+        private void AddConstructorToTypeWrapper(ConstructorInfo ctor, TypeBuilder type, FieldInfo source, bool isWeaklyTyped)
+        {
+            var createMethod = type.DefineConstructor(MethodAttributes.Public |
+                                                          MethodAttributes.HideBySig |
+                                                          MethodAttributes.SpecialName |
+                                                          MethodAttributes.RTSpecialName,
+                                                      CallingConventions.Standard,
+                                                      new[] { typeof(TsObject) });
+
+            emit = new ILEmitter(createMethod, new[] { typeof(TsObject[]) });
+            emit.LdArg(0);
+
+            var ctorParams = ctor.GetParameters();
+            for (var i = 0; i < ctorParams.Length; i++)
+            {
+                emit.LdArg(1)
+                    .LdInt(i);
+
+                if (ctorParams[i].ParameterType == typeof(object))
+                {
+                    emit.LdElem(typeof(TsObject))
+                        .Box(typeof(TsObject));
+                }
+                else if (ctorParams[i].ParameterType != typeof(TsObject))
+                {
+                    emit.LdElemA(typeof(TsObject))
+                        .Call(TsTypes.ObjectCasts[ctorParams[i].ParameterType]);
+                }
+                else
+                    emit.LdElem(typeof(TsObject));
+            }
+            emit.New(ctor)
+                .StFld(source)
+                .LdArg(0);
+            if (isWeaklyTyped)
+                emit.CallBase(typeof(ObjectWrapper).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null));
+            else
+                emit.CallBase(typeof(Object).GetConstructor(Type.EmptyTypes));
+
+            emit.Ret();
+        }
+
+        private bool IsMethodSupported(MethodInfo method)
+        {
+            var type = method.ReturnType;
+            if(type != typeof(void))
+            {
+                if (typeof(ITsInstance).IsAssignableFrom(type))
+                    type = typeof(ITsInstance);
+                if (type != typeof(TsObject) && !TsTypes.Constructors.ContainsKey(type))
+                    return false;
+            }
+            var parameters = method.GetParameters();
+            return AreMethodParametersSupported(method.GetParameters());
+        }
+
+        private bool AreMethodParametersSupported(ParameterInfo[] parameters)
+        {
+            foreach (var parameter in parameters)
+            {
+                var type = parameter.ParameterType;
+                if (typeof(ITsInstance).IsAssignableFrom(type))
+                    type = typeof(ITsInstance);
+                if (type != typeof(TsObject) && !TsTypes.Constructors.ContainsKey(type))
+                    return false;
+            }
+            return true;
         }
 
         #endregion

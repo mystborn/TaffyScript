@@ -50,6 +50,10 @@ namespace TaffyScriptCompiler
         Usings,
         Namespace,
         New,
+        ImportObject,
+        ImportObjectMember,
+        ImportObjectMethod,
+        ImportObjectConstructor,
 
         //Token
         Constant,

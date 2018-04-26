@@ -213,42 +213,10 @@ namespace TaffyScriptCompiler
                     return node;
                 case TokenType.Import:
                     var import = Confirm(TokenType.Import);
-                    node = _factory.CreateNode(SyntaxType.Import, import.Position);
-                    var start = Confirm(TokenType.Identifier);
-                    var baseType = new StringBuilder(start.Value);
-                    do
-                    {
-                        baseType.Append(Confirm(TokenType.Dot).Value);
-                        baseType.Append(Confirm(TokenType.Identifier).Value);
-                    }
-                    while (Try(TokenType.Dot));
-                    node.AddChild(_factory.CreateConstant(ConstantType.String, baseType.ToString(), start.Position));
-                    Confirm(TokenType.OpenParen);
-                    if(!Try(TokenType.CloseParen))
-                    {
-                        do
-                        {
-                            token = _stream.Read();
-                            var type = token.Value;
-                            if (type == "array")
-                                type = "array1d";
-                            if (!TsTypes.BasicTypes.ContainsKey(type))
-                            {
-                                Throw(new InvalidTokenException(token, $"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n"));
-                                node.AddChild(null);
-                            }
-                            else
-                                node.AddChild(_factory.CreateConstant(ConstantType.String, type, token.Position));
-                        }
-                        while (Validate(TokenType.Comma));
-                    }
-                    Confirm(TokenType.CloseParen);
-                    Confirm(TokenType.As);
-                    var importName = Confirm(TokenType.Identifier);
-                    _table.AddChild(new ImportLeaf(_table.Current, importName.Value, SymbolScope.Global, (ImportNode)node));
-                    //_table.AddLeaf(importName.Value, SymbolType.Script, SymbolScope.Global);
-                    node.AddChild(_factory.CreateConstant(ConstantType.String, importName.Value, importName.Position));
-                    return node;
+                    if (Try(TokenType.Object))
+                        return ImportObject(import.Position);
+                    else
+                        return ImportScript(import.Position);
                 case TokenType.Script:
                     return Script(SymbolScope.Global);
                 case TokenType.SemiColon:
@@ -258,6 +226,173 @@ namespace TaffyScriptCompiler
                     Throw(new InvalidTokenException(_stream.Peek(), $"Expected declaration, got {_stream.Read().Type}"));
                     return null;
             }
+        }
+
+        private ISyntaxElement ImportObject(TokenPosition pos)
+        {
+            Confirm(TokenType.Object);
+            List<ObjectImportArgument> importArgs = new List<ObjectImportArgument>();
+            if(Validate(TokenType.OpenParen))
+            {
+                if (!Try(TokenType.CloseParen))
+                {
+                    do
+                    {
+                        var argName = _stream.Read();
+                        Confirm(TokenType.Assign);
+                        var argValue = Confirm(TokenType.Identifier).Value;
+                        importArgs.Add(new ObjectImportArgument(argName.Value, argValue, argName.Position));
+                    }
+                    while (Validate(TokenType.Comma));
+                }
+                Confirm(TokenType.CloseParen);
+            }
+            var sb = new StringBuilder();
+            var startPos = GetImportType(sb);
+            ImportObjectNode node;
+            if (Validate(TokenType.As))
+            {
+                var importName = Confirm(TokenType.Identifier);
+                node = new ImportObjectNode((IConstantToken<string>)_factory.CreateConstant(ConstantType.String, importName.Value, importName.Position), sb.ToString(), startPos);
+            }
+            else
+                node = new ImportObjectNode(sb.ToString(), startPos);
+
+            node.ParseArguments(importArgs);
+            if(!Try(TokenType.OpenBrace))
+            {
+                node.AutoImplement = true;
+                return node;
+            }
+            Confirm(TokenType.OpenBrace);
+            if(!Try(TokenType.CloseBrace))
+            {
+                bool hasCtor = false;
+                do
+                {
+                    if(Try(TokenType.New, out var newToken))
+                    {
+                        if (hasCtor)
+                            Throw(new InvalidTokenException(newToken, $"Import types can only define one constructor"));
+                        var newNode = new ImportObjectConstructor(newToken.Position);
+                        Confirm(TokenType.OpenParen);
+                        if (!Try(TokenType.CloseParen))
+                        {
+                            do
+                            {
+                                var token = _stream.Read();
+                                var type = token.Value;
+                                if (type == "array")
+                                    type = "array1d";
+                                if (!TsTypes.BasicTypes.ContainsKey(type))
+                                    Throw(new InvalidTokenException(token, $"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n"));
+                                else
+                                    newNode.ArgumentTypes.Add(type);
+                            }
+                            while (Validate(TokenType.Comma));
+                        }
+                        Confirm(TokenType.CloseParen);
+                        node.Constructor = newNode;
+                    }
+                    else
+                    {
+                        var memberName = Confirm(TokenType.Identifier);
+                        if (Try(TokenType.OpenParen))
+                        {
+                            var methodNode = new ImportObjectMethod(memberName.Value, memberName.Position);
+                            if (Validate(TokenType.LessThan))
+                            {
+                                do
+                                {
+                                    sb.Clear();
+                                    pos = GetImportType(sb);
+                                    methodNode.Generics.Add((IConstantToken<string>)_factory.CreateConstant(ConstantType.String, sb.ToString(), pos));
+                                }
+                                while (Validate(TokenType.Comma));
+                                Confirm(TokenType.GreaterThan);
+                            }
+                            Confirm(TokenType.OpenParen);
+                            if (!Try(TokenType.CloseParen))
+                            {
+                                do
+                                {
+                                    var token = _stream.Read();
+                                    var type = token.Value;
+                                    if (type == "array")
+                                        type = "array1d";
+                                    if (!TsTypes.BasicTypes.ContainsKey(type))
+                                        Throw(new InvalidTokenException(token, $"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n"));
+                                    else
+                                        methodNode.ArgumentTypes.Add(type);
+                                }
+                                while (Validate(TokenType.Comma));
+                            }
+                            Confirm(TokenType.CloseParen);
+
+                            if (Validate(TokenType.As))
+                                methodNode.ImportName = Confirm(TokenType.Identifier).Value;
+
+                            node.Methods.Add(methodNode);
+                        }
+                        else
+                        {
+                            if (Validate(TokenType.As))
+                            {
+                                var importName = Confirm(TokenType.Identifier).Value;
+                                node.Fields.Add(new ImportObjectField(memberName.Value, importName, memberName.Position));
+                            }
+                            else
+                                node.Fields.Add(new ImportObjectField(memberName.Value, memberName.Position));
+                        }
+                    }
+
+                    while (Validate(TokenType.SemiColon)) ;
+                }
+                while (!Try(TokenType.CloseBrace));
+            }
+            Confirm(TokenType.CloseBrace);
+
+            return node;
+        }
+
+        private ISyntaxElement ImportScript(TokenPosition pos)
+        {
+            var node = _factory.CreateNode(SyntaxType.Import, pos);
+            var start = Confirm(TokenType.Identifier);
+            var baseType = new StringBuilder(start.Value);
+            do
+            {
+                baseType.Append(Confirm(TokenType.Dot).Value);
+                baseType.Append(Confirm(TokenType.Identifier).Value);
+            }
+            while (Try(TokenType.Dot));
+            node.AddChild(_factory.CreateConstant(ConstantType.String, baseType.ToString(), start.Position));
+            Confirm(TokenType.OpenParen);
+            if (!Try(TokenType.CloseParen))
+            {
+                do
+                {
+                    var token = _stream.Read();
+                    var type = token.Value;
+                    if (type == "array")
+                        type = "array1d";
+                    if (!TsTypes.BasicTypes.ContainsKey(type))
+                    {
+                        Throw(new InvalidTokenException(token, $"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n"));
+                        node.AddChild(null);
+                    }
+                    else
+                        node.AddChild(_factory.CreateConstant(ConstantType.String, type, token.Position));
+                }
+                while (Validate(TokenType.Comma));
+            }
+            Confirm(TokenType.CloseParen);
+            Confirm(TokenType.As);
+            var importName = Confirm(TokenType.Identifier);
+            _table.AddChild(new ImportLeaf(_table.Current, importName.Value, SymbolScope.Global, (ImportNode)node));
+            //_table.AddLeaf(importName.Value, SymbolType.Script, SymbolScope.Global);
+            node.AddChild(_factory.CreateConstant(ConstantType.String, importName.Value, importName.Position));
+            return node;
         }
 
         private ISyntaxElement Script(SymbolScope scope)
@@ -1032,6 +1167,40 @@ namespace TaffyScriptCompiler
                 Throw(new InvalidTokenException(_stream.Peek(), $"Expected literal, got {_stream.Peek().Type}"));
 
             return null;
+        }
+
+        private TokenPosition GetImportType(StringBuilder sb)
+        {
+            var start = Confirm(TokenType.Identifier);
+            sb.Append(start.Value);
+            while(Validate(TokenType.Dot))
+            {
+                sb.Append(".");
+                sb.Append(Confirm(TokenType.Identifier).Value);
+            }
+            if(Validate(TokenType.LessThan))
+            {
+                sb.Append("<");
+                do
+                {
+                    if (Validate(TokenType.Comma))
+                        sb.Append(",");
+                    GetImportType(sb);
+                }
+                while (Try(TokenType.Comma));
+
+                Confirm(TokenType.GreaterThan);
+                sb.Append(">");
+            }
+            if(Validate(TokenType.OpenBracket))
+            {
+                sb.Append("[");
+                while (Validate(TokenType.Comma))
+                    sb.Append(",");
+                Confirm(TokenType.CloseBracket);
+                sb.Append("]");
+            }
+            return start.Position;
         }
 
         private bool IsAssignment()

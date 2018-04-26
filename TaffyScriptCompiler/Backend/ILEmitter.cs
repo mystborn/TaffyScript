@@ -36,7 +36,14 @@ namespace TaffyScriptCompiler.Backend
         public ILEmitter(MethodBuilder builder, Type[] input)
         {
             _generator = builder.GetILGenerator();
-            _paramTypes = input;
+            if(builder.CallingConvention.HasFlag(CallingConventions.HasThis))
+            {
+                _paramTypes = new Type[input.Length + 1];
+                Array.Copy(input, 0, _paramTypes, 1, input.Length);
+                _paramTypes[0] = builder.DeclaringType;
+            }
+            else
+                _paramTypes = input;
             Method = builder;
         }
 
@@ -135,6 +142,14 @@ namespace TaffyScriptCompiler.Backend
             return this;
         }
 
+        public ILEmitter Bne(Label label)
+        {
+            _types.Pop();
+            _types.Pop();
+            _generator.Emit(OpCodes.Bne_Un, label);
+            return this;
+        }
+
         public ILEmitter Box(Type valueType)
         {
             _types.Pop();
@@ -199,6 +214,26 @@ namespace TaffyScriptCompiler.Backend
             if (output != null && output != typeof(void))
                 _types.Push(output);
 
+            return this;
+        }
+
+        public ILEmitter CallBase(ConstructorInfo ctor)
+        {
+            _types.Pop();
+            var length = ctor.GetParameters().Length;
+            for (var i = 0; i < length; i++)
+                _types.Pop();
+
+            _generator.Emit(OpCodes.Call, ctor);
+
+            return this;
+        }
+
+        public ILEmitter CastClass(Type type)
+        {
+            _types.Pop();
+            _generator.Emit(OpCodes.Castclass, type);
+            _types.Push(type);
             return this;
         }
 
@@ -416,16 +451,26 @@ namespace TaffyScriptCompiler.Backend
 
         public ILEmitter LdFld(FieldInfo field)
         {
-            var code = field.IsStatic ? OpCodes.Ldsfld : OpCodes.Ldfld;
-            _generator.Emit(code, field);
+            if (field.IsStatic)
+                _generator.Emit(OpCodes.Ldsfld, field);
+            else
+            {
+                _types.Pop();
+                _generator.Emit(OpCodes.Ldfld, field);
+            }
             _types.Push(field.FieldType);
             return this;
         }
 
         public ILEmitter LdFldA(FieldInfo field)
         {
-            var code = field.IsStatic ? OpCodes.Ldsflda : OpCodes.Ldflda;
-            _generator.Emit(code, field);
+            if (field.IsStatic)
+                _generator.Emit(OpCodes.Ldsflda, field);
+            else
+            {
+                _types.Pop();
+                _generator.Emit(OpCodes.Ldflda, field);
+            }
             var type = field.FieldType;
             if (type.IsValueType)
                 type = type.MakePointerType();
@@ -716,6 +761,29 @@ namespace TaffyScriptCompiler.Backend
             return this;
         }
 
+        public ILEmitter StFld(FieldInfo field)
+        {
+            _types.Pop();
+            if (field.IsStatic)
+            {
+                _generator.Emit(OpCodes.Stsfld, field);
+            }
+            else
+            {
+                _types.Pop();
+                _generator.Emit(OpCodes.Stfld, field);
+            }
+            return this;
+        }
+
+        public ILEmitter StIndRef()
+        {
+            _types.Pop();
+            _types.Pop();
+            _generator.Emit(OpCodes.Stind_Ref);
+            return this;
+        }
+
         public ILEmitter StLocal(LocalBuilder local)
         {
             _types.Pop();
@@ -777,6 +845,13 @@ namespace TaffyScriptCompiler.Backend
             return this;
         }
 
+        public ILEmitter Throw()
+        {
+            _types.Pop();
+            _generator.Emit(OpCodes.Throw);
+            return this;
+        }
+
         public ILEmitter WriteLine(string value)
         {
             _generator.EmitWriteLine(value);
@@ -801,6 +876,12 @@ namespace TaffyScriptCompiler.Backend
         public ILEmitter PopTop()
         {
             _types.Pop();
+            return this;
+        }
+
+        public ILEmitter PushType(Type type)
+        {
+            _types.Push(type);
             return this;
         }
 
