@@ -2406,15 +2406,29 @@ namespace TaffyScriptCompiler.Backend
             {
                 if(symbol.Type == SymbolType.Object)
                 {
-                    var name = newNode.Text;
-                    var pos = newNode.Position;
                     MarkSequencePoint(newNode);
-                    var ctor = typeof(TsInstance).GetConstructor(new[] { typeof(string), typeof(TsObject[]) });
-                    var ns = GetAssetNamespace(symbol);
-                    if (ns != "")
-                        name = $"{ns}.{name}";
-                    emit.LdStr(name);
+                    ConstructorInfo ctor;
+                    if(symbol is ImportObjectLeaf leaf)
+                    {
+                        if (!leaf.HasImportedObject)
+                        {
+                            var temp = emit;
+                            leaf.ImportObject.Accept(this);
+                            emit = temp;
+                        }
 
+                        ctor = leaf.Constructor;
+                    }
+                    else
+                    {
+                        var name = newNode.Text;
+                        var pos = newNode.Position;
+                        ctor = typeof(TsInstance).GetConstructor(new[] { typeof(string), typeof(TsObject[]) });
+                        var ns = GetAssetNamespace(symbol);
+                        if (ns != "")
+                            name = $"{ns}.{name}";
+                        emit.LdStr(name);
+                    }
                     if (newNode.Arguments.Count > 0)
                     {
                         emit.LdInt(newNode.Arguments.Count)
@@ -3260,13 +3274,18 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(ImportObjectNode importNode)
         {
+            ImportObjectLeaf leaf = (ImportObjectLeaf)_table.Defined(importNode.ImportName.Value);
+            if (leaf.HasImportedObject)
+                return;
+
+            leaf.HasImportedObject = true;
+
             var importType = _typeParser.GetType(importNode.Text);
 
             if (importType.IsAbstract || importType.IsEnum || !importType.IsClass)
                 _errors.Add(new CompileException($"Could not import the type {importType.Name}. Imported types must be concrete and currently must be a class."));
 
-            var name = $"{_namespace}.{importNode.ImportName.Value}".TrimStart('.');
-            Console.WriteLine(name);
+            var name = $"{GetAssetNamespace(leaf)}.{importNode.ImportName.Value}".TrimStart('.');
             var type = _module.DefineType(name, TypeAttributes.Public, importNode.WeaklyTyped ? typeof(ObjectWrapper) : typeof(Object), new[] { typeof(ITsInstance) });
 
             var source = type.DefineField("_source", importType, FieldAttributes.Private);
@@ -3438,7 +3457,7 @@ namespace TaffyScriptCompiler.Backend
                 if (ctor is null)
                     _errors.Add(new CompileException($"Could not find ctor on the type {name} with the arguments {string.Join(", ", ctorArgNames)}"));
                 else
-                    AddConstructorToTypeWrapper(ctor, type, source, importNode.WeaklyTyped);
+                    AddConstructorToTypeWrapper(ctor, type, source, importNode.WeaklyTyped, leaf);
             }
             else
             {
@@ -3523,7 +3542,7 @@ namespace TaffyScriptCompiler.Backend
                         case ConstructorInfo ci:
                             if(!foundConstructor && AreMethodParametersSupported(ci.GetParameters()))
                             {
-                                AddConstructorToTypeWrapper(ci, type, source, importNode.WeaklyTyped);
+                                AddConstructorToTypeWrapper(ci, type, source, importNode.WeaklyTyped, leaf);
                                 foundConstructor = true;
                             }
                             break;
@@ -3899,7 +3918,7 @@ namespace TaffyScriptCompiler.Backend
             readOnly.Add(importName);
         }
 
-        private void AddConstructorToTypeWrapper(ConstructorInfo ctor, TypeBuilder type, FieldInfo source, bool isWeaklyTyped)
+        private void AddConstructorToTypeWrapper(ConstructorInfo ctor, TypeBuilder type, FieldInfo source, bool isWeaklyTyped, ImportObjectLeaf leaf)
         {
             var createMethod = type.DefineConstructor(MethodAttributes.Public |
                                                           MethodAttributes.HideBySig |
@@ -3939,6 +3958,8 @@ namespace TaffyScriptCompiler.Backend
                 emit.CallBase(typeof(Object).GetConstructor(Type.EmptyTypes));
 
             emit.Ret();
+
+            leaf.Constructor = createMethod;
         }
 
         private bool IsMethodSupported(MethodInfo method)

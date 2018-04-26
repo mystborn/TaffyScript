@@ -83,6 +83,7 @@
     <Compile Include="StringUtils.cs" />
     <Compile Include="Symbols\EnumLeaf.cs" />
     <Compile Include="Symbols\ImportLeaf.cs" />
+    <Compile Include="Symbols\ImportObjectLeaf.cs" />
     <Compile Include="Symbols\InvalidSymbolException.cs" />
     <Compile Include="Symbols\ISymbol.cs" />
     <Compile Include="Symbols\SymbolLeaf.cs" />

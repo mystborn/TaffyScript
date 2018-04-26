@@ -258,6 +258,8 @@ namespace TaffyScriptCompiler
             else
                 node = new ImportObjectNode(sb.ToString(), startPos);
 
+            _table.AddChild(new ImportObjectLeaf(_table.Current, node.ImportName.Value, node));
+
             node.ParseArguments(importArgs);
             if(!Try(TokenType.OpenBrace))
             {

@@ -1,4 +1,19 @@
+using UnitTest;
+
 namespace LanguageTests {
+
+    script run_import_tests() {
+        var tests = new obj_unit_test("Import Tests", import_create_ds_list);
+        tests.run_tests();
+    }
+
+    script import_create_ds_list() {
+        test_it("import new ds_list");
+        var list = new obj_list();
+        list.add("Hello");
+        var value = list.get(0);
+        assert_equal(value, "Hello");
+    }
     
     //Explicitly import class and method.
     import object List<TsObject> as obj_list {

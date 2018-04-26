@@ -17,6 +17,9 @@ namespace LanguageTests {
         run_prefix_tests();
         show_debug_message("");
         run_ternary_tests();
+        show_debug_message("");
+        run_import_tests();
+        show_debug_message("");
     }
 
     script timer_entry {
