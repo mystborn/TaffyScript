@@ -1,4 +1,5 @@
 using UnitTest;
+using TaffyScript.Collections;
 
 namespace LanguageTests {
 
@@ -9,13 +10,15 @@ namespace LanguageTests {
 
     script import_create_ds_list() {
         test_it("import new ds_list");
-        var list = new obj_list();
+        var list = new ds_list();
         list.add("Hello");
         var value = list.get(0);
         assert_equal(value, "Hello");
     }
     
     //Explicitly import class and method.
+    //Please note that this is an example created for the tests
+    //The BCL already has a ds_list import that should be used instead.
     import object List<TsObject> as obj_list {
         //Import fields and properties.
         Count as size;

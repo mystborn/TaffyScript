@@ -363,10 +363,22 @@ namespace TaffyScript
         }
 
         /// <summary>
-        /// Gets the instance that has an id matching the value held by this object.
+        /// Gets the instance held by this object.
         /// </summary>
         /// <returns></returns>
         public ITsInstance GetInstance()
+        {
+            if (Type != VariableType.Instance)
+                throw new InvalidTsTypeException($"Variable is supposed to be of type Instance, is {Type} instead.");
+
+            return (ITsInstance)Value.WeakValue;
+        }
+
+        /// <summary>
+        /// Gets the instance held by this object without checking its type.
+        /// </summary>
+        /// <returns></returns>
+        public ITsInstance GetInstanceUnchecked()
         {
             return (ITsInstance)Value.WeakValue;
         }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TaffyScript.Collections
 {
-    public class TsList : ObjectWrapper, ITsInstance
+    public class TsList : ITsInstance
     {
         private List<TsObject> _source = new List<TsObject>();
 
@@ -20,35 +20,40 @@ namespace TaffyScript.Collections
 
         public event DestroyedDelegate Destroyed;
 
+        public List<TsObject> Source => _source;
+
+        public TsList(TsObject[] args)
+        {
+        }
+
         public TsObject Call(string scriptName, params TsObject[] args)
         {
             switch(scriptName)
             {
                 case "add":
-                    if (args.Length == 1)
-                        _source.Add(args[0]);
-                    else
-                        _source.AddRange(args);
+                    _source.AddRange(args);
                     break;
                 case "clear":
                     _source.Clear();
                     break;
-                case "delete":
-                    _source.RemoveAt((int)args[0]);
-                    break;
-                case "_get":
+                case "get":
                     return _source[(int)args[0]];
-                case "_set":
-                    _source[(int)args[0]] = args[1];
-                    break;
                 case "insert":
                     _source.Insert((int)args[0], args[1]);
                     break;
+                case "index_of":
+                    return _source.IndexOf(args[0]);
+                case "remove":
+                    _source.RemoveAt((int)args[0]);
+                    break;
+                case "set":
+                    var index = (int)args[0];
+                    while (_source.Count <= index)
+                        _source.Add(TsObject.Empty());
+                    _source[index] = args[1];
+                    break;
                 default:
-                    if (Members.TryGetValue(scriptName, out var member) && member.Type == VariableType.Delegate)
-                        return member.GetDelegateUnchecked().Invoke(args);
-                    else
-                        throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
+                    throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
             }
             return TsObject.Empty();
         }
@@ -71,14 +76,11 @@ namespace TaffyScript.Collections
         {
             switch(name)
             {
-                case "size":
+                case "count":
                     return _source.Count;
                 default:
                     if (TryGetDelegate(name, out var del))
                         return del;
-
-                    if (Members.TryGetValue(name, out var member))
-                        return member;
 
                     throw new MemberAccessException($"Couldn't find member with the name {name}");
             }
@@ -86,20 +88,7 @@ namespace TaffyScript.Collections
 
         public void SetMember(string name, TsObject value)
         {
-            switch(name)
-            {
-                case "size":
-                case "add":
-                case "clear":
-                case "delete":
-                case "_get":
-                case "_set":
-                case "insert":
-                    throw new MemberAccessException($"Member {name} on type {ObjectType} is readonly");
-                default:
-                    Members[name] = value;
-                    break;
-            }
+            throw new MemberAccessException($"Member {name} on type {ObjectType} is readonly");
         }
 
         public bool TryGetDelegate(string scriptName, out TsDelegate del)
@@ -109,39 +98,72 @@ namespace TaffyScript.Collections
                     del = new TsDelegate(add, "add", this);
                     return true;
                 case "clear":
-                    del = new TsDelegate((i, a) => { _source.Clear(); return TsObject.Empty(); }, "clear", this);
+                    del = new TsDelegate(clear, "clear", this);
+                    return true;
+                case "get":
+                    del = new TsDelegate(get, "get", this);
+                    return true;
+                case "insert":
+                    del = new TsDelegate(insert, "insert", this);
+                    return true;
+                case "index_of":
+                    del = new TsDelegate(index_of, "index_of", this);
+                    return true;
+                case "remove":
+                    del = new TsDelegate(remove, "remove", this);
+                    return true;
+                case "set":
+                    del = new TsDelegate(set, "set", this);
                     return true;
                 case "delete":
                     del = new TsDelegate((i, a) => { _source.RemoveAt((int)a[0]); return TsObject.Empty(); }, "delete", this);
                     return true;
-                case "_get":
-                    del = new TsDelegate((i, a) => _source[(int)a[0]], "_get", this);
-                    return true;
-                case "_set":
-                    del = new TsDelegate((i, a) => { _source[(int)a[0]] = a[1]; return TsObject.Empty(); }, "_set", this);
-                    return true;
-                case "insert":
-                    del = new TsDelegate((i, a) => { _source.Insert((int)a[0], a[1]); return TsObject.Empty(); }, "insert", this);
-                    return true;
                 default:
-                    if(Members.TryGetValue(scriptName, out var member) && member.Type == VariableType.Delegate)
-                    {
-                        del = member.GetDelegateUnchecked();
-                        return true;
-                    }
                     del = null;
                     return false;
             }
         }
 
-        public static TsList New(params TsObject[] args)
-        {
-            return new TsList();
-        }
-
-        public TsObject add(ITsInstance isnt, TsObject[] args)
+        public TsObject add(ITsInstance inst, TsObject[] args)
         {
             _source.AddRange(args);
+            return TsObject.Empty();
+        }
+
+        public TsObject clear(ITsInstance inst, TsObject[] args)
+        {
+            _source.Clear();
+            return TsObject.Empty();
+        }
+
+        public TsObject get(ITsInstance inst, TsObject[] args)
+        {
+            return _source[(int)args[0]];
+        }
+
+        public TsObject insert(ITsInstance inst, TsObject[] args)
+        {
+            _source.Insert((int)args[0], args[1]);
+            return TsObject.Empty();
+        }
+
+        public TsObject index_of(ITsInstance inst, TsObject[] args)
+        {
+            return _source.IndexOf(args[0]);
+        }
+        
+        public TsObject remove(ITsInstance inst, TsObject[] args)
+        {
+            _source.RemoveAt((int)args[0]);
+            return TsObject.Empty();
+        }
+
+        public TsObject set(ITsInstance inst, TsObject[] args)
+        {
+            var index = (int)args[0];
+            while (_source.Count <= index)
+                _source.Add(TsObject.Empty());
+            _source[index] = args[1];
             return TsObject.Empty();
         }
     }

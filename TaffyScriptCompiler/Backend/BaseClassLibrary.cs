@@ -193,6 +193,10 @@ namespace TaffyScriptCompiler.Backend
             sb.AppendLine("import TsInstance.VariableInstanceGetNames(instance) as variable_instance_get_names");
             sb.AppendLine("import TsInstance.VariableInstanceSet(instance, string, object) as variable_instance_set");
 
+            sb.AppendLine("namespace TaffyScript.Collections {");
+            sb.AppendLine("import object TsList as ds_list");
+            sb.AppendLine("}");
+
             return sb.ToString();
         }
     }

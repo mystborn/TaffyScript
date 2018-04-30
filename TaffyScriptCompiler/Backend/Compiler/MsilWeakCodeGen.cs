@@ -1153,6 +1153,56 @@ namespace TaffyScriptCompiler.Backend
             var address = _needAddress;
             _needAddress = false;
             GetAddressIfPossible(arrayAccess.Left);
+            LocalBuilder secret = null;
+            var top = emit.GetTop();
+            if (top == typeof(TsObject))
+            {
+                secret = GetLocal();
+                emit.StLocal(secret)
+                    .LdLocalA(secret);
+                FreeLocal(secret);
+            }
+            else if (top != typeof(TsObject).MakePointerType())
+            {
+                _errors.Add(new CompileException($"Encountered invalid syntax {arrayAccess.Position}"));
+                return;
+            }
+
+            var isArray = emit.DefineLabel();
+            var end = emit.DefineLabel();
+
+            emit.Dup()
+                .Call(typeof(TsObject).GetMethod("get_Type"))
+                .LdInt((int)VariableType.Instance)
+                .Bne(isArray)
+                .Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                .LdStr("get")
+                .LdInt(arrayAccess.Children.Count - 1)
+                .NewArr(typeof(TsObject));
+
+            for(var i = 1; i < arrayAccess.Children.Count; i++)
+            {
+                emit.Dup()
+                    .LdInt(i - 1);
+                arrayAccess.Children[i].Accept(this);
+                ConvertTopToObject();
+                emit.StElem(typeof(TsObject));
+            }
+
+            emit.Call(typeof(ITsInstance).GetMethod("Call"));
+            if(address)
+            {
+                secret = GetLocal();
+                emit.StLocal(secret)
+                    .LdLocalA(secret);
+                FreeLocal(secret);
+            }
+
+            emit.Br(end)
+                .MarkLabel(isArray)
+                .PopTop() //The stack would get imbalanced here otherwise.
+                .PushType(typeof(TsObject).MakePointerType());
+
             CallInstanceMethod(TsTypes.ObjectCasts[arrayAccess.Children.Count == 2 ? typeof(TsObject[]) : typeof(TsObject[][])], arrayAccess.Position);
             LoadElementAsInt(arrayAccess.Children[1]);
 
@@ -1173,6 +1223,7 @@ namespace TaffyScriptCompiler.Backend
                 else
                     emit.LdElem(typeof(TsObject));
             }
+            emit.MarkLabel(end);
         }
 
         public void Visit(ArrayLiteralNode arrayLiteral)
@@ -3011,7 +3062,7 @@ namespace TaffyScriptCompiler.Backend
 
             //Process arguments
             ProcessScriptArguments(script);
-            
+
             script.Body.Accept(this);
             
             if (!emit.TryGetTop(out _))
@@ -3315,6 +3366,7 @@ namespace TaffyScriptCompiler.Backend
                 SpecialImports.Write(importNode.ImportName.Text);
                 SpecialImports.Write(':');
                 SpecialImports.WriteLine(importType.Name);
+                return;
             }
 
             var name = $"{ns}.{importNode.ImportName.Value}".TrimStart('.');
