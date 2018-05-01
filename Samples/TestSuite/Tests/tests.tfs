@@ -20,6 +20,10 @@ namespace LanguageTests {
         show_debug_message("");
         run_import_tests();
         show_debug_message("");
+        run_array_tests();
+        show_debug_message("");
+        run_list_tests();
+        show_debug_message("");
     }
 
     script timer_entry {

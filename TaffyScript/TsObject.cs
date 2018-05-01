@@ -583,7 +583,7 @@ namespace TaffyScript
             else if(index2 >= self.StrongValue[index1].Length)
             {
                 var temp = new TsObject[index2 + 1];
-                Array.Copy(self.StrongValue[index1], 0, temp, 0, self.StrongValue[index2].Length);
+                Array.Copy(self.StrongValue[index1], 0, temp, 0, self.StrongValue[index1].Length);
                 self.StrongValue[index1] = temp;
             }
             self.StrongValue[index1][index2] = right;

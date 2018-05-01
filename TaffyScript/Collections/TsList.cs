@@ -115,9 +115,6 @@ namespace TaffyScript.Collections
                 case "set":
                     del = new TsDelegate(set, "set", this);
                     return true;
-                case "delete":
-                    del = new TsDelegate((i, a) => { _source.RemoveAt((int)a[0]); return TsObject.Empty(); }, "delete", this);
-                    return true;
                 default:
                     del = null;
                     return false;

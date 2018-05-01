@@ -1268,18 +1268,58 @@ namespace TaffyScriptCompiler.Backend
                         .LdLocalA(secret);
                     FreeLocal(secret);
                 }
+                var isArray = emit.DefineLabel();
+                var end = emit.DefineLabel();
 
-                var argTypes = new Type[array.Children.Count];
-                for (var i = 1; i < array.Children.Count; i++)
+                emit.Dup()
+                    .Call(typeof(TsObject).GetMethod("get_Type"))
+                    .LdInt((int)VariableType.Instance)
+                    .Bne(isArray)
+                    .Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                    .LdStr("set")
+                    .LdInt(array.Indeces.Count + 1)
+                    .NewArr(typeof(TsObject));
+
+                for(var i = 0; i < array.Indeces.Count; i++)
                 {
-                    LoadElementAsInt(array.Children[i]);
-                    argTypes[i - 1] = typeof(int);
+                    emit.Dup()
+                        .LdInt(i);
+                    array.Indeces[i].Accept(this);
+                    ConvertTopToObject();
+                    emit.StElem(typeof(TsObject));
+                }
+                emit.Dup()
+                    .LdInt(array.Indeces.Count);
+                assign.Right.Accept(this);
+                ConvertTopToObject();
+                emit.StElem(typeof(TsObject))
+                    .Call(typeof(ITsInstance).GetMethod("Call"))
+                    .Pop()
+                    .Br(end)
+                    .PushType(typeof(TsObject).MakePointerType())
+                    .MarkLabel(isArray);
+
+                var argTypes = new Type[array.Indeces.Count + 1];
+
+                if(array.Indeces.Count > 2)
+                {
+                    _errors.Add(new CompileException("Cannot access array with a rank greater then 2"));
+                    emit.Pop()
+                        .Call(TsTypes.Empty);
+                    return;
+                }
+
+                for (var i = 0; i < array.Indeces.Count; i++)
+                {
+                    LoadElementAsInt(array.Indeces[i]);
+                    argTypes[i] = typeof(int);
                 }
 
                 assign.Right.Accept(this);
                 ConvertTopToObject();
                 argTypes[argTypes.Length - 1] = typeof(TsObject);
-                emit.Call(typeof(TsObject).GetMethod("ArraySet", argTypes));
+                emit.Call(typeof(TsObject).GetMethod("ArraySet", argTypes))
+                    .MarkLabel(end);
             }
             else if(assign.Left is ListAccessNode list)
             {
@@ -1395,17 +1435,115 @@ namespace TaffyScriptCompiler.Backend
         private void ProcessAssignExtra(AssignNode assign)
         {
             var op = assign.Text.Replace("=", "");
-            if (assign.Left.Type == SyntaxType.ArrayAccess || assign.Left.Type == SyntaxType.ArgumentAccess)
+            if (assign.Left.Type == SyntaxType.ArgumentAccess)
             {
-                //Because this has to access the array location,
-                //we can safely just get the address of the array elem and overwrite
-                //the data pointed to by that address.
                 GetAddressIfPossible(assign.Left);
                 emit.Dup()
                     .LdObj(typeof(TsObject));
                 assign.Right.Accept(this);
                 emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
                     .StObj(typeof(TsObject));
+            }
+            else if(assign.Left.Type == SyntaxType.ArrayAccess)
+            {
+                LocalBuilder secret;
+                var value = GetLocal();
+
+                var array = (ArrayAccessNode)assign.Left;
+                array.Left.Accept(this);
+                var top = emit.GetTop();
+                if(top == typeof(TsObject))
+                {
+                    secret = GetLocal();
+                    emit.StLocal(secret)
+                        .LdLocalA(secret);
+                    FreeLocal(secret);
+                }
+                else if (top != typeof(TsObject).MakePointerType())
+                {
+                    _errors.Add(new CompileException($"Encountered invalid syntax {array.Position}"));
+                    emit.Call(TsTypes.Empty);
+                    return;
+                }
+
+                var isArray = emit.DefineLabel();
+                var end = emit.DefineLabel();
+                secret = GetLocal(typeof(ITsInstance));
+
+                emit.Dup()
+                    .Call(typeof(TsObject).GetMethod("get_Type"))
+                    .LdInt((int)VariableType.Instance)
+                    .Bne(isArray)
+                    .Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                    .StLocal(secret)
+                    .LdLocal(secret)
+                    .LdStr("get")
+                    .LdInt(array.Indeces.Count)
+                    .NewArr(typeof(TsObject));
+
+                var indeces = new LocalBuilder[array.Indeces.Count];
+                for (var i = 0; i < array.Indeces.Count; i++)
+                {
+                    emit.Dup()
+                        .LdInt(i);
+                    array.Indeces[i].Accept(this);
+                    ConvertTopToObject();
+                    indeces[i] = GetLocal();
+                    emit.Dup()
+                        .StLocal(indeces[i])
+                        .StElem(typeof(TsObject));
+                }
+
+                emit.Call(typeof(ITsInstance).GetMethod("Call"));
+                assign.Right.Accept(this);
+                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
+                    .StLocal(value)
+                    .LdLocal(secret)
+                    .LdStr("set")
+                    .LdInt(indeces.Length + 1)
+                    .NewArr(typeof(TsObject));
+
+                FreeLocal(secret);
+
+                for(var i = 0; i < indeces.Length; i++)
+                {
+                    emit.Dup()
+                        .LdInt(i)
+                        .LdLocal(indeces[i])
+                        .StElem(typeof(TsObject));
+                    FreeLocal(indeces[i]);
+                }
+                emit.Dup()
+                    .LdInt(indeces.Length)
+                    .LdLocal(value)
+                    .StElem(typeof(TsObject))
+                    .Call(typeof(ITsInstance).GetMethod("Call"))
+                    .Pop()
+                    .Br(end)
+                    .PushType(typeof(TsObject).MakePointerType())
+                    .MarkLabel(isArray);
+
+                FreeLocal(value);
+
+                CallInstanceMethod(TsTypes.ObjectCasts[array.Children.Count == 2 ? typeof(TsObject[]) : typeof(TsObject[][])], array.Position);
+                LoadElementAsInt(array.Children[1]);
+
+                if (array.Children.Count == 2)
+                {
+                    emit.LdElemA(typeof(TsObject));
+                }
+                else
+                {
+                    emit.LdElem(typeof(TsObject[]));
+                    LoadElementAsInt(array.Children[2]);
+                    emit.LdElemA(typeof(TsObject));
+                }
+                emit.Dup()
+                    .LdObj(typeof(TsObject));
+                assign.Right.Accept(this);
+                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
+                    .StObj(typeof(TsObject))
+                    .MarkLabel(end);
             }
             else if (assign.Left is ListAccessNode list)
             {
@@ -2627,7 +2765,7 @@ namespace TaffyScriptCompiler.Backend
         public void Visit(PostfixNode postfix)
         {
             var secret = GetLocal();
-            if (postfix.Child.Type == SyntaxType.ArrayAccess || postfix.Child.Type == SyntaxType.ArgumentAccess)
+            if (postfix.Child.Type == SyntaxType.ArgumentAccess)
             {
                 GetAddressIfPossible(postfix.Child);
                 emit.Dup()
@@ -2638,6 +2776,114 @@ namespace TaffyScriptCompiler.Backend
                     .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
                     .StObj(typeof(TsObject))
                     .LdLocal(secret);
+            }
+            else if(postfix.Child.Type == SyntaxType.ArrayAccess)
+            {
+                var value = GetLocal();
+                var result = GetLocal();
+
+                var array = (ArrayAccessNode)postfix.Child;
+                array.Left.Accept(this);
+                var top = emit.GetTop();
+                if (top == typeof(TsObject))
+                {
+                    secret = GetLocal();
+                    emit.StLocal(secret)
+                        .LdLocalA(secret);
+                    FreeLocal(secret);
+                }
+                else if (top != typeof(TsObject).MakePointerType())
+                {
+                    _errors.Add(new CompileException($"Encountered invalid syntax {array.Position}"));
+                    emit.Call(TsTypes.Empty);
+                    return;
+                }
+
+                var isArray = emit.DefineLabel();
+                var end = emit.DefineLabel();
+                secret = GetLocal(typeof(ITsInstance));
+
+                emit.Dup()
+                    .Call(typeof(TsObject).GetMethod("get_Type"))
+                    .LdInt((int)VariableType.Instance)
+                    .Bne(isArray)
+                    .Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                    .StLocal(secret)
+                    .LdLocal(secret)
+                    .LdStr("get")
+                    .LdInt(array.Indeces.Count)
+                    .NewArr(typeof(TsObject));
+
+                var indeces = new LocalBuilder[array.Indeces.Count];
+                for (var i = 0; i < array.Indeces.Count; i++)
+                {
+                    emit.Dup()
+                        .LdInt(i);
+                    array.Indeces[i].Accept(this);
+                    ConvertTopToObject();
+                    indeces[i] = GetLocal();
+                    emit.Dup()
+                        .StLocal(indeces[i])
+                        .StElem(typeof(TsObject));
+                }
+
+                emit.Call(typeof(ITsInstance).GetMethod("Call"))
+                    .Dup()
+                    .StLocal(value)
+                    .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
+                    .StLocal(result)
+                    .LdLocal(secret)
+                    .LdStr("set")
+                    .LdInt(indeces.Length + 1)
+                    .NewArr(typeof(TsObject));
+
+                FreeLocal(secret);
+
+                for (var i = 0; i < indeces.Length; i++)
+                {
+                    emit.Dup()
+                        .LdInt(i)
+                        .LdLocal(indeces[i])
+                        .StElem(typeof(TsObject));
+                    FreeLocal(indeces[i]);
+                }
+                emit.Dup()
+                    .LdInt(indeces.Length)
+                    .LdLocal(result)
+                    .StElem(typeof(TsObject))
+                    .Call(typeof(ITsInstance).GetMethod("Call"))
+                    .Pop()
+                    .LdLocal(value)
+                    .Br(end)
+                    .PushType(typeof(TsObject).MakePointerType())
+                    .MarkLabel(isArray);
+
+                FreeLocal(result);
+
+                CallInstanceMethod(TsTypes.ObjectCasts[array.Children.Count == 2 ? typeof(TsObject[]) : typeof(TsObject[][])], array.Position);
+                LoadElementAsInt(array.Children[1]);
+
+                if (array.Children.Count == 2)
+                {
+                    emit.LdElemA(typeof(TsObject));
+                }
+                else
+                {
+                    emit.LdElem(typeof(TsObject[]));
+                    LoadElementAsInt(array.Children[2]);
+                    emit.LdElemA(typeof(TsObject));
+                }
+                emit.Dup()
+                    .LdObj(typeof(TsObject))
+                    .Dup()
+                    .StLocal(value)
+                    .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
+                    .StObj(typeof(TsObject))
+                    .LdLocal(value)
+                    .MarkLabel(end)
+                    .PopTop();
+
+                FreeLocal(value);
             }
             else if(postfix.Child is ListAccessNode list)
             {
@@ -2761,7 +3007,7 @@ namespace TaffyScriptCompiler.Backend
             if (prefix.Text == "++" || prefix.Text == "--")
             {
                 var secret = GetLocal();
-                if (prefix.Child.Type == SyntaxType.ArrayAccess || prefix.Child.Type == SyntaxType.ArgumentAccess)
+                if (prefix.Child.Type == SyntaxType.ArgumentAccess)
                 {
                     GetAddressIfPossible(prefix.Child);
                     emit.Dup()
@@ -2770,6 +3016,109 @@ namespace TaffyScriptCompiler.Backend
                         .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                         .StObj(typeof(TsObject))
                         .LdObj(typeof(TsObject));
+                }
+                else if (prefix.Child.Type == SyntaxType.ArrayAccess)
+                {
+                    var value = GetLocal();
+
+                    var array = (ArrayAccessNode)prefix.Child;
+                    array.Left.Accept(this);
+                    var top = emit.GetTop();
+                    if (top == typeof(TsObject))
+                    {
+                        secret = GetLocal();
+                        emit.StLocal(secret)
+                            .LdLocalA(secret);
+                        FreeLocal(secret);
+                    }
+                    else if (top != typeof(TsObject).MakePointerType())
+                    {
+                        _errors.Add(new CompileException($"Encountered invalid syntax {array.Position}"));
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+
+                    var isArray = emit.DefineLabel();
+                    var end = emit.DefineLabel();
+                    secret = GetLocal(typeof(ITsInstance));
+
+                    emit.Dup()
+                        .Call(typeof(TsObject).GetMethod("get_Type"))
+                        .LdInt((int)VariableType.Instance)
+                        .Bne(isArray)
+                        .Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                        .StLocal(secret)
+                        .LdLocal(secret)
+                        .LdStr("get")
+                        .LdInt(array.Indeces.Count)
+                        .NewArr(typeof(TsObject));
+
+                    var indeces = new LocalBuilder[array.Indeces.Count];
+                    for (var i = 0; i < array.Indeces.Count; i++)
+                    {
+                        emit.Dup()
+                            .LdInt(i);
+                        array.Indeces[i].Accept(this);
+                        ConvertTopToObject();
+                        indeces[i] = GetLocal();
+                        emit.Dup()
+                            .StLocal(indeces[i])
+                            .StElem(typeof(TsObject));
+                    }
+
+                    emit.Call(typeof(ITsInstance).GetMethod("Call"))
+                        .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
+                        .StLocal(value)
+                        .LdLocal(secret)
+                        .LdStr("set")
+                        .LdInt(indeces.Length + 1)
+                        .NewArr(typeof(TsObject));
+
+                    FreeLocal(secret);
+
+                    for (var i = 0; i < indeces.Length; i++)
+                    {
+                        emit.Dup()
+                            .LdInt(i)
+                            .LdLocal(indeces[i])
+                            .StElem(typeof(TsObject));
+                        FreeLocal(indeces[i]);
+                    }
+                    emit.Dup()
+                        .LdInt(indeces.Length)
+                        .LdLocal(value)
+                        .StElem(typeof(TsObject))
+                        .Call(typeof(ITsInstance).GetMethod("Call"))
+                        .Pop()
+                        .LdLocal(value)
+                        .Br(end)
+                        .PushType(typeof(TsObject).MakePointerType())
+                        .MarkLabel(isArray);
+
+                    CallInstanceMethod(TsTypes.ObjectCasts[array.Children.Count == 2 ? typeof(TsObject[]) : typeof(TsObject[][])], array.Position);
+                    LoadElementAsInt(array.Children[1]);
+
+                    if (array.Children.Count == 2)
+                    {
+                        emit.LdElemA(typeof(TsObject));
+                    }
+                    else
+                    {
+                        emit.LdElem(typeof(TsObject[]));
+                        LoadElementAsInt(array.Children[2]);
+                        emit.LdElemA(typeof(TsObject));
+                    }
+                    emit.Dup()
+                        .LdObj(typeof(TsObject))
+                        .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
+                        .Dup()
+                        .StLocal(value)
+                        .StObj(typeof(TsObject))
+                        .LdLocal(value)
+                        .MarkLabel(end)
+                        .PopTop();
+
+                    FreeLocal(value);
                 }
                 else if (prefix.Child is ListAccessNode list)
                 {
@@ -3592,12 +3941,12 @@ namespace TaffyScriptCompiler.Backend
                                     if(pi.CanRead && IsMethodSupported(pi.GetMethod))
                                     {
                                         foundIndexer = true;
-                                        AddMethodToTypeWrapper(pi.GetMethod, weakFlags, type, transformName("get"), importNode.Position, source, call, tryd, readOnly);
+                                        AddMethodToTypeWrapper(pi.GetMethod, weakFlags, type, "get", importNode.Position, source, call, tryd, readOnly);
                                     }
                                     if(pi.CanWrite && IsMethodSupported(pi.SetMethod))
                                     {
                                         foundIndexer = true;
-                                        AddMethodToTypeWrapper(pi.SetMethod, weakFlags, type, transformName("set"), importNode.Position, source, call, tryd, readOnly);
+                                        AddMethodToTypeWrapper(pi.SetMethod, weakFlags, type, "set", importNode.Position, source, call, tryd, readOnly);
                                     }
                                 }
                                 else
@@ -4009,7 +4358,7 @@ namespace TaffyScriptCompiler.Backend
                                                           MethodAttributes.SpecialName |
                                                           MethodAttributes.RTSpecialName,
                                                       CallingConventions.Standard,
-                                                      new[] { typeof(TsObject) });
+                                                      new[] { typeof(TsObject[]) });
 
             emit = new ILEmitter(createMethod, new[] { typeof(TsObject[]) });
             emit.LdArg(0);

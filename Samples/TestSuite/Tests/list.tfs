@@ -1,0 +1,154 @@
+using UnitTest;
+using TaffyScript.Collections;
+
+namespace LanguageTests {
+    script run_list_tests() {
+        var tests = new obj_unit_test("List Tests",
+                                      list_create,
+                                      list_add_one,
+                                      list_add_many,
+                                      list_clear,
+                                      list_insert,
+                                      list_index_of,
+                                      list_remove,
+                                      list_set_script_ib,
+                                      list_set_script_oob,
+                                      list_set_access_ib,
+                                      list_set_access_oob,
+                                      list_get_script_ib,
+                                      list_get_access_ib,
+                                      run_faulty_list_tests);
+        tests.run_tests();
+    }
+
+    script run_faulty_list_tests() {
+        assert(try_expect(list_get_script_oob, "ArgumentOutOfRangeException"));
+        assert(try_expect(list_get_access_oob, "ArgumentOutOfRangeException"));
+        assert(try_expect(list_call_non_existant_script, "MemberAccessException"));
+        assert(try_expect(list_get_non_existant_member, "MemberAccessException"));
+        test_it("faulty list");
+    }
+
+    script list_create() {
+        test_it("var l = new ds_list()");
+        var list = new ds_list();
+        assert_equal(object_get_name(list), "ds_list");
+    }
+
+    script list_add_one() {
+        test_it("list.add(val)");
+        var list = new ds_list()
+        list.add(2);
+        assert_equal(list.get(0), 2);
+        assert_equal(list.count, 1);
+    }
+
+    script list_add_many() {
+        test_it("list.add(val, val)");
+        var list = new ds_list();
+        list.add(2, 3);
+        assert_equal(list.get(0), 2);
+        assert_equal(list.count, 2);
+    }
+
+    script list_clear() {
+        test_it("list.clear()");
+        var list = new ds_list();
+        list.add(1);
+        assert_equal(list.count, 1);
+        list.clear();
+        assert_equal(list.count, 0);
+    }
+
+    script list_insert() {
+        test_it("list.insert(0, val)");
+        var list = new ds_list();
+        list.add(2);
+        list.insert(0, 3);
+        assert_equal(list.get(0), 3);
+    }
+
+    script list_index_of() {
+        test_it("list.index_of(val)");
+        var list = new ds_list();
+        list.add(0, 0, 2, 5, 6);
+        var index = list.index_of(5);
+        assert_equal(index, 3);
+    }
+
+    script list_remove() {
+        test_it("list.remove(val)");
+        var list = new ds_list();
+        list.add(2, 3, 4);
+        list.remove(1);
+        assert_equal(list.get(1), 4);
+    }
+
+    script list_set_script_ib() {
+        test_it("list.set(val (ib), val)");
+        var list = new ds_list();
+        list.add(0);
+        list.set(0, 33);
+        assert_equal(list.get(0), 33);
+    }
+
+    script list_set_script_oob() {
+        test_it("list.set(val (oob), val)");
+        var list = new ds_list();
+        list.set(1, 33);
+        assert_equal(list.get(1), 33);
+    }
+
+    script list_set_access_ib() {
+        test_it("list[val (ib)] = val");
+        var list = new ds_list();
+        list.add(0);
+        list[0] = 33;
+        assert_equal(list.get(0), 33);
+    }
+
+    script list_set_access_oob() {
+        test_it("list[val (oob)] = val");
+        var list = new ds_list();
+        list[1] = 33;
+        assert_equal(list.get(1), 33);
+    }
+
+    script list_get_script_ib() {
+        test_it("val = list.get(val (ib))");
+        var list = new ds_list();
+        list.add(20, 33);
+        assert_equal(list.get(1), 33);
+    }
+
+    script list_get_script_oob() {
+        test_it("val = list.get(val (oob))");
+        var list = new ds_list();
+        list.add(20);
+        var result = list.get(1);
+    }
+
+    script list_get_access_ib() {
+        test_it("val = list[val (ib)]");
+        var list = new ds_list();
+        list.add(33, 20);
+        assert_equal(list[1], 20);
+    }
+
+    script list_get_access_oob() {
+        test_it("val = list[val (oob)]");
+        var list = new ds_list();
+        list.add(20);
+        var result = list[1];
+    }
+
+    script list_call_non_existant_script() {
+        var list = new ds_list();
+        list.moo();
+    }
+
+    script list_get_non_existant_member() {
+        var list = new ds_list();
+        var result = list.member;
+    }
+}
