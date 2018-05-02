@@ -63,6 +63,13 @@ namespace TaffyScript.Collections
             }
         }
 
+        public void Clear(T value)
+        {
+            for (var h = 0; h < Height; h++)
+                for (var w = 0; w < Width; w++)
+                    _source[w, h] = value;
+        } 
+
         public void Shuffle()
         {
             Extensions.Shuffle(_source);

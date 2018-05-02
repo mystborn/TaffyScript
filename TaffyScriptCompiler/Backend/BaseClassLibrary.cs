@@ -195,6 +195,8 @@ namespace TaffyScriptCompiler.Backend
 
             sb.AppendLine("namespace TaffyScript.Collections {");
             sb.AppendLine("import object TsList as ds_list");
+            sb.AppendLine("import object TsMap as ds_map");
+            sb.AppendLine("import object TsGrid as ds_grid");
             sb.AppendLine("}");
 
             return sb.ToString();

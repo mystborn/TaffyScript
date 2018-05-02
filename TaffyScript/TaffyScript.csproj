@@ -51,7 +51,9 @@
     <Compile Include="Collections\Binder.cs" />
     <Compile Include="Collections\FastList.cs" />
     <Compile Include="Collections\Grid.cs" />
+    <Compile Include="Collections\TsGrid.cs" />
     <Compile Include="Collections\TsList.cs" />
+    <Compile Include="Collections\TsMap.cs" />
     <Compile Include="Exceptions\MemberAccessException.cs" />
     <Compile Include="Exceptions\UserDefinedException.cs" />
     <Compile Include="Extensions.cs" />

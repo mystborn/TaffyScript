@@ -1226,7 +1226,7 @@ namespace TaffyScriptCompiler
             var name = first.Value;
             while (Validate(TokenType.Dot))
             {
-                name += TokenType.Dot;
+                name += ".";
                 name += Confirm(TokenType.Identifier).Value;
             }
 

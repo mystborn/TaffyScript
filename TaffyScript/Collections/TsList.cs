@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 
 namespace TaffyScript.Collections
 {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     public class TsList : ITsInstance
     {
-        private List<TsObject> _source = new List<TsObject>();
+        private List<TsObject> _source;
 
         public TsObject this[string memberName]
         {
@@ -17,13 +18,18 @@ namespace TaffyScript.Collections
         }
 
         public string ObjectType => "ds_list";
+        public List<TsObject> Source => _source;
 
         public event DestroyedDelegate Destroyed;
 
-        public List<TsObject> Source => _source;
-
         public TsList(TsObject[] args)
         {
+            _source = new List<TsObject>();
+        }
+
+        public TsList(IEnumerable<TsObject> source)
+        {
+            _source = new List<TsObject>(source);
         }
 
         public TsObject Call(string scriptName, params TsObject[] args)
@@ -36,6 +42,8 @@ namespace TaffyScript.Collections
                 case "clear":
                     _source.Clear();
                     break;
+                case "copy":
+                    return new TsList(_source);
                 case "get":
                     return _source[(int)args[0]];
                 case "insert":
@@ -100,6 +108,9 @@ namespace TaffyScript.Collections
                 case "clear":
                     del = new TsDelegate(clear, "clear", this);
                     return true;
+                case "copy":
+                    del = new TsDelegate(copy, "copy", this);
+                    return true;
                 case "get":
                     del = new TsDelegate(get, "get", this);
                     return true;
@@ -121,6 +132,18 @@ namespace TaffyScript.Collections
             }
         }
 
+        public static explicit operator TsList(TsObject obj)
+        {
+            return (TsList)obj.Value.WeakValue;
+        }
+
+        public static implicit operator TsObject(TsList list)
+        {
+            return new TsObject(list);
+        }
+
+#pragma warning disable IDE1006 // Naming Styles
+
         public TsObject add(ITsInstance inst, TsObject[] args)
         {
             _source.AddRange(args);
@@ -131,6 +154,11 @@ namespace TaffyScript.Collections
         {
             _source.Clear();
             return TsObject.Empty();
+        }
+
+        public TsObject copy(ITsInstance inst, TsObject[] args)
+        {
+            return new TsList(_source);
         }
 
         public TsObject get(ITsInstance inst, TsObject[] args)
