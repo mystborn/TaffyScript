@@ -70,14 +70,6 @@ namespace TaffyScriptCompiler.Syntax
                     return new ConditionalNode(null, position);
                 case SyntaxType.MemberAccess:
                     return new MemberAccessNode(null, position);
-                case SyntaxType.ListAccess:
-                    return new ListAccessNode(null, position);
-                case SyntaxType.GridAccess:
-                    return new GridAccessNode(null, position);
-                case SyntaxType.MapAccess:
-                    return new MapAccessNode(null, position);
-                case SyntaxType.ExplicitArrayAccess:
-                    return new ExplicitArrayAccessNode(null, position);
                 case SyntaxType.ArrayAccess:
                     return new ArrayAccessNode(null, position);
                 case SyntaxType.ArgumentAccess:

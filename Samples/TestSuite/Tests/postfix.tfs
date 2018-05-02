@@ -12,6 +12,7 @@ namespace LanguageTests {
                                       postfix_local_var_increment,
                                       postfix_local_var_decrement,
                                       postfix_global_var_increment,
+                                      postfix_global_var_decrement,
                                       postfix_local_var_decrement,
                                       postfix_local_object_var_increment,
                                       postfix_local_object_var_decrement,

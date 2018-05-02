@@ -1400,32 +1400,6 @@ namespace TaffyScriptCompiler.Backend
                         .Pop();
                 }
             }
-            else if(assign.Left is ListAccessNode list)
-            {
-                LoadElementAsInt(list.Left);
-                LoadElementAsInt(list.Right);
-                assign.Right.Accept(this);
-                ConvertTopToObject();
-                emit.Call(typeof(DsList).GetMethod("DsListSet", new[] { typeof(int), typeof(int), typeof(TsObject) }));
-            }
-            else if(assign.Left is GridAccessNode grid)
-            {
-                LoadElementAsInt(grid.Left);
-                LoadElementAsInt(grid.X);
-                LoadElementAsInt(grid.Y);
-                assign.Right.Accept(this);
-                ConvertTopToObject();
-                emit.Call(typeof(DsGrid).GetMethod("DsGridSet"));
-            }
-            else if(assign.Left is MapAccessNode map)
-            {
-                LoadElementAsInt(map.Left);
-                map.Right.Accept(this);
-                ConvertTopToObject();
-                assign.Right.Accept(this);
-                ConvertTopToObject();
-                emit.Call(typeof(DsMap).GetMethod("DsMapReplace"));
-            }
             else if (assign.Left is VariableToken variable)
             {
                 //Check if the variable is a local variable.
@@ -1677,30 +1651,6 @@ namespace TaffyScriptCompiler.Backend
                     FreeLocal(value);
                 }
             }
-            else if (assign.Left is ListAccessNode list)
-            {
-                ListAccessSet(list, 2);
-                emit.Call(typeof(List<TsObject>).GetMethod("get_Item"));
-                assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
-                    .Call(typeof(List<TsObject>).GetMethod("set_Item", new[] { typeof(int), typeof(TsObject) }));
-            }
-            else if (assign.Left is GridAccessNode grid)
-            {
-                GridAccessSet(grid);
-                emit.Call(typeof(Grid<TsObject>).GetMethod("get_Item"));
-                assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
-                    .Call(typeof(Grid<TsObject>).GetMethod("set_Item"));
-            }
-            else if (assign.Left is MapAccessNode map)
-            {
-                MapAccessSet(map);
-                emit.Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("get_Item"));
-                assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
-                    .Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("set_Item"));
-            }
             else if(assign.Left is VariableToken variable)
             {
                 if (_table.Defined(variable.Text, out var symbol))
@@ -1781,69 +1731,6 @@ namespace TaffyScriptCompiler.Backend
                     FreeLocal(secret);
                 }
             }
-        }
-
-        private void ListAccessSet(ListAccessNode listAccess, int accesses)
-        {
-            var id = GetLocal(typeof(List<TsObject>));
-            var index = GetLocal(typeof(int));
-
-            LoadElementAsInt(listAccess.Left);
-            emit.Call(typeof(DsList).GetMethod("DsListGet"))
-                .StLocal(id);
-
-            LoadElementAsInt(listAccess.Right);
-            emit.StLocal(index);
-            for(var i = 0; i < accesses; i++)
-            {
-                emit.LdLocal(id)
-                    .LdLocal(index);
-            }
-            FreeLocal(id);
-            FreeLocal(index);
-        }
-
-        private void GridAccessSet(GridAccessNode grid)
-        {
-            var id = GetLocal(typeof(Grid<TsObject>));
-            var x = GetLocal(typeof(int));
-            var y = GetLocal(typeof(int));
-            LoadElementAsInt(grid.Left);
-            emit.Call(typeof(DsGrid).GetMethod("DsGridGetGrid"))
-                .StLocal(id);
-            LoadElementAsInt(grid.X);
-            emit.StLocal(x);
-            LoadElementAsInt(grid.Y);
-            emit.StLocal(y)
-                .LdLocal(id)
-                .LdLocal(x)
-                .LdLocal(y)
-                .LdLocal(id)
-                .LdLocal(x)
-                .LdLocal(y);
-            FreeLocal(id);
-            FreeLocal(x);
-            FreeLocal(y);
-        }
-
-        private void MapAccessSet(MapAccessNode map)
-        {
-            var id = GetLocal(typeof(Dictionary<TsObject, TsObject>));
-            var key = GetLocal();
-            LoadElementAsInt(map.Left);
-            emit.Call(typeof(DsMap).GetMethod("DsMapGet"))
-                .StLocal(id);
-
-            map.Right.Accept(this);
-            ConvertTopToObject();
-            emit.StLocal(key);
-            emit.LdLocal(id)
-                .LdLocal(key)
-                .LdLocal(id)
-                .LdLocal(key);
-
-            FreeLocal(id);
-            FreeLocal(key);
         }
 
         private void SelfAccessSet(VariableToken variable)
@@ -2149,11 +2036,6 @@ namespace TaffyScriptCompiler.Backend
             emit.Ret();
         }
 
-        public void Visit(ExplicitArrayAccessNode explicitArrayAccess)
-        {
-            _errors.Add(new NotImplementedException($"Currently explicit array access is not available {explicitArrayAccess.Position}."));
-        }
-
         public void Visit(ForNode forNode)
         {
             var forStart = emit.DefineLabel();
@@ -2351,14 +2233,6 @@ namespace TaffyScriptCompiler.Backend
             }
         }
 
-        public void Visit(GridAccessNode gridAccess)
-        {
-            LoadElementAsInt(gridAccess.Left);
-            LoadElementAsInt(gridAccess.X);
-            LoadElementAsInt(gridAccess.Y);
-            emit.Call(typeof(DsGrid).GetMethod("DsGridGet"));
-        }
-
         public void Visit(IfNode ifNode)
         {
             // If there is no else node, just let execution flow naturally.
@@ -2446,13 +2320,6 @@ namespace TaffyScriptCompiler.Backend
             }
             else
                 GenerateWeakMethodForImport(method, internalName);
-        }
-
-        public void Visit(ListAccessNode listAccess)
-        {
-            LoadElementAsInt(listAccess.Left);
-            LoadElementAsInt(listAccess.Right);
-            emit.Call(typeof(DsList).GetMethod("DsListFindValue"));
         }
 
         private void LoadElementAsInt(ISyntaxElement element)
@@ -2556,14 +2423,6 @@ namespace TaffyScriptCompiler.Backend
                 _errors.Add(new CompileException($"Encountered invalid syntax {logical.Right.Position}"));
 
             emit.MarkLabel(end);
-        }
-
-        public void Visit(MapAccessNode mapAccess)
-        {
-            LoadElementAsInt(mapAccess.Left);
-            mapAccess.Right.Accept(this);
-            ConvertTopToObject();
-            emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"));
         }
 
         public void Visit(MemberAccessNode memberAccess)
@@ -3069,42 +2928,6 @@ namespace TaffyScriptCompiler.Backend
                 FreeLocal(value);
                 FreeLocal(secret);
             }
-            else if(postfix.Child is ListAccessNode list)
-            {
-                var secret = GetLocal();
-                ListAccessSet(list, 2);
-                emit.Call(typeof(List<TsObject>).GetMethod("get_Item"))
-                    .StLocal(secret)
-                    .LdLocal(secret)
-                    .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
-                    .Call(typeof(List<TsObject>).GetMethod("set_Item"))
-                    .LdLocal(secret);
-                FreeLocal(secret);
-            }
-            else if(postfix.Child is GridAccessNode grid)
-            {
-                var secret = GetLocal();
-                GridAccessSet(grid);
-                emit.Call(typeof(Grid<TsObject>).GetMethod("get_Item"))
-                    .StLocal(secret)
-                    .LdLocal(secret)
-                    .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
-                    .Call(typeof(Grid<TsObject>).GetMethod("set_Item"))
-                    .LdLocal(secret);
-                FreeLocal(secret);
-            }
-            else if(postfix.Child is MapAccessNode map)
-            {
-                var secret = GetLocal();
-                MapAccessSet(map);
-                emit.Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("get_Item"))
-                    .StLocal(secret)
-                    .LdLocal(secret)
-                    .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
-                    .Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("set_Item"))
-                    .LdLocal(secret);
-                FreeLocal(secret);
-            }
             else if (postfix.Child is VariableToken variable)
             {
                 var secret = GetLocal();
@@ -3198,9 +3021,9 @@ namespace TaffyScriptCompiler.Backend
             //These operators need special handling
             if (prefix.Text == "++" || prefix.Text == "--")
             {
-                var secret = GetLocal();
                 if (prefix.Child.Type == SyntaxType.ArgumentAccess)
                 {
+                    var secret = GetLocal();
                     GetAddressIfPossible(prefix.Child);
                     emit.Dup()
                         .Dup()
@@ -3208,6 +3031,7 @@ namespace TaffyScriptCompiler.Backend
                         .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                         .StObj(typeof(TsObject))
                         .LdObj(typeof(TsObject));
+                    FreeLocal(secret);
                 }
                 else if (prefix.Child.Type == SyntaxType.ArrayAccess)
                 {
@@ -3218,10 +3042,10 @@ namespace TaffyScriptCompiler.Backend
                     var top = emit.GetTop();
                     if (top == typeof(TsObject))
                     {
-                        secret = GetLocal();
-                        emit.StLocal(secret)
-                            .LdLocalA(secret);
-                        FreeLocal(secret);
+                        var temp = GetLocal();
+                        emit.StLocal(temp)
+                            .LdLocalA(temp);
+                        FreeLocal(temp);
                     }
                     else if (top != typeof(TsObject).MakePointerType())
                     {
@@ -3232,8 +3056,7 @@ namespace TaffyScriptCompiler.Backend
 
                     var isArray = emit.DefineLabel();
                     var end = emit.DefineLabel();
-                    FreeLocal(secret);
-                    secret = GetLocal(typeof(ITsInstance));
+                    var secret = GetLocal(typeof(ITsInstance));
 
                     if (CanBeArrayAccess(array))
                     {
@@ -3358,38 +3181,8 @@ namespace TaffyScriptCompiler.Backend
                             .Pop()
                             .LdLocal(value);
                     }
-
+                    FreeLocal(secret);
                     FreeLocal(value);
-                }
-                else if (prefix.Child is ListAccessNode list)
-                {
-                    ListAccessSet(list, 2);
-                    emit.Call(typeof(List<TsObject>).GetMethod("get_Item"))
-                        .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
-                        .Dup()
-                        .StLocal(secret)
-                        .Call(typeof(List<TsObject>).GetMethod("set_Item"))
-                        .LdLocal(secret);
-                }
-                else if (prefix.Child is GridAccessNode grid)
-                {
-                    GridAccessSet(grid);
-                    emit.Call(typeof(Grid<TsObject>).GetMethod("get_Item"))
-                        .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
-                        .Dup()
-                        .StLocal(secret)
-                        .Call(typeof(Grid<TsObject>).GetMethod("set_Item"))
-                        .LdLocal(secret);
-                }
-                else if (prefix.Child is MapAccessNode map)
-                {
-                    MapAccessSet(map);
-                    emit.Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("get_Item"))
-                        .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
-                        .Dup()
-                        .StLocal(secret)
-                        .Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("set_Item"))
-                        .LdLocal(secret);
                 }
                 else if (prefix.Child is VariableToken variable)
                 {
@@ -3404,6 +3197,7 @@ namespace TaffyScriptCompiler.Backend
                     }
                     else
                     {
+                        var secret = GetLocal();
                         SelfAccessSet(variable);
                         emit.Call(typeof(ITsInstance).GetMethod("get_Item"))
                             .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
@@ -3411,6 +3205,7 @@ namespace TaffyScriptCompiler.Backend
                             .LdLocal(secret)
                             .Call(typeof(ITsInstance).GetMethod("set_Item"))
                             .LdLocal(secret);
+                        FreeLocal(secret);
                     }
                 }
                 else if (prefix.Child is MemberAccessNode member)
@@ -3421,6 +3216,7 @@ namespace TaffyScriptCompiler.Backend
                         emit.Call(TsTypes.Empty);
                         return;
                     }
+                    var secret = GetLocal();
                     if (member.Left is ReadOnlyToken read)
                     {
                         Func<ILEmitter> loadTarget = GetReadOnlyLoadFunc(read);
@@ -3455,11 +3251,10 @@ namespace TaffyScriptCompiler.Backend
 
                         FreeLocal(target);
                     }
+                    FreeLocal(secret);
                 }
                 else
                     _errors.Add(new CompileException($"Invalid syntax detected {prefix.Position}"));
-
-                FreeLocal(secret);
             }
             else
             {

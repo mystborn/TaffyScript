@@ -69,7 +69,6 @@ namespace TaffyScriptCompiler.FrontEnd
         Return,
         Script,
         SemiColon,
-        Sharp,
         ShiftLeft,
         ShiftRight,
         String,

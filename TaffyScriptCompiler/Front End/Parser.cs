@@ -934,15 +934,7 @@ namespace TaffyScriptCompiler
                         Throw(new InvalidTokenException(accessToken, "Cannot use an accessor on a newed value"));
                         return value;
                     }
-                    ISyntaxNode access;
-                    if (Validate(TokenType.BitwiseOr))
-                        access = _factory.CreateNode(SyntaxType.ListAccess, value.Position);
-                    else if (Validate(TokenType.Sharp))
-                        access = _factory.CreateNode(SyntaxType.GridAccess, value.Position);
-                    else if (Validate(TokenType.QuestionMark))
-                        access = _factory.CreateNode(SyntaxType.MapAccess, value.Position);
-                    else
-                        access = _factory.CreateNode(SyntaxType.ArrayAccess, value.Position);
+                    ISyntaxNode access = _factory.CreateNode(SyntaxType.ArrayAccess, value.Position);
 
                     access.AddChild(value);
                     access.AddChild(Expression());

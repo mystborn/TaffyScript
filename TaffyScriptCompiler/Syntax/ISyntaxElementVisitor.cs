@@ -43,10 +43,6 @@ namespace TaffyScriptCompiler.Syntax
         void Visit(ImportNode import);
         void Visit(PostfixNode postfix);
         void Visit(ArrayAccessNode arrayAccess);
-        void Visit(ExplicitArrayAccessNode explicitArrayAccess);
-        void Visit(MapAccessNode mapAccess);
-        void Visit(GridAccessNode gridAccess);
-        void Visit(ListAccessNode listAccess);
         void Visit(MemberAccessNode memberAccess);
         void Visit(FunctionCallNode functionCall);
         void Visit(ConditionalNode conditional);

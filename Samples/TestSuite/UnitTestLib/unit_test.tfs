@@ -2,6 +2,8 @@
 //To find more information, you can view the project here:
 //https://github.com/gm-core/gamatas
 
+using TaffyScript.Collections;
+
 namespace UnitTest {
     object obj_unit_test {
         event create(test_suite_name) {
@@ -12,22 +14,18 @@ namespace UnitTest {
             tests_failed = false;
             test_suite = test_suite_name;
             test_description = "";
-            tests = ds_list_create();
+            tests = new ds_list();
             for(var i = 1; i < argument_count; i++) {
-                ds_list_add(tests, argument[i]);
+                tests.add(argument[i]);
             }
         }
 
-        event destroy() {
-            ds_list_destroy(tests);
-        }
-
         event run_tests() {
-            var count = ds_list_size(tests);
+            var count = tests.count;
             for(var i = 0; i < count; i++) {
                 global._unit_test = self;
                 test_description = "";
-                tests[| i]();
+                tests[i]();
                 show_debug_message(string(test_description) + " tests have passed.");
             }
             if(tests_failed)

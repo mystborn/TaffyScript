@@ -46,8 +46,6 @@
     <Compile Include="Attributes\WeakBaseTypeAttribute.cs" />
     <Compile Include="BaseClassLib\BaseClassLibrary.cs" />
     <Compile Include="BaseClassLib\DataStructureDisposedException.cs" />
-    <Compile Include="BaseClassLib\DsList.cs" />
-    <Compile Include="BaseClassLib\DsMap.cs" />
     <Compile Include="Collections\Binder.cs" />
     <Compile Include="Collections\FastList.cs" />
     <Compile Include="Collections\Grid.cs" />
@@ -64,7 +62,6 @@
     <Compile Include="TsInstance.cs" />
     <Compile Include="TsObject.cs" />
     <Compile Include="TsValue.cs" />
-    <Compile Include="BaseClassLib\DsGrid.cs" />
     <Compile Include="Exceptions\InvalidTsTypeException.cs" />
     <Compile Include="Exceptions\InvalidInstanceException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

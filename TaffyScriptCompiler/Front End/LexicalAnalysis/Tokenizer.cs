@@ -143,7 +143,6 @@ namespace TaffyScriptCompiler.FrontEnd
                 { "%", TokenType.Modulo },
                 { ",", TokenType.Comma },
                 { "?", TokenType.QuestionMark },
-                { "#", TokenType.Sharp },
                 { ":", TokenType.Colon },
             };
             for (var i = 0; i < 16; i++)
