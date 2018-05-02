@@ -1,0 +1,147 @@
+using UnitTest;
+using TaffyScript.Collections;
+
+namespace LanguageTests {
+    script run_map_tests() {
+        var tests = new obj_unit_test("Map Tests",
+                                      map_create,
+                                      map_add_new,
+                                      map_add_duplicate,
+                                      map_clear,
+                                      map_remove_true,
+                                      map_remove_false,
+                                      map_contains_key_true,
+                                      map_contains_key_false,
+                                      map_copy,
+                                      map_keys_some,
+                                      map_keys_none,
+                                      map_get_script,
+                                      map_get_access,
+                                      map_set_script,
+                                      map_set_access);
+
+        tests.run_tests();
+    }
+
+    script map_create() {
+        test_it("var m = new ds_map()");
+        var map = new ds_map();
+        assert_equal(object_get_name(map), "ds_map");
+    }
+
+    script map_add_new() {
+        test_it("map.add(key (uniq), val)");
+        var map = new ds_map();
+        assert(map.add("key", "val"));
+        assert_equal(map.count, 1);
+    }
+
+    script map_add_duplicate() {
+        test_it("map.add(key (dup), val)");
+        var map = new ds_map();
+        assert(map.add("key", 4));
+        assert_is_false(map.add("key", "val"));
+        assert_equal(map.count, 1);
+    }
+
+    script map_clear() {
+        test_it("map.clear()");
+        var map = new ds_map();
+        map.add(0, 2);
+        map.add("moo", "cow");
+        assert_equal(map.count, 2);
+        map.clear();
+        assert_equal(map.count, 0);
+    }
+
+    script map_remove_true() {
+        test_it("map.remove(key) == true");
+        var map = new ds_map();
+        map.add(0, 2);
+        map.add("moo", "cow");
+        assert_equal(map.count, 2);
+        assert(map.remove(0));
+        assert_equal(map.count, 1);
+    }
+
+    script map_remove_false() {
+        test_it("map.remove(key) == false");
+        var map = new ds_map();
+        map.add(0, 2);
+        map.add("moo", "cow");
+        assert_equal(map.count, 2);
+        assert_is_false(map.remove(1));
+        assert_equal(map.count, 2);
+    }
+
+    script map_contains_key_true() {
+        test_it("map.contains_key(key) == true");
+        var map = new ds_map();
+        map.add(0, 2);
+        map.add("moo", "cow");
+        assert(map.contains_key("moo"));
+    }
+
+    script map_contains_key_false() {
+        test_it("map.contains_key(key) == false");
+        var map = new ds_map();
+        map.add(0, 2);
+        map.add("moo", "cow");
+        assert_is_false(map.contains_key("cow"));
+    }
+
+    script map_copy() {
+        test_it("map.copy()");
+        var map = new ds_map();
+        map.add(0, 2);
+        map.add("moo", "cow");
+        var copy = map.copy();
+        assert_equal(map.count, 2);
+        assert_equal(map.count, copy.count);
+        assert_is_false(map == copy);
+    }
+
+    script map_keys_some() {
+        test_it("map.keys.length > 0");
+        var map = new ds_map();
+        map.add(0, 2);
+        map.add("moo", "cow");
+        var keys = map.keys;
+        assert_equal(array_length_1d(keys), 2);
+    }
+
+    script map_keys_none() {
+        test_it("map.keys.length == 0");
+        var map = new ds_map();
+        var keys = map.keys;
+        assert_equal(array_length_1d(keys), 0);
+    }
+
+    script map_get_script() {
+        test_it("map.get(key)");
+        var map = new ds_map();
+        map.add("moo", "cow");
+        assert_equal(map.get("moo"), "cow");
+    }
+
+    script map_get_access() {
+        test_it("val = map[key]");
+        var map = new ds_map();
+        map.add("moo", "cow");
+        assert_equal(map["moo"], "cow");
+    }
+
+    script map_set_script() {
+        test_it("map.set(key, val)");
+        var map = new ds_map();
+        map.set("moo", "cow");
+        assert_equal(map["moo"], "cow");
+    }
+
+    script map_set_access() {
+        test_it("map[key] = val");
+        var map = new ds_map();
+        map["moo"] = "cow";
+        assert_equal(map["moo"], "cow");
+    }
+}

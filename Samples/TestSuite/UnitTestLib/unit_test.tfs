@@ -134,7 +134,7 @@ namespace UnitTest {
         var msg = argument0;
         show_debug_message(msg);
         show_debug_message(global._unit_test.test_description);
-        show_debug_message("In suite " + test_suite);
+        show_debug_message("In suite " + global._unit_test.test_suite);
 
         global._unit_test.tests_failed = true;
     }
