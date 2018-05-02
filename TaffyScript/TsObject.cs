@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TaffyScript.Collections;
 
 namespace TaffyScript
 {
@@ -167,10 +168,10 @@ namespace TaffyScript
         /// Creates a TaffyScript object from an instances id.
         /// </summary>
         /// <param name="instance">The instance to get the id from.</param>
-        public TsObject(TsInstance instance)
+        public TsObject(ITsInstance instance)
         {
-            Type = VariableType.Real;
-            Value = new TsImmutableValue<float>(instance.Id);
+            Type = VariableType.Instance;
+            Value = new TsImmutableValue<ITsInstance>(instance);
         }
 
         /// <summary>
@@ -363,14 +364,24 @@ namespace TaffyScript
         }
 
         /// <summary>
-        /// Gets the instance that has an id matching the value held by this object.
+        /// Gets the instance held by this object.
         /// </summary>
         /// <returns></returns>
-        public TsInstance GetInstance()
+        public ITsInstance GetInstance()
         {
-            if (!TsInstance.TryGetInstance(GetInt(), out var inst))
-                throw new InvalidInstanceException();
-            return inst;
+            if (Type != VariableType.Instance)
+                throw new InvalidTsTypeException($"Variable is supposed to be of type Instance, is {Type} instead.");
+
+            return (ITsInstance)Value.WeakValue;
+        }
+
+        /// <summary>
+        /// Gets the instance held by this object without checking its type.
+        /// </summary>
+        /// <returns></returns>
+        public ITsInstance GetInstanceUnchecked()
+        {
+            return (ITsInstance)Value.WeakValue;
         }
 
         /// <summary>
@@ -573,7 +584,7 @@ namespace TaffyScript
             else if(index2 >= self.StrongValue[index1].Length)
             {
                 var temp = new TsObject[index2 + 1];
-                Array.Copy(self.StrongValue[index1], 0, temp, 0, self.StrongValue[index2].Length);
+                Array.Copy(self.StrongValue[index1], 0, temp, 0, self.StrongValue[index1].Length);
                 self.StrongValue[index1] = temp;
             }
             self.StrongValue[index1][index2] = right;
@@ -764,7 +775,7 @@ namespace TaffyScript
 
         public static explicit operator TsInstance(TsObject right)
         {
-            return right.GetInstance();
+            return (TsInstance)right.GetInstance();
         }
 
         public static explicit operator TsDelegate(TsObject right)

@@ -82,7 +82,6 @@ namespace TaffyScriptCompiler.FrontEnd
                 { "case", TokenType.Case },
                 { "default", TokenType.Default },
                 { "enum", TokenType.Enum },
-                { "with", TokenType.With },
                 { "import", TokenType.Import },
                 { "script", TokenType.Script },
                 { "argument", TokenType.Argument },
@@ -144,7 +143,6 @@ namespace TaffyScriptCompiler.FrontEnd
                 { "%", TokenType.Modulo },
                 { ",", TokenType.Comma },
                 { "?", TokenType.QuestionMark },
-                { "#", TokenType.Sharp },
                 { ":", TokenType.Colon },
             };
             for (var i = 0; i < 16; i++)

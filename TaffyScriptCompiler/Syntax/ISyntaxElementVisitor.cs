@@ -14,6 +14,7 @@ namespace TaffyScriptCompiler.Syntax
         void Visit(ExitToken exitToken);
         void Visit(NewNode newNode);
         void Visit(NamespaceNode namespaceNode);
+        void Visit(ImportObjectNode importObjectNode);
         void Visit(ObjectNode objectNode);
         void Visit(ContinueToken continueToken);
         void Visit(UsingsNode usingsNode);
@@ -32,7 +33,6 @@ namespace TaffyScriptCompiler.Syntax
         void Visit(IConstantToken constantToken);
         void Visit(ForNode @for);
         void Visit(DoNode @do);
-        void Visit(WithNode with);
         void Visit(WhileNode @while);
         void Visit(DefaultNode @default);
         void Visit(PrefixNode prefix);
@@ -43,10 +43,6 @@ namespace TaffyScriptCompiler.Syntax
         void Visit(ImportNode import);
         void Visit(PostfixNode postfix);
         void Visit(ArrayAccessNode arrayAccess);
-        void Visit(ExplicitArrayAccessNode explicitArrayAccess);
-        void Visit(MapAccessNode mapAccess);
-        void Visit(GridAccessNode gridAccess);
-        void Visit(ListAccessNode listAccess);
         void Visit(MemberAccessNode memberAccess);
         void Visit(FunctionCallNode functionCall);
         void Visit(ConditionalNode conditional);

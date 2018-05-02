@@ -61,5 +61,13 @@ namespace TaffyScript
         /// <param name="delegateName">The name of the delegate.</param>
         /// <returns></returns>
         TsDelegate GetDelegate(string delegateName);
+
+        /// <summary>
+        /// Calls a script defined or assigned to the instance.
+        /// </summary>
+        /// <param name="scriptName">The name of the script to call.</param>
+        /// <param name="args">Any arguments to pass to the script.</param>
+        /// <returns>Script result.</returns>
+        TsObject Call(string scriptName, params TsObject[] args);
     }
 }

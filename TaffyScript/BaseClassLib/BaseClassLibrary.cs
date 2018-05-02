@@ -93,7 +93,7 @@ namespace TaffyScript
         /// <param name="args"></param>
         /// <returns></returns>
         [WeakMethod]
-        public static TsObject ArrayCreate(TsInstance target, TsObject[] args)
+        public static TsObject ArrayCreate(ITsInstance target, TsObject[] args)
         {
             var size = args[0].GetInt();
             var value = TsObject.Empty();
@@ -154,7 +154,7 @@ namespace TaffyScript
         }
 
         [WeakMethod]
-        public static TsObject Choose(TsInstance target, TsObject[] args)
+        public static TsObject Choose(ITsInstance target, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentException("There must be at least one argument passed to Choose.");
@@ -177,23 +177,23 @@ namespace TaffyScript
         }
 
         [WeakMethod]
-        public static TsObject EventInherited(TsInstance inst, TsObject[] args)
+        public static TsObject EventInherited(ITsInstance inst, TsObject[] args)
         {
-            if (TsInstance.TryGetDelegate(inst.Parent, TsInstance.EventType.Peek(), out var ev))
+            if (TsInstance.TryGetDelegate(((TsInstance)inst).Parent, TsInstance.EventType.Peek(), out var ev))
                 return ev.Invoke(inst, args);
             return TsObject.Empty();
         }
 
         [WeakMethod]
-        public static TsObject EventPerform(TsInstance inst, TsObject[] args)
+        public static TsObject EventPerform(ITsInstance inst, TsObject[] args)
         {
-            if (TsInstance.TryGetDelegate(inst.ObjectType, (string)args[0], out var ev))
+            if(inst.TryGetDelegate((string)args[0], out var ev))
                 return ev.Invoke(inst);
             return TsObject.Empty();
         }
 
         [WeakMethod]
-        public static TsObject EventPerformObject(TsInstance inst, TsObject[] args)
+        public static TsObject EventPerformObject(ITsInstance inst, TsObject[] args)
         {
             if (TsInstance.TryGetDelegate((string)args[0], (string)args[1], out var ev))
                 return ev.Invoke(inst);
@@ -201,7 +201,7 @@ namespace TaffyScript
         }
 
         [WeakMethod]
-        public static TsObject Max(TsInstance target, TsObject[] args)
+        public static TsObject Max(ITsInstance target, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
@@ -216,7 +216,7 @@ namespace TaffyScript
         }
 
         [WeakMethod]
-        public static TsObject Min(TsInstance target, TsObject[] args)
+        public static TsObject Min(ITsInstance target, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
@@ -273,7 +273,7 @@ namespace TaffyScript
         }
 
         [WeakMethod]
-        public static TsObject ScriptExecute(TsInstance target, TsObject[] args)
+        public static TsObject ScriptExecute(ITsInstance target, TsObject[] args)
         {
             if (args.Length < 1)
                 throw new ArgumentException("You must pass at least a script name to script_execute.");

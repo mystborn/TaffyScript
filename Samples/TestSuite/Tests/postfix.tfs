@@ -1,109 +1,151 @@
 using UnitTest;
+using TaffyScript.Collections;
 
 namespace LanguageTests {
     script run_postfix_tests() {
         var obj = new obj_postfix();
         var tests = new obj_unit_test("Postfix Tests",
-                                      postfix_array,
-                                      postfix_list,
-                                      postfix_grid,
-                                      postfix_map,
-                                      postfix_local_var,
-                                      postfix_local_object_var,
-                                      postfix_global_var,
-                                      postfix_global_object_var,
-                                      obj.postfix_object_var,
-                                      obj.postfix_self_var);
+                                      postfix_array_increment,
+                                      postfix_array_decrement,
+                                      postfix_list_increment,
+                                      postfix_list_decrement,
+                                      postfix_local_var_increment,
+                                      postfix_local_var_decrement,
+                                      postfix_global_var_increment,
+                                      postfix_global_var_decrement,
+                                      postfix_local_var_decrement,
+                                      postfix_local_object_var_increment,
+                                      postfix_local_object_var_decrement,
+                                      postfix_global_object_var_increment,
+                                      postfix_global_object_var_decrement,
+                                      obj.postfix_object_var_increment,
+                                      obj.postfix_object_var_decrement,
+                                      obj.postfix_self_var_increment,
+                                      obj.postfix_self_var_decrement);
 
         tests.run_tests();
-        tests.destroy();
-        obj.destroy();
     }
 
-    script postfix_array() {
-        test_it("Postfix Array");
-        var arr = [1];
+    script postfix_array_increment() {
+        test_it("array++");
+        var arr = [4];
         arr[0]++;
-        assert_equal(arr[0], 2);
+        assert_equal(arr[0], 5);
         var j = arr[0]++;
-        assert_equal(j, 2);
+        assert_equal(j, 5);
+        assert_equal(arr[0], 6);
+    }
+
+    script postfix_array_decrement() {
+        test_it("array--");
+        var arr = [4];
+        arr[0]--;
         assert_equal(arr[0], 3);
+        var j = arr[0]--;
+        assert_equal(j, 3);
+        assert_equal(arr[0], 2);
     }
 
-    script postfix_list() {
-        test_it("Postfix List");
-        var list = ds_list_create();
-        ds_list_add(list, 1);
-        list[| 0]++;
-        assert_equal(list[| 0], 2);
-        var j = list[| 0]++;
-        assert_equal(j, 2);
-        assert_equal(list[| 0], 3);
+    script postfix_list_increment() {
+        test_it("list++");
+        var list = new ds_list();
+        list.add(4);
+        list[0]++;
+        assert_equal(list[0], 5);
+        var j = list[0]++;
+        assert_equal(j, 5);
+        assert_equal(list[0], 6);
     }
 
-    script postfix_grid() {
-        test_it("Postfix Grid");
-        var grid = ds_grid_create(2, 2);
-        grid[# 0, 0] = 1;
-        grid[# 0, 0]++;
-        assert_equal(grid[# 0, 0], 2);
-        var j = grid[# 0, 0]++;
-        assert_equal(j, 2);
-        assert_equal(grid[# 0, 0], 3);
+    script postfix_list_decrement() {
+        test_it("list--");
+        var list = new ds_list();
+        list.add(4);
+        list[0]--;
+        assert_equal(list[0], 3);
+        var j = list[0]--;
+        assert_equal(j, 3);
+        assert_equal(list[0], 2);
     }
 
-    script postfix_map() {
-        test_it("Postfix Map");
-        var map = ds_map_create();
-        ds_map_add(map, "cow", 1);
-        map[? "cow"]++;
-        assert_equal(map[? "cow"], 2);
-        var j = map[? "cow"]++;
-        assert_equal(j, 2);
-        assert_equal(map[? "cow"], 3);
-    }
-
-    script postfix_local_var() {
-        test_it("Postfix Local Var");
-        var i = 0;
+    script postfix_local_var_increment() {
+        test_it("local_var++");
+        var i = 4;
         i++;
-        assert_equal(i, 1);
-
+        assert_equal(i, 5);
         var j = i++;
-        assert_equal(j, 1);
+        assert_equal(j, 5);
+        assert_equal(i, 6);
+    }
+
+    script postfix_local_var_decrement() {
+        test_it("local_var--");
+        var i = 4;
+        i--;
+        assert_equal(i, 3);
+        var j = i--;
+        assert_equal(j, 3);
         assert_equal(i, 2);
     }
 
-    script postfix_local_object_var() {
-        test_it("Postfix Local Object Var");
+    script postfix_local_object_var_increment() {
+        test_it("local_object_var++");
         var obj = new obj_postfix();
         obj.val++;
         assert_equal(obj.val, 11);
         var j = obj.val++;
         assert_equal(j, 11);
         assert_equal(obj.val, 12);
-        obj.destroy();
     }
 
-    script postfix_global_var() {
-        test_it("Postfix Global Var");
-        global.val = 5;
+    script postfix_local_object_var_decrement() {
+        test_it("local_object_var--");
+        var obj = new obj_postfix();
+        obj.val--;
+        assert_equal(obj.val, 9);
+        var j = obj.val--;
+        assert_equal(j, 9);
+        assert_equal(obj.val, 8);
+    }
+
+    script postfix_global_var_increment() {
+        test_it("global.val++");
+        global.val = 4;
         global.val++;
-        assert_equal(global.val, 6);
+        assert_equal(global.val, 5);
         var j = global.val++;
-        assert_equal(j, 6);
-        assert_equal(global.val, 7);
+        assert_equal(j, 5);
+        assert_equal(global.val, 6);
     }
 
-    script postfix_global_object_var() {
-        test_it("Postfix Global Object Var");
+    script postfix_global_var_decrement() {
+        test_it("global.val--");
+        global.val = 4;
+        global.val--;
+        assert_equal(global.val, 3);
+        var j = global.val--;
+        assert_equal(j, 3);
+        assert_equal(global.val, 2);
+    }
+
+    script postfix_global_object_var_increment() {
+        test_it("global.object.val++");
         global.obj = new obj_postfix();
         global.obj.val++;
         assert_equal(global.obj.val, 11);
         var j = global.obj.val++;
         assert_equal(j, 11);
         assert_equal(global.obj.val, 12);
-        global.obj.destroy();
+    }
+
+    script postfix_global_object_var_decrement() {
+        test_it("global.object.val--");
+        global.obj = new obj_postfix();
+        global.obj.val--;
+        assert_equal(global.obj.val, 9);
+        var j = global.obj.val--;
+        assert_equal(j, 9);
+        assert_equal(global.obj.val, 8);
     }
 
     object obj_postfix {
@@ -115,8 +157,8 @@ namespace LanguageTests {
             val = 10;
         }
 
-        event postfix_object_var() {
-            test_it("Postfix Object Var");
+        event postfix_object_var_increment() {
+            test_it("object.val++");
             reset();
             val++;
             assert_equal(val, 11);
@@ -125,14 +167,34 @@ namespace LanguageTests {
             assert_equal(val, 12);
         }
 
-        event postfix_self_var() {
-        test_it("Postfix Self Var");
+        event postfix_object_var_decrement() {
+            test_it("object.val--");
+            reset();
+            val--;
+            assert_equal(val, 9);
+            var j = val--;
+            assert_equal(j, 9);
+            assert_equal(val, 8);
+        }
+
+        event postfix_self_var_increment() {
+            test_it("self.val++");
             reset();
             self.val++;
             assert_equal(val, 11);
             var j = self.val++;
             assert_equal(j, 11);
             assert_equal(val, 12);
+        }
+
+        event postfix_self_var_decrement() {
+            test_it("self.val--");
+            reset();
+            self.val--;
+            assert_equal(val, 9);
+            var j = self.val--;
+            assert_equal(j, 9);
+            assert_equal(val, 8);
         }
     }
 }

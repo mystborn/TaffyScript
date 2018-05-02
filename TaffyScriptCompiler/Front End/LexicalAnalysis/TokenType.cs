@@ -69,7 +69,6 @@ namespace TaffyScriptCompiler.FrontEnd
         Return,
         Script,
         SemiColon,
-        Sharp,
         ShiftLeft,
         ShiftRight,
         String,
@@ -79,7 +78,6 @@ namespace TaffyScriptCompiler.FrontEnd
         Using,
         Var,
         While,
-        With,
         Xor,
         XorEquals
     }

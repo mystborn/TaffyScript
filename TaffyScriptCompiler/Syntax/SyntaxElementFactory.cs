@@ -52,8 +52,6 @@ namespace TaffyScriptCompiler.Syntax
                     return new WhileNode(null, position);
                 case SyntaxType.Repeat:
                     return new RepeatNode(null, position);
-                case SyntaxType.With:
-                    return new WithNode(null, position);
                 case SyntaxType.Do:
                     return new DoNode(null, position);
                 case SyntaxType.If:
@@ -72,14 +70,6 @@ namespace TaffyScriptCompiler.Syntax
                     return new ConditionalNode(null, position);
                 case SyntaxType.MemberAccess:
                     return new MemberAccessNode(null, position);
-                case SyntaxType.ListAccess:
-                    return new ListAccessNode(null, position);
-                case SyntaxType.GridAccess:
-                    return new GridAccessNode(null, position);
-                case SyntaxType.MapAccess:
-                    return new MapAccessNode(null, position);
-                case SyntaxType.ExplicitArrayAccess:
-                    return new ExplicitArrayAccessNode(null, position);
                 case SyntaxType.ArrayAccess:
                     return new ArrayAccessNode(null, position);
                 case SyntaxType.ArgumentAccess:

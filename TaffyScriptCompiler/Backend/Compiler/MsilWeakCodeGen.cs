@@ -29,6 +29,8 @@ namespace TaffyScriptCompiler.Backend
         /// </summary>
         private const float All = -3f;
 
+        private static readonly Type[] ScriptArgs = { typeof(ITsInstance), typeof(TsObject[]) };
+
         #endregion
 
         #region Fields
@@ -226,6 +228,7 @@ namespace TaffyScriptCompiler.Backend
             // Initialize the basic assemblies needed to compile.
             _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(TsObject)));
             _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(Console)));
+            _assemblyLoader.InitializeAssembly(Assembly.GetAssembly(typeof(HashSet<int>)));
 
             // Initialize all specified references.
             foreach (var asm in config.References.Select(s => _assemblyLoader.LoadAssembly(s)))
@@ -396,15 +399,33 @@ namespace TaffyScriptCompiler.Backend
                         {
                             var line = reader.ReadLine();
                             var input = line.Split(':');
-                            var external = input[2];
-                            var owner = external.Remove(external.LastIndexOf('.'));
-                            var methodName = external.Substring(owner.Length + 1);
-                            var type = _typeParser.GetType(owner);
-                            var method = GetMethodToImport(type, methodName, new[] { typeof(TsInstance), typeof(TsObject[]) });
-                            var count = _table.EnterNamespace(input[0]);
-                            _table.AddLeaf(input[1], SymbolType.Script, SymbolScope.Global);
-                            _table.Exit(count);
-                            _methods[input[0], input[1]] = method;
+                            var importType = (ImportType)byte.Parse(input[0]);
+                            switch(importType)
+                            {
+                                case ImportType.Script:
+                                    var external = input[3];
+                                    var owner = external.Remove(external.LastIndexOf('.'));
+                                    var methodName = external.Substring(owner.Length + 1);
+                                    var type = _typeParser.GetType(owner);
+                                    var method = GetMethodToImport(type, methodName, ScriptArgs);
+                                    var count = _table.EnterNamespace(input[1]);
+                                    _table.AddLeaf(input[2], SymbolType.Script, SymbolScope.Global);
+                                    _table.Exit(count);
+                                    _methods[input[1], input[2]] = method;
+                                    break;
+                                case ImportType.Object:
+                                    external = input[3];
+                                    type = _typeParser.GetType(external);
+                                    count = _table.EnterNamespace(input[1]);
+                                    var leaf = new ImportObjectLeaf(_table.Current, input[2], null)
+                                    {
+                                        HasImportedObject = true,
+                                        Constructor = type.GetConstructors().First()
+                                    };
+                                    _table.AddChild(leaf);
+                                    _table.Exit(count);
+                                    break;
+                            }
                         }
                     }
                 }
@@ -422,7 +443,7 @@ namespace TaffyScriptCompiler.Backend
                 return false;
 
             var args = method.GetParameters();
-            if (args.Length != 2 || args[0].ParameterType != typeof(TsInstance) ||  args[1].ParameterType != typeof(TsObject[]))
+            if (args.Length != 2 || args[0].ParameterType != typeof(ITsInstance) ||  args[1].ParameterType != typeof(TsObject[]))
                 return false;
 
             return true;
@@ -457,7 +478,7 @@ namespace TaffyScriptCompiler.Backend
                 _errors.Add(new CompileException($"Tried to call an undefined function: {name}"));
                 return null;
             }
-            var mb = GetBaseType(GetAssetNamespace(symbol)).DefineMethod(name, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), new[] { typeof(TsInstance), typeof(TsObject[]) });
+            var mb = GetBaseType(GetAssetNamespace(symbol)).DefineMethod(name, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), ScriptArgs);
             mb.DefineParameter(1, ParameterAttributes.None, "__target_");
             mb.DefineParameter(2, ParameterAttributes.None, "__args_");
             _methods.Add(ns, name, mb);
@@ -487,7 +508,7 @@ namespace TaffyScriptCompiler.Backend
         private void GenerateWeakMethodForImport(MethodInfo method, string importName)
         {
             var mb = StartMethod(importName, _namespace);
-            var emit = new ILEmitter(mb, new[] { typeof(TsInstance), typeof(TsObject[]) });
+            var emit = new ILEmitter(mb, ScriptArgs);
             var paramArray = method.GetParameters();
             var paramTypes = new Type[paramArray.Length];
             for (var i = 0; i < paramArray.Length; ++i)
@@ -631,7 +652,8 @@ namespace TaffyScriptCompiler.Backend
                 SyntaxType.Import,
                 SyntaxType.Namespace,
                 SyntaxType.Object,
-                SyntaxType.Script
+                SyntaxType.Script,
+                SyntaxType.ImportObject
             };
 
             var table = new LookupTable<Type, Type, MethodInfo>
@@ -1020,6 +1042,35 @@ namespace TaffyScriptCompiler.Backend
             return sb.ToString().TrimEnd('.');
         }
 
+        private void ConvertTopToObject()
+        {
+            var top = emit.GetTop();
+            if(top != typeof(TsObject))
+            {
+                if (typeof(ITsInstance).IsAssignableFrom(top))
+                    top = typeof(ITsInstance);
+                emit.New(TsTypes.Constructors[top]);
+            }
+        }
+
+        private void ConvertTopToObject(ILEmitter emitter)
+        {
+            var top = emitter.GetTop();
+            if(top != typeof(TsObject))
+            {
+                if (typeof(ITsInstance).IsAssignableFrom(top))
+                    top = typeof(ITsInstance);
+                emitter.New(TsTypes.Constructors[top]);
+            }
+        }
+
+        private void LogError(Exception exception, bool loadEmptyObject = true)
+        {
+            _errors.Add(exception);
+            if (loadEmptyObject)
+                emit.Call(TsTypes.Empty);
+        }
+
         #endregion
 
         #region Visitor
@@ -1052,14 +1103,14 @@ namespace TaffyScriptCompiler.Backend
                 }
                 else if (right == typeof(string))
                 {
-                    _errors.Add(new CompileException($"Cannot {additive.Text} types {left} and {right} {additive.Position}"));
+                    LogError(new CompileException($"Cannot {additive.Text} types {left} and {right} {additive.Position}"), false);
                     return;
                 }
                 else if (right == typeof(TsObject))
                     emit.Call(GetOperator(additive.Text, left, right, additive.Position));
                 else
                 {
-                    _errors.Add(new CompileException($"Cannot {additive.Text} types {left} and {right} {additive.Position}"));
+                    LogError(new CompileException($"Cannot {additive.Text} types {left} and {right} {additive.Position}"), false);
                     return;
                 }
             }
@@ -1067,12 +1118,12 @@ namespace TaffyScriptCompiler.Backend
             {
                 if (additive.Text != "+")
                 {
-                    _errors.Add(new CompileException($"Cannot {additive.Text} types {left} and {right} {additive.Position}"));
+                    LogError(new CompileException($"Cannot {additive.Text} types {left} and {right} {additive.Position}"), false);
                     return;
                 }
                 if (right == typeof(float))
                 {
-                    _errors.Add(new CompileException($"Cannot {additive.Text} types {left} and {right} {additive.Position}"));
+                    LogError(new CompileException($"Cannot {additive.Text} types {left} and {right} {additive.Position}"), false);
                     return;
                 }
                 else if(right == typeof(string))
@@ -1090,12 +1141,17 @@ namespace TaffyScriptCompiler.Backend
         public void Visit(ArgumentAccessNode argumentAccess)
         {
             emit.LdArg(1);
-            if(argumentAccess.Index is IConstantToken<float> index)
+            if (argumentAccess.Index is IConstantToken<float> index)
             {
                 emit.LdInt((int)index.Value);
             }
-            else if(!TryLoadElementAsInt(argumentAccess.Index))
-                _errors.Add(new CompileException($"Invalid argument access {argumentAccess.Position}"));
+            else if (!TryLoadElementAsInt(argumentAccess.Index))
+            {
+                emit.Pop()
+                    .Call(TsTypes.Empty);
+                LogError(new CompileException($"Invalid argument access {argumentAccess.Position}"), false);
+                return;
+            }
 
 
             if (_needAddress)
@@ -1109,26 +1165,118 @@ namespace TaffyScriptCompiler.Backend
             var address = _needAddress;
             _needAddress = false;
             GetAddressIfPossible(arrayAccess.Left);
-            CallInstanceMethod(TsTypes.ObjectCasts[arrayAccess.Children.Count == 2 ? typeof(TsObject[]) : typeof(TsObject[][])], arrayAccess.Position);
-            LoadElementAsInt(arrayAccess.Children[1]);
-
-            if(arrayAccess.Children.Count == 2)
+            LocalBuilder secret = null;
+            var top = emit.GetTop();
+            if (top == typeof(TsObject))
             {
+                secret = GetLocal();
+                emit.StLocal(secret)
+                    .LdLocalA(secret);
+                FreeLocal(secret);
+            }
+            else if (top != typeof(TsObject).MakePointerType())
+            {
+                LogError(new CompileException($"Encountered invalid syntax {arrayAccess.Position}"), false);
+                return;
+            }
+
+            if (CanBeArrayAccess(arrayAccess))
+            {
+                var isArray = emit.DefineLabel();
+                var end = emit.DefineLabel();
+
+                emit.Dup()
+                    .Call(typeof(TsObject).GetMethod("get_Type"))
+                    .LdInt((int)VariableType.Instance)
+                    .Bne(isArray)
+                    .Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                    .LdStr("get")
+                    .LdInt(arrayAccess.Children.Count - 1)
+                    .NewArr(typeof(TsObject));
+
+                for (var i = 1; i < arrayAccess.Children.Count; i++)
+                {
+                    emit.Dup()
+                        .LdInt(i - 1);
+                    arrayAccess.Children[i].Accept(this);
+                    ConvertTopToObject();
+                    emit.StElem(typeof(TsObject));
+                }
+
+                emit.Call(typeof(ITsInstance).GetMethod("Call"));
                 if (address)
-                    emit.LdElemA(typeof(TsObject));
+                {
+                    secret = GetLocal();
+                    emit.StLocal(secret)
+                        .LdLocalA(secret);
+                    FreeLocal(secret);
+                }
+
+                emit.Br(end)
+                    .MarkLabel(isArray)
+                    .PopTop() //The stack would get imbalanced here otherwise.
+                    .PushType(typeof(TsObject).MakePointerType());
+
+                CallInstanceMethod(TsTypes.ObjectCasts[arrayAccess.Children.Count == 2 ? typeof(TsObject[]) : typeof(TsObject[][])], arrayAccess.Position);
+                LoadElementAsInt(arrayAccess.Children[1]);
+
+                if (arrayAccess.Children.Count == 2)
+                {
+                    if (address)
+                        emit.LdElemA(typeof(TsObject));
+                    else
+                        emit.LdElem(typeof(TsObject));
+                }
                 else
-                    emit.LdElem(typeof(TsObject));
+                {
+                    emit.LdElem(typeof(TsObject[]));
+                    LoadElementAsInt(arrayAccess.Children[2]);
+
+                    if (address)
+                        emit.LdElemA(typeof(TsObject));
+                    else
+                        emit.LdElem(typeof(TsObject));
+                }
+                emit.MarkLabel(end);
             }
             else
             {
-                emit.LdElem(typeof(TsObject[]));
-                LoadElementAsInt(arrayAccess.Children[2]);
+                emit.Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                    .LdStr("get")
+                    .LdInt(arrayAccess.Children.Count - 1)
+                    .NewArr(typeof(TsObject));
 
+                for (var i = 1; i < arrayAccess.Children.Count; i++)
+                {
+                    emit.Dup()
+                        .LdInt(i - 1);
+                    arrayAccess.Children[i].Accept(this);
+                    ConvertTopToObject();
+                    emit.StElem(typeof(TsObject));
+                }
+
+                emit.Call(typeof(ITsInstance).GetMethod("Call"));
                 if (address)
-                    emit.LdElemA(typeof(TsObject));
-                else
-                    emit.LdElem(typeof(TsObject));
+                {
+                    secret = GetLocal();
+                    emit.StLocal(secret)
+                        .LdLocalA(secret);
+                    FreeLocal(secret);
+                }
             }
+        }
+
+        private bool CanBeArrayAccess(ArrayAccessNode array)
+        {
+            if (array.Indeces.Count > 2)
+                return false;
+
+            foreach(var node in array.Indeces)
+            {
+                if (node is IConstantToken constant && (constant.ConstantType == ConstantType.Bool || constant.ConstantType == ConstantType.String))
+                    return false;
+            }
+            return true;
         }
 
         public void Visit(ArrayLiteralNode arrayLiteral)
@@ -1141,9 +1289,7 @@ namespace TaffyScriptCompiler.Backend
                     .LdInt(i);
 
                 arrayLiteral.Children[i].Accept(this);
-                var type = emit.GetTop();
-                if (type != typeof(TsObject))
-                    emit.New(TsTypes.Constructors[type]);
+                ConvertTopToObject();
                 emit.StElem(typeof(TsObject));
             }
             emit.New(TsTypes.Constructors[typeof(TsObject[])]);
@@ -1157,74 +1303,102 @@ namespace TaffyScriptCompiler.Backend
                 return;
             }
 
-            if(assign.Left is ArgumentAccessNode arg)
+            if (assign.Left is ArgumentAccessNode arg)
             {
                 GetAddressIfPossible(arg);
                 assign.Right.Accept(this);
-                var top = emit.GetTop();
-                if (top != typeof(TsObject))
-                    emit.New(TsTypes.Constructors[top]);
+                ConvertTopToObject();
                 emit.StObj(typeof(TsObject));
             }
             else if (assign.Left is ArrayAccessNode array)
             {
                 //Here we have to resize the array if needed, so more work needs to be done.
                 GetAddressIfPossible(array.Left);
-                if (emit.GetTop() == typeof(TsObject))
+                var top = emit.GetTop();
+                if (top == typeof(TsObject))
                 {
                     var secret = GetLocal();
                     emit.StLocal(secret)
                         .LdLocalA(secret);
                     FreeLocal(secret);
                 }
-
-                var argTypes = new Type[array.Children.Count];
-                for (var i = 1; i < array.Children.Count; i++)
+                else if (top != typeof(TsObject).MakePointerType())
                 {
-                    LoadElementAsInt(array.Children[i]);
-                    argTypes[i - 1] = typeof(int);
+                    LogError(new CompileException($"Encountered invalid syntax {array.Position}"), false);
+                    return;
                 }
 
-                assign.Right.Accept(this);
-                var top = emit.GetTop();
-                if (top != typeof(TsObject))
-                    emit.New(TsTypes.Constructors[top]);
-                argTypes[argTypes.Length - 1] = emit.GetTop();
-                emit.Call(typeof(TsObject).GetMethod("ArraySet", argTypes));
-            }
-            else if(assign.Left is ListAccessNode list)
-            {
-                LoadElementAsInt(list.Left);
-                LoadElementAsInt(list.Right);
-                assign.Right.Accept(this);
-                var top = emit.GetTop();
-                if (top != typeof(TsObject))
-                    emit.New(TsTypes.Constructors[top]);
-                emit.Call(typeof(DsList).GetMethod("DsListSet", new[] { typeof(int), typeof(int), typeof(TsObject) }));
-            }
-            else if(assign.Left is GridAccessNode grid)
-            {
-                LoadElementAsInt(grid.Left);
-                LoadElementAsInt(grid.X);
-                LoadElementAsInt(grid.Y);
-                assign.Right.Accept(this);
-                var top = emit.GetTop();
-                if (top != typeof(TsObject))
-                    emit.New(TsTypes.Constructors[top]);
-                emit.Call(typeof(DsGrid).GetMethod("DsGridSet"));
-            }
-            else if(assign.Left is MapAccessNode map)
-            {
-                LoadElementAsInt(map.Left);
-                map.Right.Accept(this);
-                var top = emit.GetTop();
-                if (top != typeof(TsObject))
-                    emit.New(TsTypes.Constructors[top]);
-                assign.Right.Accept(this);
-                top = emit.GetTop();
-                if (top != typeof(TsObject))
-                    emit.New(TsTypes.Constructors[top]);
-                emit.Call(typeof(DsMap).GetMethod("DsMapReplace"));
+                if (CanBeArrayAccess(array))
+                {
+
+                    var isArray = emit.DefineLabel();
+                    var end = emit.DefineLabel();
+
+                    emit.Dup()
+                        .Call(typeof(TsObject).GetMethod("get_Type"))
+                        .LdInt((int)VariableType.Instance)
+                        .Bne(isArray)
+                        .Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                        .LdStr("set")
+                        .LdInt(array.Indeces.Count + 1)
+                        .NewArr(typeof(TsObject));
+
+                    for (var i = 0; i < array.Indeces.Count; i++)
+                    {
+                        emit.Dup()
+                            .LdInt(i);
+                        array.Indeces[i].Accept(this);
+                        ConvertTopToObject();
+                        emit.StElem(typeof(TsObject));
+                    }
+                    emit.Dup()
+                        .LdInt(array.Indeces.Count);
+                    assign.Right.Accept(this);
+                    ConvertTopToObject();
+                    emit.StElem(typeof(TsObject))
+                        .Call(typeof(ITsInstance).GetMethod("Call"))
+                        .Pop()
+                        .Br(end)
+                        .PushType(typeof(TsObject).MakePointerType())
+                        .MarkLabel(isArray);
+
+                    var argTypes = new Type[array.Indeces.Count + 1];
+
+                    for (var i = 0; i < array.Indeces.Count; i++)
+                    {
+                        LoadElementAsInt(array.Indeces[i]);
+                        argTypes[i] = typeof(int);
+                    }
+
+                    assign.Right.Accept(this);
+                    ConvertTopToObject();
+                    argTypes[argTypes.Length - 1] = typeof(TsObject);
+                    emit.Call(typeof(TsObject).GetMethod("ArraySet", argTypes))
+                        .MarkLabel(end);
+                }
+                else
+                {
+                    emit.Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                        .LdStr("set")
+                        .LdInt(array.Indeces.Count + 1)
+                        .NewArr(typeof(TsObject));
+
+                    for (var i = 0; i < array.Indeces.Count; i++)
+                    {
+                        emit.Dup()
+                            .LdInt(i);
+                        array.Indeces[i].Accept(this);
+                        ConvertTopToObject();
+                        emit.StElem(typeof(TsObject));
+                    }
+                    emit.Dup()
+                        .LdInt(array.Indeces.Count);
+                    assign.Right.Accept(this);
+                    ConvertTopToObject();
+                    emit.StElem(typeof(TsObject))
+                        .Call(typeof(ITsInstance).GetMethod("Call"))
+                        .Pop();
+                }
             }
             else if (assign.Left is VariableToken variable)
             {
@@ -1236,9 +1410,7 @@ namespace TaffyScriptCompiler.Backend
                         _errors.Add(new CompileException($"Cannot assign to the value {symbol.Name} {variable.Position}"));
 
                     assign.Right.Accept(this);
-                    var result = emit.GetTop();
-                    if (result != typeof(TsObject))
-                        emit.New(TsTypes.Constructors[result]);
+                    ConvertTopToObject();
                     emit.StLocal(_locals[symbol]);
                 }
                 else
@@ -1246,10 +1418,8 @@ namespace TaffyScriptCompiler.Backend
                     emit.LdArg(0)
                         .LdStr(variable.Text);
                     assign.Right.Accept(this);
-                    var result = emit.GetTop();
-                    if (result != typeof(TsObject))
-                        emit.New(TsTypes.Constructors[result]);
-                    emit.Call(typeof(TsInstance).GetMethod("set_Item", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(string), typeof(TsObject) }, null));
+                    ConvertTopToObject();
+                    emit.Call(typeof(ITsInstance).GetMethod("set_Item"));
                 }
             }
             else if (assign.Left is MemberAccessNode member)
@@ -1272,10 +1442,8 @@ namespace TaffyScriptCompiler.Backend
                         }
                         emit.LdStr(right.Text);
                         assign.Right.Accept(this);
-                        var top = emit.GetTop();
-                        if (top != typeof(TsObject))
-                            emit.New(TsTypes.Constructors[top]);
-                        emit.Call(typeof(TsInstance).GetMethod("set_Item"));
+                        ConvertTopToObject();
+                        emit.Call(typeof(ITsInstance).GetMethod("set_Item"));
                     }
                     else
                         _errors.Add(new CompileException($"Cannot access readonly value from global {member.Right.Position}"));
@@ -1320,11 +1488,8 @@ namespace TaffyScriptCompiler.Backend
         private void ProcessAssignExtra(AssignNode assign)
         {
             var op = assign.Text.Replace("=", "");
-            if (assign.Left.Type == SyntaxType.ArrayAccess || assign.Left.Type == SyntaxType.ArgumentAccess)
+            if (assign.Left.Type == SyntaxType.ArgumentAccess)
             {
-                //Because this has to access the array location,
-                //we can safely just get the address of the array elem and overwrite
-                //the data pointed to by that address.
                 GetAddressIfPossible(assign.Left);
                 emit.Dup()
                     .LdObj(typeof(TsObject));
@@ -1332,29 +1497,159 @@ namespace TaffyScriptCompiler.Backend
                 emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
                     .StObj(typeof(TsObject));
             }
-            else if (assign.Left is ListAccessNode list)
+            else if(assign.Left.Type == SyntaxType.ArrayAccess)
             {
-                ListAccessSet(list, 2);
-                emit.Call(typeof(List<TsObject>).GetMethod("get_Item"));
-                assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
-                    .Call(typeof(List<TsObject>).GetMethod("set_Item", new[] { typeof(int), typeof(TsObject) }));
-            }
-            else if (assign.Left is GridAccessNode grid)
-            {
-                GridAccessSet(grid);
-                emit.Call(typeof(Grid<TsObject>).GetMethod("get_Item"));
-                assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
-                    .Call(typeof(Grid<TsObject>).GetMethod("set_Item"));
-            }
-            else if (assign.Left is MapAccessNode map)
-            {
-                MapAccessSet(map);
-                emit.Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("get_Item"));
-                assign.Right.Accept(this);
-                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
-                    .Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("set_Item"));
+                LocalBuilder secret;
+                var value = GetLocal();
+
+                var array = (ArrayAccessNode)assign.Left;
+                array.Left.Accept(this);
+                var top = emit.GetTop();
+                if(top == typeof(TsObject))
+                {
+                    secret = GetLocal();
+                    emit.StLocal(secret)
+                        .LdLocalA(secret);
+                    FreeLocal(secret);
+                }
+                else if (top != typeof(TsObject).MakePointerType())
+                {
+                    LogError(new CompileException($"Encountered invalid syntax {array.Position}"), false);
+                    return;
+                }
+
+                if (CanBeArrayAccess(array))
+                {
+                    var isArray = emit.DefineLabel();
+                    var end = emit.DefineLabel();
+                    secret = GetLocal(typeof(ITsInstance));
+
+                    emit.Dup()
+                        .Call(typeof(TsObject).GetMethod("get_Type"))
+                        .LdInt((int)VariableType.Instance)
+                        .Bne(isArray)
+                        .Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                        .StLocal(secret)
+                        .LdLocal(secret)
+                        .LdStr("get")
+                        .LdInt(array.Indeces.Count)
+                        .NewArr(typeof(TsObject));
+
+                    var indeces = new LocalBuilder[array.Indeces.Count];
+                    for (var i = 0; i < array.Indeces.Count; i++)
+                    {
+                        emit.Dup()
+                            .LdInt(i);
+                        array.Indeces[i].Accept(this);
+                        ConvertTopToObject();
+                        indeces[i] = GetLocal();
+                        emit.Dup()
+                            .StLocal(indeces[i])
+                            .StElem(typeof(TsObject));
+                    }
+
+                    emit.Call(typeof(ITsInstance).GetMethod("Call"));
+                    assign.Right.Accept(this);
+                    emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
+                        .StLocal(value)
+                        .LdLocal(secret)
+                        .LdStr("set")
+                        .LdInt(indeces.Length + 1)
+                        .NewArr(typeof(TsObject));
+
+                    FreeLocal(secret);
+
+                    for (var i = 0; i < indeces.Length; i++)
+                    {
+                        emit.Dup()
+                            .LdInt(i)
+                            .LdLocal(indeces[i])
+                            .StElem(typeof(TsObject));
+                        FreeLocal(indeces[i]);
+                    }
+                    emit.Dup()
+                        .LdInt(indeces.Length)
+                        .LdLocal(value)
+                        .StElem(typeof(TsObject))
+                        .Call(typeof(ITsInstance).GetMethod("Call"))
+                        .Pop()
+                        .Br(end)
+                        .PushType(typeof(TsObject).MakePointerType())
+                        .MarkLabel(isArray);
+
+                    FreeLocal(value);
+
+                    CallInstanceMethod(TsTypes.ObjectCasts[array.Children.Count == 2 ? typeof(TsObject[]) : typeof(TsObject[][])], array.Position);
+                    LoadElementAsInt(array.Children[1]);
+
+                    if (array.Children.Count == 2)
+                    {
+                        emit.LdElemA(typeof(TsObject));
+                    }
+                    else
+                    {
+                        emit.LdElem(typeof(TsObject[]));
+                        LoadElementAsInt(array.Children[2]);
+                        emit.LdElemA(typeof(TsObject));
+                    }
+                    emit.Dup()
+                        .LdObj(typeof(TsObject));
+                    assign.Right.Accept(this);
+                    emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
+                        .StObj(typeof(TsObject))
+                        .MarkLabel(end);
+                }
+                else
+                {
+                    secret = GetLocal(typeof(ITsInstance));
+                    emit.Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                        .StLocal(secret)
+                        .LdLocal(secret)
+                        .LdStr("get")
+                        .LdInt(array.Indeces.Count)
+                        .NewArr(typeof(TsObject));
+
+                    var indeces = new LocalBuilder[array.Indeces.Count];
+                    for (var i = 0; i < array.Indeces.Count; i++)
+                    {
+                        emit.Dup()
+                            .LdInt(i);
+                        array.Indeces[i].Accept(this);
+                        ConvertTopToObject();
+                        indeces[i] = GetLocal();
+                        emit.Dup()
+                            .StLocal(indeces[i])
+                            .StElem(typeof(TsObject));
+                    }
+
+                    emit.Call(typeof(ITsInstance).GetMethod("Call"));
+                    assign.Right.Accept(this);
+                    emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
+                        .StLocal(value)
+                        .LdLocal(secret)
+                        .LdStr("set")
+                        .LdInt(indeces.Length + 1)
+                        .NewArr(typeof(TsObject));
+
+                    FreeLocal(secret);
+
+                    for (var i = 0; i < indeces.Length; i++)
+                    {
+                        emit.Dup()
+                            .LdInt(i)
+                            .LdLocal(indeces[i])
+                            .StElem(typeof(TsObject));
+                        FreeLocal(indeces[i]);
+                    }
+                    emit.Dup()
+                        .LdInt(indeces.Length)
+                        .LdLocal(value)
+                        .StElem(typeof(TsObject))
+                        .Call(typeof(ITsInstance).GetMethod("Call"))
+                        .Pop();
+
+                    FreeLocal(value);
+                }
             }
             else if(assign.Left is VariableToken variable)
             {
@@ -1372,13 +1667,13 @@ namespace TaffyScriptCompiler.Backend
                 else
                 {
                     SelfAccessSet(variable);
-                    emit.Call(typeof(TsInstance).GetMethod("GetMember"));
+                    emit.Call(typeof(ITsInstance).GetMethod("get_Item"));
                     assign.Right.Accept(this);
                     var result = emit.GetTop();
                     if (result == typeof(int) || result == typeof(bool))
                         emit.ConvertFloat();
                     emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position));
-                    emit.Call(typeof(TsInstance).GetMethod("set_Item", new[] { typeof(string), typeof(TsObject) }));
+                    emit.Call(typeof(ITsInstance).GetMethod("set_Item"));
                 }
             }
             else if(assign.Left is MemberAccessNode member)
@@ -1396,7 +1691,7 @@ namespace TaffyScriptCompiler.Backend
                         .LdStr(value.Text);
                     loadTarget()
                         .LdStr(value.Text)
-                        .Call(typeof(TsInstance).GetMethod("get_Item"));
+                        .Call(typeof(ITsInstance).GetMethod("get_Item"));
 
                     assign.Right.Accept(this);
                     var top = emit.GetTop();
@@ -1407,7 +1702,7 @@ namespace TaffyScriptCompiler.Backend
                     }
 
                     emit.Call(GetOperator(op, typeof(TsObject), top, assign.Position))
-                        .Call(typeof(TsInstance).GetMethod("set_Item"));
+                        .Call(typeof(ITsInstance).GetMethod("set_Item"));
                 }
                 else
                 {
@@ -1436,71 +1731,6 @@ namespace TaffyScriptCompiler.Backend
                     FreeLocal(secret);
                 }
             }
-        }
-
-        private void ListAccessSet(ListAccessNode listAccess, int accesses)
-        {
-            var id = GetLocal(typeof(List<TsObject>));
-            var index = GetLocal(typeof(int));
-
-            LoadElementAsInt(listAccess.Left);
-            emit.Call(typeof(DsList).GetMethod("DsListGet"))
-                .StLocal(id);
-
-            LoadElementAsInt(listAccess.Right);
-            emit.StLocal(index);
-            for(var i = 0; i < accesses; i++)
-            {
-                emit.LdLocal(id)
-                    .LdLocal(index);
-            }
-            FreeLocal(id);
-            FreeLocal(index);
-        }
-
-        private void GridAccessSet(GridAccessNode grid)
-        {
-            var id = GetLocal(typeof(Grid<TsObject>));
-            var x = GetLocal(typeof(int));
-            var y = GetLocal(typeof(int));
-            LoadElementAsInt(grid.Left);
-            emit.Call(typeof(DsGrid).GetMethod("DsGridGetGrid"))
-                .StLocal(id);
-            LoadElementAsInt(grid.X);
-            emit.StLocal(x);
-            LoadElementAsInt(grid.Y);
-            emit.StLocal(y)
-                .LdLocal(id)
-                .LdLocal(x)
-                .LdLocal(y)
-                .LdLocal(id)
-                .LdLocal(x)
-                .LdLocal(y);
-            FreeLocal(id);
-            FreeLocal(x);
-            FreeLocal(y);
-        }
-
-        private void MapAccessSet(MapAccessNode map)
-        {
-            var id = GetLocal(typeof(Dictionary<TsObject, TsObject>));
-            var key = GetLocal();
-            LoadElementAsInt(map.Left);
-            emit.Call(typeof(DsMap).GetMethod("DsMapGet"))
-                .StLocal(id);
-
-            map.Right.Accept(this);
-            var top = emit.GetTop();
-            if (top != typeof(TsObject))
-                emit.New(TsTypes.Constructors[top]);
-            emit.StLocal(key);
-            emit.LdLocal(id)
-                .LdLocal(key)
-                .LdLocal(id)
-                .LdLocal(key);
-
-            FreeLocal(id);
-            FreeLocal(key);
         }
 
         private void SelfAccessSet(VariableToken variable)
@@ -1608,17 +1838,13 @@ namespace TaffyScriptCompiler.Backend
             // undefined behaviour.
 
             conditionalNode.Left.Accept(this);
-            top = emit.GetTop();
-            if (top != typeof(TsObject))
-                emit.New(TsTypes.Constructors[top]);
+            ConvertTopToObject();
 
             emit.Br(brFinal)
                 .MarkLabel(brFalse);
 
             conditionalNode.Right.Accept(this);
-            top = emit.GetTop();
-            if (top != typeof(TsObject))
-                emit.New(TsTypes.Constructors[top]);
+            ConvertTopToObject();
 
             // This unbalances the execution stack.
             // Maunually pop the top value off the stack.
@@ -1810,11 +2036,6 @@ namespace TaffyScriptCompiler.Backend
             emit.Ret();
         }
 
-        public void Visit(ExplicitArrayAccessNode explicitArrayAccess)
-        {
-            _errors.Add(new NotImplementedException($"Currently explicit array access is not available {explicitArrayAccess.Position}."));
-        }
-
         public void Visit(ForNode forNode)
         {
             var forStart = emit.DefineLabel();
@@ -1844,7 +2065,7 @@ namespace TaffyScriptCompiler.Backend
         public void Visit(FunctionCallNode functionCall)
         {
             //All methods callable from GML should have the same sig:
-            //TsObject func_name(TsInstance target, TsObject[] args);
+            //TsObject func_name(ITsInstance target, TsObject[] args);
             var nameElem = functionCall.Children[0];
             string name;
             if (nameElem is ISyntaxToken token)
@@ -1970,9 +2191,7 @@ namespace TaffyScriptCompiler.Backend
                         .LdInt(i);
 
                     functionCall.Children[i + 1].Accept(this);
-                    var top = emit.GetTop();
-                    if (top != typeof(TsObject))
-                        emit.New(TsTypes.Constructors[top]);
+                    ConvertTopToObject();
 
                     emit.StElem(typeof(TsObject));
                 }
@@ -1991,8 +2210,8 @@ namespace TaffyScriptCompiler.Backend
             var top = emit.GetTop();
 
             if (top == typeof(TsObject) || top == typeof(TsObject).MakePointerType())
-                CallInstanceMethod(TsTypes.ObjectCasts[typeof(TsInstance)], start);
-            else if (top != typeof(TsInstance))
+                CallInstanceMethod(TsTypes.ObjectCasts[typeof(ITsInstance)], start);
+            else if (!typeof(ITsInstance).IsAssignableFrom(top))
             {
                 _errors.Add(new CompileException($"Internal Compile Exception encountered {start}"));
                 emit.Call(TsTypes.Empty);
@@ -2002,25 +2221,16 @@ namespace TaffyScriptCompiler.Backend
             if(name == "destroy")
             {
                 //Syntactic sugar for instance_destroy(inst);
-                emit.Call(typeof(TsInstance).GetMethod("Destroy"))
+                emit.Call(typeof(ITsInstance).GetMethod("Destroy"))
                     .Call(TsTypes.Empty);
             }
             else
             {
                 //The object returned by GetDelegate should already have a target.
-                emit.LdStr(name)
-                    .Call(typeof(TsInstance).GetMethod("GetDelegate", BindingFlags.Instance | BindingFlags.Public));
+                emit.LdStr(name);
                 LoadFunctionArguments(functionCall);
-                emit.Call(typeof(TsDelegate).GetMethod("Invoke", new[] { typeof(TsObject[]) }));
+                emit.Call(typeof(ITsInstance).GetMethod("Call"));
             }
-        }
-
-        public void Visit(GridAccessNode gridAccess)
-        {
-            LoadElementAsInt(gridAccess.Left);
-            LoadElementAsInt(gridAccess.X);
-            LoadElementAsInt(gridAccess.Y);
-            emit.Call(typeof(DsGrid).GetMethod("DsGridGet"));
         }
 
         public void Visit(IfNode ifNode)
@@ -2084,8 +2294,10 @@ namespace TaffyScriptCompiler.Backend
                 if(IsMethodValid(method))
                 {
                     _methods.Add(_namespace, internalName, method);
+                    SpecialImports.Write((byte)ImportType.Script);
+                    SpecialImports.Write(':');
                     SpecialImports.Write(_namespace);
-                    SpecialImports.Write(":");
+                    SpecialImports.Write(':');
                     SpecialImports.Write(internalName);
                     SpecialImports.Write(':');
                     SpecialImports.WriteLine(externalName);
@@ -2108,13 +2320,6 @@ namespace TaffyScriptCompiler.Backend
             }
             else
                 GenerateWeakMethodForImport(method, internalName);
-        }
-
-        public void Visit(ListAccessNode listAccess)
-        {
-            LoadElementAsInt(listAccess.Left);
-            LoadElementAsInt(listAccess.Right);
-            emit.Call(typeof(DsList).GetMethod("DsListFindValue"));
         }
 
         private void LoadElementAsInt(ISyntaxElement element)
@@ -2220,19 +2425,6 @@ namespace TaffyScriptCompiler.Backend
             emit.MarkLabel(end);
         }
 
-        public void Visit(MapAccessNode mapAccess)
-        {
-            LoadElementAsInt(mapAccess.Left);
-            mapAccess.Right.Accept(this);
-            var top = emit.GetTop();
-            if(top != typeof(TsObject))
-            {
-                emit.New(TsTypes.Constructors[top]);
-                top = typeof(TsObject);
-            }
-            emit.Call(typeof(DsMap).GetMethod("DsMapFindValue"));
-        }
-
         public void Visit(MemberAccessNode memberAccess)
         {
             var resolved = ResolveNamespace(memberAccess);
@@ -2292,7 +2484,7 @@ namespace TaffyScriptCompiler.Backend
                         return;
                 }
                 emit.LdStr(right.Text)
-                    .Call(typeof(TsInstance).GetMethod("get_Item"));
+                    .Call(typeof(ITsInstance).GetMethod("get_Item"));
             }
             else
             {
@@ -2333,9 +2525,7 @@ namespace TaffyScriptCompiler.Backend
                         emit.Call(TsTypes.Empty);
                         return;
                     }
-                    emit.Call(typeof(TsObject).GetMethod("GetInstance"))
-                        .Call(typeof(TsInstance).GetMethod("get_Id"))
-                        .New(TsTypes.Constructors[typeof(int)]);
+                    emit.Call(typeof(TsObject).GetMethod("GetInstance"));
                 }
                 else
                     _errors.Add(new CompileException($"Invalid syntax detected {memberAccess.Position}"));
@@ -2416,15 +2606,29 @@ namespace TaffyScriptCompiler.Backend
             {
                 if(symbol.Type == SymbolType.Object)
                 {
-                    var name = newNode.Text;
-                    var pos = newNode.Position;
                     MarkSequencePoint(newNode);
-                    var ctor = typeof(TsInstance).GetConstructor(new[] { typeof(string), typeof(TsObject[]) });
-                    var ns = GetAssetNamespace(symbol);
-                    if (ns != "")
-                        name = $"{ns}.{name}";
-                    emit.LdStr(name);
+                    ConstructorInfo ctor;
+                    if(symbol is ImportObjectLeaf leaf)
+                    {
+                        if (!leaf.HasImportedObject)
+                        {
+                            var temp = emit;
+                            leaf.ImportObject.Accept(this);
+                            emit = temp;
+                        }
 
+                        ctor = leaf.Constructor;
+                    }
+                    else
+                    {
+                        var name = newNode.Text;
+                        var pos = newNode.Position;
+                        ctor = typeof(TsInstance).GetConstructor(new[] { typeof(string), typeof(TsObject[]) });
+                        var ns = GetAssetNamespace(symbol);
+                        if (ns != "")
+                            name = $"{ns}.{name}";
+                        emit.LdStr(name);
+                    }
                     if (newNode.Arguments.Count > 0)
                     {
                         emit.LdInt(newNode.Arguments.Count)
@@ -2436,9 +2640,7 @@ namespace TaffyScriptCompiler.Backend
                                 .LdInt(i);
 
                             newNode.Arguments[i].Accept(this);
-                            var top = emit.GetTop();
-                            if (top != typeof(TsObject))
-                                emit.New(TsTypes.Constructors[top]);
+                            ConvertTopToObject();
 
                             emit.StElem(typeof(TsObject));
                         }
@@ -2450,7 +2652,7 @@ namespace TaffyScriptCompiler.Backend
                     if (newNode.Parent.Type == SyntaxType.Block)
                         emit.Pop();
                     else
-                        emit.New(TsTypes.Constructors[typeof(TsInstance)]);
+                        emit.New(TsTypes.Constructors[typeof(ITsInstance)]);
                 }
                 else
                 {
@@ -2484,9 +2686,6 @@ namespace TaffyScriptCompiler.Backend
                     _errors.Add(new CompileException($"Tried to inherit from non object identifier {objectNode.Inherits.Position}"));
             }
 
-
-
-            var input = new[] { typeof(TsInstance), typeof(TsObject[]) };
             var addMethod = typeof(LookupTable<string, string, TsDelegate>).GetMethod("Add", new[] { typeof(string), typeof(string), typeof(TsDelegate) });
             var eventType = typeof(TsInstance).GetMethod("get_EventType");
             var push = typeof(Stack<string>).GetMethod("Push");
@@ -2511,8 +2710,8 @@ namespace TaffyScriptCompiler.Backend
             for(var i = 1; i < objectNode.Children.Count; i++)
             {
                 var script = (ScriptNode)objectNode.Children[i];
-                var method = type.DefineMethod(script.Text, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), input);
-                ScriptStart(script.Text, method, input);
+                var method = type.DefineMethod(script.Text, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), ScriptArgs);
+                ScriptStart(script.Text, method, ScriptArgs);
 
                 emit.Call(eventType)
                     .LdStr(script.Text)
@@ -2556,9 +2755,9 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(PostfixNode postfix)
         {
-            var secret = GetLocal();
-            if (postfix.Child.Type == SyntaxType.ArrayAccess || postfix.Child.Type == SyntaxType.ArgumentAccess)
+            if (postfix.Child.Type == SyntaxType.ArgumentAccess)
             {
+                var secret = GetLocal();
                 GetAddressIfPossible(postfix.Child);
                 emit.Dup()
                     .Dup()
@@ -2568,39 +2767,170 @@ namespace TaffyScriptCompiler.Backend
                     .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
                     .StObj(typeof(TsObject))
                     .LdLocal(secret);
+                FreeLocal(secret);
             }
-            else if(postfix.Child is ListAccessNode list)
+            else if(postfix.Child.Type == SyntaxType.ArrayAccess)
             {
-                ListAccessSet(list, 2);
-                emit.Call(typeof(List<TsObject>).GetMethod("get_Item"))
-                    .StLocal(secret)
-                    .LdLocal(secret)
-                    .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
-                    .Call(typeof(List<TsObject>).GetMethod("set_Item"))
-                    .LdLocal(secret);
-            }
-            else if(postfix.Child is GridAccessNode grid)
-            {
-                GridAccessSet(grid);
-                emit.Call(typeof(Grid<TsObject>).GetMethod("get_Item"))
-                    .StLocal(secret)
-                    .LdLocal(secret)
-                    .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
-                    .Call(typeof(Grid<TsObject>).GetMethod("set_Item"))
-                    .LdLocal(secret);
-            }
-            else if(postfix.Child is MapAccessNode map)
-            {
-                MapAccessSet(map);
-                emit.Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("get_Item"))
-                    .StLocal(secret)
-                    .LdLocal(secret)
-                    .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
-                    .Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("set_Item"))
-                    .LdLocal(secret);
+                var value = GetLocal();
+                var result = GetLocal();
+
+                var array = (ArrayAccessNode)postfix.Child;
+                array.Left.Accept(this);
+                var top = emit.GetTop();
+                if (top == typeof(TsObject))
+                {
+                    var temp = GetLocal();
+                    emit.StLocal(temp)
+                        .LdLocalA(temp);
+                    FreeLocal(temp);
+                }
+                else if (top != typeof(TsObject).MakePointerType())
+                {
+                    _errors.Add(new CompileException($"Encountered invalid syntax {array.Position}"));
+                    emit.Call(TsTypes.Empty);
+                    return;
+                }
+                
+                var secret = GetLocal(typeof(ITsInstance));
+
+                if (CanBeArrayAccess(array))
+                {
+
+                    var isArray = emit.DefineLabel();
+                    var end = emit.DefineLabel();
+
+                    emit.Dup()
+                        .Call(typeof(TsObject).GetMethod("get_Type"))
+                        .LdInt((int)VariableType.Instance)
+                        .Bne(isArray)
+                        .Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                        .StLocal(secret)
+                        .LdLocal(secret)
+                        .LdStr("get")
+                        .LdInt(array.Indeces.Count)
+                        .NewArr(typeof(TsObject));
+
+                    var indeces = new LocalBuilder[array.Indeces.Count];
+                    for (var i = 0; i < array.Indeces.Count; i++)
+                    {
+                        emit.Dup()
+                            .LdInt(i);
+                        array.Indeces[i].Accept(this);
+                        ConvertTopToObject();
+                        indeces[i] = GetLocal();
+                        emit.Dup()
+                            .StLocal(indeces[i])
+                            .StElem(typeof(TsObject));
+                    }
+
+                    emit.Call(typeof(ITsInstance).GetMethod("Call"))
+                        .Dup()
+                        .StLocal(value)
+                        .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
+                        .StLocal(result)
+                        .LdLocal(secret)
+                        .LdStr("set")
+                        .LdInt(indeces.Length + 1)
+                        .NewArr(typeof(TsObject));
+
+                    for (var i = 0; i < indeces.Length; i++)
+                    {
+                        emit.Dup()
+                            .LdInt(i)
+                            .LdLocal(indeces[i])
+                            .StElem(typeof(TsObject));
+                        FreeLocal(indeces[i]);
+                    }
+                    emit.Dup()
+                        .LdInt(indeces.Length)
+                        .LdLocal(result)
+                        .StElem(typeof(TsObject))
+                        .Call(typeof(ITsInstance).GetMethod("Call"))
+                        .Pop()
+                        .LdLocal(value)
+                        .Br(end)
+                        .PushType(typeof(TsObject).MakePointerType())
+                        .MarkLabel(isArray);
+
+                    CallInstanceMethod(TsTypes.ObjectCasts[array.Children.Count == 2 ? typeof(TsObject[]) : typeof(TsObject[][])], array.Position);
+                    LoadElementAsInt(array.Children[1]);
+
+                    if (array.Children.Count == 2)
+                    {
+                        emit.LdElemA(typeof(TsObject));
+                    }
+                    else
+                    {
+                        emit.LdElem(typeof(TsObject[]));
+                        LoadElementAsInt(array.Children[2]);
+                        emit.LdElemA(typeof(TsObject));
+                    }
+                    emit.Dup()
+                        .LdObj(typeof(TsObject))
+                        .Dup()
+                        .StLocal(value)
+                        .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
+                        .StObj(typeof(TsObject))
+                        .LdLocal(value)
+                        .MarkLabel(end)
+                        .PopTop();
+                }
+                else
+                {
+                    emit.Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                        .StLocal(secret)
+                        .LdLocal(secret)
+                        .LdStr("get")
+                        .LdInt(array.Indeces.Count)
+                        .NewArr(typeof(TsObject));
+
+                    var indeces = new LocalBuilder[array.Indeces.Count];
+                    for (var i = 0; i < array.Indeces.Count; i++)
+                    {
+                        emit.Dup()
+                            .LdInt(i);
+                        array.Indeces[i].Accept(this);
+                        ConvertTopToObject();
+                        indeces[i] = GetLocal();
+                        emit.Dup()
+                            .StLocal(indeces[i])
+                            .StElem(typeof(TsObject));
+                    }
+
+                    emit.Call(typeof(ITsInstance).GetMethod("Call"))
+                        .Dup()
+                        .StLocal(value)
+                        .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
+                        .StLocal(result)
+                        .LdLocal(secret)
+                        .LdStr("set")
+                        .LdInt(indeces.Length + 1)
+                        .NewArr(typeof(TsObject));
+
+                    for (var i = 0; i < indeces.Length; i++)
+                    {
+                        emit.Dup()
+                            .LdInt(i)
+                            .LdLocal(indeces[i])
+                            .StElem(typeof(TsObject));
+                        FreeLocal(indeces[i]);
+                    }
+                    emit.Dup()
+                        .LdInt(indeces.Length)
+                        .LdLocal(result)
+                        .StElem(typeof(TsObject))
+                        .Call(typeof(ITsInstance).GetMethod("Call"))
+                        .Pop()
+                        .LdLocal(value);
+                }
+
+                FreeLocal(result);
+                FreeLocal(value);
+                FreeLocal(secret);
             }
             else if (postfix.Child is VariableToken variable)
             {
+                var secret = GetLocal();
                 if (_table.Defined(variable.Text, out var symbol))
                 {
                     if (symbol.Type != SymbolType.Variable)
@@ -2618,16 +2948,18 @@ namespace TaffyScriptCompiler.Backend
                 else
                 {
                     SelfAccessSet(variable);
-                    emit.Call(typeof(TsInstance).GetMethod("GetMember"))
+                    emit.Call(typeof(ITsInstance).GetMethod("GetMember"))
                         .StLocal(secret)
                         .LdLocal(secret)
                         .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
-                        .Call(typeof(TsInstance).GetMethod("set_Item", new[] { typeof(string), typeof(TsObject) }))
+                        .Call(typeof(ITsInstance).GetMethod("set_Item", new[] { typeof(string), typeof(TsObject) }))
                         .LdLocal(secret);
                 }
+                FreeLocal(secret);
             }
             else if (postfix.Child is MemberAccessNode member)
             {
+                var secret = GetLocal();
                 var value = member.Right as VariableToken;
                 if (value is null)
                 {
@@ -2641,14 +2973,14 @@ namespace TaffyScriptCompiler.Backend
 
                     loadTarget()
                         .LdStr(value.Text)
-                        .Call(typeof(TsInstance).GetMethod("get_Item"))
+                        .Call(typeof(ITsInstance).GetMethod("get_Item"))
                         .StLocal(secret)
                         .LdLocal(secret);
                     loadTarget()
                         .LdStr(value.Text)
                         .LdLocal(secret)
                         .Call(GetOperator(postfix.Text, typeof(TsObject), postfix.Position))
-                        .Call(typeof(TsInstance).GetMethod("set_Item"));
+                        .Call(typeof(ITsInstance).GetMethod("set_Item"));
                 }
                 else
                 {
@@ -2668,11 +3000,10 @@ namespace TaffyScriptCompiler.Backend
 
                     FreeLocal(target);
                 }
+                FreeLocal(secret);
             }
             else
                 _errors.Add(new CompileException($"Invalid syntax detected {postfix.Child.Position}"));
-
-            FreeLocal(secret);
         }
 
         private Func<ILEmitter> GetReadOnlyLoadFunc(ReadOnlyToken read)
@@ -2690,9 +3021,9 @@ namespace TaffyScriptCompiler.Backend
             //These operators need special handling
             if (prefix.Text == "++" || prefix.Text == "--")
             {
-                var secret = GetLocal();
-                if (prefix.Child.Type == SyntaxType.ArrayAccess || prefix.Child.Type == SyntaxType.ArgumentAccess)
+                if (prefix.Child.Type == SyntaxType.ArgumentAccess)
                 {
+                    var secret = GetLocal();
                     GetAddressIfPossible(prefix.Child);
                     emit.Dup()
                         .Dup()
@@ -2700,36 +3031,158 @@ namespace TaffyScriptCompiler.Backend
                         .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                         .StObj(typeof(TsObject))
                         .LdObj(typeof(TsObject));
+                    FreeLocal(secret);
                 }
-                else if (prefix.Child is ListAccessNode list)
+                else if (prefix.Child.Type == SyntaxType.ArrayAccess)
                 {
-                    ListAccessSet(list, 2);
-                    emit.Call(typeof(List<TsObject>).GetMethod("get_Item"))
-                        .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
-                        .Dup()
-                        .StLocal(secret)
-                        .Call(typeof(List<TsObject>).GetMethod("set_Item"))
-                        .LdLocal(secret);
-                }
-                else if (prefix.Child is GridAccessNode grid)
-                {
-                    GridAccessSet(grid);
-                    emit.Call(typeof(Grid<TsObject>).GetMethod("get_Item"))
-                        .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
-                        .Dup()
-                        .StLocal(secret)
-                        .Call(typeof(Grid<TsObject>).GetMethod("set_Item"))
-                        .LdLocal(secret);
-                }
-                else if (prefix.Child is MapAccessNode map)
-                {
-                    MapAccessSet(map);
-                    emit.Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("get_Item"))
-                        .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
-                        .Dup()
-                        .StLocal(secret)
-                        .Call(typeof(Dictionary<TsObject, TsObject>).GetMethod("set_Item"))
-                        .LdLocal(secret);
+                    var value = GetLocal();
+
+                    var array = (ArrayAccessNode)prefix.Child;
+                    array.Left.Accept(this);
+                    var top = emit.GetTop();
+                    if (top == typeof(TsObject))
+                    {
+                        var temp = GetLocal();
+                        emit.StLocal(temp)
+                            .LdLocalA(temp);
+                        FreeLocal(temp);
+                    }
+                    else if (top != typeof(TsObject).MakePointerType())
+                    {
+                        _errors.Add(new CompileException($"Encountered invalid syntax {array.Position}"));
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+
+                    var isArray = emit.DefineLabel();
+                    var end = emit.DefineLabel();
+                    var secret = GetLocal(typeof(ITsInstance));
+
+                    if (CanBeArrayAccess(array))
+                    {
+
+                        emit.Dup()
+                            .Call(typeof(TsObject).GetMethod("get_Type"))
+                            .LdInt((int)VariableType.Instance)
+                            .Bne(isArray)
+                            .Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                            .StLocal(secret)
+                            .LdLocal(secret)
+                            .LdStr("get")
+                            .LdInt(array.Indeces.Count)
+                            .NewArr(typeof(TsObject));
+
+                        var indeces = new LocalBuilder[array.Indeces.Count];
+                        for (var i = 0; i < array.Indeces.Count; i++)
+                        {
+                            emit.Dup()
+                                .LdInt(i);
+                            array.Indeces[i].Accept(this);
+                            ConvertTopToObject();
+                            indeces[i] = GetLocal();
+                            emit.Dup()
+                                .StLocal(indeces[i])
+                                .StElem(typeof(TsObject));
+                        }
+
+                        emit.Call(typeof(ITsInstance).GetMethod("Call"))
+                            .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
+                            .StLocal(value)
+                            .LdLocal(secret)
+                            .LdStr("set")
+                            .LdInt(indeces.Length + 1)
+                            .NewArr(typeof(TsObject));
+
+                        for (var i = 0; i < indeces.Length; i++)
+                        {
+                            emit.Dup()
+                                .LdInt(i)
+                                .LdLocal(indeces[i])
+                                .StElem(typeof(TsObject));
+                            FreeLocal(indeces[i]);
+                        }
+                        emit.Dup()
+                            .LdInt(indeces.Length)
+                            .LdLocal(value)
+                            .StElem(typeof(TsObject))
+                            .Call(typeof(ITsInstance).GetMethod("Call"))
+                            .Pop()
+                            .LdLocal(value)
+                            .Br(end)
+                            .PushType(typeof(TsObject).MakePointerType())
+                            .MarkLabel(isArray);
+
+                        CallInstanceMethod(TsTypes.ObjectCasts[array.Children.Count == 2 ? typeof(TsObject[]) : typeof(TsObject[][])], array.Position);
+                        LoadElementAsInt(array.Children[1]);
+
+                        if (array.Children.Count == 2)
+                        {
+                            emit.LdElemA(typeof(TsObject));
+                        }
+                        else
+                        {
+                            emit.LdElem(typeof(TsObject[]));
+                            LoadElementAsInt(array.Children[2]);
+                            emit.LdElemA(typeof(TsObject));
+                        }
+                        emit.Dup()
+                            .LdObj(typeof(TsObject))
+                            .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
+                            .Dup()
+                            .StLocal(value)
+                            .StObj(typeof(TsObject))
+                            .LdLocal(value)
+                            .MarkLabel(end)
+                            .PopTop();
+                    }
+                    else
+                    {
+                        emit.Call(typeof(TsObject).GetMethod("GetInstanceUnchecked"))
+                            .StLocal(secret)
+                            .LdLocal(secret)
+                            .LdStr("get")
+                            .LdInt(array.Indeces.Count)
+                            .NewArr(typeof(TsObject));
+
+                        var indeces = new LocalBuilder[array.Indeces.Count];
+                        for (var i = 0; i < array.Indeces.Count; i++)
+                        {
+                            emit.Dup()
+                                .LdInt(i);
+                            array.Indeces[i].Accept(this);
+                            ConvertTopToObject();
+                            indeces[i] = GetLocal();
+                            emit.Dup()
+                                .StLocal(indeces[i])
+                                .StElem(typeof(TsObject));
+                        }
+
+                        emit.Call(typeof(ITsInstance).GetMethod("Call"))
+                            .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
+                            .StLocal(value)
+                            .LdLocal(secret)
+                            .LdStr("set")
+                            .LdInt(indeces.Length + 1)
+                            .NewArr(typeof(TsObject));
+
+                        for (var i = 0; i < indeces.Length; i++)
+                        {
+                            emit.Dup()
+                                .LdInt(i)
+                                .LdLocal(indeces[i])
+                                .StElem(typeof(TsObject));
+                            FreeLocal(indeces[i]);
+                        }
+                        emit.Dup()
+                            .LdInt(indeces.Length)
+                            .LdLocal(value)
+                            .StElem(typeof(TsObject))
+                            .Call(typeof(ITsInstance).GetMethod("Call"))
+                            .Pop()
+                            .LdLocal(value);
+                    }
+                    FreeLocal(secret);
+                    FreeLocal(value);
                 }
                 else if (prefix.Child is VariableToken variable)
                 {
@@ -2744,13 +3197,15 @@ namespace TaffyScriptCompiler.Backend
                     }
                     else
                     {
+                        var secret = GetLocal();
                         SelfAccessSet(variable);
-                        emit.Call(typeof(TsInstance).GetMethod("get_Item"))
+                        emit.Call(typeof(ITsInstance).GetMethod("get_Item"))
                             .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                             .StLocal(secret)
                             .LdLocal(secret)
-                            .Call(typeof(TsInstance).GetMethod("set_Item"))
+                            .Call(typeof(ITsInstance).GetMethod("set_Item"))
                             .LdLocal(secret);
+                        FreeLocal(secret);
                     }
                 }
                 else if (prefix.Child is MemberAccessNode member)
@@ -2761,6 +3216,7 @@ namespace TaffyScriptCompiler.Backend
                         emit.Call(TsTypes.Empty);
                         return;
                     }
+                    var secret = GetLocal();
                     if (member.Left is ReadOnlyToken read)
                     {
                         Func<ILEmitter> loadTarget = GetReadOnlyLoadFunc(read);
@@ -2769,11 +3225,11 @@ namespace TaffyScriptCompiler.Backend
                             .LdStr(value.Text);
                         loadTarget()
                             .LdStr(value.Text)
-                            .Call(typeof(TsInstance).GetMethod("get_Item"))
+                            .Call(typeof(ITsInstance).GetMethod("get_Item"))
                             .Call(GetOperator(prefix.Text, typeof(TsObject), prefix.Position))
                             .StLocal(secret)
                             .LdLocal(secret)
-                            .Call(typeof(TsInstance).GetMethod("set_Item"))
+                            .Call(typeof(ITsInstance).GetMethod("set_Item"))
                             .LdLocal(secret);
                     }
                     else
@@ -2795,11 +3251,10 @@ namespace TaffyScriptCompiler.Backend
 
                         FreeLocal(target);
                     }
+                    FreeLocal(secret);
                 }
                 else
                     _errors.Add(new CompileException($"Invalid syntax detected {prefix.Position}"));
-
-                FreeLocal(secret);
             }
             else
             {
@@ -2848,11 +3303,6 @@ namespace TaffyScriptCompiler.Backend
                     break;
                 case "pi":
                     emit.LdFloat((float)Math.PI);
-                    break;
-                case "instance_count":
-                    emit.LdFld(typeof(TsInstance).GetField("Pool", BindingFlags.Static | BindingFlags.NonPublic))
-                        .Call(typeof(Dictionary<float, TsInstance>).GetMethod("get_Count"))
-                        .ConvertFloat();
                     break;
                 case "noone":
                     emit.LdFloat(-4f);
@@ -2968,8 +3418,7 @@ namespace TaffyScriptCompiler.Backend
             if (!emit.TryGetTop(out var returnType))
                 _errors.Add(new CompileException($"Tried to return without a return value. If this is expected, use exit instead {returnNode.Position}"));
 
-            if (returnType != null && returnType != typeof(TsObject))
-                emit.New(TsTypes.Constructors[returnType]);
+            ConvertTopToObject();
 
             if (_inInstanceScript)
             {
@@ -2994,11 +3443,11 @@ namespace TaffyScriptCompiler.Backend
             var name = script.Text;
             var mb = StartMethod(name, _namespace);
             _inGlobalScript = true;
-            ScriptStart(name, mb, new[] { typeof(TsInstance), typeof(TsObject[]) });
+            ScriptStart(name, mb, ScriptArgs);
 
             //Process arguments
             ProcessScriptArguments(script);
-            
+
             script.Body.Accept(this);
             
             if (!emit.TryGetTop(out _))
@@ -3062,9 +3511,7 @@ namespace TaffyScriptCompiler.Backend
                             .MarkLabel(lte);
                         //Must be ConstantToken
                         assign.Right.Accept(this);
-                        var top = emit.GetTop();
-                        if (top != typeof(TsObject))
-                            emit.New(TsTypes.Constructors[emit.GetTop()]);
+                        ConvertTopToObject();
 
                         emit.StLocal(_locals[symbol])
                             .MarkLabel(end);
@@ -3264,7 +3711,7 @@ namespace TaffyScriptCompiler.Backend
             {
                 emit.LdArg(0)
                     .LdStr(variableToken.Text)
-                    .Call(typeof(TsInstance).GetMethod("GetMember"));
+                    .Call(typeof(ITsInstance).GetMethod("get_Item"));
             }
         }
 
@@ -3281,50 +3728,734 @@ namespace TaffyScriptCompiler.Backend
                 .MarkLabel(end);
         }
 
-        public void Visit(WithNode with)
+        public void Visit(ImportObjectNode importNode)
         {
-            with.Condition.Accept(this);
-            var top = emit.GetTop();
-            if(top == typeof(int) || top == typeof(bool))
+            ImportObjectLeaf leaf = (ImportObjectLeaf)_table.Defined(importNode.ImportName.Value);
+            if (leaf.HasImportedObject)
+                return;
+
+            leaf.HasImportedObject = true;
+
+            var importType = _typeParser.GetType(importNode.Text);
+
+            if (importType.IsAbstract || importType.IsEnum || !importType.IsClass)
+                _errors.Add(new CompileException($"Could not import the type {importType.Name}. Imported types must be concrete and currently must be a class."));
+
+            var ns = GetAssetNamespace(leaf);
+            if(typeof(ITsInstance).IsAssignableFrom(importType))
             {
-                emit.New(TsTypes.Constructors[typeof(int)]);
-                top = typeof(TsObject);
+                SpecialImports.Write((byte)ImportType.Object);
+                SpecialImports.Write(':');
+                SpecialImports.Write(ns);
+                SpecialImports.Write(':');
+                SpecialImports.Write(importNode.ImportName.Text);
+                SpecialImports.Write(':');
+                SpecialImports.WriteLine(importType.Name);
+                return;
             }
-            if(top == typeof(float))
-            {
-                emit.New(TsTypes.Constructors[typeof(float)]);
-                top = typeof(TsObject);
-            }
-            var start = emit.DefineLabel();
+
+            var name = $"{ns}.{importNode.ImportName.Value}".TrimStart('.');
+            var type = _module.DefineType(name, TypeAttributes.Public, importNode.WeaklyTyped ? typeof(ObjectWrapper) : typeof(Object), new[] { typeof(ITsInstance) });
+
+            var source = type.DefineField("_source", importType, FieldAttributes.Private);
+            var objectType = type.DefineProperty("ObjectType", PropertyAttributes.None, typeof(string), null);
+            var getObjectType = type.DefineMethod("get_ObjectType",
+                                                  MethodAttributes.Public |
+                                                      MethodAttributes.HideBySig |
+                                                      MethodAttributes.NewSlot |
+                                                      MethodAttributes.SpecialName |
+                                                      MethodAttributes.Virtual |
+                                                      MethodAttributes.Final,
+                                                  typeof(string),
+                                                  Type.EmptyTypes);
+            var gen = getObjectType.GetILGenerator();
+            gen.Emit(OpCodes.Ldstr, name);
+            gen.Emit(OpCodes.Ret);
+
+            objectType.SetGetMethod(getObjectType);
+            var destroyedField = type.DefineField("Destroyed", typeof(DestroyedDelegate), FieldAttributes.Private);
+            var destroyedEvent = type.DefineEvent("Destroyed", EventAttributes.None, typeof(DestroyedDelegate));
+            var eventArgs = new[] { typeof(DestroyedDelegate) };
+
+            var addDestroyed = type.DefineMethod("add_Destroyed",
+                                                 MethodAttributes.Public |
+                                                    MethodAttributes.HideBySig |
+                                                    MethodAttributes.NewSlot |
+                                                    MethodAttributes.SpecialName |
+                                                    MethodAttributes.Virtual |
+                                                    MethodAttributes.Final, 
+                                                 typeof(void),
+                                                 eventArgs);
+
+            emit = new ILEmitter(addDestroyed, eventArgs);
+
+
+            emit.LdArg(0)
+                .Dup()
+                .LdFld(destroyedField)
+                .LdArg(1)
+                .Call(typeof(Delegate).GetMethod("Combine", new[] { typeof(Delegate), typeof(Delegate) }))
+                .CastClass(typeof(DestroyedDelegate))
+                .StFld(destroyedField)
+                .Ret();
+
+            destroyedEvent.SetAddOnMethod(addDestroyed);
+
+            var removeDestroyed = type.DefineMethod("remove_Destroyed",
+                                                    MethodAttributes.Public |
+                                                        MethodAttributes.HideBySig |
+                                                        MethodAttributes.NewSlot |
+                                                        MethodAttributes.SpecialName |
+                                                        MethodAttributes.Virtual |
+                                                        MethodAttributes.Final,
+                                                    typeof(void),
+                                                    eventArgs);
+
+            emit = new ILEmitter(removeDestroyed, eventArgs);
+            emit.LdArg(0)
+                .Dup()
+                .LdFld(destroyedField)
+                .LdArg(1)
+                .Call(typeof(Delegate).GetMethod("Remove", new[] { typeof(Delegate), typeof(Delegate) }))
+                .CastClass(typeof(DestroyedDelegate))
+                .StFld(destroyedField)
+                .Ret();
+
+            destroyedEvent.SetRemoveOnMethod(removeDestroyed);
+
+            var methodFlags = MethodAttributes.Public |
+                              MethodAttributes.HideBySig |
+                              MethodAttributes.NewSlot |
+                              MethodAttributes.Virtual |
+                              MethodAttributes.Final;
+
+            var weakFlags = MethodAttributes.Public |
+                           MethodAttributes.HideBySig;
+
+                                
+
+            var destroy = type.DefineMethod("Destroy", methodFlags);
+
+            emit = new ILEmitter(destroy, Type.EmptyTypes);
+            var notNull = emit.DefineLabel();
             var end = emit.DefineLabel();
-            var gen = GetLocal(typeof(InstanceEnumerator));
-            var other = GetLocal(typeof(TsInstance));
-            _loopStart.Push(start);
-            _loopEnd.Push(end);
-            emit.Call(typeof(TsInstance).GetMethod("get_Other"))
-                .StLocal(other)
+
+            emit.LdArg(0)
+                .LdFld(destroyedField)
+                .Dup()
+                .BrTrue(notNull)
+                .Pop()
+                .Br(end)
+                .MarkLabel(notNull)
+                .PushType(destroyedField.FieldType)
                 .LdArg(0)
-                .Call(typeof(TsInstance).GetMethod("set_Other"))
-                .New(typeof(InstanceEnumerator).GetConstructor(new[] { top }))
-                .StLocal(gen)
-                .MarkLabel(start)
-                .LdLocalA(gen)
-                .Call(typeof(InstanceEnumerator).GetMethod("MoveNext"))
-                .BrFalse(end)
-                .LdLocalA(gen)
-                .Call(typeof(InstanceEnumerator).GetMethod("get_Current"))
-                .StArg(0);
-            with.Body.Accept(this);
-            emit.MarkLabel(end)
-                .Call(typeof(TsInstance).GetMethod("get_Other"))
-                .StArg(0)
-                .LdLocal(other)
-                .Call(typeof(TsInstance).GetMethod("set_Other"));
+                .Call(typeof(DestroyedDelegate).GetMethod("Invoke", new[] { typeof(ITsInstance) }))
+                .MarkLabel(end)
+                .LdArg(0)
+                .LdNull() //<- this will have to be changed when importing valuetype
+                .StFld(source)
+                .Ret();
 
-            FreeLocal(other);
-            FreeLocal(gen);
+            var callMethod = type.DefineMethod("Call", methodFlags, typeof(TsObject), new[] { typeof(string), typeof(TsObject[]) });
+            var getMemberMethod = type.DefineMethod("GetMember", methodFlags, typeof(TsObject), new[] { typeof(string) });
+            var setMemberMethod = type.DefineMethod("SetMember", methodFlags, typeof(void), new[] { typeof(string), typeof(TsObject) });
+            var tryGetDelegateMethod = type.DefineMethod("TryGetDelegate", methodFlags, typeof(bool), new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
 
+            var call = new ILEmitter(callMethod, new[] { typeof(string), typeof(TsObject[]) });
+            var getm = new ILEmitter(getMemberMethod, new[] { typeof(string) });
+            var setm = new ILEmitter(setMemberMethod, new[] { typeof(string), typeof(TsObject) });
+            var tryd = new ILEmitter(tryGetDelegateMethod, new[] { typeof(string), typeof(TsDelegate) });
+            tryGetDelegateMethod.DefineParameter(2, ParameterAttributes.Out, "del");
+            var paramsAttribute = new CustomAttributeBuilder(typeof(ParamArrayAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
+            callMethod.DefineParameter(2, ParameterAttributes.None, "args").SetCustomAttribute(paramsAttribute);
 
+            var writeOnly = new List<string>();
+            var readOnly = new List<string>();
+            var members = typeof(ObjectWrapper).GetMethod("get_Members", BindingFlags.NonPublic | BindingFlags.Instance);
+            var del = getm.DeclareLocal(typeof(TsDelegate), "del");
+
+            Label getError;
+
+            if (!importNode.AutoImplement)
+            {
+                foreach(var fld in importNode.Fields)
+                {
+                    var field = importType.GetMember(fld.ExternalName, MemberTypes.Field | MemberTypes.Property, BindingFlags.Public | BindingFlags.Instance).FirstOrDefault();
+                    if(field == null)
+                    {
+                        _errors.Add(new CompileException($"Could not find the Field or Property {fld.ExternalName} on the type {importType.Name} {fld.Position}"));
+                        continue;
+                    }
+                    switch(field)
+                    {
+                        case FieldInfo fi:
+                            AddFieldToTypeWrapper(fi, type, fld.ImportName, fld.Position, source, getm, setm);
+                            break;
+                        case PropertyInfo pi:
+                            AddPropertyToTypeWrapper(pi, type, fld.ImportName, fld.Position, source, getm, setm, writeOnly, readOnly);
+                            break;
+                    }
+                }
+
+                foreach(var mthd in importNode.Methods)
+                {
+                    var args = new Type[mthd.ArgumentTypes.Count];
+                    for(var i = 0; i < args.Length; i++)
+                    {
+                        if (TsTypes.BasicTypes.TryGetValue(mthd.ArgumentTypes[i], out var argType))
+                            args[i] = argType;
+                        else
+                            _errors.Add(new CompileException($"Could not import the method {mthd.ExternalName} because one of the arguments was invalid {mthd.ArgumentTypes[i]} {mthd.Position}"));
+                    }
+
+                    var method = importType.GetMethod(mthd.ExternalName, BindingFlags.Public | BindingFlags.Instance, null, args, null);
+                    AddMethodToTypeWrapper(method, weakFlags, type, mthd.ImportName, mthd.Position, source, call, tryd, readOnly);
+                }
+
+                var ctorArgNames = importNode.Constructor.ArgumentTypes;
+                var ctorArgs = new Type[ctorArgNames.Count];
+                for (var i = 0; i < ctorArgs.Length; i++)
+                {
+                    if (TsTypes.BasicTypes.TryGetValue(ctorArgNames[i], out var argType))
+                        ctorArgs[i] = argType;
+                    else
+                        _errors.Add(new CompileException($"Could not import the constructor for the type {name} because one of the arguments was invalid {ctorArgs[i]} {importNode.Constructor.Position}"));
+                }
+
+                var ctor = importType.GetConstructor(ctorArgs);
+                if (ctor is null)
+                    _errors.Add(new CompileException($"Could not find ctor on the type {name} with the arguments {string.Join(", ", ctorArgNames)}"));
+                else
+                    AddConstructorToTypeWrapper(ctor, type, source, importNode.WeaklyTyped, leaf);
+            }
+            else
+            {
+                var publicMembers = importType.GetMembers(BindingFlags.Public | BindingFlags.Instance);
+                Func<string, string> transformName;
+                switch(importNode.Casing)
+                {
+                    case ImportCasing.Camel:
+                        transformName = StringUtils.ConvertToCamelCase;
+                        break;
+                    case ImportCasing.Pascal:
+                        transformName = StringUtils.ConvertToPascalCase;
+                        break;
+                    case ImportCasing.Snake:
+                        transformName = StringUtils.ConvertToSnakeCase;
+                        break;
+                    default:
+                        transformName = (s) => s;
+                        break;
+                }
+                bool foundIndexer = false;
+                bool foundConstructor = false;
+                Type memberType;
+                var validMethods = new HashSet<MethodInfo>();
+                var ignoreMethods = new HashSet<string>();
+                foreach(var publicMember in publicMembers)
+                {
+                    switch(publicMember)
+                    {
+                        case FieldInfo fi:
+                            memberType = fi.FieldType;
+                            if (typeof(ITsInstance).IsAssignableFrom(memberType))
+                                memberType = typeof(ITsInstance);
+                            if (memberType == typeof(TsObject) || TsTypes.ObjectCasts.ContainsKey(memberType))
+                                AddFieldToTypeWrapper(fi, type, transformName(fi.Name), importNode.Position, source, getm, setm);
+                            break;
+                        case PropertyInfo pi:
+                            memberType = pi.PropertyType;
+                            if (typeof(ITsInstance).IsAssignableFrom(memberType))
+                                memberType = typeof(ITsInstance);
+                            if (memberType == typeof(TsObject) || TsTypes.ObjectCasts.ContainsKey(memberType))
+                            {
+                                if((pi.CanRead && pi.GetMethod.GetParameters().Length > 0) || 
+                                    (pi.CanWrite && pi.SetMethod.GetParameters().Length > 1))
+                                {
+                                    if (foundIndexer)
+                                        continue;
+                                    if(pi.CanRead && IsMethodSupported(pi.GetMethod))
+                                    {
+                                        foundIndexer = true;
+                                        AddMethodToTypeWrapper(pi.GetMethod, weakFlags, type, "get", importNode.Position, source, call, tryd, readOnly);
+                                    }
+                                    if(pi.CanWrite && IsMethodSupported(pi.SetMethod))
+                                    {
+                                        foundIndexer = true;
+                                        AddMethodToTypeWrapper(pi.SetMethod, weakFlags, type, "set", importNode.Position, source, call, tryd, readOnly);
+                                    }
+                                }
+                                else
+                                {
+                                    AddPropertyToTypeWrapper(pi, type, transformName(pi.Name), importNode.Position, source, getm, setm, writeOnly, readOnly);
+                                }
+                                if(pi.CanRead)
+                                {
+                                    validMethods.Remove(pi.GetMethod);
+                                    ignoreMethods.Add(pi.GetMethod.Name);
+                                }
+                                if(pi.CanWrite)
+                                {
+                                    validMethods.Remove(pi.SetMethod);
+                                    ignoreMethods.Add(pi.SetMethod.Name);
+                                }
+                            }
+                            break;
+                        case MethodInfo mi:
+                            if (!ignoreMethods.Contains(mi.Name) && IsMethodSupported(mi))
+                            {
+                                validMethods.Add(mi);
+                                ignoreMethods.Add(mi.Name);
+                            }
+                            break;
+                        case ConstructorInfo ci:
+                            if(!foundConstructor && AreMethodParametersSupported(ci.GetParameters()))
+                            {
+                                AddConstructorToTypeWrapper(ci, type, source, importNode.WeaklyTyped, leaf);
+                                foundConstructor = true;
+                            }
+                            break;
+                    }
+                }
+                foreach(var mi in validMethods)
+                    AddMethodToTypeWrapper(mi, weakFlags, type, transformName(mi.Name), importNode.Position, source, call, tryd, readOnly);
+
+                if (!foundConstructor)
+                    _errors.Add(new CompileException($"No valid constructor was found for the imported type {importType} {importNode.Position}"));
+            }
+
+            if (importNode.WeaklyTyped)
+            {
+                if (readOnly.Count > 0)
+                {
+                    var setError = setm.DefineLabel();
+                    for (var i = 0; i < readOnly.Count; i++)
+                    {
+                        setm.LdArg(1)
+                            .LdStr(readOnly[i])
+                            .Call(GetOperator("==", typeof(string), typeof(string), new TokenPosition(0, 0, 0, null)))
+                            .BrTrue(setError);
+                    }
+                    setm.LdArg(0)
+                        .Call(members)
+                        .LdArg(1)
+                        .LdArg(2)
+                        .Call(typeof(Dictionary<string, TsObject>).GetMethod("set_Item"))
+                        .Ret()
+                        .MarkLabel(setError)
+                        .LdStr($"Member {{0}} on type {name} is readonly")
+                        .LdArg(1)
+                        .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                        .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                        .Throw();
+                }
+                else
+                {
+                    setm.LdArg(0)
+                        .Call(members)
+                        .LdArg(1)
+                        .LdArg(2)
+                        .Call(typeof(Dictionary<string, TsObject>).GetMethod("set_Item"))
+                        .Ret();
+                }
+                var member = call.DeclareLocal(typeof(TsObject), "member");
+                var callError = call.DefineLabel();
+                call.LdArg(0)
+                    .Call(members)
+                    .LdArg(1)
+                    .LdLocalA(member)
+                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
+                    .BrFalse(callError)
+                    .LdLocalA(member)
+                    .Call(typeof(TsObject).GetMethod("get_Type"))
+                    .LdInt((int)VariableType.Delegate)
+                    .Bne(callError)
+                    .LdLocalA(member)
+                    .Call(typeof(TsObject).GetMethod("GetDelegateUnchecked"))
+                    .LdArg(2)
+                    .Call(typeof(TsDelegate).GetMethod("Invoke", new[] { typeof(TsObject[]) }))
+                    .Ret()
+                    .MarkLabel(callError)
+                    .LdStr($"The type {name} does not define a script called {{0}}")
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                    .Throw();
+
+                member = tryd.DeclareLocal(typeof(TsObject), "member");
+                var tryFail = tryd.DefineLabel();
+                tryd.LdArg(0)
+                    .Call(members)
+                    .LdArg(1)
+                    .LdLocalA(member)
+                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
+                    .BrFalse(tryFail)
+                    .LdLocalA(member)
+                    .Call(typeof(TsObject).GetMethod("get_Type"))
+                    .LdInt((int)VariableType.Delegate)
+                    .Bne(tryFail)
+                    .LdArg(2)
+                    .LdLocalA(member)
+                    .Call(typeof(TsObject).GetMethod("GetDelegateUnchecked"))
+                    .StIndRef()
+                    .LdBool(true)
+                    .Ret()
+                    .MarkLabel(tryFail)
+                    .LdArg(2)
+                    .LdNull()
+                    .StIndRef()
+                    .LdBool(false)
+                    .Ret();
+
+                getError = getm.DefineLabel();
+                var getMember = getm.DefineLabel();
+                member = getm.DeclareLocal(typeof(TsObject), "member");
+                foreach (var wo in writeOnly)
+                {
+                    getm.LdArg(1)
+                        .LdStr(wo)
+                        .Call(GetOperator("==", typeof(string), typeof(string), new TokenPosition(0, 0, 0, null)))
+                        .BrTrue(getError);
+                }
+                getm.LdArg(0)
+                    .LdArg(1)
+                    .LdLocalA(del)
+                    .Call(tryGetDelegateMethod, 3, typeof(bool))
+                    .BrFalse(getMember)
+                    .LdLocal(del)
+                    .New(TsTypes.Constructors[typeof(TsDelegate)])
+                    .Ret()
+                    .MarkLabel(getMember)
+                    .LdArg(0)
+                    .Call(members)
+                    .LdArg(1)
+                    .LdLocalA(member)
+                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
+                    .BrFalse(getError)
+                    .LdLocal(member)
+                    .Ret()
+                    .MarkLabel(getError)
+                    .LdStr($"Member with the name {{0}} is readonly or doesn't exist on the type {name}")
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                    .Throw();
+            }
+            else
+            {
+                setm.LdStr($"Member {{0}} on type {name} is readonly or doesn't exist")
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                    .Throw();
+
+                call.LdStr($"The type {name} does not define a script called {{0}}.")
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                    .Throw();
+
+                tryd.LdArg(2)
+                    .LdNull()
+                    .StIndRef()
+                    .LdBool(false)
+                    .Ret();
+
+                getError = getm.DefineLabel();
+                getm.LdArg(0)
+                    .LdArg(1)
+                    .LdLocalA(del)
+                    .Call(tryGetDelegateMethod, 3, typeof(bool))
+                    .BrFalse(getError)
+                    .LdLocal(del)
+                    .New(TsTypes.Constructors[typeof(TsDelegate)])
+                    .Ret()
+                    .MarkLabel(getError)
+                    .LdStr($"Couldn't find member with the name {{0}} on the type {name}")
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                    .Throw();
+            }
+
+            var getDelegate = type.DefineMethod("GetDelegate", methodFlags, typeof(TsDelegate), new[] { typeof(string) });
+            emit = new ILEmitter(getDelegate, new[] { typeof(string) });
+            del = emit.DeclareLocal(typeof(TsDelegate), "del");
+            getError = emit.DefineLabel();
+
+            emit.LdArg(0)
+                .LdArg(1)
+                .LdLocalA(del)
+                .Call(tryGetDelegateMethod, 3, typeof(bool))
+                .BrFalse(getError)
+                .LdLocal(del)
+                .Ret()
+                .MarkLabel(getError)
+                .LdStr($"The type {name} does not define a script called {{0}}")
+                .LdArg(1)
+                .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                .Throw();
+
+            var indexer = type.DefineProperty("Item", PropertyAttributes.None, typeof(TsObject), new[] { typeof(string) });
+            var indexGet = type.DefineMethod("get_Item",
+                                             MethodAttributes.Public |
+                                                 MethodAttributes.HideBySig |
+                                                 MethodAttributes.NewSlot |
+                                                 MethodAttributes.SpecialName |
+                                                 MethodAttributes.Virtual |
+                                                 MethodAttributes.Final,
+                                             typeof(TsObject),
+                                             new[] { typeof(string) });
+            emit = new ILEmitter(indexGet, new[] { typeof(string) });
+            emit.LdArg(0)
+                .LdArg(1)
+                .Call(getMemberMethod, 2, typeof(TsObject))
+                .Ret();
+
+            indexer.SetGetMethod(indexGet);
+
+            var indexSet = type.DefineMethod("set_Item",
+                                             MethodAttributes.Public |
+                                                 MethodAttributes.HideBySig |
+                                                 MethodAttributes.NewSlot |
+                                                 MethodAttributes.SpecialName |
+                                                 MethodAttributes.Virtual |
+                                                 MethodAttributes.Final,
+                                             typeof(void),
+                                             new[] { typeof(string), typeof(TsObject) });
+            emit = new ILEmitter(indexSet, new[] { typeof(string), typeof(TsObject) });
+            emit.LdArg(0)
+                .LdArg(1)
+                .LdArg(2)
+                .Call(setMemberMethod, 3, typeof(void))
+                .Ret();
+
+            indexer.SetSetMethod(indexSet);
+            var defaultMember = new CustomAttributeBuilder(typeof(DefaultMemberAttribute).GetConstructor(new[] { typeof(string) }), new[] { "Item" });
+            type.SetCustomAttribute(defaultMember);
+
+            type.CreateType();
+        }
+
+        private void AddFieldToTypeWrapper(FieldInfo field, TypeBuilder type, string importName, TokenPosition position, FieldInfo source, ILEmitter getm, ILEmitter setm)
+        {
+            var next = getm.DefineLabel();
+            getm.LdArg(1)
+                .LdStr(importName)
+                .Call(GetOperator("==", typeof(string), typeof(string), position))
+                .BrFalse(next)
+                .LdArg(0)
+                .LdFld(source)
+                .LdFld(field);
+
+            ConvertTopToObject(getm);
+            getm.Ret()
+                .MarkLabel(next);
+
+            next = setm.DefineLabel();
+            setm.LdArg(1)
+                .LdStr(importName)
+                .Call(GetOperator("==", typeof(string), typeof(string), position))
+                .BrFalse(next)
+                .LdArg(0)
+                .LdFld(source)
+                .LdArg(2)
+                .StFld(field)
+                .Ret()
+                .MarkLabel(next);
+        }
+
+        private void AddPropertyToTypeWrapper(PropertyInfo property, 
+                                              TypeBuilder type, 
+                                              string importName, 
+                                              TokenPosition position, 
+                                              FieldInfo source, 
+                                              ILEmitter getm, 
+                                              ILEmitter setm, 
+                                              List<string> writeOnly,
+                                              List<string> readOnly)
+        {
+            if (!property.CanRead)
+                writeOnly.Add(importName);
+            else
+            {
+                var next = getm.DefineLabel();
+                getm.LdArg(1)
+                    .LdStr(importName)
+                    .Call(GetOperator("==", typeof(string), typeof(string), position))
+                    .BrFalse(next)
+                    .LdArg(0)
+                    .LdFld(source)
+                    .Call(property.GetMethod);
+                ConvertTopToObject(getm);
+                getm.Ret()
+                    .MarkLabel(next);
+            }
+
+            if (!property.CanWrite)
+                readOnly.Add(importName);
+            else
+            {
+                var next = setm.DefineLabel();
+                setm.LdArg(1)
+                    .LdStr(importName)
+                    .Call(GetOperator("==", typeof(string), typeof(string), position))
+                    .BrFalse(next)
+                    .LdArg(0)
+                    .LdFld(source)
+                    .LdArg(2)
+                    .Call(property.SetMethod)
+                    .Ret()
+                    .MarkLabel(next);
+            }
+        }
+
+        private void AddMethodToTypeWrapper(MethodInfo method, 
+                                    MethodAttributes weakFlags, 
+                                    TypeBuilder type, 
+                                    string importName, 
+                                    TokenPosition methodPosition, 
+                                    FieldInfo source, 
+                                    ILEmitter call, 
+                                    ILEmitter tryd,
+                                    List<string> readOnly)
+        {
+            var weakMethod = type.DefineMethod(importName, weakFlags, typeof(TsObject), ScriptArgs);
+            var weak = new ILEmitter(weakMethod, ScriptArgs);
+            weak.LdArg(0)
+                .LdFld(source);
+
+            var parameters = method.GetParameters();
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                weak.LdArg(2)
+                    .LdInt(i);
+
+                if (parameters[i].ParameterType == typeof(object))
+                {
+                    weak.LdElem(typeof(TsObject))
+                        .Box(typeof(TsObject));
+                }
+                else if (parameters[i].ParameterType != typeof(TsObject))
+                {
+                    weak.LdElemA(typeof(TsObject))
+                        .Call(TsTypes.ObjectCasts[parameters[i].ParameterType]);
+                }
+                else
+                    weak.LdElem(typeof(TsObject));
+            }
+
+            weak.Call(method);
+            if (method.ReturnType == typeof(void))
+                weak.Call(TsTypes.Empty);
+            else if (TsTypes.Constructors.TryGetValue(method.ReturnType, out var objCtor))
+                weak.New(objCtor);
+            else if (method.ReturnType != typeof(TsObject))
+                _errors.Add(new CompileException($"Imported method { method.Name } had an invalid return type { method.ReturnType}."));
+            weak.Ret();
+
+            var next = call.DefineLabel();
+            call.LdArg(1)
+                .LdStr(importName)
+                .Call(GetOperator("==", typeof(string), typeof(string), methodPosition))
+                .BrFalse(next)
+                .LdArg(0)
+                .LdArg(0)
+                .LdArg(2)
+                .Call(weakMethod, 3, typeof(TsObject))
+                .Ret()
+                .MarkLabel(next);
+
+            next = tryd.DefineLabel();
+            tryd.LdArg(1)
+                .LdStr(importName)
+                .Call(GetOperator("==", typeof(string), typeof(string), methodPosition))
+                .BrFalse(next)
+                .LdArg(2)
+                .LdArg(0)
+                .LdFtn(weakMethod)
+                .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                .LdStr(importName)
+                .LdArg(0)
+                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string), typeof(ITsInstance) }))
+                .StIndRef()
+                .LdBool(true)
+                .Ret()
+                .MarkLabel(next);
+
+            readOnly.Add(importName);
+        }
+
+        private void AddConstructorToTypeWrapper(ConstructorInfo ctor, TypeBuilder type, FieldInfo source, bool isWeaklyTyped, ImportObjectLeaf leaf)
+        {
+            var createMethod = type.DefineConstructor(MethodAttributes.Public |
+                                                          MethodAttributes.HideBySig |
+                                                          MethodAttributes.SpecialName |
+                                                          MethodAttributes.RTSpecialName,
+                                                      CallingConventions.Standard,
+                                                      new[] { typeof(TsObject[]) });
+
+            emit = new ILEmitter(createMethod, new[] { typeof(TsObject[]) });
+            emit.LdArg(0);
+
+            var ctorParams = ctor.GetParameters();
+            for (var i = 0; i < ctorParams.Length; i++)
+            {
+                emit.LdArg(1)
+                    .LdInt(i);
+
+                if (ctorParams[i].ParameterType == typeof(object))
+                {
+                    emit.LdElem(typeof(TsObject))
+                        .Box(typeof(TsObject));
+                }
+                else if (ctorParams[i].ParameterType != typeof(TsObject))
+                {
+                    emit.LdElemA(typeof(TsObject))
+                        .Call(TsTypes.ObjectCasts[ctorParams[i].ParameterType]);
+                }
+                else
+                    emit.LdElem(typeof(TsObject));
+            }
+            emit.New(ctor)
+                .StFld(source)
+                .LdArg(0);
+            if (isWeaklyTyped)
+                emit.CallBase(typeof(ObjectWrapper).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null));
+            else
+                emit.CallBase(typeof(Object).GetConstructor(Type.EmptyTypes));
+
+            emit.Ret();
+
+            leaf.Constructor = createMethod;
+        }
+
+        private bool IsMethodSupported(MethodInfo method)
+        {
+            var type = method.ReturnType;
+            if(type != typeof(void))
+            {
+                if (typeof(ITsInstance).IsAssignableFrom(type))
+                    type = typeof(ITsInstance);
+                if (type != typeof(TsObject) && !TsTypes.Constructors.ContainsKey(type))
+                    return false;
+            }
+            var parameters = method.GetParameters();
+            return AreMethodParametersSupported(method.GetParameters());
+        }
+
+        private bool AreMethodParametersSupported(ParameterInfo[] parameters)
+        {
+            foreach (var parameter in parameters)
+            {
+                var type = parameter.ParameterType;
+                if (typeof(ITsInstance).IsAssignableFrom(type))
+                    type = typeof(ITsInstance);
+                if (type != typeof(TsObject) && !TsTypes.Constructors.ContainsKey(type))
+                    return false;
+            }
+            return true;
         }
 
         #endregion

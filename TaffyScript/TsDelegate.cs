@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TaffyScript
 {
-    public delegate TsObject TsScript(TsInstance target, TsObject[] args);
+    public delegate TsObject TsScript(ITsInstance target, TsObject[] args);
 
     public enum TsScriptScope
     {
@@ -19,7 +19,7 @@ namespace TaffyScript
     {
         public TsScriptScope ScriptScope { get; }
         public TsScript Script { get; private set; }
-        public TsInstance Target { get; private set; }
+        public ITsInstance Target { get; private set; }
         public bool Disposed { get; private set; } = false;
         public string Name { get; }
 
@@ -31,7 +31,7 @@ namespace TaffyScript
             Name = name;
         }
 
-        public TsDelegate(TsScript script, string name, TsInstance target)
+        public TsDelegate(TsScript script, string name, ITsInstance target)
         {
             ScriptScope = TsScriptScope.Instance;
             Target = target;
@@ -45,7 +45,7 @@ namespace TaffyScript
         /// </summary>
         /// <param name="original"></param>
         /// <param name="target"></param>
-        public TsDelegate(TsDelegate original, TsInstance target)
+        public TsDelegate(TsDelegate original, ITsInstance target)
         {
             ScriptScope = TsScriptScope.Instance;
             Script = original.Script;
@@ -79,14 +79,14 @@ namespace TaffyScript
             return Script(Target, args);
         }
 
-        public TsObject Invoke(TsInstance target, params TsObject[] args)
+        public TsObject Invoke(ITsInstance target, params TsObject[] args)
         {
             if (target is null && ScriptScope != TsScriptScope.Global)
                 throw new ArgumentNullException("target", "This script requires a target to invoke.");
             return Script(target, args);
         }
 
-        private void OnTargetDestroyed(TsInstance inst)
+        private void OnTargetDestroyed(ITsInstance inst)
         {
             Disposed = true;
             Target = null;

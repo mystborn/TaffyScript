@@ -1,9 +1,24 @@
-// Object imports aren't implemented yed; they may never be.
-// This file shows a potential implementation.
-// Currently it's excluded from the build.
+using UnitTest;
+using TaffyScript.Collections;
 
 namespace LanguageTests {
+
+    script run_import_tests() {
+        var tests = new obj_unit_test("Import Tests", import_create_ds_list);
+        tests.run_tests();
+    }
+
+    script import_create_ds_list() {
+        test_it("import new ds_list");
+        var list = new ds_list();
+        list.add("Hello");
+        var value = list.get(0);
+        assert_equal(value, "Hello");
+    }
+    
     //Explicitly import class and method.
+    //Please note that this is an example created for the tests
+    //The BCL already has a ds_list import that should be used instead.
     import object List<TsObject> as obj_list {
         //Import fields and properties.
         Count as size;
@@ -16,18 +31,10 @@ namespace LanguageTests {
         Clear() as clear;
         RemoveAt(int) as delete;
         get_Item(int) as get;
-        set_Item(int) as set;
+        set_Item(int, object) as set;
         Insert(int, object) as insert;
-        Sort() as sort;
     }
 
-    //Auto generate imports from class. Explicitly convert member names to specified casing.
-    import object(case=snake_case) Dictionary<TsObject, TsObject> as obj_map;
-
-    script list_add_many(list) {
-        for(var i = 1; i < argument_count; i++) {
-            list.add(argument[i]);
-        }
-        return list.count;
-    }
+    //Auto generate wrapper class.
+    import object(typing=strong, case=snake_case) HashSet<TsObject> as ds_set;
 }

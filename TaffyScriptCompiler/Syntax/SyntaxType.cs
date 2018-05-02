@@ -23,11 +23,7 @@ namespace TaffyScriptCompiler
         Prefix,
         FunctionCall,
         MemberAccess,
-        ListAccess,
-        GridAccess,
-        MapAccess,
         ArrayAccess,
-        ExplicitArrayAccess,
         Postfix,
         ArrayLiteral,
         Declare,
@@ -50,6 +46,7 @@ namespace TaffyScriptCompiler
         Usings,
         Namespace,
         New,
+        ImportObject,
 
         //Token
         Constant,

@@ -77,7 +77,6 @@ namespace TaffyScriptCompiler.DotNet
                 TypeDef(type, typeName);
 
                 return type;
-
             }
             else throw new InvalidOperationException($"The type {typeName} could not be found.");
         }

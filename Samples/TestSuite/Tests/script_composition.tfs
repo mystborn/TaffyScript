@@ -28,7 +28,7 @@ namespace LanguageTests {
         }
 
         event ev_comp2 {
-
+            
         }
 
         event moo() {

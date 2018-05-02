@@ -1,0 +1,20 @@
+using UnitTest;
+
+namespace LanguageTests {
+    script scr_object_cycle(iter) {
+        for(var i = 0; i < iter; i++) {
+            var obj = new obj_time();
+            obj.destroy();
+        }
+    }
+
+    script scr_obj_create(iter) {
+        for(var i = 0; i < iter; i++) {
+            var obj = new obj_time();
+        }
+    }
+
+    object obj_time {
+
+    }
+}
