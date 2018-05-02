@@ -140,6 +140,7 @@
     <Compile Include="Syntax\Concrete\VariableToken.cs" />
     <Compile Include="Syntax\Concrete\While.cs" />
     <Compile Include="Syntax\Concrete\ConstantToken.cs" />
+    <Compile Include="Syntax\Concrete\WithNode.cs" />
     <Compile Include="Syntax\ConstantType.cs" />
     <Compile Include="Syntax\IConstantToken.cs" />
     <Compile Include="Syntax\ISyntaxElement.cs" />

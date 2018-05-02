@@ -563,6 +563,16 @@ namespace TaffyScriptCompiler
                     temp.AddChild(BodyStatement());
                     result = temp;
                     break;
+                case TokenType.With:
+                    Confirm(TokenType.With);
+                    temp = _factory.CreateNode(SyntaxType.With, next.Position);
+                    paren = Validate(TokenType.OpenParen);
+                    temp.AddChild(Expression());
+                    if (paren)
+                        Confirm(TokenType.CloseParen);
+                    temp.AddChild(BodyStatement());
+                    result = temp;
+                    break;
                 case TokenType.Do:
                     Confirm(TokenType.Do);
                     temp = _factory.CreateNode(SyntaxType.Do, next.Position);

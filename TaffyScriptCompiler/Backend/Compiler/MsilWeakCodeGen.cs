@@ -1436,6 +1436,9 @@ namespace TaffyScriptCompiler.Backend
                             case "self":
                                 emit.LdArg(0);
                                 break;
+                            case "other":
+                                emit.Call(typeof(TsInstance).GetMethod("get_Other"));
+                                break;
                             default:
                                 _errors.Add(new CompileException($"Cannot access member on non-global readonly value {token.Position}"));
                                 return;
@@ -2478,6 +2481,9 @@ namespace TaffyScriptCompiler.Backend
                     case "self":
                         emit.LdArg(0);
                         break;
+                    case "other":
+                        emit.Call(typeof(TsInstance).GetMethod("get_Other"));
+                        break;
                     default:
                         _errors.Add(new CompileException($"Invalid syntax detected {right.Position}"));
                         emit.Call(TsTypes.Empty);
@@ -2519,7 +2525,7 @@ namespace TaffyScriptCompiler.Backend
                 }
                 else if (memberAccess.Right is ReadOnlyToken readOnly)
                 {
-                    if (readOnly.Text != "id" && readOnly.Text != "self")
+                    if (readOnly.Text != "self")
                     {
                         _errors.Add(new NotImplementedException($"Only the read only variables id and self can be accessed from an instance currently {readOnly.Position}"));
                         emit.Call(TsTypes.Empty);
@@ -3010,6 +3016,8 @@ namespace TaffyScriptCompiler.Backend
         {
             if (read.Text == "global")
                 return () => emit.LdFld(typeof(TsInstance).GetField("Global"));
+            else if (read.Text == "other")
+                return () => emit.Call(typeof(TsInstance).GetMethod("get_Other"));
             else
                 return () => emit.LdArg(0);
         }
@@ -3272,8 +3280,10 @@ namespace TaffyScriptCompiler.Backend
             switch(readOnlyToken.Text)
             {
                 case "self":
-                case "id":
                     emit.LdArg(0);
+                    break;
+                case "other":
+                    emit.Call(typeof(TsInstance).GetMethod("get_Other"));
                     break;
                 case "argument_count":
                     if(_argumentCount == null)
@@ -3726,6 +3736,38 @@ namespace TaffyScriptCompiler.Backend
             whileNode.Body.Accept(this);
             emit.Br(start)
                 .MarkLabel(end);
+        }
+
+        public void Visit(WithNode with)
+        {
+            GetAddressIfPossible(with.Target);
+            var top = emit.GetTop();
+            if (top == typeof(TsObject) || top == typeof(TsObject).MakePointerType())
+                CallInstanceMethod(TsTypes.ObjectCasts[typeof(ITsInstance)], with.Target.Position);
+            else if(!typeof(ITsInstance).IsAssignableFrom(top))
+            {
+                emit.Pop();
+                LogError(new CompileException($"Invalid target for with statement {with.Target.Position}"), false);
+                return;
+            }
+            var other = GetLocal(typeof(ITsInstance));
+            var get = typeof(TsInstance).GetMethod("get_Other");
+            var set = typeof(TsInstance).GetMethod("set_Other");
+
+            emit.Call(get)
+                .StLocal(other)
+                .LdArg(0)
+                .Call(set)
+                .StArg(0);
+
+            with.Body.Accept(this);
+
+            emit.Call(get)
+                .StArg(0)
+                .LdLocal(other)
+                .Call(set);
+
+            FreeLocal(other);
         }
 
         public void Visit(ImportObjectNode importNode)

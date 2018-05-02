@@ -50,6 +50,8 @@ namespace TaffyScriptCompiler.Syntax
                     return new ReturnNode(null, position);
                 case SyntaxType.While:
                     return new WhileNode(null, position);
+                case SyntaxType.With:
+                    return new WithNode(null, position);
                 case SyntaxType.Repeat:
                     return new RepeatNode(null, position);
                 case SyntaxType.Do:

@@ -26,5 +26,7 @@ namespace LanguageTests {
         show_debug_message("");
         run_map_tests();
         show_debug_message("");
+        run_with_tests();
+        show_debug_message("");
     }
 }

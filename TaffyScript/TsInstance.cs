@@ -66,7 +66,7 @@ namespace TaffyScript
         /// <summary>
         /// References the target of the parent scope in a with block.
         /// </summary>
-        public static TsInstance Other { get; set; }
+        public static ITsInstance Other { get; set; }
 
         /// <summary>
         /// Gets or sets a value based on a variable name.

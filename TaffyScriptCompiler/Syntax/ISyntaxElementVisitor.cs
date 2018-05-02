@@ -15,6 +15,7 @@ namespace TaffyScriptCompiler.Syntax
         void Visit(NewNode newNode);
         void Visit(NamespaceNode namespaceNode);
         void Visit(ImportObjectNode importObjectNode);
+        void Visit(WithNode withNode);
         void Visit(ObjectNode objectNode);
         void Visit(ContinueToken continueToken);
         void Visit(UsingsNode usingsNode);

@@ -1,0 +1,58 @@
+using UnitTest;
+
+namespace LanguageTests {
+    script run_with_tests() {
+        var tests = new obj_unit_test("With Tests",
+                                      with_can_compile,
+                                      with_can_access_local,
+                                      with_can_call_event,
+                                      with_sets_other);
+        tests.run_tests();
+    }
+
+    script with_can_compile() {
+        test_it("with(obj)");
+        var obj = new obj_with(0);
+        with(obj) {
+            var i = 0;
+        }
+    }
+
+    script with_can_access_local() {
+        test_it("with(obj) local");
+        var obj = new obj_with(2);
+        with(obj) {
+            assert_equal(num, 2);
+        }
+    }
+
+    script with_can_call_event() {
+        test_it("with(obj) event()");
+        var obj = new obj_with(2);
+        with(obj) {
+            assert_equal(get_value(), 4);
+        }
+    }
+
+    script with_sets_other() {
+        test_it("with(obj) other.val");
+        var obj2 = new obj_with(2);
+        var obj3 = new obj_with(3);
+        with(obj2) {
+            with(obj3) {
+                assert_equal(other.num, 2);
+                assert_equal(num, 3);
+            }
+        }
+    }
+
+    object obj_with {
+        event create(num) {
+            self.num = num;
+        }
+
+        event get_value() {
+            return 4;
+        }
+    }
+}
