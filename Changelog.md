@@ -1,3 +1,42 @@
+# Release 1.7.0
+### Temporarily Removed `with`; Permanently Changed it's Functionality
+TaffyScript instances are no longer bound to an id. Therefore, the way with originally worked is no longer valid. Removing id's from instances will make them work much faster (depending on the operations, sometimes up to a 300% increase), and allow them to be garbage collected. This means you no longer have to call `.destroy()` on every instance. It also makes the next major change much easier to implement.
+
+### Import C# Objects
+You can now import a c# object to be usable from within TaffyScript. When imported, a special wrapper class is created that allows the object to be used as any other TS object. There are two import modes: explicit and automatic. In the eplicit mode you layout what methods, fields, properties, and constructor to import. In the automatic mode, all methods/properties/fields that have valid TS types are imported, as well as the first valid constructor. Until the wiki page is created you can check out [this](https://github.com/mystborn/TaffyScript/blob/dev-experimental/Samples/TestSuite/Tests/object_import.tfs) page which shows some example imports.
+
+### Object Indexers
+_This functionality is still under consideration and is highly subject to change._
+
+You can now define indexers on objects. This functionality was created to support accessors on c# objects. To define an accessor, simply define a combination of `get` and `set` events on an object. Then you can call those methods using array access syntax. The values inside the brackets will be passed to the respective method.
+
+### Deprecated ds_* Scripts
+These scripts were removed in favor of imported c# objects. The new c# objects are ds_list, ds_map, and ds_grid. More information will be added to the wiki soon.
+
+### Full Changelog
+* Made Binders more efficient
+* Fixed excluding files
+* Made all `ISyntaxElement`s have a `Text` property. Means less casting and more clear code during compilation phase.
+* Better errors when using an addition operator.
+* Added an `ITsInstance` interface that all instances must derive from
+* Made `TsInstance` inherit from `ITsInstance`.
+* Changed TsScript first argument to be `ITsInstance`.
+* Changed `TsDelegate` `Target` to be of type `ITsInstance`. 
+* All WeakMethod first arguments have been changed to use `ITsInstance` instead of `TsInstance`.
+* Removed `InstanceEnumerator` as it no longer functioned.
+* Temporarily removed variable_instance_* scripts.
+* Made `TsObject` wrap `ITsInstance`.
+* Added some timer related methods to the UnitTest library.
+* Added MemberAccessException.
+* Implemented types for ds_list, ds_map, and ds_grid.
+* Added the ability to import c# objects.
+* Temporarily removed `with` block.
+* Added the ability to natively import any type that inherits from `ITsInstance` in a fashion similar to importing `WeakMethod`s.
+* Allow objects to have indexer syntax with get and set scripts.
+* Fixed bug when resizing a 2d array.
+* Fully deprecated ds_* scripts
+* Removed indexer accessor tokens
+
 # Release 1.6.1.0
 _General fixes and updates related to the script rework. Many bug fixes and performance enhancements._
 
