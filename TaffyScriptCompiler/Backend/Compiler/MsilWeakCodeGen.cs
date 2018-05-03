@@ -3774,8 +3774,32 @@ namespace TaffyScriptCompiler.Backend
                 _errors.Add(new CompileException($"Could not import the type {importType.Name}. Imported types must be concrete and currently must be a class."));
 
             var ns = GetAssetNamespace(leaf);
+            var name = $"{ns}.{importNode.ImportName.Value}".TrimStart('.');
+
             if(typeof(ITsInstance).IsAssignableFrom(importType))
             {
+                var ctor = importType.GetConstructor(new[] { typeof(TsObject[]) });
+                if(ctor is null)
+                {
+                    LogError(new CompileException($"Could not import type that inherits from ITsInstance because it does not have a valid constructor: {importNode.Position}"), false);
+                    return;
+                }
+
+                leaf.Constructor = ctor;
+                var bt = GetBaseType(ns);
+                var wrappedCtor = bt.DefineMethod($"New_0{importNode.ImportName.Value}", MethodAttributes.Public | MethodAttributes.Static, typeof(ITsInstance), new[] { typeof(TsObject[]) });
+                var wctr = new ILEmitter(wrappedCtor, new[] { typeof(TsObject[]) });
+                wctr.LdArg(0)
+                    .New(ctor)
+                    .Ret();
+
+                Initializer.Call(typeof(TsInstance).GetMethod("get_WrappedConstructors"))
+                           .LdStr(name)
+                           .LdNull()
+                           .LdFtn(wrappedCtor)
+                           .New(typeof(Func<TsObject[], ITsInstance>).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                           .Call(typeof(Dictionary<string, Func<TsObject[], ITsInstance>>).GetMethod("Add", new[] { typeof(string), typeof(Func<TsObject[], ITsInstance>) }));
+
                 SpecialImports.Write((byte)ImportType.Object);
                 SpecialImports.Write(':');
                 SpecialImports.Write(ns);
@@ -3786,7 +3810,6 @@ namespace TaffyScriptCompiler.Backend
                 return;
             }
 
-            var name = $"{ns}.{importNode.ImportName.Value}".TrimStart('.');
             var type = _module.DefineType(name, TypeAttributes.Public, importNode.WeaklyTyped ? typeof(ObjectWrapper) : typeof(Object), new[] { typeof(ITsInstance) });
 
             var source = type.DefineField("_source", importType, FieldAttributes.Private);
@@ -4388,6 +4411,20 @@ namespace TaffyScriptCompiler.Backend
             emit.Ret();
 
             leaf.Constructor = createMethod;
+
+            var wrappedCtor = type.DefineMethod("Create", MethodAttributes.Public | MethodAttributes.Static, type, new[] { typeof(TsObject[]) });
+            var wctr = new ILEmitter(wrappedCtor, new[] { typeof(TsObject[]) });
+
+            wctr.LdArg(0)
+                .New(createMethod, 1)
+                .Ret();
+            
+            Initializer.Call(typeof(TsInstance).GetMethod("get_WrappedConstructors"))
+                       .LdStr(type.FullName)
+                       .LdNull()
+                       .LdFtn(wrappedCtor)
+                       .New(typeof(Func<TsObject[], ITsInstance>).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                       .Call(typeof(Dictionary<string, Func<TsObject[], ITsInstance>>).GetMethod("Add", new[] { typeof(string), typeof(Func<TsObject[], ITsInstance>) }));
         }
 
         private bool IsMethodSupported(MethodInfo method)

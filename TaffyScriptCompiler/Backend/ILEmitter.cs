@@ -675,6 +675,17 @@ namespace TaffyScriptCompiler.Backend
             return this;
         }
 
+        public ILEmitter New(ConstructorInfo info, int args)
+        {
+            for (var i = 0; i < args; i++)
+                _types.Pop();
+
+            _generator.Emit(OpCodes.Newobj, info);
+
+            _types.Push(info.DeclaringType);
+            return this;
+        }
+
         public ILEmitter NewArr(Type elementType)
         {
             _types.Pop();

@@ -47,6 +47,11 @@ namespace TaffyScript
         public static Stack<string> EventType { get; } = new Stack<string>();
 
         /// <summary>
+        /// Maps imported types to a func that will construct an instance of the type.
+        /// </summary>
+        public static Dictionary<string, Func<TsObject[], ITsInstance>> WrappedConstructors { get; } = new Dictionary<string, Func<TsObject[], ITsInstance>>();
+
+        /// <summary>
         /// Gets the isntance used to store global variables.
         /// </summary>
         public static TsInstance Global = InitGlobal();
@@ -72,11 +77,6 @@ namespace TaffyScript
             get => GetMember(variableName);
             set => _vars[variableName] = value;
         }
-
-        /// <summary>
-        /// Gets the id of this instance.
-        /// </summary>
-        public int Id { get; }
 
         /// <summary>
         /// Gets the type of this instance.
@@ -115,7 +115,6 @@ namespace TaffyScript
         /// </summary>
         private TsInstance()
         {
-            Id = -5;
             ObjectType = "";
         }
 
@@ -265,17 +264,7 @@ namespace TaffyScript
 
         public override string ToString()
         {
-            return $"{ObjectType} {Id}";
-        }
-
-        public override int GetHashCode()
-        {
-            return Id;
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is TsInstance inst && inst.Id == Id;
+            return $"{ObjectType}";
         }
 
         /// <summary>
@@ -328,9 +317,9 @@ namespace TaffyScript
         /// <param name="performEvents">Determines whther or not to perform the create event on the copy.</param>
         /// <returns></returns>
         [WeakMethod]
-        public static float InstanceCopy(ITsInstance inst, TsObject[] args)
+        public static TsObject InstanceCopy(ITsInstance inst, TsObject[] args)
         {
-            return ((TsInstance)inst).Copy((bool)args[0]).Id;
+            return ((TsInstance)inst).Copy((bool)args[0]);
         }
 
         /// <summary>
@@ -346,17 +335,18 @@ namespace TaffyScript
         [WeakMethod]
         public static TsObject InstanceCreate(ITsInstance target, TsObject[] args)
         {
-            TsInstance inst;
-            if (args.Length > 1)
+            var type = (string)args[0];
+            TsObject[] ctorArgs = null;
+            if(args.Length > 1)
             {
-                var ctorArgs = new TsObject[args.Length - 1];
+                ctorArgs = new TsObject[args.Length - 1];
                 Array.Copy(args, 1, ctorArgs, 0, args.Length - 1);
-                inst = new TsInstance((string)args[0], ctorArgs);
             }
-            else
-                inst = new TsInstance((string)args[0]);
 
-            return new TsObject(inst);
+            if (WrappedConstructors.TryGetValue(type, out var ctor))
+                return new TsObject(ctor(ctorArgs));
+            else
+                return new TsInstance(type, ctorArgs);
         }
 
         /// <summary>
@@ -454,7 +444,10 @@ namespace TaffyScript
         /// <returns></returns>
         public static bool VariableInstanceExists(ITsInstance inst, string name)
         {
-            throw new NotImplementedException();
+            if (inst is TsInstance ts)
+                return ts._vars.ContainsKey(name);
+            else
+                throw new NotImplementedException("Currently imported types don't support determining if a variable exists.");
         }
 
         /// <summary>
@@ -465,7 +458,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static TsObject VariableInstanceGet(ITsInstance inst, string name)
         {
-            throw new NotImplementedException();
+            return inst.GetMember(name);
         }
 
         /// <summary>
@@ -475,13 +468,19 @@ namespace TaffyScript
         /// <returns></returns>
         public static TsObject[] VariableInstanceGetNames(ITsInstance inst)
         {
-            throw new NotImplementedException();
-            /*var arr = new TsObject[inst._vars.Count];
-            var i = 0;
-            foreach (var key in inst._vars.Keys)
-                arr[i++] = key;
+            if(inst is TsInstance ts)
+            {
+                var arr = new TsObject[ts._vars.Count];
+                var i = 0;
+                foreach (var key in ts._vars.Keys)
+                    arr[i++] = key;
 
-            return arr;*/
+                return arr;
+            }
+            else
+            {
+                throw new NotImplementedException("Currenyly imported types don't support getting the names of variables.");
+            }
         }
 
         /// <summary>
@@ -492,8 +491,7 @@ namespace TaffyScript
         /// <param name="value">The value to set</param>
         public static void VariableInstanceSet(ITsInstance inst, string name, TsObject value)
         {
-            throw new NotImplementedException();
-            //inst._vars[name] = value;
+            inst.SetMember(name, value);
         }
 
         private static TsInstance InitGlobal()
