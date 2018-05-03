@@ -2220,20 +2220,10 @@ namespace TaffyScriptCompiler.Backend
                 emit.Call(TsTypes.Empty);
                 return;
             }
-
-            if(name == "destroy")
-            {
-                //Syntactic sugar for instance_destroy(inst);
-                emit.Call(typeof(ITsInstance).GetMethod("Destroy"))
-                    .Call(TsTypes.Empty);
-            }
-            else
-            {
-                //The object returned by GetDelegate should already have a target.
-                emit.LdStr(name);
-                LoadFunctionArguments(functionCall);
-                emit.Call(typeof(ITsInstance).GetMethod("Call"));
-            }
+            
+            emit.LdStr(name);
+            LoadFunctionArguments(functionCall);
+            emit.Call(typeof(ITsInstance).GetMethod("Call"));
         }
 
         public void Visit(IfNode ifNode)
@@ -3815,55 +3805,6 @@ namespace TaffyScriptCompiler.Backend
             gen.Emit(OpCodes.Ret);
 
             objectType.SetGetMethod(getObjectType);
-            var destroyedField = type.DefineField("Destroyed", typeof(DestroyedDelegate), FieldAttributes.Private);
-            var destroyedEvent = type.DefineEvent("Destroyed", EventAttributes.None, typeof(DestroyedDelegate));
-            var eventArgs = new[] { typeof(DestroyedDelegate) };
-
-            var addDestroyed = type.DefineMethod("add_Destroyed",
-                                                 MethodAttributes.Public |
-                                                    MethodAttributes.HideBySig |
-                                                    MethodAttributes.NewSlot |
-                                                    MethodAttributes.SpecialName |
-                                                    MethodAttributes.Virtual |
-                                                    MethodAttributes.Final, 
-                                                 typeof(void),
-                                                 eventArgs);
-
-            emit = new ILEmitter(addDestroyed, eventArgs);
-
-
-            emit.LdArg(0)
-                .Dup()
-                .LdFld(destroyedField)
-                .LdArg(1)
-                .Call(typeof(Delegate).GetMethod("Combine", new[] { typeof(Delegate), typeof(Delegate) }))
-                .CastClass(typeof(DestroyedDelegate))
-                .StFld(destroyedField)
-                .Ret();
-
-            destroyedEvent.SetAddOnMethod(addDestroyed);
-
-            var removeDestroyed = type.DefineMethod("remove_Destroyed",
-                                                    MethodAttributes.Public |
-                                                        MethodAttributes.HideBySig |
-                                                        MethodAttributes.NewSlot |
-                                                        MethodAttributes.SpecialName |
-                                                        MethodAttributes.Virtual |
-                                                        MethodAttributes.Final,
-                                                    typeof(void),
-                                                    eventArgs);
-
-            emit = new ILEmitter(removeDestroyed, eventArgs);
-            emit.LdArg(0)
-                .Dup()
-                .LdFld(destroyedField)
-                .LdArg(1)
-                .Call(typeof(Delegate).GetMethod("Remove", new[] { typeof(Delegate), typeof(Delegate) }))
-                .CastClass(typeof(DestroyedDelegate))
-                .StFld(destroyedField)
-                .Ret();
-
-            destroyedEvent.SetRemoveOnMethod(removeDestroyed);
 
             var methodFlags = MethodAttributes.Public |
                               MethodAttributes.HideBySig |
@@ -3873,30 +3814,6 @@ namespace TaffyScriptCompiler.Backend
 
             var weakFlags = MethodAttributes.Public |
                            MethodAttributes.HideBySig;
-
-                                
-
-            var destroy = type.DefineMethod("Destroy", methodFlags);
-
-            emit = new ILEmitter(destroy, Type.EmptyTypes);
-            var notNull = emit.DefineLabel();
-            var end = emit.DefineLabel();
-
-            emit.LdArg(0)
-                .LdFld(destroyedField)
-                .Dup()
-                .BrTrue(notNull)
-                .Pop()
-                .Br(end)
-                .MarkLabel(notNull)
-                .PushType(destroyedField.FieldType)
-                .LdArg(0)
-                .Call(typeof(DestroyedDelegate).GetMethod("Invoke", new[] { typeof(ITsInstance) }))
-                .MarkLabel(end)
-                .LdArg(0)
-                .LdNull() //<- this will have to be changed when importing valuetype
-                .StFld(source)
-                .Ret();
 
             var callMethod = type.DefineMethod("Call", methodFlags, typeof(TsObject), new[] { typeof(string), typeof(TsObject[]) });
             var getMemberMethod = type.DefineMethod("GetMember", methodFlags, typeof(TsObject), new[] { typeof(string) });

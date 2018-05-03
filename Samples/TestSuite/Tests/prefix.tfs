@@ -31,8 +31,6 @@ namespace LanguageTests {
                                       obj.prefix_decrement_self_var);
 
         tests.run_tests();
-        tests.destroy();
-        obj.destroy();
     }
 
     script prefix_negate() {
@@ -188,7 +186,6 @@ namespace LanguageTests {
         var j = ++obj.val;
         assert_equal(j, 4);
         assert_equal(obj.val, 4);
-        obj.destroy();
     }
 
     script prefix_decrement_local_object_var() {
@@ -199,7 +196,6 @@ namespace LanguageTests {
         var j = --obj.val;
         assert_equal(j, 0);
         assert_equal(obj.val, 0);
-        obj.destroy();
     }
 
     script prefix_increment_global_var() {
@@ -230,7 +226,6 @@ namespace LanguageTests {
         var j = ++global.obj.val;
         assert_equal(j, 4);
         assert_equal(global.obj.val, 4);
-        global.obj.destroy();
     }
 
     script prefix_decrement_global_object_var() {
@@ -241,7 +236,6 @@ namespace LanguageTests {
         var j = --global.obj.val;
         assert_equal(j, 0);
         assert_equal(global.obj.val, 0);
-        global.obj.destroy();
     }
 
     object obj_prefix {

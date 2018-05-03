@@ -10,23 +10,11 @@ using MethodImplOptions = System.Runtime.CompilerServices.MethodImplOptions;
 namespace TaffyScript
 {
     /// <summary>
-    /// Delegate used to represent methods to be triggered when a TS instance is destroyed.
-    /// </summary>
-    /// <param name="inst">The instance that was destroyed.</param>
-    public delegate void DestroyedDelegate(ITsInstance inst);
-
-    /// <summary>
     /// Represents an instance of an object in TaffyScript.
     /// </summary>
     public class TsInstance : ITsInstance
     {
         private const string CreateEvent = "create";
-        private const string DestroyEvent = "destroy";
-
-        /// <summary>
-        /// Event that gets triggered when this instance is destroyed.
-        /// </summary>
-        public event DestroyedDelegate Destroyed;
 
         private Dictionary<string, TsObject> _vars = new Dictionary<string, TsObject>();
 
@@ -256,9 +244,6 @@ namespace TaffyScript
         /// <param name="performEvents">Determines whether the events are performed</param>
         public void ChangeType(string type, bool performEvents)
         {
-            if (performEvents && TryGetDelegate(DestroyEvent, out var destroy))
-                destroy.Invoke(this, null);
-
             ObjectType = type;
             Init(performEvents);
         }
@@ -276,19 +261,6 @@ namespace TaffyScript
                 create.Invoke(copy, null);
 
             return copy;
-        }
-
-        /// <summary>
-        /// Destroys this instance in the eyes of TaffyScript
-        /// </summary>
-        /// <remarks>
-        /// Make this object inherit from IDisposable, change this to Dispose method?
-        /// </remarks>
-        public void Destroy()
-        {
-            if (TryGetDelegate(DestroyEvent, out var destroy))
-                destroy.Invoke(this, null);
-            Destroyed?.Invoke(this);
         }
 
         public override string ToString()
@@ -385,22 +357,6 @@ namespace TaffyScript
                 inst = new TsInstance((string)args[0]);
 
             return new TsObject(inst);
-        }
-
-        /// <summary>
-        /// Destroys a previously created instance. This overload should not be called.
-        /// </summary>
-        /// <param name="target">Currently executing instance if any.</param>
-        /// <param name="args">Optionally contains the id of the instance.</param>
-        [WeakMethod]
-        public static TsObject InstanceDestroy(ITsInstance target, TsObject[] args)
-        {
-            if (args == null || args.Length == 0)
-                target.Destroy();
-            else
-                args[0].GetInstance().Destroy();
-
-            return TsObject.Empty();
         }
 
         /// <summary>

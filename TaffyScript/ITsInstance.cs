@@ -11,10 +11,6 @@ namespace TaffyScript
     /// </summary>
     public interface ITsInstance
     {
-        /// <summary>
-        /// Event that gets triggered when this instance is destroyed.
-        /// </summary>
-        event DestroyedDelegate Destroyed;
 
         /// <summary>
         /// Gets or sets a value based on a variable name.
@@ -41,11 +37,6 @@ namespace TaffyScript
         /// <param name="name">The name of the member.</param>
         /// <param name="value">The new value.</param>
         void SetMember(string name, TsObject value);
-
-        /// <summary>
-        /// Destroys this instance.
-        /// </summary>
-        void Destroy();
 
         /// <summary>
         /// Gets a delegate defined by this instance.

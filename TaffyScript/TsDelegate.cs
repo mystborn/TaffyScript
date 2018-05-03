@@ -20,7 +20,6 @@ namespace TaffyScript
         public TsScriptScope ScriptScope { get; }
         public TsScript Script { get; private set; }
         public ITsInstance Target { get; private set; }
-        public bool Disposed { get; private set; } = false;
         public string Name { get; }
 
         public TsDelegate(TsScript script, string name)
@@ -36,7 +35,6 @@ namespace TaffyScript
             ScriptScope = TsScriptScope.Instance;
             Target = target;
             Script = script;
-            target.Destroyed += OnTargetDestroyed;
             Name = name;
         }
 
@@ -73,8 +71,6 @@ namespace TaffyScript
                 Array.Copy(args, 1, scriptArgs, 0, args.Length - 1);
                 return Script(target, scriptArgs);
             }
-            else if (Disposed)
-                throw new ObjectDisposedException("Target", "The target of this script has been destroyed.");
 
             return Script(Target, args);
         }
@@ -84,12 +80,6 @@ namespace TaffyScript
             if (target is null && ScriptScope != TsScriptScope.Global)
                 throw new ArgumentNullException("target", "This script requires a target to invoke.");
             return Script(target, args);
-        }
-
-        private void OnTargetDestroyed(ITsInstance inst)
-        {
-            Disposed = true;
-            Target = null;
         }
 
         public override bool Equals(object obj)

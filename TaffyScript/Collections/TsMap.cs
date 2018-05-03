@@ -20,8 +20,6 @@ namespace TaffyScript.Collections
         public string ObjectType => "ds_map";
         public Dictionary<TsObject, TsObject> Source => _source;
 
-        public event DestroyedDelegate Destroyed;
-
         public TsMap(TsObject[] args)
         {
         }
@@ -60,12 +58,6 @@ namespace TaffyScript.Collections
                     throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
             }
             return TsObject.Empty();
-        }
-
-        public void Destroy()
-        {
-            Destroyed?.Invoke(this);
-            _source = null;
         }
 
         public TsDelegate GetDelegate(string delegateName)

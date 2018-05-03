@@ -21,8 +21,6 @@ namespace TaffyScript.Collections
         public string ObjectType => "ds_grid";
         public Grid<TsObject> Source => _source;
 
-        public event DestroyedDelegate Destroyed;
-
         public TsGrid(TsObject[] args)
         {
             _source = new Grid<TsObject>((int)args[0], (int)args[1]);
@@ -113,12 +111,6 @@ namespace TaffyScript.Collections
                     throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
             }
             return TsObject.Empty();
-        }
-
-        public void Destroy()
-        {
-            Destroyed?.Invoke(this);
-            _source = null;
         }
 
         public TsDelegate GetDelegate(string scriptName)
