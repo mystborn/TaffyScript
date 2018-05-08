@@ -152,7 +152,10 @@ namespace TaffyScriptCompiler
         {
             if(!Defined(name, out var overwrite))
             {
-                Current.Children.Add(name, new SymbolLeaf(Current, name, type, scope));
+                if (type == SymbolType.Variable)
+                    Current.Children.Add(name, new VariableLeaf(Current, name, scope));
+                else
+                    Current.Children.Add(name, new SymbolLeaf(Current, name, type, scope));
                 return true;
             }
             return false;

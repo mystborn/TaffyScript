@@ -31,6 +31,7 @@ namespace TaffyScriptCompiler
         private Tokenizer _stream;
         private SymbolTable _table;
         private ISyntaxElementFactory _factory;
+        private int lambdaId = 0;
 
         /// <summary>
         /// Flag used to determine whether = should mean assignment or equality.
@@ -685,8 +686,25 @@ namespace TaffyScriptCompiler
 
         private ISyntaxElement Expression()
         {
-            var value = AssignmentExpression();
+            var value = LambdaExpression();
             return value;
+        }
+
+        private ISyntaxElement LambdaExpression()
+        {
+            if(Try(TokenType.Script, out var token))
+            {
+                var lambda = new LambdaNode(null, token.Position);
+                var scope = $"lambda{lambdaId++}";
+                _table.EnterNew(scope, SymbolType.Script, SymbolScope.Local);
+                lambda.Scope = scope;
+                lambda.AddChild(BlockStatement());
+                _table.Exit();
+                lambda.MarkVariablesAsCaptured(_table);
+                return lambda;
+            }
+
+            return AssignmentExpression();
         }
 
         private ISyntaxElement AssignmentExpression()

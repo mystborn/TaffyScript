@@ -80,6 +80,8 @@ namespace TaffyScriptCompiler.Syntax
                     return new ArrayLiteralNode(null, position);
                 case SyntaxType.FunctionCall:
                     return new FunctionCallNode(null, position);
+                case SyntaxType.Lambda:
+                    return new LambdaNode(null, position);
                 default:
                     throw new InvalidOperationException();
             }

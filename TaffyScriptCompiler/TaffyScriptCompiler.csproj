@@ -64,6 +64,7 @@
   <ItemGroup>
     <Compile Include="Backend\BaseClassLibrary.cs" />
     <Compile Include="Backend\Builder.cs" />
+    <Compile Include="Backend\Closure.cs" />
     <Compile Include="Backend\Compiler\CompileException.cs" />
     <Compile Include="Backend\Compiler\CompileMode.cs" />
     <Compile Include="Backend\Compiler\CompilerResult.cs" />
@@ -94,6 +95,7 @@
     <Compile Include="Front End\InvalidTokenException.cs" />
     <Compile Include="Front End\Parser.cs" />
     <Compile Include="Symbols\SymbolType.cs" />
+    <Compile Include="Symbols\VariableLeaf.cs" />
     <Compile Include="Syntax\Concrete\AdditiveNode.cs" />
     <Compile Include="Syntax\Concrete\ArgumentAccess.cs" />
     <Compile Include="Syntax\Concrete\ArrayAccess.cs" />
@@ -121,6 +123,7 @@
     <Compile Include="Syntax\Concrete\ImportObject\ImportObjectConstructor.cs" />
     <Compile Include="Syntax\Concrete\ImportObject\ImportObjectField.cs" />
     <Compile Include="Syntax\Concrete\ImportObject\ImportObjectMethod.cs" />
+    <Compile Include="Syntax\Concrete\LambdaNode.cs" />
     <Compile Include="Syntax\Concrete\Logical.cs" />
     <Compile Include="Syntax\Concrete\MemberAccess.cs" />
     <Compile Include="Syntax\Concrete\Multiplicative.cs" />

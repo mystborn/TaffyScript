@@ -47,6 +47,7 @@ namespace TaffyScriptCompiler
         Namespace,
         New,
         ImportObject,
+        Lambda,
 
         //Token
         Constant,

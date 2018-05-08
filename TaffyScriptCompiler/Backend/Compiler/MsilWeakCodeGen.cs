@@ -152,6 +152,10 @@ namespace TaffyScriptCompiler.Backend
 
         private LocalBuilder _argumentCount = null;
 
+        private Closure _closure = null;
+        private int _closures = 0;
+        private int _argOffset = 0;
+
         #endregion
 
         #region Properties
@@ -840,7 +844,18 @@ namespace TaffyScriptCompiler.Backend
             {
                 //Raise local variables up one level.
                 _table.AddChild(local);
-                _locals.Add(local, emit.DeclareLocal(typeof(TsObject), local.Name));
+
+                if (local is VariableLeaf leaf && leaf.IsCaptured)
+                {
+                    if (_closure == null)
+                        GetClosure(true);
+                    var field = _closure.Type.DefineField(local.Name, typeof(TsObject), FieldAttributes.Public);
+                    _closure.Fields.Add(local.Name, field);
+                }
+                else
+                {
+                    _locals.Add(local, emit.DeclareLocal(typeof(TsObject), local.Name));
+                }
             }
         }
 
@@ -852,6 +867,47 @@ namespace TaffyScriptCompiler.Backend
             _secrets.Clear();
             _secret = 0;
             _argumentCount = null;
+            if(_closure != null)
+            {
+                _closure.Type.CreateType();
+                _closure = null;
+            }
+        }
+
+        private Closure GetClosure(bool setLocal)
+        {
+            if(_closure == null)
+            {
+                var bt = GetBaseType(_namespace);
+                var type = bt.DefineNestedType($"<>{emit.Method.Name}_Display", TypeAttributes.NestedAssembly | TypeAttributes.AnsiClass | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit);
+                var constructor = type.DefineConstructor(MethodAttributes.Public |
+                                                          MethodAttributes.HideBySig |
+                                                          MethodAttributes.SpecialName |
+                                                          MethodAttributes.RTSpecialName,
+                                                      CallingConventions.HasThis,
+                                                      Type.EmptyTypes);
+                var temp = emit;
+
+                emit = new ILEmitter(constructor, new[] { typeof(object) });
+                emit.LdArg(0)
+                    .CallBase(typeof(object).GetConstructor(Type.EmptyTypes))
+                    .Ret();
+
+                emit = temp;
+
+                _closure = new Closure(type, constructor);
+
+                if (setLocal)
+                {
+                    var local = emit.DeclareLocal(type, "__0closure");
+                    emit.New(constructor, 0)
+                        .StLocal(local);
+
+                    _closure.Self = local;
+                }
+            }
+
+            return _closure;
         }
 
         private LocalBuilder GetLocal() => GetLocal(typeof(TsObject));
@@ -1140,7 +1196,7 @@ namespace TaffyScriptCompiler.Backend
 
         public void Visit(ArgumentAccessNode argumentAccess)
         {
-            emit.LdArg(1);
+            emit.LdArg(1 + _argOffset);
             if (argumentAccess.Index is IConstantToken<float> index)
             {
                 emit.LdInt((int)index.Value);
@@ -1406,16 +1462,24 @@ namespace TaffyScriptCompiler.Backend
                 //If not, then it MUST be a member var.
                 if (_table.Defined(variable.Text, out var symbol))
                 {
-                    if (symbol.Type != SymbolType.Variable)
+                    var leaf = symbol as VariableLeaf;
+                    if(leaf is null)
                         _errors.Add(new CompileException($"Cannot assign to the value {symbol.Name} {variable.Position}"));
+                    
+                    if(leaf.IsCaptured)
+                        emit.LdLocal(_closure.Self);
 
                     assign.Right.Accept(this);
                     ConvertTopToObject();
-                    emit.StLocal(_locals[symbol]);
+
+                    if(leaf.IsCaptured)
+                        emit.StFld(_closure.Fields[leaf.Name]);
+                    else
+                        emit.StLocal(_locals[symbol]);
                 }
                 else
                 {
-                    emit.LdArg(0)
+                    emit.LdArg(0 + _argOffset)
                         .LdStr(variable.Text);
                     assign.Right.Accept(this);
                     ConvertTopToObject();
@@ -1434,7 +1498,7 @@ namespace TaffyScriptCompiler.Backend
                                 emit.LdFld(typeof(TsInstance).GetField("Global"));
                                 break;
                             case "self":
-                                emit.LdArg(0);
+                                emit.LdArg(0 + _argOffset);
                                 break;
                             case "other":
                                 emit.Call(typeof(TsInstance).GetMethod("get_Other"));
@@ -1738,9 +1802,9 @@ namespace TaffyScriptCompiler.Backend
 
         private void SelfAccessSet(VariableToken variable)
         {
-            emit.LdArg(0)
+            emit.LdArg(0 + _argOffset)
                 .LdStr(variable.Text)
-                .LdArg(0)
+                .LdArg(0 + _argOffset)
                 .LdStr(variable.Text);
         }
 
@@ -2167,7 +2231,7 @@ namespace TaffyScriptCompiler.Backend
             MarkSequencePoint(functionCall);
 
             //Load the target
-            emit.LdArg(0);
+            emit.LdArg(0 + _argOffset);
 
             LoadFunctionArguments(functionCall);
 
@@ -2208,7 +2272,7 @@ namespace TaffyScriptCompiler.Backend
             MarkSequencePoint(functionCall);
 
             if (loadId)
-                emit.LdArg(0);
+                emit.LdArg(0 + _argOffset);
 
             var top = emit.GetTop();
 
@@ -2370,6 +2434,37 @@ namespace TaffyScriptCompiler.Backend
             return true;
         }
 
+        public void Visit(LambdaNode lambda)
+        {
+            var bt = GetBaseType(_namespace);
+            var owner = GetClosure(false);
+            var closure = owner.Type.DefineMethod($"<{emit.Method.Name}>closure_{lambda.Scope.Remove(0, 5)}",
+                                                  MethodAttributes.Assembly | MethodAttributes.HideBySig,
+                                                  typeof(TsObject),
+                                                  ScriptArgs);
+            var temp = emit;
+
+            emit = new ILEmitter(closure, ScriptArgs);
+            _table.Enter(lambda.Scope);
+            ++_closures;
+            _argOffset = 1;
+            lambda.Body.Accept(this);
+            --_closures;
+            _argOffset = _closures > 0 ? 1 : 0;
+            _table.Exit();
+            emit = temp;
+            if (owner.Self == null)
+                emit.New(owner.Constructor, 0);
+            else
+                emit.LdLocal(owner.Self);
+
+            emit.LdFtn(closure)
+                .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                .LdStr("lambda")
+                .LdArg(0)
+                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string), typeof(ITsInstance) }));
+        }
+
         public void Visit(LocalsNode localsNode)
         {
             foreach (var child in localsNode.Children)
@@ -2469,7 +2564,7 @@ namespace TaffyScriptCompiler.Backend
                         emit.LdFld(typeof(TsInstance).GetField("Global"));
                         break;
                     case "self":
-                        emit.LdArg(0);
+                        emit.LdArg(0 + _argOffset);
                         break;
                     case "other":
                         emit.Call(typeof(TsInstance).GetMethod("get_Other"));
@@ -3009,7 +3104,7 @@ namespace TaffyScriptCompiler.Backend
             else if (read.Text == "other")
                 return () => emit.Call(typeof(TsInstance).GetMethod("get_Other"));
             else
-                return () => emit.LdArg(0);
+                return () => emit.LdArg(0 + _argOffset);
         }
 
         public void Visit(PrefixNode prefix)
@@ -3270,7 +3365,7 @@ namespace TaffyScriptCompiler.Backend
             switch(readOnlyToken.Text)
             {
                 case "self":
-                    emit.LdArg(0);
+                    emit.LdArg(0 + _argOffset);
                     break;
                 case "other":
                     emit.Call(typeof(TsInstance).GetMethod("get_Other"));
@@ -3281,7 +3376,7 @@ namespace TaffyScriptCompiler.Backend
                         _argumentCount = emit.DeclareLocal(typeof(float), "argument_count");
                         var isNull = emit.DefineLabel();
                         var end = emit.DefineLabel();
-                        emit.LdArg(1)
+                        emit.LdArg(1 + _argOffset)
                             .Dup()
                             .BrFalse(isNull)
                             .LdLen()
@@ -3479,9 +3574,11 @@ namespace TaffyScriptCompiler.Backend
 
         private void ProcessScriptArguments(ScriptNode script)
         {
+            //Todo: make this loop better for captured variables.
+
             if (script.Arguments.Count > 0)
             {
-                emit.LdArg(1);
+                emit.LdArg(1 + _argOffset);
                 for (var i = 0; i < script.Arguments.Count; i++)
                 {
                     var arg = script.Arguments[i];
@@ -3494,6 +3591,8 @@ namespace TaffyScriptCompiler.Backend
                             _errors.Add(new CompileException($"Unknown exception occurred {left.Position}"));
                             continue;
                         }
+                        var leaf = symbol as VariableLeaf;
+
                         var lte = emit.DefineLabel();
                         var end = emit.DefineLabel();
                         emit.Dup()
@@ -3505,16 +3604,45 @@ namespace TaffyScriptCompiler.Backend
                             .Ble(lte)
                             .Dup()
                             .LdInt(i)
-                            .LdElem(typeof(TsObject))
-                            .StLocal(_locals[symbol])
-                            .Br(end)
+                            .LdElem(typeof(TsObject));
+
+                        if (leaf.IsCaptured)
+                        {
+                            var secret = GetLocal();
+                            emit.StLocal(secret);
+                            if (_closures == 0)
+                                emit.LdLocal(_closure.Self);
+                            else
+                                emit.LdArg(0);
+                            emit.LdLocal(secret)
+                                .StFld(_closure.Fields[leaf.Name]);
+
+                            FreeLocal(secret);
+                        }
+                        else
+                            emit.StLocal(_locals[symbol]);
+
+                        emit.Br(end)
                             .MarkLabel(lte);
                         //Must be ConstantToken
+
+                        if (leaf.IsCaptured)
+                        {
+                            if (_closures == 0)
+                                emit.LdLocal(_closure.Self);
+                            else
+                                emit.LdArg(0);
+                        }
+
                         assign.Right.Accept(this);
                         ConvertTopToObject();
 
-                        emit.StLocal(_locals[symbol])
-                            .MarkLabel(end);
+                        if (leaf.IsCaptured)
+                            emit.StFld(_closure.Fields[leaf.Name]);
+                        else
+                            emit.StLocal(_locals[symbol]);
+
+                        emit.MarkLabel(end);
                     }
                     else if (arg is VariableToken variable)
                     {
@@ -3699,6 +3827,20 @@ namespace TaffyScriptCompiler.Backend
                             else
                                 emit.LdLocal(local);
                         }
+                        else if(symbol is VariableLeaf leaf && leaf.IsCaptured)
+                        {
+                            var field = _closure.Fields[symbol.Name];
+
+                            if (_closures == 0)
+                                emit.LdLocal(_closure.Self);
+                            else
+                                emit.LdArg(0);
+
+                            if (_needAddress)
+                                emit.LdFldA(field);
+                            else
+                                emit.LdFld(field);
+                        }
                         else
                             _errors.Add(new CompileException($"Tried to reference a non-existant variable {variableToken.Text} {variableToken.Position}"));
                         break;
@@ -3709,7 +3851,7 @@ namespace TaffyScriptCompiler.Backend
             }
             else
             {
-                emit.LdArg(0)
+                emit.LdArg(0 + _argOffset)
                     .LdStr(variableToken.Text)
                     .Call(typeof(ITsInstance).GetMethod("get_Item"));
             }
@@ -3746,7 +3888,7 @@ namespace TaffyScriptCompiler.Backend
 
             emit.Call(get)
                 .StLocal(other)
-                .LdArg(0)
+                .LdArg(0 + _argOffset)
                 .Call(set)
                 .StArg(0);
 
