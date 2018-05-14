@@ -19,14 +19,21 @@ namespace TaffyScriptCompiler
                 else
                     sb.Append(char.ToUpper(split[i][0]));
 
-                sb.Append(split[0].Substring(1, split[0].Length - 1));
+                sb.Append(split[i].Substring(1, split[i].Length - 1));
             }
             return sb.ToString();
         }
 
         public static string ConvertToPascalCase(string value)
         {
-            return value.Split(new[] { "_" }, StringSplitOptions.RemoveEmptyEntries).Select(s => char.ToUpper(s[0]) + s.Substring(1, s.Length - 1)).Aggregate(string.Empty, (s1, s2) => s1 + s2);
+            var sb = new StringBuilder();
+            var split = value.Split(new[] { '_' }, StringSplitOptions.RemoveEmptyEntries);
+            for (var i = 0; i < split.Length; i++)
+            {
+                sb.Append(char.ToUpper(split[i][0]));
+                sb.Append(split[i].Substring(1, split[i].Length - 1));
+            }
+            return sb.ToString();
         }
 
         public static string ConvertToSnakeCase(string value)
