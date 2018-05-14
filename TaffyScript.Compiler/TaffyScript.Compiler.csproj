@@ -52,9 +52,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Build" />
-    <Reference Include="NDesk.Options, Version=0.2.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\NDesk.Options.0.2.1\lib\NDesk.Options.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -65,21 +62,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Backend\BaseClassLibrary.cs" />
+    <Compile Include="BaseClassLibraryGenerator.cs" />
     <Compile Include="Backend\Builder.cs" />
-    <Compile Include="Backend\Closure.cs" />
+    <Compile Include="Backend\Compiler\Closure.cs" />
     <Compile Include="Backend\Compiler\CompileException.cs" />
-    <Compile Include="Backend\Compiler\CompileMode.cs" />
-    <Compile Include="Backend\Compiler\CompilerResult.cs" />
+    <Compile Include="Backend\CompileMode.cs" />
+    <Compile Include="Backend\CompilerResult.cs" />
     <Compile Include="Backend\BuildConfig.cs" />
     <Compile Include="Backend\Compiler\MsilWeakCodeGen.cs" />
     <Compile Include="Backend\ImportType.cs" />
     <Compile Include="Backend\NameConflictException.cs" />
     <Compile Include="DotNet\AssemblyLoader.cs" />
     <Compile Include="Backend\Compiler\ICompiler.cs" />
-    <Compile Include="Backend\ILEmitter.cs" />
+    <Compile Include="Backend\Compiler\ILEmitter.cs" />
     <Compile Include="Backend\Compiler\MsilWeakCompiler.cs" />
-    <Compile Include="DotNet\TaffyScriptTypes.cs" />
+    <Compile Include="Backend\TsTypes.cs" />
     <Compile Include="Front End\LexicalAnalysis\Token.cs" />
     <Compile Include="Front End\LexicalAnalysis\Tokenizer.cs" />
     <Compile Include="Front End\LexicalAnalysis\TokenPosition.cs" />
@@ -168,7 +165,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\TaffyScript\TaffyScript.csproj">

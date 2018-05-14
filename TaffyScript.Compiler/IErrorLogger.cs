@@ -10,7 +10,9 @@ namespace TaffyScript.Compiler
     {
         List<string> Errors { get; }
         List<string> Warnings { get; }
+        void Error(string message);
         void Error(string message, TokenPosition position);
+        void Warning(string message);
         void Warning(string message, TokenPosition position);
     }
 }

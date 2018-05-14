@@ -7,10 +7,15 @@ using TaffyScript.Compiler;
 
 namespace TaffyScript.CommandLine
 {
-    public class CommandLineLogger : IErrorLogger
+    public class ErrorLogger : IErrorLogger
     {
         public List<string> Errors { get; } = new List<string>();
         public List<string> Warnings { get; } = new List<string>();
+
+        public void Error(string message)
+        {
+            Errors.Add(message);
+        }
 
         public void Error(string message, TokenPosition position)
         {
@@ -29,6 +34,11 @@ namespace TaffyScript.CommandLine
                 message = sb.ToString();
             }
             Errors.Add(message);
+        }
+
+        public void Warning(string message)
+        {
+            Warnings.Add(message);
         }
 
         public void Warning(string message, TokenPosition position)

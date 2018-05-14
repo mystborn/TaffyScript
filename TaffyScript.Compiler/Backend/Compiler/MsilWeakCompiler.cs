@@ -9,7 +9,8 @@ namespace TaffyScript.Compiler.Backend
 {
     public class MsilWeakCompiler : Builder
     {
-        public MsilWeakCompiler()
+        public MsilWeakCompiler(IErrorLogger errorLogger)
+            : base(errorLogger)
         {
         }
 
@@ -20,13 +21,15 @@ namespace TaffyScript.Compiler.Backend
         /// <returns></returns>
         public override CompilerResult CompileProject(string projectDir)
         {
-            var config = GetBuildConfig(projectDir, out var exception);
+            var config = GetBuildConfig(projectDir);
             if(config == null)
-                return new CompilerResult(null, null, exception);
+                return new CompilerResult(_logger);
 
             if (string.IsNullOrEmpty(config.Output))
-                return new CompilerResult(null, null, 
-                    new InvalidOperationException("The config file must conatin an output path."));
+            {
+                _logger.Error("The config file must contain an output path.", null);
+                return new CompilerResult(_logger);
+            }
 
             var dir = Path.Combine(projectDir, Path.GetDirectoryName(config.Output));
             Directory.CreateDirectory(dir);
@@ -34,29 +37,29 @@ namespace TaffyScript.Compiler.Backend
             config.Output = Path.GetFileName(config.Output);
             var expectedOutput = Path.Combine(dir, config.Output);
 
-            var errors = VerifyReferencesExists(projectDir, dir, config);
-            if (errors.Count != 0)
-                return new CompilerResult(errors);
+            VerifyReferencesExists(projectDir, dir, config);
+            if (_logger.Errors.Count != 0)
+                return new CompilerResult(_logger);
 
-            var parser = new Parser();
+            var parser = new Parser(_logger);
             ParseFilesInProjectDirectory(projectDir, parser, GetExcludeSet(projectDir, config));
-            if(parser.Errors.Count != 0)
-                return new CompilerResult(parser.Errors);
+            if(_logger.Errors.Count != 0)
+                return new CompilerResult(_logger);
 
-            var generator = new MsilWeakCodeGen(parser.Table, config);
+            var generator = new MsilWeakCodeGen(parser.Table, config, _logger);
             var result = generator.CompileTree(parser.Tree);
             if (result.Errors.Count > 0)
                 return result;
             else
             {
                 expectedOutput += Path.GetExtension(result.PathToAssembly);
-                CopyFileIfNewer(typeof(TaffyScript.TsObject).Assembly.Location, Path.Combine(dir, typeof(TaffyScript.TsObject).Assembly.GetName().Name + ".dll"));
+                CopyFileIfNewer(typeof(TsObject).Assembly.Location, Path.Combine(dir, typeof(TsObject).Assembly.GetName().Name + ".dll"));
                 if (result.PathToAssembly != expectedOutput)
                 {
                     if (File.Exists(expectedOutput))
                         File.Delete(expectedOutput);
                     MoveFile(result.PathToAssembly, expectedOutput);
-                    return new CompilerResult(result.CompiledAssebmly, expectedOutput, result.Errors.ToArray());
+                    return new CompilerResult(result.CompiledAssebmly, expectedOutput, _logger);
                 }
             }
             return result;
@@ -94,16 +97,16 @@ namespace TaffyScript.Compiler.Backend
             var expectedOutput = Path.Combine(dir, config.Output);
 
             //var errors = new List<Exception>();
-            var errors = VerifyReferencesExists(GetType().Assembly.Location, dir, config);
-            if (errors.Count != 0)
-                return new CompilerResult(errors);
+            VerifyReferencesExists(GetType().Assembly.Location, dir, config);
+            if (_logger.Errors.Count != 0)
+                return new CompilerResult(_logger);
 
-            var parser = new Parser();
+            var parser = new Parser(_logger);
             parser.Parse(code);
-            if (parser.Errors.Count != 0)
-                return new CompilerResult(parser.Errors);
+            if (_logger.Errors.Count != 0)
+                return new CompilerResult(_logger);
 
-            var generator = new MsilWeakCodeGen(parser.Table, config);
+            var generator = new MsilWeakCodeGen(parser.Table, config, _logger);
             var result = generator.CompileTree(parser.Tree);
             if (result.Errors.Count > 0)
                 return result;
@@ -114,7 +117,7 @@ namespace TaffyScript.Compiler.Backend
                 if (result.PathToAssembly != expectedOutput)
                 {
                     MoveFile(result.PathToAssembly, expectedOutput);
-                    return new CompilerResult(result.CompiledAssebmly, expectedOutput, result.Errors.ToArray());
+                    return new CompilerResult(result.CompiledAssebmly, expectedOutput, _logger);
                 }
             }
             return result;

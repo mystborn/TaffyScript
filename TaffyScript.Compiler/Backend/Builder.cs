@@ -13,22 +13,29 @@ namespace TaffyScript.Compiler.Backend
     /// </summary>
     public abstract class Builder
     {
+        protected IErrorLogger _logger;
+
         public abstract CompilerResult CompileCode(string code, BuildConfig config);
         public abstract CompilerResult CompileCode(string code, string output);
         public abstract CompilerResult CompileProject(string projectDir);
 
-        protected BuildConfig GetBuildConfig(string projectDir, out Exception exception)
+        public Builder(IErrorLogger errorLogger)
+        {
+            _logger = errorLogger;
+        }
+
+        protected BuildConfig GetBuildConfig(string projectDir)
         {
             if (!Directory.Exists(projectDir))
             {
-                exception = new DirectoryNotFoundException($"Could not find the project directory {projectDir}");
+                _logger.Error($"Could not find the project directory {projectDir}", null);
                 return null;
             }
 
             var projectFile = Path.Combine(projectDir, "build.cfg");
             if (!File.Exists(Path.Combine(projectDir, "build.cfg")))
             {
-                exception = new FileNotFoundException("Could not find the project file.");
+                _logger.Error("Could not find build.cfg", null);
                 return null;
             }
 
@@ -40,15 +47,12 @@ namespace TaffyScript.Compiler.Backend
                 {
                     config = (BuildConfig)cereal.Deserialize(sr);
                 }
-                catch(Exception e)
+                catch
                 {
-                    exception = e;
+                    _logger.Error("Could not deserialize build.cfg. Make sure the file is properly formatted.", null);
                     return null;
                 }
             }
-
-            exception = null;
-
             return config;
         }
 
@@ -74,9 +78,8 @@ namespace TaffyScript.Compiler.Backend
                 ParseFilesInProjectDirectory(dir, parser, exclude);
         }
 
-        protected List<Exception> VerifyReferencesExists(string projectDir, string outputDir, BuildConfig config)
+        protected void VerifyReferencesExists(string projectDir, string outputDir, BuildConfig config)
         {
-            var errors = new List<Exception>();
             for (var i = 0; i < config.References.Count; i++)
             {
                 var find = Path.Combine(projectDir, config.References[i]);
@@ -85,7 +88,7 @@ namespace TaffyScript.Compiler.Backend
                 {
                     find = Path.Combine(Path.GetDirectoryName(GetType().Assembly.Location), "Libraries", config.References[i]);
                     if (!File.Exists(find))
-                        errors.Add(new FileNotFoundException($"Could not find the specified reference: {config.References[i]}"));
+                        _logger.Error($"Could not find the specified reference: {config.References[i]}", null);
                     else
                         CopyFileIfNewer(find, output);
                 }
@@ -93,10 +96,9 @@ namespace TaffyScript.Compiler.Backend
                     CopyFileIfNewer(find, output);
                 config.References[i] = find;
             }
-            return errors;
         }
 
-        protected List<Exception> VerifyReferencesExists(string projectDir, Action<string> onReference, BuildConfig config)
+        protected void VerifyReferencesExists(string projectDir, Action<string> onReference, BuildConfig config)
         {
             //Todo: Look for assemblies in the global assembly cache
             //Update: After some tinkering, it seems this is not easily achieved.
@@ -123,8 +125,7 @@ namespace TaffyScript.Compiler.Backend
                 asmExpectedLocation = Path.Combine(msilPath, Directory.EnumerateDirectories(msilPath).First(), config.References[i]);
             }
             */
-
-            var errors = new List<Exception>();
+            
             for(var i = 0; i < config.References.Count; i++)
             {
                 var asmExpectedLocation = Path.Combine(projectDir, config.References[i]);
@@ -132,14 +133,13 @@ namespace TaffyScript.Compiler.Backend
                 {
                     asmExpectedLocation = Path.Combine(Path.GetDirectoryName(GetType().Assembly.Location), "Libraries", config.References[i]);
                     if (!File.Exists(asmExpectedLocation))
-                        errors.Add(new FileNotFoundException($"Could not find the specified reference: {config.References[i]}"));
+                        _logger.Error($"Could not find the specified reference: {config.References[i]}", null);
                     else
                         onReference?.Invoke(asmExpectedLocation);
                 }
                 else
                     onReference?.Invoke(asmExpectedLocation);
             }
-            return errors;
         } 
 
         protected void MoveFile(string source, string dest)

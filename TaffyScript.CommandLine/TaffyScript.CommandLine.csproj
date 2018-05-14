@@ -54,7 +54,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TaffyScriptCompiler\TaffyScript.Compiler.csproj">
+    <ProjectReference Include="..\TaffyScript.Compiler\TaffyScript.Compiler.csproj">
       <Project>{4022f406-fce6-4a8d-b99f-6ef6c406248a}</Project>
       <Name>TaffyScript.Compiler</Name>
     </ProjectReference>

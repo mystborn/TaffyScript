@@ -16,6 +16,7 @@ namespace TaffyScript.Compiler.FrontEnd
         private static Dictionary<string, TokenType> _definitions;
 
         private TextReader _reader;
+        private IErrorLogger _logger;
         private int _line = 1;
         private int _column;
         private int _index;
@@ -30,16 +31,12 @@ namespace TaffyScript.Compiler.FrontEnd
         public bool Finished => _current == '\0';
 
         /// <summary>
-        /// Gets invoked when an error occurs during the lexical analysis phase.
-        /// </summary>
-        public Action<Exception> ErrorEncountered;
-
-        /// <summary>
         /// Creates a Tokenizer using a string as the input code.
         /// </summary>
         /// <param name="input">The code to convert into a stream of <see cref="Token"/>s.</param>
-        public Tokenizer(string input)
+        public Tokenizer(string input, IErrorLogger errorLogger)
         {
+            _logger = errorLogger;
             _reader = new StringReader(input);
             Init();
         }
@@ -48,8 +45,9 @@ namespace TaffyScript.Compiler.FrontEnd
         /// Creates a Tokenizer using a <see cref="FileStream"/> as the input code.
         /// </summary>
         /// <param name="stream">The code to convert into a stream of <see cref="Token"/>s.</param>
-        public Tokenizer(FileStream stream)
+        public Tokenizer(FileStream stream, IErrorLogger errorLogger)
         {
+            _logger = errorLogger;
             _fname = stream.Name;
             _reader = new StreamReader(stream);
             Init();
@@ -308,7 +306,7 @@ namespace TaffyScript.Compiler.FrontEnd
                         _token = new Token(TokenType.Identifier, next, pos);
                         break;
                     default:
-                        ErrorEncountered?.Invoke(new UnrecognizedTokenException(next[0], pos));
+                        _logger.Error("Encountered an unrecognized token: " + next[0], pos);
                         break;
 
                 }
@@ -392,7 +390,7 @@ namespace TaffyScript.Compiler.FrontEnd
                         sb.Append(ReadHexNumber());
                         //There must be at least one character after the x in a hex number.
                         if (sb.Length == 2)
-                            ErrorEncountered?.Invoke(new UnrecognizedTokenException(_current, new TokenPosition(_index, _line, _column, _fname)));
+                            _logger.Error("Encountered an unrecognized token: " + _current, new TokenPosition(_index, _line, _column, _fname));
                         return sb.ToString();
                     }
                     else

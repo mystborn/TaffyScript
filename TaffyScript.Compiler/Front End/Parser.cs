@@ -41,13 +41,13 @@ namespace TaffyScript.Compiler
 
         public SymbolTable Table => _table;
         public ISyntaxTree Tree => _tree;
-        public List<Exception> Errors { get; } = new List<Exception>();
 
         /// <summary>
         /// Creates a new TaffyScript parser.
         /// </summary>
-        public Parser()
+        public Parser(IErrorLogger errorLogger)
         {
+            _logger = errorLogger;
             _table = new SymbolTable();
             _tree = new SyntaxTree(_table);
             _factory = new SyntaxElementFactory();
@@ -59,7 +59,7 @@ namespace TaffyScript.Compiler
         /// <param name="code">The TaffyScript code to parse.</param>
         public void Parse(string code)
         {
-            using (_stream = new Tokenizer(code))
+            using (_stream = new Tokenizer(code, _logger))
             {
                 Parse(_tree.Root);
             }
@@ -73,7 +73,7 @@ namespace TaffyScript.Compiler
         {
             using (var fs = new System.IO.FileStream(file, System.IO.FileMode.Open))
             {
-                using(_stream = new Tokenizer(fs))
+                using(_stream = new Tokenizer(fs, _logger))
                 {
                     Parse(_tree.Root);
                 }
@@ -84,7 +84,6 @@ namespace TaffyScript.Compiler
         {
             if (_stream.Finished)
                 return;
-            _stream.ErrorEncountered += (e) => Errors.Add(e);
 
             root.AddChild(Usings());
         }
@@ -149,7 +148,7 @@ namespace TaffyScript.Compiler
                     }
                     catch(Exception e)
                     {
-                        Throw(e);
+                        _logger.Error(e.Message, token.Position);
                         return null;
                     }
                     AddDeclarations(ns);
@@ -225,7 +224,7 @@ namespace TaffyScript.Compiler
                     Confirm(TokenType.SemiColon);
                     return null;
                 default:
-                    Throw(new InvalidTokenException(_stream.Peek(), $"Expected declaration, got {_stream.Read().Type}"));
+                    _logger.Error($"Expected declaration, got {_stream.Peek().Type}", _stream.Read().Position);
                     return null;
             }
         }
@@ -277,7 +276,7 @@ namespace TaffyScript.Compiler
                     if(Try(TokenType.New, out var newToken))
                     {
                         if (hasCtor)
-                            Throw(new InvalidTokenException(newToken, $"Import types can only define one constructor"));
+                            _logger.Error($"Import types can only define one constructor", newToken.Position);
                         var newNode = new ImportObjectConstructor(newToken.Position);
                         Confirm(TokenType.OpenParen);
                         if (!Try(TokenType.CloseParen))
@@ -289,7 +288,7 @@ namespace TaffyScript.Compiler
                                 if (type == "array")
                                     type = "array1d";
                                 if (!TsTypes.BasicTypes.ContainsKey(type))
-                                    Throw(new InvalidTokenException(token, $"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n"));
+                                    _logger.Error($"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n    ", token.Position);
                                 else
                                     newNode.ArgumentTypes.Add(type);
                             }
@@ -325,7 +324,7 @@ namespace TaffyScript.Compiler
                                     if (type == "array")
                                         type = "array1d";
                                     if (!TsTypes.BasicTypes.ContainsKey(type))
-                                        Throw(new InvalidTokenException(token, $"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n"));
+                                        _logger.Error($"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n    ", token.Position);
                                     else
                                         methodNode.ArgumentTypes.Add(type);
                                 }
@@ -382,7 +381,7 @@ namespace TaffyScript.Compiler
                         type = "array1d";
                     if (!TsTypes.BasicTypes.ContainsKey(type))
                     {
-                        Throw(new InvalidTokenException(token, $"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n"));
+                        _logger.Error($"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n    ", token.Position);
                         node.AddChild(null);
                     }
                     else
@@ -403,7 +402,7 @@ namespace TaffyScript.Compiler
         {
             if (!(Validate(TokenType.Script) || Validate(TokenType.Event)))
             {
-                Throw(new InvalidTokenException(_stream.Peek(), $"Expected a script, got {_stream.Read().Type}"));
+                _logger.Error($"Expected a script, got {_stream.Peek().Type}", _stream.Read().Position);
                 return null;
             }
 
@@ -445,7 +444,7 @@ namespace TaffyScript.Compiler
                                     value = _factory.CreateToken(SyntaxType.ReadOnlyValue, read.Value, read.Position);
                                     break;
                                 default:
-                                    Throw(new InvalidTokenException(_stream.Peek(), "Optional arguments must have a constant value"));
+                                    _logger.Error("Optional arguments must have a constant value", _stream.Peek().Position);
                                     Validate(TokenType.Identifier);
                                     continue;
                             }
@@ -461,7 +460,7 @@ namespace TaffyScript.Compiler
                     else
                     {
                         if (optional)
-                            Throw(new InvalidTokenException(parameterToken, "Can't have non-optional arguments after an optional argument."));
+                            _logger.Error("Can't have non-optional arguments after an optional argument.", parameterToken.Position);
 
                         parameterElement = parameter;
                     }
@@ -487,7 +486,7 @@ namespace TaffyScript.Compiler
                     if (!_table.Defined(localName.Value, out var symbol))
                         _table.AddLeaf(localName.Value, SymbolType.Variable, SymbolScope.Local);
                     else if (symbol.Type != SymbolType.Variable)
-                        Throw(new InvalidTokenException(localName, $"Id already defined for higher priority type: {localName.Value} = {symbol.Type}"));
+                        _logger.Error($"Id already defined for higher priority type: {localName.Value} = {symbol.Type}", localName.Position);
                     
                     if (Try(TokenType.Assign, out var equalToken))
                     {
@@ -609,7 +608,7 @@ namespace TaffyScript.Compiler
                         temp.AddChild(_factory.CreateNode(SyntaxType.Block, next.Position));
                     Confirm(TokenType.SemiColon);
                     if (Try(TokenType.SemiColon))
-                        Throw(new InvalidTokenException(_stream.Peek(), "Expected expression in for declaration"));
+                        _logger.Error("Expected expression in for declaration", _stream.Peek().Position);
                     else
                         temp.AddChild(Expression());
                     Confirm(TokenType.SemiColon);
@@ -638,7 +637,7 @@ namespace TaffyScript.Compiler
                             caseNode = _factory.CreateNode(SyntaxType.Default, defaultToken.Position);
                         else
                         {
-                            Throw(new InvalidTokenException(_stream.Peek(), $"Expected case declaration, got {_stream.Read().Value}"));
+                            _logger.Error($"Expected case declaration, got {_stream.Peek().Value}", _stream.Read().Position);
                             continue;
                         }
                         var blockStart = Confirm(TokenType.Colon);
@@ -943,15 +942,13 @@ namespace TaffyScript.Compiler
                     else if (Try(TokenType.ReadOnly, out next))
                     {
                         if (next.Value != "self")
-                        {
-                            Throw(new InvalidTokenException(next, "Invalid readonly token on the right side of an access expression"));
-                            return null;
-                        }
+                            _logger.Error("Invalid readonly token on the right side of an access expression", next.Position);
+
                         temp.AddChild(_factory.CreateToken(SyntaxType.ReadOnlyValue, next.Value, next.Position));
                     }
                     else
                     {
-                        Throw(new InvalidTokenException(next, "The value after a period in an access expression must be a variable."));
+                        _logger.Error("The value after a period in an access expression must be a variable.", next.Position);
                         return null;
                     }
                     value = temp;
@@ -959,10 +956,8 @@ namespace TaffyScript.Compiler
                 else if (Try(TokenType.OpenBracket, out var accessToken))
                 {
                     if (value.Type == SyntaxType.New)
-                    {
-                        Throw(new InvalidTokenException(accessToken, "Cannot use an accessor on a newed value"));
-                        return value;
-                    }
+                        _logger.Error("Cannot use an accessor on a newed value", accessToken.Position);
+
                     ISyntaxNode access = _factory.CreateNode(SyntaxType.ArrayAccess, value.Position);
 
                     access.AddChild(value);
@@ -1055,7 +1050,7 @@ namespace TaffyScript.Compiler
             }
             else
             {
-                Throw(new InvalidTokenException(_stream.Read()));
+                _logger.Error("Could not parse syntax", _stream.Read().Position);
                 return null;
             }
         }
@@ -1091,12 +1086,13 @@ namespace TaffyScript.Compiler
         {
             if (_stream.Finished)
             {
-                Throw(new System.IO.EndOfStreamException($"Expected {next}, reached the end of file instead."));
+                //Todo: test if this works.
+                _logger.Error($"Expected {next}, reached the end of file instead.", _stream.Peek().Position);
                 return null;
             }
             var result = _stream.Read();
             if (result.Type != next)
-                Throw(new InvalidTokenException(result, $"Expected {next}, got {result.Type}"));
+                _logger.Error($"Expected {next}, got {result.Type}", result.Position);
             return result;
         }
 
@@ -1123,7 +1119,7 @@ namespace TaffyScript.Compiler
                 else
                     value = value.Trim('"');
                 var match = StringParser.Match(value);
-                while(match.Success)
+                while (match.Success)
                 {
                     switch (value[match.Index + 1])
                     {
@@ -1135,14 +1131,14 @@ namespace TaffyScript.Compiler
                             if (num == "")
                             {
                                 var errorPos = new TokenPosition(token.Position.Index, token.Position.Line, token.Position.Column + i, token.Position.File);
-                                Throw(new InvalidOperationException($"Invalid hex constant {errorPos}"));
+                                _logger.Error($"Invalid hex constant", errorPos);
                             }
                             num = num.PadLeft(4, '0');
                             byte[] hex = new byte[2];
                             hex[1] = (byte)int.Parse(num.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
                             hex[0] = (byte)int.Parse(num.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
                             Console.WriteLine($"{hex[0]}, {hex[1]}");
-                            if(i - match.Index != 6)
+                            if (i - match.Index != 6)
                             {
                                 if (value[i] == '\\')
                                     i++;
@@ -1177,7 +1173,7 @@ namespace TaffyScript.Compiler
             else if (Try(TokenType.Bool, out token))
                 return _factory.CreateConstant(ConstantType.Bool, token.Value, token.Position);
             else
-                Throw(new InvalidTokenException(_stream.Peek(), $"Expected literal, got {_stream.Peek().Type}"));
+                _logger.Error($"Expected literal, got {_stream.Peek().Type}", _stream.Read().Position);
 
             return null;
         }
@@ -1234,11 +1230,6 @@ namespace TaffyScript.Compiler
                 default:
                     return false;
             }
-        }
-
-        private void Throw(Exception exception)
-        {
-            Errors.Add(exception);
         }
 
         private string GetNamespace()

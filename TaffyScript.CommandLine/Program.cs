@@ -37,7 +37,9 @@ namespace TaffyScript.CommandLine
 
             Console.WriteLine("Compile Start...");
 
-            var compiler = new MsilWeakCompiler();
+            var logger = new ErrorLogger();
+
+            var compiler = new MsilWeakCompiler(logger);
             CompilerResult result;
 
             if (!generateBcl)
@@ -45,10 +47,18 @@ namespace TaffyScript.CommandLine
                 result = compiler.CompileProject(path);
             }
             else
-                result = compiler.CompileCode(BaseClassLibrary.Generate(), new BuildConfig() { Mode = CompileMode.Release, Output = Path.Combine(Path.GetDirectoryName(typeof(Program).Assembly.Location), "Libraries", "TaffyScript.BCL") });
+                result = compiler.CompileCode(BaseClassLibraryGenerator.Generate(), new BuildConfig() { Mode = CompileMode.Release, Output = Path.Combine(Path.GetDirectoryName(typeof(Program).Assembly.Location), "Libraries", "TaffyScript.BCL") });
 
             if (result.Errors.Count == 0)
             {
+                if(result.Warnings.Count > 0)
+                {
+                    Console.WriteLine("Warnings:\n");
+                    foreach (var warning in result.Warnings)
+                        Console.WriteLine(warning);
+                    Console.WriteLine('\n');
+                }
+
                 Console.WriteLine("Compile succeeded...");
                 Console.WriteLine($"Output: {result.PathToAssembly}");
                 if (run && result.PathToAssembly.EndsWith(".exe"))
@@ -62,7 +72,7 @@ namespace TaffyScript.CommandLine
                 Console.WriteLine("Compile failed...");
                 Console.WriteLine("Errors: \n");
                 foreach (var error in result.Errors)
-                    Console.WriteLine(error.Message);
+                    Console.WriteLine(error);
             }
         }
 

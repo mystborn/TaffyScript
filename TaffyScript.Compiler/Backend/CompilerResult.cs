@@ -17,25 +17,32 @@ namespace TaffyScript.Compiler.Backend
         /// <summary>
         /// If the compile failed, contains a list of the encountered errors.
         /// </summary>
-        public List<Exception> Errors { get; }
+        public List<string> Errors { get; }
+
+        /// <summary>
+        /// Warnings that aren't breaking, but are generally considered bad practice.
+        /// </summary>
+        public List<string> Warnings { get; }
 
         /// <summary>
         /// If the compile was successful, contains the path to the output assembly.
         /// </summary>
         public string PathToAssembly { get; }
 
-        public CompilerResult(Assembly asm, string path, params Exception[] errors)
+        public CompilerResult(Assembly asm, string path, IErrorLogger errorLogger)
         {
             CompiledAssebmly = asm;
             PathToAssembly = path;
-            Errors = errors == null ? new List<Exception>() : new List<Exception>(errors);
+            Errors = errorLogger.Errors;
+            Warnings = errorLogger.Warnings;
         }
 
-        public CompilerResult(IEnumerable<Exception> errors)
+        public CompilerResult(IErrorLogger errorLogger)
         {
             CompiledAssebmly = null;
             PathToAssembly = null;
-            Errors = new List<Exception>(errors);
+            Errors = errorLogger.Errors;
+            Warnings = errorLogger.Warnings;
         }
     }
 }

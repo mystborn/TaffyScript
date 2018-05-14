@@ -4,12 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TaffyScript.Compiler.Backend
+namespace TaffyScript.Compiler
 {
     /// <summary>
     /// Helper class used to generate the BCL of TaffyScript.
     /// </summary>
-    public static class BaseClassLibrary
+    public static class BaseClassLibraryGenerator
     {
         /// <summary>
         /// Generates the TaffyScript base class library as a string.
