@@ -2448,10 +2448,18 @@ namespace TaffyScriptCompiler.Backend
             _table.Enter(lambda.Scope);
             ++_closures;
             _argOffset = 1;
+
             lambda.Body.Accept(this);
+            //Todo: Don't do this if last node was return stmt.
+            if (!emit.TryGetTop(out _))
+                emit.Call(TsTypes.Empty);
+
+            emit.Ret();
+
             --_closures;
             _argOffset = _closures > 0 ? 1 : 0;
             _table.Exit();
+
             emit = temp;
             if (owner.Self == null)
                 emit.New(owner.Constructor, 0);
@@ -2534,15 +2542,16 @@ namespace TaffyScriptCompiler.Backend
                 {
                     if (!_enums.TryGetValue(enumVar.Text, enumValue.Text, out var value))
                     {
-                        _table.Enter(enumVar.Text);
-                        if (_table.Defined(enumValue.Text, out symbol) && symbol is EnumLeaf leaf)
+                        var node = (SymbolNode)_table.Defined(enumVar.Text);
+                        //_table.Enter(enumVar.Text);
+                        if (node.Children.TryGetValue(enumValue.Text, out symbol) && symbol is EnumLeaf leaf)
                         {
                             value = leaf.Value;
                             _enums[enumVar.Text, leaf.Name] = value;
                         }
                         else
                             _errors.Add(new CompileException($"The enum {enumVar.Text} does not declare value {enumValue.Text} {enumValue.Position}"));
-                        _table.Exit();
+                        //_table.Exit();
                     }
                     emit.LdFloat(value);
                 }
