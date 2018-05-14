@@ -3814,19 +3814,32 @@ namespace TaffyScriptCompiler.Backend
                         emit.LdStr(name);
                         break;
                     case SymbolType.Script:
-                        ns = GetAssetNamespace(symbol);
-                        if (!_methods.TryGetValue(ns, name, out var method))
+                        if (symbol.Scope == SymbolScope.Member)
                         {
-                            method = StartMethod(name, ns);
-                            _pendingMethods.Add($"{ns}.{name}".TrimStart('.'), variableToken.Position);
+                            // Todo: Consider forcing this to load the exact function.
+                            //       That would make it so the function couldn't be changed during runtime,
+                            //       but of course it makes execution faster.
+                            emit.LdArg(0 + _argOffset)
+                                .LdStr(name)
+                                .Call(typeof(ITsInstance).GetMethod("GetDelegate"))
+                                .New(TsTypes.Constructors[typeof(TsDelegate)]);
                         }
-                        UnresolveNamespace();
-                        emit.LdNull()
-                            .LdFtn(method)
-                            .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                            .LdStr(symbol.Name)
-                            .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                            .New(TsTypes.Constructors[typeof(TsDelegate)]);
+                        else
+                        {
+                            ns = GetAssetNamespace(symbol);
+                            if (!_methods.TryGetValue(ns, name, out var method))
+                            {
+                                method = StartMethod(name, ns);
+                                _pendingMethods.Add($"{ns}.{name}".TrimStart('.'), variableToken.Position);
+                            }
+                            UnresolveNamespace();
+                            emit.LdNull()
+                                .LdFtn(method)
+                                .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                                .LdStr(symbol.Name)
+                                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
+                                .New(TsTypes.Constructors[typeof(TsDelegate)]);
+                        }
                         break;
                     case SymbolType.Variable:
                         if (_locals.TryGetValue(symbol, out var local))
