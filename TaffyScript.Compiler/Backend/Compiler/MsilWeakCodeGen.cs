@@ -1854,14 +1854,31 @@ namespace TaffyScript.Compiler.Backend
             for (var i = 0; i < size; ++i)
             {
                 block.Children[i].Accept(this);
-                if (block.Children[i].Type == SyntaxType.FunctionCall || block.Children[i].Type == SyntaxType.Postfix || block.Children[i].Type == SyntaxType.Prefix)
-                    emit.Pop();
+                //Each child in a block is either a statement which leaves nothing on the stack,
+                //or an expression which will leave one value.
+                //If there's a value left, pop it.
+                //If there's more than one value, the compiler failed somehow.
+                //It should never happen, but we log an error just in case.
+                switch(emit.Types.Count)
+                {
+                    case 0:
+                        break;
+                    case 1:
+                        emit.Pop();
+                        break;
+                    default:
+                        _logger.Error("Stack is unbalanced inside of a block", block.Position);
+                        break;
+                }
             }
         }
 
         public void Visit(BreakToken breakToken)
         {
-            emit.Br(_loopEnd.Peek());
+            if (_loopEnd.Count > 0)
+                emit.Br(_loopEnd.Peek());
+            else
+                _logger.Error("Tried to break outside of a loop", breakToken.Position);
         }
 
         public void Visit(CaseNode caseNode)

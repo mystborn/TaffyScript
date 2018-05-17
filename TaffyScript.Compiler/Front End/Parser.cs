@@ -22,7 +22,7 @@ namespace TaffyScript.Compiler
             get
             {
                 if(_hexCharacters == null)
-                    _hexCharacters = new HashSet<char>() { 'a', 'b', 'c', 'd', 'e', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
+                    _hexCharacters = new HashSet<char>() { 'a', 'b', 'c', 'd', 'e', 'f', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
                 return _hexCharacters;
             }
         }

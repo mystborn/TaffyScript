@@ -32,6 +32,7 @@ namespace TaffyScript.Compiler.Backend
         private Type[] _paramTypes;
 
         public MethodBase Method { get; }
+        public Stack<Type> Types => _types;
 
         public ILEmitter(MethodBuilder builder, Type[] input)
         {
