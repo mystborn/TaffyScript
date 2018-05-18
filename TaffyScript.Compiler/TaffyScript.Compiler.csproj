@@ -114,7 +114,6 @@
     <Compile Include="Syntax\Concrete\EndToken.cs" />
     <Compile Include="Syntax\Concrete\EnumDeclaration.cs" />
     <Compile Include="Syntax\Concrete\Equality.cs" />
-    <Compile Include="Syntax\Concrete\ExitToken.cs" />
     <Compile Include="Syntax\Concrete\ImportObject\ImportCasing.cs" />
     <Compile Include="Syntax\Concrete\ImportObject\ImportObject.cs" />
     <Compile Include="Syntax\Concrete\For.cs" />

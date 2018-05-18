@@ -11,7 +11,6 @@ namespace TaffyScript.Compiler.Syntax
         void Visit(RootNode root);
         void Visit(AssignNode assign);
         void Visit(ReadOnlyToken readOnlyToken);
-        void Visit(ExitToken exitToken);
         void Visit(NewNode newNode);
         void Visit(NamespaceNode namespaceNode);
         void Visit(ImportObjectNode importObjectNode);

@@ -34,7 +34,6 @@ namespace TaffyScript.Compiler.FrontEnd
         Enum,
         Equal,
         Event,
-        Exit,
         For,
         GreaterThan,
         GreaterThanOrEqual,

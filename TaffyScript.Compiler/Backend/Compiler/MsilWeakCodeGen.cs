@@ -2020,22 +2020,6 @@ namespace TaffyScript.Compiler.Backend
                 _logger.Error($"Cannot {op} types {left} and {right}", pos);
         }
 
-        public void Visit(ExitToken exitToken)
-        {
-            if(_inInstanceScript)
-            {
-                emit.Call(typeof(TsInstance).GetMethod("get_EventType"))
-                    .Call(typeof(Stack<string>).GetMethod("Pop"))
-                    .Pop()
-                    .Call(TsTypes.Empty)
-                    .Ret();
-                return;
-            }
-            if (_inGlobalScript && !emit.TryGetTop(out _))
-                emit.Call(TsTypes.Empty);
-            emit.Ret();
-        }
-
         public void Visit(ForNode forNode)
         {
             var forStart = emit.DefineLabel();
@@ -2802,7 +2786,7 @@ namespace TaffyScript.Compiler.Backend
                 script.Body.Accept(this);
                 BlockNode body = (BlockNode)script.Body;
                 var last = body.Children.Count == 0 ? null : body.Children[body.Children.Count - 1];
-                if(body.Children.Count == 0 || (last.Type != SyntaxType.Exit && last.Type != SyntaxType.Return))
+                if(body.Children.Count == 0 || last.Type != SyntaxType.Return)
                 {
                     emit.Call(eventType)
                     .Call(pop)

@@ -535,9 +535,6 @@ namespace TaffyScript.Compiler
                 case TokenType.Continue:
                     result = _factory.CreateToken(SyntaxType.Continue, Confirm(TokenType.Continue).Value, next.Position);
                     break;
-                case TokenType.Exit:
-                    result = _factory.CreateToken(SyntaxType.Exit, Confirm(TokenType.Exit).Value, next.Position);
-                    break;
                 case TokenType.Return:
                     Confirm(TokenType.Return);
                     var temp = _factory.CreateNode(SyntaxType.Return, next.Position);

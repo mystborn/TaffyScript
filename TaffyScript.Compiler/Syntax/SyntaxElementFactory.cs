@@ -140,8 +140,6 @@ namespace TaffyScript.Compiler.Syntax
                     return new BreakToken(value, position);
                 case SyntaxType.Continue:
                     return new ContinueToken(value, position);
-                case SyntaxType.Exit:
-                    return new ExitToken(value, position);
                 case SyntaxType.ReadOnlyValue:
                     return new ReadOnlyToken(value, position);
                 default:

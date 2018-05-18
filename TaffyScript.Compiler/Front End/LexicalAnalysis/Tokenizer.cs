@@ -76,7 +76,6 @@ namespace TaffyScript.Compiler.FrontEnd
                 { "else", TokenType.Else },
                 { "for", TokenType.For },
                 { "return", TokenType.Return },
-                { "exit", TokenType.Exit },
                 { "switch", TokenType.Switch },
                 { "case", TokenType.Case },
                 { "default", TokenType.Default },

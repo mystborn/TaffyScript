@@ -55,7 +55,6 @@ namespace TaffyScript.Compiler
         End,
         Break,
         Continue,
-        Exit,
         ReadOnlyValue
     }
 }
