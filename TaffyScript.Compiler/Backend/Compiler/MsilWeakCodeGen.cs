@@ -3499,12 +3499,17 @@ namespace TaffyScript.Compiler.Backend
         public void Visit(ReturnNode returnNode)
         {
             // Todo: Allow return by itself.
-            returnNode.ReturnValue.Accept(this);
+            if (returnNode.HasReturnValue)
+            {
+                returnNode.ReturnValue.Accept(this);
 
-            if (!emit.TryGetTop(out var returnType))
-                _logger.Error("Tried to return without a return value. If this is expected, use exit instead", returnNode.Position);
+                if (!emit.TryGetTop(out var returnType))
+                    _logger.Error("Invalid return value", returnNode.ReturnValue.Position);
 
-            ConvertTopToObject();
+                ConvertTopToObject();
+            }
+            else
+                emit.Call(TsTypes.Empty);
 
             if (_inInstanceScript)
             {

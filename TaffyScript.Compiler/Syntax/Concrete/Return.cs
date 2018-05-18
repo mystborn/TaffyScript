@@ -2,6 +2,7 @@
 {
     public class ReturnNode : SyntaxNode
     {
+        public bool HasReturnValue => Children.Count > 0;
         public ISyntaxElement ReturnValue => Children[0];
         public override SyntaxType Type => SyntaxType.Return;
 

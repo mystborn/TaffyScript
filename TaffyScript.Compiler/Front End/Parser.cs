@@ -541,7 +541,8 @@ namespace TaffyScript.Compiler
                 case TokenType.Return:
                     Confirm(TokenType.Return);
                     var temp = _factory.CreateNode(SyntaxType.Return, next.Position);
-                    temp.AddChild(Expression());
+                    if(!(Try(TokenType.OpenBrace) || Try(TokenType.CloseBrace) || Try(TokenType.SemiColon)))
+                        temp.AddChild(Expression());
                     result = temp;
                     break;
                 case TokenType.Repeat:

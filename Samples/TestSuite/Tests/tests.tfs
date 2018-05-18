@@ -30,5 +30,7 @@ namespace LanguageTests {
         show_debug_message("");
         run_lambda_tests();
         show_debug_message("");
+        run_return_tests();
+        show_debug_message("");
     }
 }

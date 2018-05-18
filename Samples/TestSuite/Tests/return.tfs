@@ -1,0 +1,36 @@
+using UnitTest;
+
+namespace LanguageTests {
+    script run_return_tests() {
+        var tests = new obj_unit_test("Return Tests",
+                                      return_something_works,
+                                      return_nothing_works);
+        tests.run_tests();
+    }
+
+    script return_something_works() {
+        test_it("script { return val }");
+        var result = return_something();
+        assert_equal(result, 2);
+    }
+
+    script return_nothing_works() {
+        test_it("script { return }");
+        var result = return_nothing_semicolon();
+        assert(is_undefined(result));
+        result = return_nothing_end_brace();
+        assert(is_undefined(result));
+    }
+
+    script return_something() {
+        return 2;
+    }
+
+    script return_nothing_semicolon() {
+        return;
+    }
+
+    script return_nothing_end_brace() {
+        return
+    }
+}
