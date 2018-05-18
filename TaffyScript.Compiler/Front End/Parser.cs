@@ -400,7 +400,9 @@ namespace TaffyScript.Compiler
 
         private ISyntaxElement Script(SymbolScope scope)
         {
-            if (!(Validate(TokenType.Script) || Validate(TokenType.Event)))
+            if (Try(TokenType.Event, out var eventToken))
+                _logger.Warning("event is an obsolete keyword. It will be deprecated on the next major release. Consider switching to script", eventToken.Position);
+            else if (!Validate(TokenType.Script))
             {
                 _logger.Error($"Expected a script, got {_stream.Peek().Type}", _stream.Read().Position);
                 return null;

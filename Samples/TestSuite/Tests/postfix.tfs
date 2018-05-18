@@ -149,15 +149,15 @@ namespace LanguageTests {
     }
 
     object obj_postfix {
-        event create() {
+        script create() {
             reset();
         }
 
-        event reset() {
+        script reset() {
             val = 10;
         }
 
-        event postfix_object_var_increment() {
+        script postfix_object_var_increment() {
             test_it("object.val++");
             reset();
             val++;
@@ -167,7 +167,7 @@ namespace LanguageTests {
             assert_equal(val, 12);
         }
 
-        event postfix_object_var_decrement() {
+        script postfix_object_var_decrement() {
             test_it("object.val--");
             reset();
             val--;
@@ -177,7 +177,7 @@ namespace LanguageTests {
             assert_equal(val, 8);
         }
 
-        event postfix_self_var_increment() {
+        script postfix_self_var_increment() {
             test_it("self.val++");
             reset();
             self.val++;
@@ -187,7 +187,7 @@ namespace LanguageTests {
             assert_equal(val, 12);
         }
 
-        event postfix_self_var_decrement() {
+        script postfix_self_var_decrement() {
             test_it("self.val--");
             reset();
             self.val--;

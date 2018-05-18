@@ -187,15 +187,15 @@ namespace LanguageTests {
     }
 
     object obj_prefix {
-        event create() {
+        script create() {
             reset();
         }
 
-        event reset() {
+        script reset() {
             val = 2;
         }
 
-        event prefix_increment_object_var() {
+        script prefix_increment_object_var() {
             test_it("++obj_var")
             reset();
             ++val;
@@ -205,7 +205,7 @@ namespace LanguageTests {
             assert_equal(val, 4);
         }
 
-        event prefix_decrement_object_var() {
+        script prefix_decrement_object_var() {
             test_it("--obj_var");
             reset();
             --val;
@@ -215,7 +215,7 @@ namespace LanguageTests {
             assert_equal(val, 0);
         }
 
-        event prefix_increment_self_var() {
+        script prefix_increment_self_var() {
             test_it("++self_var");
             reset();
             ++self.val;
@@ -225,7 +225,7 @@ namespace LanguageTests {
             assert_equal(val, 4);
         }
 
-        event prefix_decrement_self_var() {
+        script prefix_decrement_self_var() {
             test_it("--self_var");
             reset();
             --self.val;

@@ -23,21 +23,21 @@ namespace LanguageTests {
     }
 
     object obj_comp2 : obj_comp1 {
-        event ev_comp1() {
+        script ev_comp1() {
 
         }
 
-        event ev_comp2 {
+        script ev_comp2 {
             
         }
 
-        event moo() {
+        script moo() {
             return "moo";
         }
     }
 
     object obj_comp3 : obj_comp2 {
-        event moo() {
+        script moo() {
             return "moo" + event_inherited();
         }
     }
