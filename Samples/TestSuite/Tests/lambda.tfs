@@ -10,10 +10,9 @@ namespace LanguageTests {
                                       lambda_no_capture,
                                       lambda_capture_local,
                                       lambda_capture_argument,
-                                      lambda_capture_default_argument
-                                      //lambda_local,
-                                      //lambda_nested_lambda
-                                      );
+                                      lambda_capture_default_argument,
+                                      lambda_local,
+                                      lambda_nested_lambda);
 
         tests.run_tests();
     }
@@ -55,7 +54,7 @@ namespace LanguageTests {
         return script { return arg; }
     }
 
-    /*script lambda_local() {
+    script lambda_local() {
         test_it("lambda { var i = 0 }");
         var s = script {
             var i = 1;
@@ -71,7 +70,7 @@ namespace LanguageTests {
         var result = s();
         assert_equal(result, 3);
     }
-
+    
     script scr_get_nested_lambda() {
         return script {
             var i = 2;
@@ -79,5 +78,5 @@ namespace LanguageTests {
             f();
             return i;
         }
-    }*/
+    }
 }

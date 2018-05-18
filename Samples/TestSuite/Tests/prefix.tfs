@@ -106,58 +106,6 @@ namespace LanguageTests {
         assert_equal(list[0], 0);
     }
 
-    /*script prefix_increment_grid() {
-        test_it("++grid");
-        var grid = ds_grid_create(2, 2);
-        grid[# 0, 0] = 2;
-        ++grid[# 0, 0];
-        assert_equal(grid[# 0, 0], 3);
-        var j = ++grid[# 0, 0];
-        assert_equal(j, 4);
-        assert_equal(grid[# 0, 0], 4);
-
-        ds_grid_destroy(grid);
-    }
-
-    script prefix_decrement_grid() {
-        test_it("--grid");
-        var grid = ds_grid_create(2, 2);
-        grid[# 0, 0] = 2;
-        --grid[# 0, 0];
-        assert_equal(grid[# 0, 0], 1);
-        var j = --grid[# 0, 0];
-        assert_equal(j, 0);
-        assert_equal(grid[# 0, 0], 0);
-
-        ds_grid_destroy(grid);
-    }
-
-    script prefix_increment_map() {
-        test_it("++map");
-        var map = ds_map_create();
-        map[? "moo"] = 2;
-        ++map[? "moo"];
-        assert_equal(map[? "moo"], 3);
-        var j = ++map[? "moo"];
-        assert_equal(j, 4);
-        assert_equal(map[? "moo"], 4);
-
-        ds_map_destroy(map);
-    }
-
-    script prefix_decrement_map() {
-        test_it("--map");
-        var map = ds_map_create();
-        map[? "moo"] = 2;
-        --map[? "moo"];
-        assert_equal(map[? "moo"], 1);
-        var j = --map[? "moo"];
-        assert_equal(j, 0);
-        assert_equal(map[? "moo"], 0);
-
-        ds_map_destroy(map);
-    }*/
-
     script prefix_increment_local_var() {
         test_it("++local_var");
         var i = 2;

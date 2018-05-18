@@ -828,18 +828,24 @@ namespace TaffyScript.Compiler.Backend
         {
             emit = new ILEmitter(method, args);
             _table.Enter(scriptName);
+            DeclareLocals(true);
+        }
+
+        private void DeclareLocals(bool declareLocalLambda)
+        {
             foreach(var local in _table.Symbols)
             {
-                if (local is VariableLeaf leaf && leaf.IsCaptured)
+                if(local is VariableLeaf leaf)
                 {
-                    if (_closure == null)
-                        GetClosure(true);
-                    var field = _closure.Type.DefineField(local.Name, typeof(TsObject), FieldAttributes.Public);
-                    _closure.Fields.Add(local.Name, field);
-                }
-                else
-                {
-                    _locals.Add(local, emit.DeclareLocal(typeof(TsObject), local.Name));
+                    if (leaf.IsCaptured)
+                    {
+                        if (_closure == null)
+                            GetClosure(declareLocalLambda);
+                        var field = _closure.Type.DefineField(local.Name, typeof(TsObject), FieldAttributes.Public);
+                        _closure.Fields.Add(local.Name, field);
+                    }
+                    else
+                        _locals.Add(local, emit.DeclareLocal(typeof(TsObject), local.Name));
                 }
             }
         }
@@ -1371,7 +1377,12 @@ namespace TaffyScript.Compiler.Backend
                         _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
 
                     if (leaf.IsCaptured)
-                        emit.LdLocal(_closure.Self);
+                    {
+                        if (_closures > 0)
+                            emit.LdArg(0);
+                        else
+                            emit.LdLocal(_closure.Self);
+                    }
 
                     assign.Right.Accept(this);
                     ConvertTopToObject();
@@ -2379,10 +2390,17 @@ namespace TaffyScript.Compiler.Backend
                                                   MethodAttributes.Assembly | MethodAttributes.HideBySig,
                                                   typeof(TsObject),
                                                   ScriptArgs);
+            _table.Enter(lambda.Scope);
+            if (_closures == 0 && owner.Self is null && _table.Symbols.Any())
+            {
+                owner.Self = emit.DeclareLocal(owner.Type, "__0closure");
+                emit.New(owner.Constructor, 0)
+                    .StLocal(owner.Self);
+            }
             var temp = emit;
 
             emit = new ILEmitter(closure, ScriptArgs);
-            _table.Enter(lambda.Scope);
+            DeclareLocals(false);
             ++_closures;
             _argOffset = 1;
 
@@ -2398,15 +2416,20 @@ namespace TaffyScript.Compiler.Backend
             _table.Exit();
 
             emit = temp;
-            if (owner.Self == null)
-                emit.New(owner.Constructor, 0);
+            if (_closures == 0)
+            {
+                if (owner.Self == null)
+                    emit.New(owner.Constructor, 0);
+                else
+                    emit.LdLocal(owner.Self);
+            }
             else
-                emit.LdLocal(owner.Self);
+                emit.LdArg(0);
 
             emit.LdFtn(closure)
                 .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
                 .LdStr("lambda")
-                .LdArg(0)
+                .LdArg(0 + _argOffset)
                 .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string), typeof(ITsInstance) }));
         }
 
