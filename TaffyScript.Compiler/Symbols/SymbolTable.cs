@@ -8,20 +8,17 @@ namespace TaffyScript.Compiler
 {
     public class SymbolTable
     {
-        private Stack<SymbolNode> _current = new Stack<SymbolNode>();
+        // Stores other nodes that are in the current scope, 
+        // typically entered via the "using name.space" syntax.
+        private List<SymbolNode> _others = new List<SymbolNode>();
 
-        public SymbolNode Current
-        {
-            get => _current.Peek();
-            private set => _current.Push(value);
-        }
+        public SymbolNode Current { get; set; }
 
         public IEnumerable<ISymbol> Symbols => Current.Children.Values;
 
         public SymbolTable()
         {
-            var root = new SymbolNode(null, "__0Root", SymbolType.Block);
-            _current.Push(root);
+            Current = new SymbolNode(null, "__0Root", SymbolType.Block);
         }
 
         /// <summary>
@@ -42,7 +39,7 @@ namespace TaffyScript.Compiler
         /// </summary>
         public void Exit()
         {
-            _current.Pop();
+            Current = Current.Parent;
         }
 
         public void Exit(int count)
@@ -111,6 +108,39 @@ namespace TaffyScript.Compiler
             }
         }
 
+        public void AddSymbolToDefinitionLookup(SymbolNode node)
+        {
+            // Todo: Measure performance impact of Contains.
+            //       Consider switching to HashSet.
+            if (!_others.Contains(node))
+                _others.Add(node);
+        }
+
+        public void RemoveSymbolFromDefinitionLookup(SymbolNode node)
+        {
+            _others.Remove(node);
+        }
+
+        /// <summary>
+        /// Adds the values in a namespace to the definition lookup mechanism.
+        /// </summary>
+        /// <param name="ns"></param>
+        /// <returns></returns>
+        public SymbolNode AddNamespaceToDefinitionLookup(string ns)
+        {
+            var count = EnterNamespace(ns);
+            var node = Current;
+            Exit(count);
+            if(!_others.Contains(node))
+                _others.Add(node);
+            return node;
+        }
+
+        public void RemoveAllNamespacesFromDefinitionLookup()
+        {
+            _others.Clear();
+        }
+
         /// <summary>
         /// Determines if a symbol is defined in the current scope.
         /// </summary>
@@ -118,14 +148,19 @@ namespace TaffyScript.Compiler
         /// <param name="symbol">The symbol, it's defined.</param>
         public bool Defined(string name, out ISymbol symbol)
         {
-            var current = new Queue<SymbolNode>(_current);
-            symbol = default(ISymbol);
-            while(current.Count != 0)
+            var current = Current;
+            while(current != null)
             {
-                if(current.Peek().Children.TryGetValue(name, out symbol))
+                if(current.Children.TryGetValue(name, out symbol))
                     return true;
-                current.Dequeue();
+                current = current.Parent;
             }
+            for(var i = 0; i < _others.Count; i++)
+            {
+                if (_others[i].Children.TryGetValue(name, out symbol))
+                    return true;
+            }
+            symbol = default(ISymbol);
             return false;
         }
 
@@ -210,7 +245,13 @@ namespace TaffyScript.Compiler
         /// </summary>
         public void PrintTable()
         {
-            var top = _current.Reverse().First();
+            var top = Current;
+            var node = top;
+            while(node != null)
+            {
+                top = node;
+                node = node.Parent;
+            }
             var sb = new StringBuilder();
             PrintNode(sb, top, 0);
             Console.WriteLine(sb);
@@ -223,31 +264,6 @@ namespace TaffyScript.Compiler
             if(symbol is SymbolNode node)
                 foreach(var child in node.Children.Values)
                     PrintNode(sb, child, indent + 2);
-        }
-
-        /// <summary>
-        /// Prints all pending variables to the Console.
-        /// </summary>
-        public void PrintPending()
-        {
-            var top = _current.Reverse().First();
-            var sb = new StringBuilder();
-            PrintPending(sb, top, 0);
-            Console.WriteLine(sb);
-        }
-
-        private void PrintPending(StringBuilder sb, ISymbol symbol, int indent)
-        {
-            if(symbol is SymbolNode node)
-            {
-                foreach(var pending in node.Pending)
-                {
-                    sb.Append(' ', indent);
-                    sb.AppendLine(pending);
-                }
-                foreach (var child in node.Children.Values)
-                    PrintPending(sb, child, indent);
-            }
         }
     }
 }

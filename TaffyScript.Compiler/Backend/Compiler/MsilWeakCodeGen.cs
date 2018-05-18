@@ -139,8 +139,6 @@ namespace TaffyScript.Compiler.Backend
         /// </summary>
         private Dictionary<Type, Stack<LocalBuilder>> _secrets = new Dictionary<Type, Stack<LocalBuilder>>();
 
-        private string _resolveNamespace = "";
-
         private LocalBuilder _argumentCount = null;
 
         private Closure _closure = null;
@@ -341,7 +339,8 @@ namespace TaffyScript.Compiler.Backend
                 if (type.GetCustomAttribute<WeakObjectAttribute>() != null)
                 {
                     var count = _table.EnterNamespace(type.Namespace);
-                    _table.TryCreate(type.Name, SymbolType.Object);
+                    if (!_table.TryCreate(type.Name, SymbolType.Object))
+                        _logger.Warning($"Name conflict encountered with object {type.Name} defined in assembly {asm.GetName().Name}");
                     _table.Exit(count);
                 }
                 else if(type.IsEnum)
@@ -829,13 +828,8 @@ namespace TaffyScript.Compiler.Backend
         {
             emit = new ILEmitter(method, args);
             _table.Enter(scriptName);
-            var locals = new List<ISymbol>(_table.Symbols);
-            _table.Exit();
-            foreach(var local in locals)
+            foreach(var local in _table.Symbols)
             {
-                //Raise local variables up one level.
-                _table.AddChild(local);
-
                 if (local is VariableLeaf leaf && leaf.IsCaptured)
                 {
                     if (_closure == null)
@@ -852,8 +846,7 @@ namespace TaffyScript.Compiler.Backend
 
         private void ScriptEnd()
         {
-            foreach (var local in _locals.Keys)
-                _table.Undefine(local.Name);
+            _table.Exit();
             _locals.Clear();
             _secrets.Clear();
             _secret = 0;
@@ -926,18 +919,18 @@ namespace TaffyScript.Compiler.Backend
             locals.Push(local);
         }
 
-        private ISyntaxElement ResolveNamespace(MemberAccessNode node)
+        private bool TryResolveNamespace(MemberAccessNode node, out ISyntaxElement resolved, out SymbolNode namespaceNode)
         {
             if (node.Left.Text != null && _table.Defined(node.Left.Text, out var symbol) && symbol.Type == SymbolType.Namespace)
             {
-                _table.Enter(symbol.Name);
-                _resolveNamespace = symbol.Name;
-                return node.Right;
+                namespaceNode = (SymbolNode)symbol;
+                resolved = node.Right;
+                return true;
             }
             else if (node.Left is MemberAccessNode)
             {
                 var ns = new Stack<ISyntaxToken>();
-                var result = node.Right;
+                resolved = node.Right;
                 var start = node;
                 while (node.Left is MemberAccessNode member)
                 {
@@ -945,7 +938,10 @@ namespace TaffyScript.Compiler.Backend
                     if (node.Right is ISyntaxToken id)
                         ns.Push(id);
                     else
-                        return start;
+                    {
+                        namespaceNode = default(SymbolNode);
+                        return false;
+                    }
                 }
 
                 if (node.Left is ISyntaxToken left)
@@ -967,77 +963,18 @@ namespace TaffyScript.Compiler.Backend
                     }
                     else
                     {
+                        namespaceNode = default(SymbolNode);
                         _table.Exit(iterations);
-                        return start;
+                        return false;
                     }
                 }
-                _resolveNamespace = sb.ToString().TrimEnd('.');
-                return result;
+                namespaceNode = _table.Current;
+                _table.Exit(iterations);
+                return true;
             }
-            else
-                return node;
-        }
-
-        private bool TryResolveNamespace(MemberAccessNode node, out ISyntaxElement resolved)
-        {
             resolved = default(ISyntaxElement);
-            if (node.Left.Text != null && _table.Defined(node.Left.Text, out var symbol) && symbol.Type == SymbolType.Namespace)
-            {
-                _table.Enter(symbol.Name);
-                _resolveNamespace = symbol.Name;
-                resolved = node.Right;
-                return true;
-            }
-            else if (node.Left is MemberAccessNode)
-            {
-                var ns = new Stack<ISyntaxToken>();
-                resolved = node.Right;
-                var start = node;
-                while (node.Left is MemberAccessNode member)
-                {
-                    node = member;
-                    if (node.Right is ISyntaxToken id)
-                        ns.Push(id);
-                    else
-                        return false;
-                }
-
-                if (node.Left is ISyntaxToken left)
-                    ns.Push(left);
-                else
-                    _logger.Error("Invalid syntax detected", node.Left.Position);
-
-                var sb = new System.Text.StringBuilder();
-                var iterations = 0;
-                while (ns.Count > 0)
-                {
-                    var top = ns.Pop();
-                    sb.Append(top.Text);
-                    sb.Append(".");
-                    if (_table.Defined(top.Text, out symbol) && symbol.Type == SymbolType.Namespace)
-                    {
-                        _table.Enter(top.Text);
-                        iterations++;
-                    }
-                    else
-                    {
-                        _table.Exit(iterations);
-                        return false;
-                    }
-                }
-                _resolveNamespace = sb.ToString().TrimEnd('.');
-                return true;
-            }
-            else
-                return false;
-        }
-
-        private void UnresolveNamespace()
-        {
-            if (_resolveNamespace == "")
-                return;
-            _table.ExitNamespace(_resolveNamespace);
-            _resolveNamespace = "";
+            namespaceNode = default(SymbolNode);
+            return false;
         }
 
         private SymbolTable CopyTable(SymbolTable table)
@@ -1047,23 +984,6 @@ namespace TaffyScript.Compiler.Backend
                 copy.AddChild(symbol);
 
             return copy;
-        }
-
-        private void CopyTable(SymbolTable src, SymbolTable dest, TokenPosition position)
-        {
-            foreach (var symbol in src.Symbols)
-            {
-                if (!dest.AddChild(symbol))
-                    _logger.Warning($"Encountered name conflict: {symbol.Name}", position);
-            }
-        }
-
-        private void TryCopyTable(SymbolTable src, SymbolTable dest)
-        {
-            foreach(var symbol in src.Symbols)
-            {
-                dest.AddChild(symbol);
-            }
         }
 
         private void AcceptDeclarations(ISyntaxNode block)
@@ -2141,11 +2061,22 @@ namespace TaffyScript.Compiler.Backend
                 name = token.Text;
             else if (nameElem is MemberAccessNode memberAccess)
             {
-                if (TryResolveNamespace(memberAccess, out nameElem))
+                if (TryResolveNamespace(memberAccess, out nameElem, out var namespaceNode))
                 {
                     //explicit namespace -> function call
                     //e.g. name.space.func_name();
                     name = nameElem.Text;
+                    if(namespaceNode.Children.TryGetValue(nameElem.Text, out var scriptSymbol))
+                    {
+                        CallScript(GetAssetNamespace(scriptSymbol), scriptSymbol, functionCall);
+                        return;
+                    }
+                    else
+                    {
+                        _logger.Error($"Namespace {(GetAssetNamespace(namespaceNode) + "." + namespaceNode.Name).TrimStart('.')} does not define script {nameElem}");
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
                 }
                 else
                 {
@@ -2209,11 +2140,17 @@ namespace TaffyScript.Compiler.Backend
                 return;
             }
             var ns = GetAssetNamespace(symbol);
-            if (!_methods.TryGetValue(ns, name, out var method))
+
+            CallScript(ns, symbol, functionCall);
+        }
+
+        private void CallScript(string ns, ISymbol scriptSymbol, FunctionCallNode functionCall)
+        {
+            if (!_methods.TryGetValue(ns, scriptSymbol.Name, out var method))
             {
                 // Special case hack needed for getting the MethodInfo for weak methods before
                 // their ImportNode has been hit.
-                if (symbol is ImportLeaf leaf)
+                if (scriptSymbol is ImportLeaf leaf)
                 {
                     var temp = _namespace;
                     _namespace = ns;
@@ -2223,12 +2160,10 @@ namespace TaffyScript.Compiler.Backend
                 }
                 else
                 {
-                    method = StartMethod(name, ns);
-                    _pendingMethods.Add($"{ns}.{name}".TrimStart('.'), functionCall.Position);
+                    method = StartMethod(scriptSymbol.Name, ns);
+                    _pendingMethods.Add($"{ns}.{scriptSymbol.Name}".TrimStart('.'), functionCall.Position);
                 }
             }
-
-            UnresolveNamespace();
 
             MarkSequencePoint(functionCall);
 
@@ -2525,46 +2460,48 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(MemberAccessNode memberAccess)
         {
-            var resolved = ResolveNamespace(memberAccess);
-            if(_resolveNamespace != "")
+            ISymbol enumSymbol;
+            if(TryResolveNamespace(memberAccess, out var resolved, out var namespaceNode))
             {
                 if (resolved is MemberAccessNode member)
-                    memberAccess = member;
+                {
+                    if (member.Left is VariableToken enumType && namespaceNode.Children.TryGetValue(enumType.Text, out enumSymbol))
+                        ProcessEnumAccess(member, enumType, enumSymbol);
+                    else
+                    {
+                        emit.Call(TsTypes.Empty);
+                        _logger.Error("Invalid member access syntax. Expected enum at the end of namespace", member.Position);
+                    }
+                }
+                else if (resolved is VariableToken variable)
+                {
+                    if (namespaceNode.Children.TryGetValue(variable.Text, out var symbol))
+                        ProcessVariableToken(variable, symbol);
+                    else
+                    {
+                        emit.Call(TsTypes.Empty);
+                        _logger.Error("Invalid id at the end of namespace access", resolved.Position);
+                    }
+                }
                 else
                 {
-                    resolved.Accept(this);
-                    return;
+                    emit.Call(TsTypes.Empty);
+                    _logger.Error("Invalid token at the end of namespace access.");
                 }
+                return;
             }
             //If left is enum name, find it in _enums.
             //Otherwise, Accept left, and call member access on right.
-            if (memberAccess.Left is VariableToken enumVar && _table.Defined(enumVar.Text, out var symbol) && symbol.Type == SymbolType.Enum)
+            if (memberAccess.Left is VariableToken enumVar && _table.Defined(enumVar.Text, out enumSymbol) && enumSymbol.Type == SymbolType.Enum)
             {
-                if (memberAccess.Right is VariableToken enumValue)
-                {
-                    // Todo: refactor Visit(EnumNode) to match this implementation.
-                    if (!_enums.TryGetValue(enumVar.Text, enumValue.Text, out var value))
-                    {
-                        var node = (SymbolNode)_table.Defined(enumVar.Text);
-                        if (node.Children.TryGetValue(enumValue.Text, out symbol) && symbol is EnumLeaf leaf)
-                        {
-                            value = leaf.Value;
-                            _enums[enumVar.Text, leaf.Name] = value;
-                        }
-                        else
-                            _logger.Error($"The enum {enumVar.Text} does not declare value {enumValue.Text}", enumValue.Position);
-                    }
-                    emit.LdFloat(value);
-                }
-                else
-                    _logger.Error("Invalid enum access", enumVar.Position);
+                ProcessEnumAccess(memberAccess, enumVar, enumSymbol);
             }
-            else if(memberAccess.Left is ReadOnlyToken read)
+            if (memberAccess.Left is ReadOnlyToken read)
             {
-                if (_resolveNamespace != "" || !(memberAccess.Right is VariableToken right))
+                var right = memberAccess.Right as VariableToken;
+                if(right is null)
                 {
-                    UnresolveNamespace();
-                    _logger.Error("Invalid syntax detected", read.Position);
+                    _logger.Error("Could not access readonly variable from readonly variable.");
                     emit.Call(TsTypes.Empty);
                     return;
                 }
@@ -2589,14 +2526,6 @@ namespace TaffyScript.Compiler.Backend
             }
             else
             {
-                if (_resolveNamespace != "")
-                {
-                    UnresolveNamespace();
-                    _logger.Error("Invalid syntax detected", memberAccess.Left.Position);
-                    emit.Call(TsTypes.Empty);
-                    return;
-                }
-
                 GetAddressIfPossible(memberAccess.Left);
                 var left = emit.GetTop();
                 if(left == typeof(TsObject))
@@ -2631,8 +2560,31 @@ namespace TaffyScript.Compiler.Backend
                 else
                     _logger.Error("Invalid syntax detected", memberAccess.Position);
             }
+        }
 
-            UnresolveNamespace();
+        private void ProcessEnumAccess(MemberAccessNode memberAccess, VariableToken enumType, ISymbol enumSymbol)
+        {
+            if (memberAccess.Right is VariableToken enumValue)
+            {
+                // Todo: refactor Visit(EnumNode) to match this implementation.
+                if (!_enums.TryGetValue(enumType.Text, enumValue.Text, out var value))
+                {
+                    var node = (SymbolNode)enumSymbol;
+                    if (node.Children.TryGetValue(enumValue.Text, out enumSymbol) && enumSymbol is EnumLeaf leaf)
+                    {
+                        value = leaf.Value;
+                        _enums[enumType.Text, leaf.Name] = value;
+                    }
+                    else
+                        _logger.Error($"The enum {enumType.Text} does not declare value {enumValue.Text}", enumValue.Position);
+                }
+                emit.LdFloat(value);
+            }
+            else
+            {
+                _logger.Error("Invalid enum access", enumType.Position);
+                emit.LdFloat(0f);
+            }
         }
 
         public void Visit(MultiplicativeNode multiplicative)
@@ -2686,18 +2638,24 @@ namespace TaffyScript.Compiler.Backend
         public void Visit(NamespaceNode namespaceNode)
         {
             var parent = _namespace;
-            if (parent == "")
-                _namespace = namespaceNode.Text;
-            else
+            if(parent != "")
+            {
+                _table.AddSymbolToDefinitionLookup(_table.Current);
                 _namespace += "." + namespaceNode.Text;
-            _table.EnterNamespace(namespaceNode.Text);
-            var temp = _table;
-            _table = CopyTable(_table);
-            temp.ExitNamespace(namespaceNode.Text);
-            CopyTable(temp, _table, namespaceNode.Position);
+            }
+            else
+                _namespace = namespaceNode.Text;
+
+            var count = _table.EnterNamespace(namespaceNode.Text);
+
             AcceptDeclarations(namespaceNode);
+
+            _table.Exit(count);
+
+            if (parent != "")
+                _table.RemoveSymbolFromDefinitionLookup(_table.Current);
+
             _namespace = parent;
-            _table = temp;
         }
 
         public void Visit(NewNode newNode)
@@ -3787,96 +3745,91 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(UsingsNode usings)
         {
-            var temp = _table;
-            _table = CopyTable(temp);
-
             foreach (var ns in usings.Modules)
-            {
-                var count = temp.EnterNamespace(ns.Text);
-                CopyTable(temp, _table, ns.Position);
-                temp.Exit(count);
-            }
+                _table.AddNamespaceToDefinitionLookup(ns.Text);
+
             AcceptDeclarations(usings.Declarations);
-            _table = temp;
+            _table.RemoveAllNamespacesFromDefinitionLookup();
         }
 
         public void Visit(VariableToken variableToken)
         {
-            var name = variableToken.Text;
-            if (_table.Defined(name, out var symbol))
-            {
-                switch(symbol.Type)
-                {
-                    case SymbolType.Object:
-                        UnresolveNamespace();
-                        var ns = GetAssetNamespace(symbol);
-                        if (ns != "")
-                            name = $"{ns}.{name}";
-                        emit.LdStr(name);
-                        break;
-                    case SymbolType.Script:
-                        if (symbol.Scope == SymbolScope.Member)
-                        {
-                            // Todo: Consider forcing this to load the exact function.
-                            //       That would make it so the function couldn't be changed during runtime,
-                            //       but of course it makes execution faster.
-                            emit.LdArg(0 + _argOffset)
-                                .LdStr(name)
-                                .Call(typeof(ITsInstance).GetMethod("GetDelegate"))
-                                .New(TsTypes.Constructors[typeof(TsDelegate)]);
-                        }
-                        else
-                        {
-                            ns = GetAssetNamespace(symbol);
-                            if (!_methods.TryGetValue(ns, name, out var method))
-                            {
-                                method = StartMethod(name, ns);
-                                _pendingMethods.Add($"{ns}.{name}".TrimStart('.'), variableToken.Position);
-                            }
-                            UnresolveNamespace();
-                            emit.LdNull()
-                                .LdFtn(method)
-                                .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                                .LdStr(symbol.Name)
-                                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                                .New(TsTypes.Constructors[typeof(TsDelegate)]);
-                        }
-                        break;
-                    case SymbolType.Variable:
-                        if (_locals.TryGetValue(symbol, out var local))
-                        {
-                            if (_needAddress)
-                                emit.LdLocalA(local);
-                            else
-                                emit.LdLocal(local);
-                        }
-                        else if (symbol is VariableLeaf leaf && leaf.IsCaptured)
-                        {
-                            var field = _closure.Fields[symbol.Name];
-
-                            if (_closures == 0)
-                                emit.LdLocal(_closure.Self);
-                            else
-                                emit.LdArg(0);
-
-                            if (_needAddress)
-                                emit.LdFldA(field);
-                            else
-                                emit.LdFld(field);
-                        }
-                        else
-                            _logger.Error($"Tried to reference a non-existant variable {variableToken.Text}", variableToken.Position);
-                        break;
-                    default:
-                        _logger.Error($"Currently cannot reference indentifier {symbol.Type} by it's raw value.", variableToken.Position);
-                        break;
-                }
-            }
+            if (_table.Defined(variableToken.Text, out var symbol))
+                ProcessVariableToken(variableToken, symbol);
             else
             {
                 emit.LdArg(0 + _argOffset)
                     .LdStr(variableToken.Text)
                     .Call(typeof(ITsInstance).GetMethod("get_Item"));
+            }
+        }
+
+        private void ProcessVariableToken(VariableToken variableToken, ISymbol variableSymbol)
+        {
+            var name = variableToken.Text;
+            switch (variableSymbol.Type)
+            {
+                case SymbolType.Object:
+                    var ns = GetAssetNamespace(variableSymbol);
+                    if (ns != "")
+                        name = $"{ns}.{name}";
+                    emit.LdStr(name);
+                    break;
+                case SymbolType.Script:
+                    if (variableSymbol.Scope == SymbolScope.Member)
+                    {
+                        // Todo: Consider forcing this to load the exact function.
+                        //       That would make it so the function couldn't be changed during runtime,
+                        //       but of course it makes execution faster.
+                        emit.LdArg(0 + _argOffset)
+                            .LdStr(name)
+                            .Call(typeof(ITsInstance).GetMethod("GetDelegate"))
+                            .New(TsTypes.Constructors[typeof(TsDelegate)]);
+                    }
+                    else
+                    {
+                        ns = GetAssetNamespace(variableSymbol);
+                        if (!_methods.TryGetValue(ns, name, out var method))
+                        {
+                            method = StartMethod(name, ns);
+                            _pendingMethods.Add($"{ns}.{name}".TrimStart('.'), variableToken.Position);
+                        }
+                        emit.LdNull()
+                            .LdFtn(method)
+                            .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                            .LdStr(variableSymbol.Name)
+                            .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
+                            .New(TsTypes.Constructors[typeof(TsDelegate)]);
+                    }
+                    break;
+                case SymbolType.Variable:
+                    if (_locals.TryGetValue(variableSymbol, out var local))
+                    {
+                        if (_needAddress)
+                            emit.LdLocalA(local);
+                        else
+                            emit.LdLocal(local);
+                    }
+                    else if (variableSymbol is VariableLeaf leaf && leaf.IsCaptured)
+                    {
+                        var field = _closure.Fields[variableSymbol.Name];
+
+                        if (_closures == 0)
+                            emit.LdLocal(_closure.Self);
+                        else
+                            emit.LdArg(0);
+
+                        if (_needAddress)
+                            emit.LdFldA(field);
+                        else
+                            emit.LdFld(field);
+                    }
+                    else
+                        _logger.Error($"Tried to reference a non-existant variable {variableToken.Text}", variableToken.Position);
+                    break;
+                default:
+                    _logger.Error($"Currently cannot reference indentifier {variableSymbol.Type} by it's raw value.", variableToken.Position);
+                    break;
             }
         }
 
