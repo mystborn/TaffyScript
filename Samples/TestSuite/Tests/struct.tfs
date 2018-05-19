@@ -40,3 +40,90 @@ namespace LanguageTests {
         return n;
     }
 }
+
+namespace NotARealNamespace {
+
+    //TaffyScript
+    object obj_ts_class {
+        script create(x, y) {
+            self.x = x;
+            self.y = y;
+        }
+
+        script say_hello(name) {
+            print("hello " + name);
+        }
+    }
+
+    //C#
+    public class obj_ts_class {
+        private static Dictionary<string, TsDelegate> _scripts;
+        private Dictionary<string, TsObject> _vars;
+
+        static obj_ts_class() {
+            _scripts = new Dictionary<string, TsDelegate>() {
+                { "say_hello", new TsDelegate("say_hello", say_hello) },
+                { "create", new TsDelegate("create", create) }
+            }
+        }
+
+        public string ObjectType => "obj_ts_class";
+
+        public TsObject this[string memberName] 
+        {
+            get => GetMember(memberName);
+            set => _vars[memberName] = value;
+        }
+
+        public obj_ts_class(params TsObject[] args) {
+            create(this, args);
+        }
+
+        public TsObject Call(stirng scriptName, params TsObject[] args) {
+            if(InternalTryGetDelegate(scriptName, out var del))
+                return del.Invoke(args);
+
+            throw new MemberAccessException();
+        }
+
+        private bool TryGetDelegate(string scriptName, out TsDelegate del) {
+            if(_vars.TryGetValue(scriptName, out var member))
+            {
+                if(member.Type != VariableType.Delegate) {
+                    del = null;
+                    return false;
+                }
+                del = member.GetDelegateUnchecked();
+                return true;
+            }
+            if(_scripts.TryGetValue(scriptName, out del)) {
+                del = new TsDelegate(del, this);
+                _vars.Add(scriptName, del);
+                return del;
+            }
+            del = null;
+            return false;
+        }
+
+        public TsObject GetMember(string memberName) {
+            if(_vars.TryGetValue(memberName, out var member))
+                return member;
+            if(TryGetDelegate(memberName, out var del))
+                return del;
+            throw new MemberAccessException();
+        }
+
+        public void SetMember(string memberName, TsObject value) {
+            _vars[memberName] = value;
+        } 
+
+        public static TsObject say_hello(ITsIntance target, params TsObject[] args) {
+            Console.WriteLine("hello " + args[0].ToString());
+        }
+
+        public static TsObject create(ITsIntance target, params TsObject[] args) {
+            target["x"] = args[0];
+            target["y"] = args[1];
+        }
+    }
+}
