@@ -45,7 +45,6 @@
   <ItemGroup>
     <Compile Include="Attributes\WeakBaseTypeAttribute.cs" />
     <Compile Include="BaseClassLib\BaseClassLibrary.cs" />
-    <Compile Include="BaseClassLib\DataStructureDisposedException.cs" />
     <Compile Include="Collections\Grid.cs" />
     <Compile Include="Collections\TsGrid.cs" />
     <Compile Include="Collections\TsList.cs" />

@@ -53,6 +53,7 @@ namespace TaffyScript.Compiler.Backend
         private readonly DotNetAssemblyLoader _assemblyLoader;
         private readonly DotNetTypeParser _typeParser;
         private string _entryPoint;
+        private string _projectName;
 
         private SymbolTable _table;
         private IErrorLogger _logger;
@@ -122,11 +123,6 @@ namespace TaffyScript.Compiler.Backend
         /// </summary>
         private Stack<Label> _loopEnd = new Stack<Label>();
 
-        /// <summary>
-        /// Determines whether the compiler is currently in a script.
-        /// </summary>
-        private bool _inGlobalScript;
-
         private bool _inInstanceScript;
 
         /// <summary>
@@ -165,6 +161,16 @@ namespace TaffyScript.Compiler.Backend
             }
         }
 
+        private string ProjectName
+        {
+            get
+            {
+                if(_projectName == null)
+                    _projectName = _asmName.Name.Replace('.', '_');
+                return _projectName;
+            }
+        }
+
         /// <summary>
         /// Gets the ILEmitter for the initializer method.
         /// </summary>
@@ -175,7 +181,7 @@ namespace TaffyScript.Compiler.Backend
                 if (_initializer == null)
                 {
                     var asm = _asmName.Name;
-                    var name = $"{asm}.{asm.Replace('.', '_')}_Initializer";
+                    var name = $"{asm}.{ProjectName}_Initializer";
                     var type = _module.DefineType(name, TypeAttributes.Public);
                     _initializer = new ILEmitter(type.DefineMethod("Initialize", MethodAttributes.Public | MethodAttributes.Static, typeof(void), Type.EmptyTypes), Type.EmptyTypes);
                     _baseTypes.Add(name, type);
@@ -484,7 +490,7 @@ namespace TaffyScript.Compiler.Backend
         {
             if (!_baseTypes.TryGetValue(ns, out var type))
             {
-                var name = $"{ns}.BasicType";
+                var name = $"{ns}.{ProjectName}";
                 if (name.StartsWith("."))
                     name = name.TrimStart('.');
                 type = _module.DefineType(name, TypeAttributes.Public);
@@ -3517,7 +3523,6 @@ namespace TaffyScript.Compiler.Backend
         {
             var name = script.Text;
             var mb = StartMethod(name, _namespace);
-            _inGlobalScript = true;
             ScriptStart(name, mb, ScriptArgs);
 
             //Process arguments
@@ -3532,7 +3537,6 @@ namespace TaffyScript.Compiler.Backend
 
             emit.Ret();
 
-            _inGlobalScript = false;
             ScriptEnd();
 
             name = $"{_namespace}.{name}".TrimStart('.');

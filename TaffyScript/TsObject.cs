@@ -693,13 +693,14 @@ namespace TaffyScript
         /// <returns></returns>
         public override bool Equals(object obj)
         {
+            if (obj is TsObject other)
+                return this == other;
+
             var held = Value.WeakValue;
             if (held is null)
                 return obj is null;
-            else if (obj is TsObject other)
-                return this == other;
-            else
-                return held.Equals(obj);
+
+            return held.Equals(obj);
         }
 
         #endregion
