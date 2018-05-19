@@ -2740,21 +2740,31 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(ObjectNode objectNode)
         {
-            var name = $"{_namespace}.{objectNode.Text}";
-            if (name.StartsWith("."))
-                name = name.TrimStart('.');
+            var name = $"{_namespace}.{objectNode.Text}".TrimStart('.');
+
             var type = _module.DefineType(name, TypeAttributes.Public);
+
             _table.Enter(objectNode.Text);
+
             var parentNode = objectNode.Inherits as IConstantToken<string>;
             if (parentNode == null)
                 _logger.Error("Invalid syntax detected", objectNode.Inherits.Position);
+
             string parent = null;
-            if(parentNode.Value != null && _table.Defined(parentNode.Value, out var symbol))
+            if(parentNode.Value != null)
             {
-                if (symbol.Type == SymbolType.Object)
-                    parent = $"{GetAssetNamespace(symbol)}.{symbol.Name}".TrimStart('.');
-                else
+                if(!_table.Defined(parentNode.Value, out var symbol))
+                {
+                    _logger.Error($"Tried to inherit from non-existant type {parentNode.Value}", parentNode.Position);
+                    return;
+                }
+                else if(symbol.Type != SymbolType.Object)
+                {
                     _logger.Error("Tried to inherit from non object identifier", objectNode.Inherits.Position);
+                    return;
+                }
+
+                parent = $"{GetAssetNamespace(symbol)}.{symbol.Name}".TrimStart('.');
             }
 
             var addMethod = typeof(LookupTable<string, string, TsDelegate>).GetMethod("Add", new[] { typeof(string), typeof(string), typeof(TsDelegate) });
