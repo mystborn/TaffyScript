@@ -55,4 +55,4 @@ object obj_user {
 ```
 
 ## Want to contribute?
-If you want to contribute, check out the contributing.ms file in the root of the repo. If you have any further questions, please don't hesitate to ask!
+I have a very, _very_, rough draft of my plans for the language on [this](https://trello.com/b/suLDsBDJ/taffyscript) Trello board. If you want to pick anything up from that, it would certainly be a help. If you have any further questions, you can ask me on Discord (I prefer this way, as I'm almost always online). My username is mystborn#0264. Alternativle, you can shoot me an email at ckramer017@gmail.com, but I don't check it as often as I should.
