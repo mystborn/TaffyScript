@@ -6,9 +6,21 @@ namespace TaffyScript.Compiler.Syntax
 {
     public class LambdaNode : SyntaxNode
     {
+        private List<ISyntaxElement> _arguments;
+
         public override SyntaxType Type => SyntaxType.Lambda;
-        public ISyntaxElement Body => Children[0];
+        public ISyntaxElement Body => Children[Children.Count - 1];
         public string Scope { get; set; }
+
+        public IReadOnlyList<ISyntaxElement> Arguments
+        {
+            get
+            {
+                if (_arguments is null)
+                    _arguments = Children.GetRange(0, Children.Count - 1);
+                return _arguments;
+            }
+        }
 
         public LambdaNode(string value, TokenPosition position) 
             : base(value, position)

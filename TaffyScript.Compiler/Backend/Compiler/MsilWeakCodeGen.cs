@@ -2394,6 +2394,8 @@ namespace TaffyScript.Compiler.Backend
             ++_closures;
             _argOffset = 1;
 
+            ProcessScriptArguments(lambda.Arguments);
+
             lambda.Body.Accept(this);
             //Todo: Don't do this if last node was return stmt.
             if (!emit.TryGetTop(out _))
@@ -2508,6 +2510,7 @@ namespace TaffyScript.Compiler.Backend
             if (memberAccess.Left is VariableToken enumVar && _table.Defined(enumVar.Text, out enumSymbol) && enumSymbol.Type == SymbolType.Enum)
             {
                 ProcessEnumAccess(memberAccess, enumVar, enumSymbol);
+                return;
             }
             if (memberAccess.Left is ReadOnlyToken read)
             {
@@ -2763,6 +2766,11 @@ namespace TaffyScript.Compiler.Backend
                     _logger.Error("Tried to inherit from non object identifier", objectNode.Inherits.Position);
                     return;
                 }
+                else if(symbol is ImportObjectLeaf leaf)
+                {
+                    _logger.Error($"Cannot inherit from imported type {leaf.Name}", parentNode.Position);
+                    return;
+                }
 
                 parent = $"{GetAssetNamespace(symbol)}.{symbol.Name}".TrimStart('.');
             }
@@ -2798,7 +2806,7 @@ namespace TaffyScript.Compiler.Backend
                     .LdStr(script.Text)
                     .Call(push);
 
-                ProcessScriptArguments(script);
+                ProcessScriptArguments(script.Arguments);
                 script.Body.Accept(this);
                 BlockNode body = (BlockNode)script.Body;
                 var last = body.Children.Count == 0 ? null : body.Children[body.Children.Count - 1];
@@ -3390,7 +3398,11 @@ namespace TaffyScript.Compiler.Backend
                     emit.LdFloat((float)Math.PI);
                     break;
                 case "noone":
+                    _logger.Warning("The keyword noone is obsolete and will be deprecated next major release. Consider removing it", readOnlyToken.Position);
                     emit.LdFloat(-4f);
+                    break;
+                case "null":
+                    emit.Call(TsTypes.Empty);
                     break;
                 default:
                     _logger.Error($"Currently the readonly value {readOnlyToken.Text} is not implemented", readOnlyToken.Position);
@@ -3536,7 +3548,7 @@ namespace TaffyScript.Compiler.Backend
             ScriptStart(name, mb, ScriptArgs);
 
             //Process arguments
-            ProcessScriptArguments(script);
+            ProcessScriptArguments(script.Arguments);
 
             script.Body.Accept(this);
             
@@ -3566,16 +3578,14 @@ namespace TaffyScript.Compiler.Backend
                 GenerateEntryPoint(mb);
         }
 
-        private void ProcessScriptArguments(ScriptNode script)
+        private void ProcessScriptArguments(IReadOnlyList<ISyntaxElement> arguments)
         {
-            //Todo: make this loop better for captured variables.
-
-            if (script.Arguments.Count > 0)
+            if (arguments.Count > 0)
             {
                 emit.LdArg(1 + _argOffset);
-                for (var i = 0; i < script.Arguments.Count; i++)
+                for (var i = 0; i < arguments.Count; i++)
                 {
-                    var arg = script.Arguments[i];
+                    var arg = arguments[i];
                     VariableToken left;
                     if (arg is AssignNode assign)
                     {
@@ -3640,15 +3650,32 @@ namespace TaffyScript.Compiler.Backend
                     }
                     else if (arg is VariableToken variable)
                     {
-                        if(!_table.Defined(variable.Text, out var symbol))
+                        if (!_table.Defined(variable.Text, out var symbol))
                         {
                             _logger.Error("Unknown exception occurred", variable.Position);
                             continue;
                         }
+                        var leaf = symbol as VariableLeaf;
                         emit.Dup()
                             .LdInt(i)
-                            .LdElem(typeof(TsObject))
-                            .StLocal(_locals[symbol]);
+                            .LdElem(typeof(TsObject));
+
+                        if (leaf.IsCaptured)
+                        {
+                            var secret = GetLocal();
+                            emit.StLocal(secret);
+                            if (_closures == 0)
+                                emit.LdLocal(_closure.Self);
+                            else
+                                emit.LdArg(0);
+
+                            emit.LdLocal(secret)
+                                .StFld(_closure.Fields[leaf.Name]);
+
+                            FreeLocal(secret);
+                        }
+                        else
+                            emit.StLocal(_locals[symbol]);
                     }
                 }
                 //Pops the last remaining reference to the arugment array from the stack.

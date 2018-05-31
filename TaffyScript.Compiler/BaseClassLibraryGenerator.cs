@@ -20,11 +20,6 @@ namespace TaffyScript.Compiler
             var sb = new StringBuilder();
 
             sb.AppendLine("import Math.Abs(float) as abs;");
-            sb.AppendLine("import Bcl.AngleDifference(float, float) as angle_difference;");
-            sb.AppendLine("import Math.Acos(double) as arccos;");
-            sb.AppendLine("import Math.Asin(double) as arcsin;");
-            sb.AppendLine("import Math.Atan(double) as arctan;");
-            sb.AppendLine("import Math.Atan2(double, double) as arctan2;");
             sb.AppendLine("import Bcl.ArrayCopy(object, int, object, int, int) as array_copy;");
             sb.AppendLine("import Bcl.ArrayCreate(instance, array) as array_create;");
             sb.AppendLine("import Bcl.ArrayEquals(array, array) as array_equals");
@@ -44,10 +39,8 @@ namespace TaffyScript.Compiler
             //Todo: datetime handling.
             //Todo: File-Handling.
 
-            sb.AppendLine("import Bcl.DotProduct(float, float, float, float) as dot_product");
-
             sb.AppendLine("import Bcl.EnvironmentGetVariable(string) as environment_get_variable");
-            sb.AppendLine("import Bcl.EventInherited(instance, array) as event_inherited");
+            sb.AppendLine("import Bcl.EventInherited(instance, array) as base");
             sb.AppendLine("import Bcl.EventPerform(instance, array) as event_perform");
             sb.AppendLine("import Bcl.EventPerformObject(instance, array) as event_perform_object");
 
@@ -62,7 +55,7 @@ namespace TaffyScript.Compiler
             sb.AppendLine("import TsObject.IsReal(object) as is_real");
             sb.AppendLine("import TsObject.IsString(object) as is_string");
             sb.AppendLine("import TsObject.IsDelegate(object) as is_delegate");
-            sb.AppendLine("import TsObject.IsUndefined(object) as is_undefined");
+            sb.AppendLine("import TsObject.IsNull(object) as is_null");
 
             //Todo: lengthdir, lerp
 
@@ -88,7 +81,7 @@ namespace TaffyScript.Compiler
             sb.AppendLine("import Bcl.ScriptExecute(instance, array) as script_execute");
             sb.AppendLine("import Bcl.ScriptExists(string) as script_exists");
             sb.AppendLine("import Bcl.ShowError(string, bool) as show_error");
-            sb.AppendLine("import System.Console.WriteLine(object) as show_debug_message;");
+            sb.AppendLine("import System.Console.WriteLine(object) as print");
 
             sb.AppendLine("import Math.Sign(float) as sign");
             sb.AppendLine("import Bcl.Square(float) as sqr");
@@ -125,12 +118,10 @@ namespace TaffyScript.Compiler
             sb.AppendLine("import TsInstance.VariableInstanceGet(instance, string) as variable_instance_get");
             sb.AppendLine("import TsInstance.VariableInstanceGetNames(instance) as variable_instance_get_names");
             sb.AppendLine("import TsInstance.VariableInstanceSet(instance, string, object) as variable_instance_set");
-
-            sb.AppendLine("namespace TaffyScript.Collections {");
+            
             sb.AppendLine("import object TsList as ds_list");
             sb.AppendLine("import object TsMap as ds_map");
             sb.AppendLine("import object TsGrid as ds_grid");
-            sb.AppendLine("}");
 
             return sb.ToString();
         }

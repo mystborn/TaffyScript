@@ -51,7 +51,7 @@ namespace NotARealNamespace {
         }
 
         script say_hello(name) {
-            print("hello " + name);
+            print("hello " + string(name));
         }
     }
 
@@ -80,13 +80,13 @@ namespace NotARealNamespace {
         }
 
         public TsObject Call(stirng scriptName, params TsObject[] args) {
-            if(InternalTryGetDelegate(scriptName, out var del))
+            if(TryGetDelegate(scriptName, out var del))
                 return del.Invoke(args);
 
             throw new MemberAccessException();
         }
 
-        private bool TryGetDelegate(string scriptName, out TsDelegate del) {
+        public bool TryGetDelegate(string scriptName, out TsDelegate del) {
             if(_vars.TryGetValue(scriptName, out var member))
             {
                 if(member.Type != VariableType.Delegate) {

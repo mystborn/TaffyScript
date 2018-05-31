@@ -227,7 +227,7 @@ namespace TaffyScript
         /// <returns></returns>
         public bool GetBool()
         {
-            return GetFloat() >= .5f;
+            return GetFloat() > 0f;
         }
 
         /// <summary>
@@ -1374,7 +1374,7 @@ namespace TaffyScript
             return obj.Type == VariableType.Delegate;
         }
 
-        public static bool IsUndefined(TsObject obj)
+        public static bool IsNull(TsObject obj)
         {
             return obj.Type == VariableType.Null;
         }
@@ -1384,10 +1384,11 @@ namespace TaffyScript
             switch(obj.Type)
             {
                 case VariableType.Array1:
+                    return "array1";
                 case VariableType.Array2:
-                    return "array";
+                    return "array2";
                 case VariableType.Null:
-                    return "undefined";
+                    return "null";
                 case VariableType.Real:
                     return "real";
                 case VariableType.String:

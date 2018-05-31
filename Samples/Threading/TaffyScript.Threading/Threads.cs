@@ -73,7 +73,7 @@ namespace TaffyScript.Threading.Extern
             return TsObject.Empty();
         }
 
-        public static TsInstance TaskResult(int taskId)
+        public static TsObject TaskResult(int taskId)
         {
             if(_tasks.TryGetValue(taskId, out var task))
             {

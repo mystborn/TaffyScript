@@ -366,8 +366,10 @@ namespace TaffyScript
         /// <returns></returns>
         public static string ObjectGetParent(ITsInstance inst)
         {
-            if (Inherits.TryGetValue(inst.ObjectType, out var parent))
-                return parent;
+            if (inst is TsInstance ts)
+                return ts.Parent;
+            /*if (Inherits.TryGetValue(inst.ObjectType, out var parent))
+                return parent;*/
             else
                 return "";
         }

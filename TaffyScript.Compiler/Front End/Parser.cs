@@ -168,7 +168,7 @@ namespace TaffyScript.Compiler
                         node.AddChild(_factory.CreateConstant(ConstantType.String, parent.Value, parent.Position));
                     }
                     else
-                        node.AddChild(_factory.CreateConstant(ConstantType.String, "", objName.Position));
+                        node.AddChild(_factory.CreateConstant(ConstantType.String, null, objName.Position));
                     Confirm(TokenType.OpenBrace);
                     while (!Try(TokenType.CloseBrace))
                     {
@@ -698,6 +698,18 @@ namespace TaffyScript.Compiler
                 var scope = $"lambda{lambdaId++}";
                 _table.EnterNew(scope, SymbolType.Script, SymbolScope.Local);
                 lambda.Scope = scope;
+                if(Validate(TokenType.OpenParen))
+                {
+                    do
+                    {
+                        var arg = Confirm(TokenType.Identifier);
+                        _table.AddLeaf(arg.Value, SymbolType.Variable, SymbolScope.Local);
+                        lambda.AddChild(_factory.CreateToken(SyntaxType.Variable, arg.Value, arg.Position));
+                    }
+                    while (Validate(TokenType.Comma));
+                    Confirm(TokenType.CloseParen);
+                }
+
                 lambda.AddChild(BlockStatement());
                 _table.Exit();
                 lambda.MarkVariablesAsCaptured(_table);

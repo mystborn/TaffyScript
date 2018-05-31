@@ -6,33 +6,43 @@ using System.Threading.Tasks;
 
 namespace TaffyScript
 {
+    /// <summary>
+    /// Represents a TaffyScript script.
+    /// </summary>
+    /// <param name="target">The target of the script.</param>
+    /// <param name="args">The script arguments.</param>
+    /// <returns>The scripts result.</returns>
     public delegate TsObject TsScript(ITsInstance target, TsObject[] args);
 
-    public enum TsScriptScope
-    {
-        Instance,
-        NeedsTarget,
-        Global
-    }
-
+    /// <summary>
+    /// Language friendly wrapper over a <see cref="TsScript"/>.
+    /// </summary>
     public class TsDelegate : IEquatable<TsDelegate>
     {
-        public TsScriptScope ScriptScope { get; }
+        /// <summary>
+        /// A wrapped TaffyScript script.
+        /// </summary>
         public TsScript Script { get; private set; }
+
+        /// <summary>
+        /// The target of the wrapped script.
+        /// </summary>
         public ITsInstance Target { get; private set; }
+
+        /// <summary>
+        /// The name of the wrapped script.
+        /// </summary>
         public string Name { get; }
 
         public TsDelegate(TsScript script, string name)
         {
             Target = null;
             Script = script;
-            ScriptScope = TsScriptScope.Global;
             Name = name;
         }
 
         public TsDelegate(TsScript script, string name, ITsInstance target)
         {
-            ScriptScope = TsScriptScope.Instance;
             Target = target;
             Script = script;
             Name = name;
@@ -45,40 +55,32 @@ namespace TaffyScript
         /// <param name="target"></param>
         public TsDelegate(TsDelegate original, ITsInstance target)
         {
-            ScriptScope = TsScriptScope.Instance;
             Script = original.Script;
             Name = original.Name;
             Target = target;
         }
 
+        /// <summary>
+        /// Invokes the wrapped script with the given arguments.
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
         public TsObject Invoke(params TsObject[] args)
         {
             // If the script needs a target, get it from the first index of the args array.
             // This will make it easier to invoke Delegates from TS.
 
-            // If the target has been destroyed, this delegate will still exist.
-            // The program should throw to avoid UB.
-            // Potential Alts:
-            //   - Continue to use the destroyed target. Without dereferencing it here
-            //     it will still be a valid object. However this leads to it's own UB.
-            //     Once an object is destroyed, it should be assumed it no longer wants to be used.
-            //   - See if an instance with the same id exists. Much worse UB.
-
-            if (ScriptScope == TsScriptScope.NeedsTarget)
-            {
-                var target = args[0].GetInstance();
-                var scriptArgs = new TsObject[args.Length - 1];
-                Array.Copy(args, 1, scriptArgs, 0, args.Length - 1);
-                return Script(target, scriptArgs);
-            }
-
             return Script(Target, args);
         }
 
+        /// <summary>
+        /// Invokes the wrapped script with the specified target and arguments.
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
         public TsObject Invoke(ITsInstance target, params TsObject[] args)
         {
-            if (target is null && ScriptScope != TsScriptScope.Global)
-                throw new ArgumentNullException("target", "This script requires a target to invoke.");
             return Script(target, args);
         }
 

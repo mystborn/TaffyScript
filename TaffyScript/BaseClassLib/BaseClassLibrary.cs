@@ -78,11 +78,11 @@ namespace TaffyScript
             if (destIndex + length >= destValue.Length)
             {
                 var temp = new TsObject[destIndex + length + 1];
-                Buffer.BlockCopy(destValue, 0, temp, 0, destValue.Length);
+                Array.Copy(destValue, 0, temp, 0, destValue.Length);
                 destValue = temp;
                 destWrapper.StrongValue = destValue;
             }
-            Buffer.BlockCopy(srcValue, srcIndex, destValue, destIndex, length);
+            Array.Copy(srcValue, srcIndex, destValue, destIndex, length);
             return TsObject.Empty();
         }
 

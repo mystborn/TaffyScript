@@ -4,19 +4,19 @@ namespace TaffyScript.Threading.Locks {
     import Locks.MoniterTryEnter(instance, array) as moniter_try_enter;
 
     object moniter {
-        event create {
+        script create {
             _key = [];
         }
 
-        event lock {
+        script lock {
             moniter_enter(_key);
         }
 
-        event unlock {
+        script unlock {
             moniter_exit(_key);
         }
 
-        event try_lock {
+        script try_lock {
             return moniter_try_enter(_key);
         }
     }

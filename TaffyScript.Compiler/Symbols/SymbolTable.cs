@@ -74,6 +74,14 @@ namespace TaffyScript.Compiler
                 return false;
         }
 
+        public bool TryAdd(SymbolNode symbol)
+        {
+            if (Current.Children.ContainsKey(symbol.Name))
+                return false;
+            Current.Children.Add(symbol.Name, symbol);
+            return true;
+        }
+
         public int EnterNamespace(string ns)
         {
             if (ns == null || ns == "")

@@ -2,11 +2,9 @@
 //To find more information, you can view the project here:
 //https://github.com/gm-core/gamatas
 
-using TaffyScript.Collections;
-
 namespace UnitTest {
     object obj_unit_test {
-        event create(test_suite_name) {
+        script create(test_suite_name) {
             if(argument_count < 2)
                 show_error("You must provide at least the test suite name and one test.", true);
 
@@ -20,18 +18,18 @@ namespace UnitTest {
             }
         }
 
-        event run_tests() {
+        script run_tests() {
             var count = tests.count;
             for(var i = 0; i < count; i++) {
                 global._unit_test = self;
                 test_description = "";
                 tests[i]();
-                show_debug_message(string(test_description) + " tests have passed.");
+                print(string(test_description) + " tests have passed.");
             }
             if(tests_failed)
                 show_error("Not all tests passed. See output for more info.", true);
             else
-                show_debug_message("All tests have passed - " + test_suite);
+                print("All tests have passed - " + test_suite);
         }
     }
 
@@ -130,9 +128,9 @@ namespace UnitTest {
 
     script test_fail {
         var msg = argument0;
-        show_debug_message(msg);
-        show_debug_message(global._unit_test.test_description);
-        show_debug_message("In suite " + global._unit_test.test_suite);
+        print(msg);
+        print(global._unit_test.test_description);
+        print("In suite " + global._unit_test.test_suite);
 
         global._unit_test.tests_failed = true;
     }

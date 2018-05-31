@@ -88,6 +88,7 @@ namespace TaffyScript.Compiler.FrontEnd
                 { "noone", TokenType.ReadOnly },
                 { "self", TokenType.ReadOnly },
                 { "pi", TokenType.ReadOnly },
+                { "null", TokenType.ReadOnly },
                 { "global", TokenType.ReadOnly },
                 { "other", TokenType.ReadOnly },
                 { "object", TokenType.Object },

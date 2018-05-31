@@ -1,0 +1,128 @@
+// This file contains tests for most of the math scripts.
+// That includes scripts related to the rng seed.
+// The actual rng relies on c#, but it wouldn't hurt to test some it's functionality
+// In addition, I wasn't sure how to test some the log related functions:
+// * ln
+// * log10
+// * logn
+// * exp
+
+using UnitTest;
+
+namespace LanguageTests {
+    script run_math_tests() {
+        var tests = new obj_unit_test("Math Tests",
+                                      math_abs,
+                                      math_ceil,
+                                      math_choose,
+                                      math_clamp_none,
+                                      math_clamp_min,
+                                      math_clamp_max,
+                                      math_floor,
+                                      math_max,
+                                      math_min,
+                                      math_random_seed,
+                                      math_round,
+                                      math_sign,
+                                      math_square,
+                                      math_square_root);
+        tests.run_tests();
+    }
+
+    script math_abs() {
+        test_it("abs()");
+        var i = -1;
+        assert_equal(abs(i), 1);
+        i = 2;
+        assert_equal(abs(i), 2);
+    }
+
+    script math_ceil() {
+        test_it("ceil()");
+        var i = 1.2;
+        assert_equal(ceil(i), 2);
+    }
+
+    script math_choose() {
+        test_it("choose()");
+        var i = choose(2,4);
+        assert(i == 2 || i == 4);
+    }
+
+    script math_clamp_none() {
+        test_it("clamp() inclusive")
+        var i = clamp(1, 0, 2);
+        assert_equal(i, 1);
+    }
+
+    script math_clamp_min() {
+        test_it("clamp() min");
+        var i = clamp(0, 3, 5);
+        assert_equal(i, 3);
+    }
+
+    script math_clamp_max() {
+        test_it("clamp() max");
+        var i = clamp(7, 3, 5);
+        assert_equal(i, 5);
+    }
+
+    script math_floor() {
+        test_it("floor()");
+        var i = floor(2.7);
+        assert_equal(i, 2);
+    }
+
+    script math_max() {
+        test_it("max()");
+        var i = max(1, 9, 2, 3, 5);
+        assert_equal(i, 9);
+    }
+
+    script math_min() {
+        test_it("min()");
+        var i = min(9, 2, 3, 5);
+        assert_equal(i, 2);
+    }
+
+    script math_random_seed() {
+        test_it("random_seed");
+        var seed = random_get_seed();
+        assert_equal(seed, 123456789);
+        random_set_seed(987654321);
+        seed = random_get_seed();
+        assert_equal(seed, 987654321);
+        seed = randomise();
+        assert_equal(random_get_seed(), seed);
+    }
+
+    script math_round() {
+        test_it("round()");
+        var i = round(1.5);
+        assert_equal(i, 2);
+        i = round(3.49);
+        assert_equal(i, 3);
+    }
+
+    script math_sign() {
+        test_it("sign()");
+        var i = sign(4);
+        assert_equal(i, 1);
+        i = sign(-4);
+        assert_equal(i, -1);
+        i = sign(0);
+        assert_equal(i, 0);
+    }
+
+    script math_square() {
+        test_it("sqr()");
+        var i = sqr(9);
+        assert_equal(i, 81);
+    }
+
+    script math_square_root() {
+        test_it("sqrt()");
+        var i = sqrt(9);
+        assert_equal(i, 3);
+    }
+}
