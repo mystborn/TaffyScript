@@ -20,33 +20,39 @@ You can use these to use TaffyScript projects inside of .NET projects
 * Basic Reflection
 
 ## Sounds Great! How Can I Get it?
-You can now download a precompiled binary from the [releases](https://github.com/mystborn/TaffyScript/releases) page! Please note that TaffyScript is windows only.
+You can now download a precompiled binary from the [releases](https://github.com/mystborn/TaffyScript/releases) page! Please note that TaffyScript is windows only. 
 
 ## Example Code
 ```cs
 script main {
-    show_debug_message("Hello, World!");
-    var user = new obj_user();
+    print("Hello, World!");
+    var user = new obj_user("Script");
+    print_user(user);
     user.name = "Taffy";
-    user.destroy();
-    show_debug_message("Closing...");
+    print_user(user);
+    print("Closing...");
+}
+
+script print_user(user) {
+    print("User: " + user.name);
 }
 
 object obj_user {
-    event create {
-        name = "";
+    script create(name) {
+        self.name = "";
     }
 
-    event destroy {
-        show_debug_message("Goodbye, " + name);
+    script greet {
+        print("Hello, " + name);
     }
 }
 
 // Output:
 // Hello World!
-// Goodbye, Taffy
+// User: Script
+// User: Taffy
 // Closing...
 ```
 
 ## Want to contribute?
-If you want to contribute, check out the contributing.ms file in the root of the repo. If you have any further questions, please don't hesitate to ask!
+I have a very, _very_, rough draft of my plans for the language on [this](https://trello.com/b/suLDsBDJ/taffyscript) Trello board. If you want to pick anything up from that, it would certainly be a help. If you have any further questions, you can ask me on Discord (I prefer this way, as I'm almost always online). My username is mystborn#0264. Alternativle, you can shoot me an email at ckramer017@gmail.com, but I don't check it as often as I should.
