@@ -382,7 +382,7 @@ namespace TaffyScript
         public static string ObjectGetParent(ITsInstance inst)
         {
             if (inst is TsInstance ts)
-                return ts.Parent;
+                return ts.Parent ?? "";
             /*if (Inherits.TryGetValue(inst.ObjectType, out var parent))
                 return parent;*/
             else
@@ -395,7 +395,7 @@ namespace TaffyScript
         /// <param name="obj">The object type.</param>
         /// <param name="par">The parent type</param>
         /// <returns></returns>
-        public static bool ObjectIsAncestor(string obj, string par)
+        public static bool ObjectIsAncestor(string par, string obj)
         {
             while(Inherits.TryGetValue(obj, out var inherit))
             {

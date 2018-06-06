@@ -3,6 +3,7 @@ using UnitTest;
 namespace LanguageTests {
     script run_string_tests() {
         var tests = new obj_unit_test("String Tests",
+                                      string_empty_equals_empty,
                                       string_base64,
                                       string_from_num,
                                       string_from_array1,
@@ -26,6 +27,11 @@ namespace LanguageTests {
                                       string_replace_all_test,
                                       string_upper_test);
         tests.run_tests();
+    }
+
+    script string_empty_equals_empty() {
+        test_it('"" == ""');
+        assert_equal("", "");
     }
 
     script string_base64() {
