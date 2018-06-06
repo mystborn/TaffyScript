@@ -3980,8 +3980,8 @@ namespace TaffyScript.Compiler.Backend
                 SpecialImports.WriteLine(importType.Name);
                 return;
             }
-
-            var type = _module.DefineType(name, TypeAttributes.Public, importNode.WeaklyTyped ? typeof(ObjectWrapper) : typeof(Object), new[] { typeof(ITsInstance) });
+            var parent = importNode.WeaklyTyped ? typeof(ObjectWrapper) : typeof(Object);
+            var type = _module.DefineType(name, TypeAttributes.Public, parent, new[] { typeof(ITsInstance) });
 
             var source = type.DefineField("_source", importType, FieldAttributes.Private);
             var objectType = type.DefineProperty("ObjectType", PropertyAttributes.None, typeof(string), null);
@@ -4021,6 +4021,48 @@ namespace TaffyScript.Compiler.Backend
             tryGetDelegateMethod.DefineParameter(2, ParameterAttributes.Out, "del");
             var paramsAttribute = new CustomAttributeBuilder(typeof(ParamArrayAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
             callMethod.DefineParameter(2, ParameterAttributes.None, "args").SetCustomAttribute(paramsAttribute);
+
+            var castTo = type.DefineMethod("op_Explicit",
+                                           MethodAttributes.Public |
+                                               MethodAttributes.Static |
+                                               MethodAttributes.HideBySig |
+                                               MethodAttributes.SpecialName,
+                                           type,
+                                           new[] { typeof(TsObject) });
+
+            var cast = new ILEmitter(castTo, new[] { typeof(TsObject) });
+            cast.LdArg(0)
+                .Call(typeof(TsObject).GetMethod("get_Value"))
+                .Call(typeof(ITsValue).GetMethod("get_WeakValue"))
+                .CastClass(type)
+                .Ret();
+
+            var castFrom = type.DefineMethod("op_Implicit",
+                                             MethodAttributes.Public |
+                                                 MethodAttributes.Static |
+                                                 MethodAttributes.HideBySig |
+                                                 MethodAttributes.SpecialName,
+                                             typeof(TsObject),
+                                             new Type[] { type });
+            cast = new ILEmitter(castFrom, new Type[] { type });
+            cast.LdArg(0)
+                .New(typeof(TsObject).GetConstructor(new[] { typeof(ITsInstance) }))
+                .Ret();
+
+            var wrapCtor = type.DefineConstructor(MethodAttributes.Public |
+                                                      MethodAttributes.HideBySig |
+                                                      MethodAttributes.SpecialName |
+                                                      MethodAttributes.RTSpecialName,
+                                                  CallingConventions.HasThis,
+                                                  new[] { importType });
+            
+            var wrap = new ILEmitter(wrapCtor, new[] { type, importType });
+            wrap.LdArg(0)
+                .CallBase(typeof(Object).GetConstructor(Type.EmptyTypes))
+                .LdArg(0)
+                .LdArg(1)
+                .StFld(source)
+                .Ret();
 
             var writeOnly = new List<string>();
             var readOnly = new List<string>();
@@ -4475,6 +4517,7 @@ namespace TaffyScript.Compiler.Backend
                                     List<string> readOnly)
         {
             var weakMethod = type.DefineMethod(importName, weakFlags, typeof(TsObject), ScriptArgs);
+            weakMethod.SetImplementationFlags(MethodImplAttributes.AggressiveInlining);
             var weak = new ILEmitter(weakMethod, ScriptArgs);
             weak.LdArg(0)
                 .LdFld(source);

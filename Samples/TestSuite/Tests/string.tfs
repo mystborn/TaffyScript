@@ -1,0 +1,178 @@
+using UnitTest;
+
+namespace LanguageTests {
+    script run_string_tests() {
+        var tests = new obj_unit_test("String Tests",
+                                      string_base64,
+                                      string_from_num,
+                                      string_from_array1,
+                                      string_from_array2,
+                                      string_from_delegate,
+                                      string_from_instance,
+                                      string_char_at_test,
+                                      string_copy_test,
+                                      string_count_test,
+                                      string_delete_test,
+                                      string_digits_test,
+                                      string_insert_test,
+                                      string_length_test,
+                                      string_letters_test,
+                                      string_lettersdigits_test,
+                                      string_lower_test,
+                                      string_ord_at_test,
+                                      string_pos_test,
+                                      string_repeat_test,
+                                      string_replace_test,
+                                      string_replace_all_test,
+                                      string_upper_test);
+        tests.run_tests();
+    }
+
+    script string_base64() {
+        test_it("base64");
+        var value = "Hello";
+        var encode = base64_encode(value);
+        assert_not_equal(value, encode);
+        assert_equal(value, base64_decode(encode));
+    }
+
+    script string_from_num() {
+        test_it("int -> string");
+        assert_equal(string(5), "5");
+    }
+
+    script string_from_array1() {
+        test_it("array1 -> string");
+        assert_equal(string([0,1,2]), "[0, 1, 2]");
+    }
+
+    script string_from_array2() {
+        test_it("array2 -> string");
+        var arr;
+        arr[1, 1] = "moo";
+        arr[1, 0] = "cow";
+        arr[0, 1] = "oink";
+        arr[0, 0] = "pig";
+        assert_equal(string(arr), "[[pig, oink], [cow, moo]]");
+    }
+
+    script string_from_delegate() {
+        test_it("del -> string");
+        var del = string_from_delegate;
+        assert_equal(string(del), "string_from_delegate");
+    }
+
+    script string_from_instance() {
+        test_it("inst -> string");
+        var obj = new obj_comp1(); //definition in script_composition.tfs
+        assert_equal(string(obj), "LanguageTests.obj_comp1");
+    }
+
+    script int_from_string() {
+        test_it("string -> int");
+        assert_equal(real("10"), 10);
+    }
+
+    script float_from_string() {
+        test_it("string -> float");
+        assert_equal(real("1.5"), 15);
+    }
+
+    script string_char_at_test() {
+        test_it("string_char_at()");
+        var chr = string_char_at("hello", 1);
+        assert_equal(string_char_at("hello", 1), "e");
+    }
+
+    script string_copy_test() {
+        test_it("string_copy()");
+        var copy = string_copy("hello", 1, 3);
+        assert_equal(copy, "ell");
+    }
+
+    script string_count_test() {
+        test_it("string_count()");
+        var count = string_count("hello", "l");
+        assert_equal(count, 2);
+    }
+
+    script string_delete_test() {
+        test_it("string_delete()");
+        var delete = string_delete("hello", 1, 2);
+        assert_equal(delete, "hlo");
+    }
+
+    script string_digits_test() {
+        test_it("string_digits()");
+        var result = string_digits("10poasfd20");
+        assert_equal(result, "1020");
+    }
+
+    script string_insert_test() {
+        test_it("string_insert()");
+        var result = string_insert("hlo", "el", 1);
+        assert_equal(result, "hello");
+    }
+
+    script string_length_test() {
+        test_it("string_length()");
+        var result = string_length("hello");
+        assert_equal(result, 5);
+    }
+
+    script string_letters_test() {
+        test_it("string_letters()");
+        var result = string_letters("10moo20");
+        assert_equal(result, "moo");
+    }
+
+    script string_lettersdigits_test() {
+        test_it("string_lettersdigits()");
+        var result = string_lettersdigits("10.moo-20");
+        assert_equal(result, "10moo20");
+    }
+
+    script string_lower_test() {
+        test_it("string_lower()");
+        var result = string_lower("HelLo");
+        assert_equal(result, "hello");
+    }
+
+    script string_ord_at_test() {
+        test_it("string_ord_at()");
+        var result = string_ord_at("!", 0);
+        assert_equal(result, 33);
+    }
+
+    script string_pos_test() {
+        test_it("string_pos");
+        var result = string_pos("hello", "ll");
+        assert_equal(result, 2);
+        result = string_pos("hello", "q");
+        assert_equal(result, -1);
+    }
+
+    script string_repeat_test() {
+        test_it("string_repeat()");
+        var result = string_repeat("moo", 3);
+        assert_equal(result, "moomoomoo");
+    }
+
+    script string_replace_test() {
+        test_it("string_replace()");
+        var result = string_replace("hello", "e", "u");
+        assert_equal(result, "hullo");
+    }
+
+    script string_replace_all_test() {
+        test_it("string_replace_all()");
+        var result = string_replace_all("hello", "l", "r");
+        assert_equal(result, "herro");
+    }
+
+    script string_upper_test() {
+        test_it("string_upper()");
+        var result = string_upper("Hello");
+        assert_equal(result, "HELLO");
+    }
+}

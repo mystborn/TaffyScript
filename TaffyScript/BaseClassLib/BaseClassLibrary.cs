@@ -188,7 +188,18 @@ namespace TaffyScript
         public static TsObject EventPerform(ITsInstance inst, TsObject[] args)
         {
             if(inst.TryGetDelegate((string)args[0], out var ev))
-                return ev.Invoke(inst);
+            {
+                TsObject[] copy;
+                if (args.Length > 1)
+                {
+                    copy = new TsObject[args.Length - 1];
+                    Array.Copy(args, 1, copy, 0, copy.Length);
+                }
+                else
+                    copy = null;
+
+                return ev.Invoke(inst, copy);
+            }
             return TsObject.Empty();
         }
 
@@ -196,7 +207,18 @@ namespace TaffyScript
         public static TsObject EventPerformObject(ITsInstance inst, TsObject[] args)
         {
             if (TsInstance.TryGetDelegate((string)args[0], (string)args[1], out var ev))
-                return ev.Invoke(inst);
+            {
+                TsObject[] copy;
+                if (args.Length > 2)
+                {
+                    copy = new TsObject[args.Length - 2];
+                    Array.Copy(args, 2, copy, 0, copy.Length);
+                }
+                else
+                    copy = null;
+
+                return ev.Invoke(inst, copy);
+            }
             return TsObject.Empty();
         }
 
@@ -331,7 +353,7 @@ namespace TaffyScript
             return str.Substring(index, count);
         }
 
-        public static int StringCount(string subString, string str)
+        public static int StringCount(string str, string subString)
         {
             // Code found here:
             // https://stackoverflow.com/questions/541954/how-would-you-count-occurrences-of-a-string-within-a-string
@@ -357,7 +379,7 @@ namespace TaffyScript
             return sb.ToString();
         }
 
-        public static string StringInsert(string subString, string str, int index)
+        public static string StringInsert(string str, string subString, int index)
         {
             return str.Insert(index, subString);
         }
@@ -403,7 +425,7 @@ namespace TaffyScript
             return str[index];
         }
 
-        public static int StringPos(string subString, string str)
+        public static int StringPos(string str, string subString)
         {
             return str.IndexOf(subString);
         }

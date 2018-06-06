@@ -681,9 +681,49 @@ namespace TaffyScript
         /// <returns></returns>
         public override string ToString()
         {
-            if (Type == VariableType.Null)
-                return "undefined";
-            return GetValue().ToString();
+            switch(Type)
+            {
+                case VariableType.Array1:
+                    var builder = new StringBuilder();
+                    ArrayToString(builder, (TsObject[])Value.WeakValue);
+                    return builder.ToString();
+                case VariableType.Array2:
+                    builder = new StringBuilder();
+                    var outer = (TsObject[][])Value.WeakValue;
+                    builder.Append("[");
+                    if(outer.Length == 0)
+                        builder.Append(",]");
+                    else
+                    {
+                        ArrayToString(builder, outer[0]);
+                        for(var i = 1; i < outer.Length; i++)
+                        {
+                            builder.Append(", ");
+                            ArrayToString(builder, outer[i]);
+                        }
+                        builder.Append("]");
+                    }
+                    return builder.ToString();
+                case VariableType.Null:
+                    return "null";
+                default:
+                    return GetValue().ToString();
+            }
+        }
+
+        private void ArrayToString(StringBuilder builder, TsObject[] array)
+        {
+            builder.Append("[");
+            if(array.Length != 0)
+            {
+                builder.Append(array[0].ToString());
+                for(var i = 1; i < array.Length; i++)
+                {
+                    builder.Append(", ");
+                    builder.Append(array[i].ToString());
+                }
+            }
+            builder.Append("]");
         }
 
         /// <summary>

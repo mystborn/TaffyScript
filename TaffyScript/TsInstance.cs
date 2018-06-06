@@ -237,12 +237,27 @@ namespace TaffyScript
         }
 
         /// <summary>
-        /// Changes the type of this instance, optionally performing the destroy and create events.
+        /// Changes the type of this instance, optionally performing the create event of the new type.
         /// </summary>
         /// <param name="type">The type to change into</param>
         /// <param name="performEvents">Determines whether the events are performed</param>
         public void ChangeType(string type, bool performEvents)
         {
+            // Instances cache scripts after the first call to make executing them faster.
+            // Here we need to make sure that the cached scripts get cleared from the cache.
+            // Otherwise name conflicts will cause the od types script to be called in
+            // certain circumstances.
+            var events = InstanceScripts.GetRow(ObjectType);
+            var values = _vars.ToArray();
+            for(var i = 0; i < values.Length; i++)
+            {
+                if (values[i].Value.Type == VariableType.Delegate && events.TryGetValue(values[i].Key, out var del))
+                {
+                    var wrapper = values[i].Value.GetDelegateUnchecked();
+                    if (wrapper.Target == this && wrapper.Script == del.Script)
+                        _vars.Remove(values[i].Key);
+                }
+            }
             ObjectType = type;
             Init(performEvents);
         }
@@ -256,7 +271,7 @@ namespace TaffyScript
         {
             var copy = new TsInstance(ObjectType, false);
             copy._vars = new Dictionary<string, TsObject>(_vars);
-            if (performEvents && TryGetDelegate(ObjectType, out var create))
+            if (performEvents && copy.TryGetDelegate(CreateEvent, out var create))
                 create.Invoke(copy, null);
 
             return copy;
@@ -264,7 +279,7 @@ namespace TaffyScript
 
         public override string ToString()
         {
-            return $"{ObjectType}";
+            return ObjectType;
         }
 
         /// <summary>
@@ -307,8 +322,8 @@ namespace TaffyScript
         [WeakMethod]
         public static TsObject InstanceChange(ITsInstance inst, TsObject[] args)
         {
-            ((TsInstance)inst).ChangeType((string)args[0], (bool)args[1]);
-            return TsObject.Empty();
+            ((TsInstance)args[0]).ChangeType((string)args[1], args.Length > 2 ? (bool)args[2] : false);
+            return args[0];
         }
 
         /// <summary>
@@ -319,7 +334,7 @@ namespace TaffyScript
         [WeakMethod]
         public static TsObject InstanceCopy(ITsInstance inst, TsObject[] args)
         {
-            return ((TsInstance)inst).Copy((bool)args[0]);
+            return ((TsInstance)args[0]).Copy(args.Length > 1 ? (bool)args[1] : false);
         }
 
         /// <summary>
