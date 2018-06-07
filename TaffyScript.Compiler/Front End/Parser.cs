@@ -261,7 +261,7 @@ namespace TaffyScript.Compiler
 
             _table.AddChild(new ImportObjectLeaf(_table.Current, node.ImportName.Value, node));
 
-            node.ParseArguments(importArgs);
+            node.ParseArguments(importArgs, _logger);
             if(!Try(TokenType.OpenBrace))
             {
                 node.AutoImplement = true;

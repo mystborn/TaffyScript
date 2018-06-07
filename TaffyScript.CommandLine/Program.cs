@@ -14,12 +14,14 @@ namespace TaffyScript.CommandLine
             bool run = false;
             bool generateBcl = false;
             bool generateBuild = false;
+            bool time = false;
 
             var options = new OptionSet()
             {
                 { "r", v => run = v != null },
                 { "bcl", v => generateBcl = v != null },
-                { "build", v => generateBuild = v != null }
+                { "build", v => generateBuild = v != null },
+                { "t", v => time = v != null }
             };
 
             var path = Directory.GetCurrentDirectory();
@@ -36,6 +38,12 @@ namespace TaffyScript.CommandLine
             }
 
             Console.WriteLine("Compile Start...");
+            Stopwatch sw = null;
+            if (time)
+            {
+                sw = new Stopwatch();
+                sw.Start();
+            }
 
             var logger = new ErrorLogger();
 
@@ -60,6 +68,11 @@ namespace TaffyScript.CommandLine
                 }
 
                 Console.WriteLine("Compile succeeded...");
+                if(time)
+                {
+                    sw.Stop();
+                    Console.WriteLine($"Compile time: {sw.ElapsedMilliseconds} ms");
+                }
                 Console.WriteLine($"Output: {result.PathToAssembly}");
                 if (run && result.PathToAssembly.EndsWith(".exe"))
                 {

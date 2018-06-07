@@ -4199,6 +4199,8 @@ namespace TaffyScript.Compiler.Backend
                         case MethodInfo mi:
                             if (!ignoreMethods.Contains(mi.Name) && IsMethodSupported(mi))
                             {
+                                if (!importNode.IncludeStandard && TsTypes.StandardMethods.Contains(mi.Name))
+                                    break;
                                 validMethods.Add(mi);
                                 ignoreMethods.Add(mi.Name);
                             }

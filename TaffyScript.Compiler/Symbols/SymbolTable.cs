@@ -120,7 +120,7 @@ namespace TaffyScript.Compiler
         {
             // Todo: Measure performance impact of Contains.
             //       Consider switching to HashSet.
-            if (!_others.Contains(node))
+            //if (!_others.Contains(node))
                 _others.Add(node);
         }
 
@@ -139,7 +139,7 @@ namespace TaffyScript.Compiler
             var count = EnterNamespace(ns);
             var node = Current;
             Exit(count);
-            if(!_others.Contains(node))
+            //if(!_others.Contains(node))
                 _others.Add(node);
             return node;
         }

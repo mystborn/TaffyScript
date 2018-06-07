@@ -10,10 +10,28 @@ namespace TaffyScript.Compiler
 {
     public class TsTypes
     {
+        private static HashSet<string> _standardMethods = null;
+
         public static Dictionary<Type, MethodInfo> ObjectCasts { get; }
         public static Dictionary<Type, ConstructorInfo> Constructors { get; }
         public static Dictionary<string, Type> BasicTypes { get; }
         public static MethodInfo Empty { get; }
+        public static HashSet<string> StandardMethods
+        {
+            get
+            {
+                if(_standardMethods is null)
+                {
+                    _standardMethods = new HashSet<string>()
+                    {
+                        "ToString",
+                        "GetHashCode",
+                        "Equals"
+                    };
+                }
+                return _standardMethods;
+            }
+        }
 
         static TsTypes()
         {

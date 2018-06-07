@@ -10,6 +10,7 @@ namespace TaffyScript.Compiler.Syntax
         public bool AutoImplement { get; set; }
         public ImportCasing Casing { get; private set; } = ImportCasing.Native;
         public bool WeaklyTyped { get; private set; } = true;
+        public bool IncludeStandard { get; private set; } = false;
         public List<ImportObjectField> Fields { get; private set; } = new List<ImportObjectField>();
         public ImportObjectConstructor Constructor { get; set; }
         public List<ImportObjectMethod> Methods { get; private set; } = new List<ImportObjectMethod>();
@@ -31,15 +32,14 @@ namespace TaffyScript.Compiler.Syntax
             visitor.Visit(this);
         }
 
-        public List<Exception> ParseArguments(IEnumerable<ObjectImportArgument> arguments)
+        public void ParseArguments(IEnumerable<ObjectImportArgument> arguments, IErrorLogger logger)
         {
             var set = new HashSet<string>();
-            var errors = new List<Exception>();
             foreach(var arg in arguments)
             {
                 if (set.Contains(arg.Name))
                 {
-                    errors.Add(new InvalidOperationException($"Tried to add the same import argument multiple times {arg.Position}"));
+                    logger.Error("Tried to add the same impport argument multiple times", arg.Position);
                     continue;
                 }
 
@@ -61,7 +61,7 @@ namespace TaffyScript.Compiler.Syntax
                                 Casing = ImportCasing.Native;
                                 break;
                             default:
-                                errors.Add(new ArgumentException($"Invalid case option: {arg.Value} {arg.Position}"));
+                                logger.Error("Invalid case option: " + arg.Value, arg.Position);
                                 break;
                         }
                         break;
@@ -75,17 +75,21 @@ namespace TaffyScript.Compiler.Syntax
                                 WeaklyTyped = false;
                                 break;
                             default:
-                                errors.Add(new ArgumentException($"Invalid typing option: {arg.Value} {arg.Position}"));
+                                logger.Error("Invalid typing option: " + arg.Value, arg.Position);
                                 break;
                         }
                         break;
+                    case "include_std":
+                        if (bool.TryParse(arg.Value, out var include))
+                            IncludeStandard = include;
+                        else
+                            logger.Error("Invalid include_std option: " + arg.Value, arg.Position);
+                        break;
                     default:
-                        errors.Add(new ArgumentException($"Invalid import argument: {arg.Name} {arg.Position}"));
+                        logger.Error("Invalid import argument: " + arg.Name, arg.Position);
                         break;
                 }
             }
-
-            return errors;
         }
     }
 
