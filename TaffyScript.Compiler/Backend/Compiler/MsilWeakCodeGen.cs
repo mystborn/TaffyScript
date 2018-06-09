@@ -3582,6 +3582,30 @@ namespace TaffyScript.Compiler.Backend
         {
             if (arguments.Count > 0)
             {
+                if(_isDebug)
+                {
+                    var minSize = 0;
+                    for(var i = 0; i < arguments.Count; i++)
+                    {
+                        if (arguments[i].Type == SyntaxType.Variable)
+                            minSize++;
+                        else
+                            break;
+                    }
+                    if(minSize > 0)
+                    {
+                        var fine = emit.DefineLabel();
+                        emit.LdArg(1 + _argOffset)
+                            .LdLen()
+                            .LdInt(minSize)
+                            .Bge(fine)
+                            .LdStr("Not enough arguments passed to script.")
+                            .New(typeof(ArgumentException).GetConstructor(new[] { typeof(string) }))
+                            .Throw()
+                            .MarkLabel(fine);
+                    }
+                }
+
                 emit.LdArg(1 + _argOffset);
                 for (var i = 0; i < arguments.Count; i++)
                 {
