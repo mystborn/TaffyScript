@@ -68,7 +68,7 @@ namespace TaffyScript
         /// <param name="srcIndex"></param>
         /// <param name="length"></param>
         /// <returns></returns>
-        public static TsObject ArrayCopy(TsObject dest, int destIndex, TsObject src, int srcIndex, int length)
+        public static TsObject ArrayCopy(TsObject src, int srcIndex, TsObject dest, int destIndex, int length)
         {
             //We need to get the value wrapper in case we need to resize the internal array.
             var destWrapper = dest.Value as TsMutableValue<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "dest");
@@ -154,6 +154,39 @@ namespace TaffyScript
         }
 
         [WeakMethod]
+        public static TsObject CallInstanceScript(ITsInstance inst, TsObject[] args)
+        {
+            if (TsInstance.TryGetDelegate((string)args[1], (string)args[2], out var ev))
+            {
+                TsObject[] copy;
+                if (args.Length > 3)
+                {
+                    copy = new TsObject[args.Length - 3];
+                    Array.Copy(args, 3, copy, 0, copy.Length);
+                }
+                else
+                    copy = null;
+
+                return ev.Invoke(args[0].GetInstance(), copy);
+            }
+            return TsObject.Empty();
+        }
+
+        [WeakMethod]
+        public static TsObject CallGlobalScript(ITsInstance inst, TsObject[] args)
+        {
+            if (args.Length < 1)
+                throw new ArgumentException("You must pass at least a script name to script_execute.");
+            var name = args[0].GetString();
+            if (!TsInstance.GlobalScripts.TryGetValue(name, out var function))
+                throw new ArgumentException($"Tried to execute a non-existant function: {name}");
+            var parameters = new TsObject[args.Length - 1];
+            if (parameters.Length != 0)
+                Array.Copy(args, 1, parameters, 0, parameters.Length);
+            return function.Invoke(inst, parameters);
+        }
+
+        [WeakMethod]
         public static TsObject Choose(ITsInstance target, TsObject[] args)
         {
             if (args.Length == 0)
@@ -185,28 +218,10 @@ namespace TaffyScript
         }
 
         [WeakMethod]
+        [Obsolete]
         public static TsObject EventPerform(ITsInstance inst, TsObject[] args)
         {
-            if(inst.TryGetDelegate((string)args[0], out var ev))
-            {
-                TsObject[] copy;
-                if (args.Length > 1)
-                {
-                    copy = new TsObject[args.Length - 1];
-                    Array.Copy(args, 1, copy, 0, copy.Length);
-                }
-                else
-                    copy = null;
-
-                return ev.Invoke(inst, copy);
-            }
-            return TsObject.Empty();
-        }
-
-        [WeakMethod]
-        public static TsObject EventPerformObject(ITsInstance inst, TsObject[] args)
-        {
-            if (TsInstance.TryGetDelegate((string)args[0], (string)args[1], out var ev))
+            if(inst.TryGetDelegate((string)args[1], out var ev))
             {
                 TsObject[] copy;
                 if (args.Length > 2)
@@ -217,7 +232,7 @@ namespace TaffyScript
                 else
                     copy = null;
 
-                return ev.Invoke(inst, copy);
+                return ev.Invoke(args[0].GetInstance(), copy);
             }
             return TsObject.Empty();
         }
@@ -292,20 +307,6 @@ namespace TaffyScript
         public static float Round(float n)
         {
             return (float)Math.Round(n);
-        }
-
-        [WeakMethod]
-        public static TsObject ScriptExecute(ITsInstance target, TsObject[] args)
-        {
-            if (args.Length < 1)
-                throw new ArgumentException("You must pass at least a script name to script_execute.");
-            var name = args[0].GetString();
-            if (!TsInstance.GlobalScripts.TryGetValue(name, out var function))
-                throw new ArgumentException($"Tried to execute a non-existant function: {name}");
-            var parameters = new TsObject[args.Length - 1];
-            if (parameters.Length != 0)
-                Array.Copy(args, 1, parameters, 0, parameters.Length);
-            return function.Invoke(target, parameters);
         }
 
         public static bool ScriptExists(string name)

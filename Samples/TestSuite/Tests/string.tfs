@@ -18,7 +18,7 @@ namespace LanguageTests {
                                       string_insert_test,
                                       string_length_test,
                                       string_letters_test,
-                                      string_lettersdigits_test,
+                                      string_letters_digits_test,
                                       string_lower_test,
                                       string_ord_at_test,
                                       string_pos_test,
@@ -132,9 +132,9 @@ namespace LanguageTests {
         assert_equal(result, "moo");
     }
 
-    script string_lettersdigits_test() {
-        test_it("string_lettersdigits()");
-        var result = string_lettersdigits("10.moo-20");
+    script string_letters_digits_test() {
+        test_it("string_letters_digits()");
+        var result = string_letters_digits("10.moo-20");
         assert_equal(result, "10moo20");
     }
 

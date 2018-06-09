@@ -3,11 +3,10 @@ using UnitTest;
 namespace LanguageTests {
     script run_reflection_tests() {
         var tests = new obj_unit_test("Reflection Tests",
-                                      event_perform_with_args,
-                                      event_perform_without_args,
                                       event_perform_object_with_args,
                                       event_perform_object_without_args,
-                                      instance_change_with_create,
+                                      instance_change_with_create_with_args,
+                                      instance_change_with_create_without_args,
                                       instance_change_without_create,
                                       instance_copy_with_create,
                                       instance_copy_without_create,
@@ -27,55 +26,39 @@ namespace LanguageTests {
         tests.run_tests();
     }
 
-    script event_perform_with_args() {
-        test_it("event_perform(args..)");
-        var result;
-        var obj = new obj_mirror();
-        with(obj) {
-            result = event_perform("echo", 8);
-        }
-        assert_equal(result, 8);
-    }
-
-    script event_perform_without_args() {
-        test_it("event_perform()");
-        var result;
-        var obj = new obj_mirror();
-        with(obj) {
-            result = event_perform("get10");
-        }
-
-        assert_equal(result, 10);
-    }
-
     script event_perform_object_with_args() {
-        test_it("event_perform_object(args..)");
+        test_it("call_instance_script(args..)");
         var result;
         var obj = new obj_mirror();
-        with(obj) {
-            result = event_perform_object("LanguageTests.obj_mirror", "echo", 7);
-        }
+        result = call_instance_script(obj, "LanguageTests.obj_mirror", "echo", 7);
 
         assert_equal(result, 7);
     }
 
     script event_perform_object_without_args() {
-        test_it("event_perform_object()");
+        test_it("()");
         var result;
         var obj = new obj_mirror();
-        with(obj) {
-            result = event_perform_object(obj_mirror, "get10");
-        }
+        result = call_instance_script(obj, obj_mirror, "get10");
 
         assert_equal(result, 10);
     }
 
-    script instance_change_with_create() {
+    script instance_change_with_create_without_args() {
         test_it("instance_change(true)");
         var obj = new obj_mirror();
         instance_change(obj, obj_change, true);
 
         assert_equal(obj.value, 15);
+        assert_equal(object_get_name(obj), obj_change);
+    }
+
+    script instance_change_with_create_with_args() {
+        test_it("instance_change(true, ..args)");
+        var obj = new obj_mirror();
+        instance_change(obj, obj_change, true, 20);
+
+        assert_equal(obj.value, 20);
         assert_equal(object_get_name(obj), obj_change);
     }
 
@@ -127,8 +110,8 @@ namespace LanguageTests {
     }
 
     script reflection_script_execute() {
-        test_it("script_execute()");
-        var result = script_execute("LanguageTests.reflection_echo", 10);
+        test_it("call_global_script()");
+        var result = call_global_script("LanguageTests.reflection_echo", 10);
         assert_equal(result, 10);
     }
 
@@ -227,7 +210,7 @@ namespace LanguageTests {
 
     object obj_change {
         script create(value = 15) {
-            self.value = 15;
+            self.value = value;
         }
     }
 }

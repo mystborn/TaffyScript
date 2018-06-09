@@ -241,7 +241,8 @@ namespace TaffyScript
         /// </summary>
         /// <param name="type">The type to change into</param>
         /// <param name="performEvents">Determines whether the events are performed</param>
-        public void ChangeType(string type, bool performEvents)
+        /// <param name="args">The arguments to pass to the create event if performEvents is true.</param>
+        public void ChangeType(string type, bool performEvents, params TsObject[] args)
         {
             // Instances cache scripts after the first call to make executing them faster.
             // Here we need to make sure that the cached scripts get cleared from the cache.
@@ -259,20 +260,21 @@ namespace TaffyScript
                 }
             }
             ObjectType = type;
-            Init(performEvents);
+            Init(performEvents, args);
         }
 
         /// <summary>
         /// Creates a copy of this instance.
         /// </summary>
         /// <param name="performEvents">Determines whether the create event is performed</param>
+        /// <param name="args">The arguments to pass to the create event if performEvents is true.</param>
         /// <returns></returns>
-        public TsInstance Copy(bool performEvents)
+        public TsInstance Copy(bool performEvents, params TsObject[] args)
         {
             var copy = new TsInstance(ObjectType, false);
             copy._vars = new Dictionary<string, TsObject>(_vars);
             if (performEvents && copy.TryGetDelegate(CreateEvent, out var create))
-                create.Invoke(copy, null);
+                create.Invoke(copy, args);
 
             return copy;
         }
@@ -322,7 +324,24 @@ namespace TaffyScript
         [WeakMethod]
         public static TsObject InstanceChange(ITsInstance inst, TsObject[] args)
         {
-            ((TsInstance)args[0]).ChangeType((string)args[1], args.Length > 2 ? (bool)args[2] : false);
+            switch(args.Length)
+            {
+                case 0:
+                case 1:
+                    throw new ArgumentOutOfRangeException("At least two argument must be passed to InstanceChange.");
+                case 2:
+                    ((TsInstance)args[0]).ChangeType((string)args[1], false);
+                    break;
+                case 3:
+                    ((TsInstance)args[0]).ChangeType((string)args[1], (bool)args[2]);
+                    break;
+                default:
+                    var copy = new TsObject[args.Length - 3];
+                    Array.Copy(args, 3, copy, 0, copy.Length);
+                    ((TsInstance)args[0]).ChangeType((string)args[1], (bool)args[2], copy);
+                    break;
+
+            }
             return args[0];
         }
 
@@ -334,7 +353,19 @@ namespace TaffyScript
         [WeakMethod]
         public static TsObject InstanceCopy(ITsInstance inst, TsObject[] args)
         {
-            return ((TsInstance)args[0]).Copy(args.Length > 1 ? (bool)args[1] : false);
+            switch(args.Length)
+            {
+                case 0:
+                    throw new ArgumentOutOfRangeException("At least one arguments must be passed to InstanceCopy.");
+                case 1:
+                    return ((TsInstance)args[0]).Copy(false);
+                case 2:
+                    return ((TsInstance)args[0]).Copy((bool)args[1]);
+                default:
+                    var copy = new TsObject[args.Length - 2];
+                    Array.Copy(args, 2, copy, 0, copy.Length);
+                    return ((TsInstance)args[0]).Copy((bool)args[1], copy);
+            }
         }
 
         /// <summary>
