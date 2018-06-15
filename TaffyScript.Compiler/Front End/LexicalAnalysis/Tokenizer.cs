@@ -5,774 +5,338 @@ using System.Text;
 
 namespace TaffyScript.Compiler.FrontEnd
 {
-    // This class uses many switch statements and a few goto statements in an effort to be as swift as possible.
-
-    /// <summary>
-    /// Used to convert TaffyScript code into a stream of <see cref="Token"/>s that can be consumed by a TokenParser.
-    /// </summary>
-    public class Tokenizer : IDisposable
+    public class Tokenizer
     {
-        private static HashSet<char> _whitespace;
-        private static Dictionary<string, TokenType> _definitions;
-
-        private TextReader _reader;
         private IErrorLogger _logger;
+        private string _source;
         private int _line = 1;
-        private int _column;
-        private int _index;
-        private bool _finished;
-        private char _current;
-        private Token _token;
-        private string _fname = null;
+        private int _column = 0;
+        private int _start = 0;
+        private int _index = 0;
+        private string _fname;
 
-        /// <summary>
-        /// Determines whether the current document has been fully read.
-        /// </summary>
-        public bool Finished => _current == '\0';
+        private static Dictionary<string, TokenType> _keywords = new Dictionary<string, TokenType>()
+        {
+            { "all", TokenType.ReadOnly },
+            { "and", TokenType.LogicalAnd },
+            { "argument", TokenType.Argument },
+            { "argument_count", TokenType.ReadOnly },
+            { "as", TokenType.As },
+            { "base", TokenType.Base },
+            { "break", TokenType.Break },
+            { "case", TokenType.Case },
+            { "continue", TokenType.Continue },
+            { "default", TokenType.Default },
+            { "do", TokenType.Do },
+            { "else", TokenType.Else },
+            { "enum", TokenType.Enum },
+            { "event", TokenType.Event },
+            { "false", TokenType.Bool },
+            { "for", TokenType.For },
+            { "global", TokenType.ReadOnly },
+            { "if", TokenType.If },
+            { "import", TokenType.Import },
+            { "namespace", TokenType.Namespace },
+            { "new", TokenType.New },
+            { "noone", TokenType.ReadOnly },
+            { "null", TokenType.ReadOnly },
+            { "object", TokenType.Object },
+            { "or", TokenType.LogicalOr },
+            { "other", TokenType.ReadOnly },
+            { "pi", TokenType.ReadOnly },
+            { "repeat", TokenType.Repeat },
+            { "return", TokenType.Return },
+            { "script", TokenType.Script },
+            { "self", TokenType.ReadOnly },
+            { "switch", TokenType.Switch },
+            { "true", TokenType.Bool },
+            { "until", TokenType.Until },
+            { "using", TokenType.Using },
+            { "var", TokenType.Var },
+            { "while", TokenType.While },
+            { "with", TokenType.With },
+        };
 
-        /// <summary>
-        /// Creates a Tokenizer using a string as the input code.
-        /// </summary>
-        /// <param name="input">The code to convert into a stream of <see cref="Token"/>s.</param>
+        // The Tokenizer needs to determine if the stream is finished
+        // before outside code does because the last Token will still need
+        // to be read if there is no whitespace at the end of a file.
+
+        private bool InternalFinished => _index >= _source.Length;
+
+        public bool Finished => Current != null && Current.Type == TokenType.EoF;
+        public TokenPosition Position => new TokenPosition(_index, _line, _column, _fname);
+        public Token Previous { get; private set; }
+        public Token Current { get; private set; }
+
         public Tokenizer(string input, IErrorLogger errorLogger)
         {
             _logger = errorLogger;
-            _reader = new StringReader(input);
-            Init();
+            _source = input;
+            _fname = null;
+            Read();
         }
 
-        /// <summary>
-        /// Creates a Tokenizer using a <see cref="FileStream"/> as the input code.
-        /// </summary>
-        /// <param name="stream">The code to convert into a stream of <see cref="Token"/>s.</param>
-        public Tokenizer(FileStream stream, IErrorLogger errorLogger)
+        public Tokenizer(string input, string fname, IErrorLogger errorLogger)
         {
             _logger = errorLogger;
-            _fname = stream.Name;
-            _reader = new StreamReader(stream);
-            Init();
+            _source = input;
+            _fname = fname;
+            Read();
         }
 
-        static Tokenizer()
-        {
-            // Defines the whitespace characters that should be ignored.
-            _whitespace = new HashSet<char>() { '\r', '\t', '\v', '\f', ' ', '\n' };
-
-            // Defines the language keywords and other constructs.
-            // Strings, numbers, and identifiers get processed under a special case.
-            _definitions = new Dictionary<string, TokenType>()
-            {
-                { "true", TokenType.Bool },
-                { "false", TokenType.Bool },
-                { "var", TokenType.Var },
-                { "break", TokenType.Break },
-                { "continue", TokenType.Continue },
-                { "while", TokenType.While },
-                { "repeat", TokenType.Repeat },
-                { "do", TokenType.Do },
-                { "until", TokenType.Until },
-                { "with", TokenType.With },
-                { "if", TokenType.If },
-                { "else", TokenType.Else },
-                { "for", TokenType.For },
-                { "return", TokenType.Return },
-                { "switch", TokenType.Switch },
-                { "case", TokenType.Case },
-                { "default", TokenType.Default },
-                { "enum", TokenType.Enum },
-                { "import", TokenType.Import },
-                { "script", TokenType.Script },
-                { "argument", TokenType.Argument },
-                { "argument_count", TokenType.ReadOnly },
-                { "all", TokenType.ReadOnly },
-                { "noone", TokenType.ReadOnly },
-                { "self", TokenType.ReadOnly },
-                { "pi", TokenType.ReadOnly },
-                { "null", TokenType.ReadOnly },
-                { "global", TokenType.ReadOnly },
-                { "other", TokenType.ReadOnly },
-                { "object", TokenType.Object },
-                { "event", TokenType.Event },
-                { "using", TokenType.Using },
-                { "namespace", TokenType.Namespace },
-                { "new", TokenType.New },
-                { "as", TokenType.As },
-                { "and", TokenType.LogicalAnd },
-                { "or", TokenType.LogicalOr },
-                { ";", TokenType.SemiColon },
-                { "||", TokenType.LogicalOr },
-                { "&&", TokenType.LogicalAnd },
-                { "!=", TokenType.NotEqual },
-                { "<>", TokenType.NotEqual },
-                { "==", TokenType.Equal },
-                { "<=", TokenType.LessThanOrEqual },
-                { ">=", TokenType.GreaterThanOrEqual },
-                { "<", TokenType.LessThan },
-                { ">", TokenType.GreaterThan },
-                { "!", TokenType.Not },
-                { "~", TokenType.Complement },
-                { "^", TokenType.Xor },
-                { "|", TokenType.BitwiseOr },
-                { "&", TokenType.BitwiseAnd },
-                { "<<", TokenType.ShiftLeft },
-                { ">>", TokenType.ShiftRight },
-                { "(", TokenType.OpenParen },
-                { ")", TokenType.CloseParen },
-                { "[", TokenType.OpenBracket },
-                { "]", TokenType.CloseBracket },
-                { "{", TokenType.OpenBrace },
-                { "}", TokenType.CloseBrace },
-                { ".", TokenType.Dot },
-                { "=", TokenType.Assign },
-                { "++", TokenType.Increment },
-                { "--", TokenType.Decrement },
-                { "+=", TokenType.PlusEquals },
-                { "-=", TokenType.SubEquals },
-                { "*=", TokenType.MulEquals },
-                { "/=", TokenType.DivEquals },
-                { "%=", TokenType.ModEquals },
-                { "&=", TokenType.AndEquals },
-                { "|=", TokenType.OrEquals },
-                { "^=", TokenType.XorEquals },
-                { "+", TokenType.Plus },
-                { "-", TokenType.Minus },
-                { "*", TokenType.Multiply },
-                { "/", TokenType.Divide },
-                { "%", TokenType.Modulo },
-                { ",", TokenType.Comma },
-                { "?", TokenType.QuestionMark },
-                { ":", TokenType.Colon },
-            };
-            for (var i = 0; i < 16; i++)
-                _definitions.Add($"argument{i}", TokenType.Argument);
-        }
-
-        private void Init()
-        {
-            // Set _current to the first character. Needed to prevent an error when calling ReadNext for the first time.
-            TryReadNext();
-
-            // Set the first token.
-            ReadWhiteSpace();
-            Advance();
-        }
-
-        /// <summary>
-        /// Gets the next <see cref="Token"/> without reading it.
-        /// </summary>
-        public Token Peek()
-        {
-            return _token;
-        }
-
-        /// <summary>
-        /// Reads the next token.
-        /// </summary>
         public Token Read()
         {
-            if (_finished)
-            {
-                _current = '\0';
-                return _token;
-            }
-            var current = Peek();
-            Advance();
-            return current;
+            Previous = Current;
+            Current = InternalRead();
+            return Previous;
         }
 
-        /// <summary>
-        /// Reads the next token and returns its value.
-        /// </summary>
-        public string ReadValue()
+        private Token InternalRead()
         {
-            if (_finished)
-            {
-                _current = '\0';
-                return _token.Value;
-            }
-            var current = Peek();
-            Advance();
-            return current.Value;
-        }
+            SkipWhitespace();
 
-        /// <summary>
-        /// Advances the stream to the next token.
-        /// </summary>
-        private void Advance()
-        {
-            var next = ReadNext();
-            var pos = new TokenPosition(_index - next.Length, _line, _column - next.Length, _fname);
-            if (next == "argument")
-            {
-                next += ReadNumber(true);
-                pos = new TokenPosition(_index - next.Length, _line, _column - next.Length, _fname);
-                _token = new Token(TokenType.Argument, next, pos);
-            }
-            else if (_definitions.TryGetValue(next, out var def))
-            {
-                _token = new Token(def, next, pos);
-            }
-            else
-            {
-                switch (next[0])
-                {
-                    case '0':
-                    case '1':
-                    case '2':
-                    case '3':
-                    case '4':
-                    case '5':
-                    case '6':
-                    case '7':
-                    case '8':
-                    case '9':
-                    case '?':
-                    case '-':
-                    case '.':
-                        _token = new Token(TokenType.Number, next, pos);
-                        break;
-                    case '\'':
-                    case '"':
-                        _token = new Token(TokenType.String, next, pos);
-                        break;
-                    case '/':
-                        ReadWhiteSpace();
-                        if (!_finished)
-                            Advance();
-                        else
-                            _current = '\0';
-                        break;
-                    case '*':
-                        ReadWhiteSpace();
-                        if (!_finished)
-                            Advance();
-                        else
-                            _current = '\0';
-                        Advance();
-                        break;
-                    case 'a':
-                    case 'b':
-                    case 'c':
-                    case 'd':
-                    case 'e':
-                    case 'f':
-                    case 'g':
-                    case 'h':
-                    case 'i':
-                    case 'j':
-                    case 'k':
-                    case 'l':
-                    case 'm':
-                    case 'n':
-                    case 'o':
-                    case 'p':
-                    case 'q':
-                    case 'r':
-                    case 's':
-                    case 't':
-                    case 'u':
-                    case 'v':
-                    case 'w':
-                    case 'x':
-                    case 'y':
-                    case 'z':
-                    case 'A':
-                    case 'B':
-                    case 'C':
-                    case 'D':
-                    case 'E':
-                    case 'F':
-                    case 'G':
-                    case 'H':
-                    case 'I':
-                    case 'J':
-                    case 'K':
-                    case 'L':
-                    case 'M':
-                    case 'N':
-                    case 'O':
-                    case 'P':
-                    case 'Q':
-                    case 'R':
-                    case 'S':
-                    case 'T':
-                    case 'U':
-                    case 'V':
-                    case 'W':
-                    case 'X':
-                    case 'Y':
-                    case 'Z':
-                    case '_':
-                        _token = new Token(TokenType.Identifier, next, pos);
-                        break;
-                    default:
-                        _logger.Error("Encountered an unrecognized token: " + next[0], pos);
-                        break;
+            _start = _index;
 
-                }
-            }
+            if (_index >= _source.Length)
+                return MakeToken(TokenType.EoF);
 
-            ReadWhiteSpace();
-        }
- 
-        private string ReadNext()
-        {
-            StringBuilder sb = new StringBuilder(new string(_current, 1));
-            var value = _current;
+            var c = Advance();
 
-            // If we've reached the end of the stream, return the final character by itself. Otherwise try and get the rest of the string.
-            if (!TryReadNext())
-                return sb.ToString();
-
-            switch(value)
+            switch(c)
             {
-                case 'a':
-                case 'b':
-                case 'c':
-                case 'd':
-                case 'e':
-                case 'f':
-                case 'g':
-                case 'h':
-                case 'i':
-                case 'j':
-                case 'k':
-                case 'l':
-                case 'm':
-                case 'n':
-                case 'o':
-                case 'p':
-                case 'q':
-                case 'r':
-                case 's':
-                case 't':
-                case 'u':
-                case 'v':
-                case 'w':
-                case 'x':
-                case 'y':
-                case 'z':
-                case 'A':
-                case 'B':
-                case 'C':
-                case 'D':
-                case 'E':
-                case 'F':
-                case 'G':
-                case 'H':
-                case 'I':
-                case 'J':
-                case 'K':
-                case 'L':
-                case 'M':
-                case 'N':
-                case 'O':
-                case 'P':
-                case 'Q':
-                case 'R':
-                case 'S':
-                case 'T':
-                case 'U':
-                case 'V':
-                case 'W':
-                case 'X':
-                case 'Y':
-                case 'Z':
-                case '_':
-                    sb.Append(ReadCharacters());
-                    break;
-                case '0':
-                    //Reads a hex number.
-                    if (_current == 'x')
-                    {
-                        sb.Append(_current);
-                        TryReadNext();
-                        sb.Append(ReadHexNumber());
-                        //There must be at least one character after the x in a hex number.
-                        if (sb.Length == 2)
-                            _logger.Error("Encountered an unrecognized token: " + _current, new TokenPosition(_index, _line, _column, _fname));
-                        return sb.ToString();
-                    }
-                    else
-                        sb.Append(ReadNumber(false));
-                    break;
-                case '1':
-                case '2':
-                case '3':
-                case '4':
-                case '5':
-                case '6':
-                case '7':
-                case '8':
-                case '9':
-                    sb.Append(ReadNumber(false));
-                    break;
-                case '.':
-                    //Floating point number with no preceding value.
-                    sb.Append(ReadNumber(true));
-                    break;
-                case '|':
-                    if (_current == '|')
-                    {
-                        sb.Append(_current);
-                        TryReadNext();
-                    }
-                    break;
-                case '&':
-                    if (_current == '&')
-                    {
-                        sb.Append(_current);
-                        TryReadNext();
-                    }
-                    break;
-                case '!':
-                    sb.Append(ReadAssignment());
-                    break;
-                case '=':
-                    sb.Append(ReadAssignment());
-                    break;
-                case '<':
-                    switch (_current)
-                    {
-                        case '>':
-                        case '<':
-                        case '=':
-                            sb.Append(_current);
-                            TryReadNext();
-                            break;
-                        default:
-                            break;
-                    }
-                    break;
-                case '>':
-                    if(_current == '>' || _current == '=')
-                    {
-                        sb.Append(_current);
-                        TryReadNext();
-                    }
-                    break;
+                case '(': return MakeToken(TokenType.OpenParen);
+                case ')': return MakeToken(TokenType.CloseParen);
+                case '{': return MakeToken(TokenType.OpenBrace);
+                case '}': return MakeToken(TokenType.CloseBrace);
+                case '[': return MakeToken(TokenType.OpenBracket);
+                case ']': return MakeToken(TokenType.CloseBracket);
+                case '~': return MakeToken(TokenType.Complement);
+                case ';': return MakeToken(TokenType.SemiColon);
+                case ':': return MakeToken(TokenType.Colon);
+                case ',': return MakeToken(TokenType.Comma);
+                
+                //<, <=, <<, <>
+                case '<': return MakeToken(Match('=') ? TokenType.LessThanOrEqual : Match('<') ? TokenType.ShiftLeft : Match('>') ? TokenType.NotEqual : TokenType.LessThan);
+
+                case '&': return MakeToken(Match('=') ? TokenType.AndEquals : Match('&') ? TokenType.LogicalAnd : TokenType.BitwiseAnd);
+                case '|': return MakeToken(Match('=') ? TokenType.OrEquals : Match('|') ? TokenType.LogicalOr : TokenType.BitwiseOr);
+                case '>': return MakeToken(Match('=') ? TokenType.GreaterThanOrEqual : Match('>') ? TokenType.ShiftRight : TokenType.GreaterThan);
+                case '+': return MakeToken(Match('=') ? TokenType.PlusEquals : Match('+') ? TokenType.Increment : TokenType.Plus);
+                case '-': return MakeToken(Match('=') ? TokenType.SubEquals : Match('-') ? TokenType.Decrement : TokenType.Minus);
+
+                case '=': return MakeToken(Match('=') ? TokenType.Equal : TokenType.Assign);
+                case '*': return MakeToken(Match('=') ? TokenType.MulEquals : TokenType.Multiply);
+                case '/': return MakeToken(Match('=') ? TokenType.DivEquals : TokenType.Divide);
+                case '%': return MakeToken(Match('=') ? TokenType.ModEquals : TokenType.Modulo);
+                case '^': return MakeToken(Match('=') ? TokenType.XorEquals : TokenType.Xor);
+                case '!': return MakeToken(Match('=') ? TokenType.NotEqual : TokenType.Not);
+
                 case '\'':
-                    char prev;
-                    do
-                    {
-                        prev = _current;
-                        sb.Append(ReadAny());
-                    }
-                    while (prev != '\'');
-                    break;
                 case '"':
-                    do
+                    return StringLiteral(c);
+
+                case '.':
+                    if(IsDigit(PeekChar()))
+                        return NumberLiteral(false);
+                    return MakeToken(TokenType.Dot);
+                case '?':
+                    if(IsHex(PeekChar()))
                     {
-                        prev = _current;
-                        sb.Append(ReadAny());
-                    }
-                    while (prev != '"');
-                    break;
-                case '+':
-                    if(_current == '+' || _current == '=')
-                    {
-                        sb.Append(_current);
-                        TryReadNext();
-                    }
-                    break;
-                case '-':
-                    if(_current == '-' || _current == '=')
-                    {
-                        sb.Append(_current);
-                        TryReadNext();
-                    }
-                    break;
-                case '*':
-                    sb.Append(ReadAssignment());
-                    break;
-                case '%':
-                    sb.Append(ReadAssignment());
-                    break;
-                case '/':
-                    if (_current == '/')
-                    {
-                        sb.Append(_current);
-                        char end;
-                        do
-                        {
-                            end = ReadAny();
-                            sb.Append(end);
-                        }
-                        while (end != '\n');
-                    }
-                    else if (_current == '*')
-                    {
-                        sb.Append(_current);
-                        char end = _current;
-                        do
-                        {
-                            if (_finished)
-                            {
-                                _current = '\0';
-                                goto End;
-                            }
-                            prev = ReadAny();
-                            end = _current;
-                            sb.Append(end);
-                        }
-                        while (prev != '*' || end != '/');
-                        TryReadNext();
+                        Advance();
+                        while (IsHex(PeekChar()))
+                            Advance();
+                        return MakeToken(TokenType.Number);
                     }
                     else
-                        sb.Append(ReadAssignment());
-                    End:
-                    break;
-                case '?':
-                    sb.Append(ReadHexNumber());
-                    break;
+                        return MakeToken(TokenType.QuestionMark);
+                case '0':
+                    if (Match('x'))
+                    {
+                        while (IsHex(PeekChar()))
+                            Advance();
+                        return MakeToken(TokenType.Number);
+                    }
+                    else
+                        return NumberLiteral(true);
                 default:
+                    if (IsAlpha(c))
+                        return Identifier();
+                    if (IsDigit(c))
+                        return NumberLiteral(true);
                     break;
             }
 
-            return sb.ToString();
+            _logger.Error("Unexpected character", new TokenPosition(_index, _line, _column, _fname));
+            return null;
         }
 
-        private string ReadNumber(bool hasDecimalPoint)
+        private Token MakeToken(TokenType type)
         {
-            var sb = new StringBuilder();
-            while(!_finished)
-            {
-                switch (_current)
-                {
-                    case '0':
-                    case '1':
-                    case '2':
-                    case '3':
-                    case '4':
-                    case '5':
-                    case '6':
-                    case '7':
-                    case '8':
-                    case '9':
-                        sb.Append(_current);
-                        break;
-                    case '.':
-                        if (!hasDecimalPoint)
-                            sb.Append(_current);
-                        else
-                            goto End;
-                        break;
-                    default:
-                        return sb.ToString();
-                }
-                TryReadNext();
-            }
-            End:
-            return sb.ToString();
+            return new Token(type, _source.Substring(_start, _index - _start), new TokenPosition(_start, _line, _column, _fname));
         }
 
-        private string ReadHexNumber()
+        private bool IsHex(char c)
         {
-            var sb = new StringBuilder();
-            while (!_finished)
-            {
-                switch (_current)
-                {
-                    case 'a':
-                    case 'b':
-                    case 'c':
-                    case 'd':
-                    case 'e':
-                    case 'f':
-                    case 'A':
-                    case 'B':
-                    case 'C':
-                    case 'D':
-                    case 'E':
-                    case 'F':
-                    case '0':
-                    case '1':
-                    case '2':
-                    case '3':
-                    case '4':
-                    case '5':
-                    case '6':
-                    case '7':
-                    case '8':
-                    case '9':
-                        sb.Append(_current);
-                        break;
-                    default:
-                        return sb.ToString();
-                }
-                TryReadNext();
-            }
-            return sb.ToString();
+            return (c >= 'a' && c <= 'f') ||
+                   (c >= 'A' && c <= 'Z') ||
+                   IsDigit(c);
         }
 
-        private string ReadCharacters()
+        private bool IsAlpha(char c)
         {
-            var sb = new StringBuilder();
-            while(!_finished)
-            {
-                switch (_current)
-                {
-                    case 'a':
-                    case 'b':
-                    case 'c':
-                    case 'd':
-                    case 'e':
-                    case 'f':
-                    case 'g':
-                    case 'h':
-                    case 'i':
-                    case 'j':
-                    case 'k':
-                    case 'l':
-                    case 'm':
-                    case 'n':
-                    case 'o':
-                    case 'p':
-                    case 'q':
-                    case 'r':
-                    case 's':
-                    case 't':
-                    case 'u':
-                    case 'v':
-                    case 'w':
-                    case 'x':
-                    case 'y':
-                    case 'z':
-                    case 'A':
-                    case 'B':
-                    case 'C':
-                    case 'D':
-                    case 'E':
-                    case 'F':
-                    case 'G':
-                    case 'H':
-                    case 'I':
-                    case 'J':
-                    case 'K':
-                    case 'L':
-                    case 'M':
-                    case 'N':
-                    case 'O':
-                    case 'P':
-                    case 'Q':
-                    case 'R':
-                    case 'S':
-                    case 'T':
-                    case 'U':
-                    case 'V':
-                    case 'W':
-                    case 'X':
-                    case 'Y':
-                    case 'Z':
-                    case '_':
-                    case '0':
-                    case '1':
-                    case '2':
-                    case '3':
-                    case '4':
-                    case '5':
-                    case '6':
-                    case '7':
-                    case '8':
-                    case '9':
-                        sb.Append(_current);
-                        break;
-                    default:
-                        goto End;
-                }
-                TryReadNext();
-            }
-            End:
-            return sb.ToString();
+            return (c >= 'a' && c <= 'z') ||
+                   (c >= 'A' && c <= 'Z') ||
+                   c == '_';
         }
 
-        private void ReadWhiteSpace()
+        private bool IsDigit(char c)
         {
-            while (!_finished)
-            {
-                switch(_current)
-                {
-                    case '\n':
-                        _line += 1;
-                        _column = 0;
-                        break;
-                    case '\t':
-                    case '\r':
-                    case '\v':
-                    case '\f':
-                    case ' ':
-                        break;
-                    default:
-                        goto End;
-                }
-                TryReadNext();
-            }
-
-            End:
-            return;
+            return c >= '0' && c <= '9';
         }
 
-        private char ReadAny()
+        private char Advance()
         {
-            var value = _current;
-            TryReadNext();
-            switch(value)
-            {
-                case '\n':
-                    _line += 1;
-                    _column = 0;
-                    break;
-                default:
-                    break;
-            }
-            return value;
+            _column++;
+            return _source[_index++];
         }
 
-        /// <summary>
-        /// Helper method for {operator}= tokens. i.e. +=, -=, etc.
-        /// </summary>
-        /// <returns></returns>
-        private string ReadAssignment()
+        private char PeekChar()
         {
-            if(_current == '=')
-            {
-                TryReadNext();
-                return "=";
-            }
-            return "";
+            return _source[_index];
         }
 
-        private bool TryReadNext()
+        private char PeekNext()
         {
-            if (_finished)
+            if (InternalFinished)
+                return '\0';
+
+            return _source[_index + 1];
+        }
+
+        private bool Match(char expected)
+        {
+            if (InternalFinished || _source[_index] != expected)
                 return false;
 
-            var next = _reader.Read();
-            if (next == -1)
-                _finished = true;
-            else
+            Advance();
+            return true;
+        }
+
+        private void SkipWhitespace()
+        {
+            while(!InternalFinished)
             {
-                _current = (char)next;
-                ++_column;
-                ++_index;
+                switch(PeekChar())
+                {
+                    case ' ':
+                    case '\r':
+                    case '\t':
+                    case '\v':
+                    case '\f':
+                        Advance();
+                        break;
+                    case '\n':
+                        _line++;
+                        _column = 0;
+                        Advance();
+                        break;
+                    case '/':
+                        switch(PeekNext())
+                        {
+                            case '/':
+                                while (PeekChar() != '\n' && !InternalFinished)
+                                    Advance();
+                                break;
+                            case '*':
+                                Advance();
+                                Advance();
+                                while(!InternalFinished && PeekChar() != '*' && PeekNext() != '/')
+                                {
+                                    if (PeekChar() == '\n')
+                                    {
+                                        _line++;
+                                        _column = 0;
+                                    }
+                                    Advance();
+                                }
+                                if (!InternalFinished)
+                                {
+                                    Advance();
+                                    Advance();
+                                }
+                                break;
+                            default:
+                                return;
+                        }
+                        break;
+                    default:
+                        return;
+                }
+            }
+        }
+
+        private Token Identifier()
+        {
+            var c = PeekChar();
+            while(IsAlpha(c) || IsDigit(c))
+            {
+                Advance();
+                c = PeekChar();
             }
 
-            return !_finished;
+            var text = _source.Substring(_start, _index - _start);
+            if(text.StartsWith("argument"))
+            {
+                if (text == "argument_count")
+                    return MakeToken(TokenType.ReadOnly);
+
+                if(text.Length > 8)
+                    for (var i = 8; i < text.Length; i++)
+                        if (!IsDigit(text[i]))
+                            return MakeToken(TokenType.Identifier);
+
+                return MakeToken(TokenType.Argument);
+            }
+
+            if (_keywords.TryGetValue(text, out var type))
+                return MakeToken(type);
+
+            return MakeToken(TokenType.Identifier);
         }
 
-        private void Dispose(bool disposing)
+        private Token NumberLiteral(bool decimalAllowed)
         {
-            if (_reader == null || !disposing)
-                return;
+            while (IsDigit(PeekChar()))
+                Advance();
 
-            _reader.Dispose();
-            _reader = null;
+            if(decimalAllowed && PeekChar() == '.' && IsDigit(PeekNext()))
+            {
+                Advance();
+
+                while (IsDigit(PeekChar()))
+                    Advance();
+            }
+
+            return MakeToken(TokenType.Number);
         }
 
-        public void Dispose()
+        private Token StringLiteral(char start)
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            while(PeekChar() != start && !InternalFinished)
+            {
+                if(PeekChar() == '\n')
+                {
+                    _line++;
+                    _column = 0;
+                }
+                Advance();
+            }
+
+            if(InternalFinished)
+                _logger.Error("Encountered an unterminated string", new TokenPosition(_start, _line, _column, _fname));
+
+            Advance();
+            return MakeToken(TokenType.String);
         }
     }
 }

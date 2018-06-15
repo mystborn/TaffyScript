@@ -1,1233 +1,944 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using TaffyScript.Compiler.FrontEnd;
 using TaffyScript.Compiler.Syntax;
+using NumberConstant = TaffyScript.Compiler.Syntax.ConstantToken<float>;
 
 namespace TaffyScript.Compiler
 {
-    /// <summary>
-    /// Parses TaffyScript code and generates an AST based on the input.
-    /// </summary>
     public class Parser
     {
-        private static Regex StringParser = new Regex(@"\\");
-        private static HashSet<char> _hexCharacters = null;
-
-        private static HashSet<char> HexCharacters
+        private static Regex StringParser = new Regex(@"\\", RegexOptions.Compiled);
+        private static HashSet<char> HexCharacters = new HashSet<char>()
         {
-            get
-            {
-                if(_hexCharacters == null)
-                    _hexCharacters = new HashSet<char>() { 'a', 'b', 'c', 'd', 'e', 'f', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
-                return _hexCharacters;
-            }
-        }
+            'a', 'b', 'c', 'd', 'e', 'f', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'
+        };
 
-        private ISyntaxTree _tree;
+        private IErrorLogger _logger;
         private Tokenizer _stream;
         private SymbolTable _table;
-        private ISyntaxElementFactory _factory;
-        private int lambdaId = 0;
-        private IErrorLogger _logger;
+        private int _lambdaId = 0;
+        private bool _canAssign = false;
+        private RootNode _root;
 
-        /// <summary>
-        /// Flag used to determine whether = should mean assignment or equality.
-        /// </summary>
-        private int _canAssign = 0;
-
-        public SymbolTable Table => _table;
-        public ISyntaxTree Tree => _tree;
-
-        /// <summary>
-        /// Creates a new TaffyScript parser.
-        /// </summary>
-        public Parser(IErrorLogger errorLogger)
+        public Parser(IErrorLogger logger, SymbolTable table, RootNode root)
         {
-            _logger = errorLogger;
-            _table = new SymbolTable();
-            _tree = new SyntaxTree(_table);
-            _factory = new SyntaxElementFactory();
+            _logger = logger;
+            _table = table;
+            _root = root;
         }
 
-        /// <summary>
-        /// Parses a string comprised of TaffyScript code.
-        /// </summary>
-        /// <param name="code">The TaffyScript code to parse.</param>
         public void Parse(string code)
         {
-            using (_stream = new Tokenizer(code, _logger))
-            {
-                Parse(_tree.Root);
-            }
+            _stream = new Tokenizer(code, _logger);
+            Parse();
         }
 
-        /// <summary>
-        /// Parses a file containing TaffyScript code.
-        /// </summary>
-        /// <param name="file">The file to parse.</param>
-        public void ParseFile(string file)
+        public void ParseFile(string fpath)
         {
-            using (var fs = new System.IO.FileStream(file, System.IO.FileMode.Open))
+            string code = null;
+            using(var reader = new System.IO.StreamReader(fpath))
             {
-                using(_stream = new Tokenizer(fs, _logger))
-                {
-                    Parse(_tree.Root);
-                }
+                code = reader.ReadToEnd();
             }
+            _stream = new Tokenizer(code, fpath, _logger);
+            Parse();
         }
 
-        private void Parse(ISyntaxNode root)
+        private void Parse()
         {
             if (_stream.Finished)
                 return;
 
-            root.AddChild(Usings());
+            _root.CompilationUnits.Add(Usings());
         }
 
-        private ISyntaxElement Usings()
+        private UsingsNode Usings()
         {
-            ISyntaxNode node = null;
-            while(Try(TokenType.Using, out var token))
+            var usings = new List<UsingDeclaration>();
+            var pos = _stream.Position;
+            if (Check(TokenType.Using))
             {
-                if (node == null)
-                    node = _factory.CreateNode(SyntaxType.Usings, token.Position);
-                var ns = GetNamespace();
-                node.AddChild(_factory.CreateConstant(ConstantType.String, ns, token.Position));
-            }
-
-            // There are no using statements.
-            // Should not throw an error, so just leave the position as null.
-            if (node == null)
-                node = _factory.CreateNode(SyntaxType.Usings, new TokenPosition(0, 0, 0, null));
-
-            // This needs to be a block so that the enums aren't pushed to the front of the usings node.
-            var block = _factory.CreateNode(SyntaxType.Block, null);
-            AddDeclarations(block);
-            node.AddChild(block);
-
-            return node;
-        }
-
-        private void AddDeclarations(ISyntaxNode node)
-        {
-            var enums = new List<ISyntaxElement>();
-            // Check for stream finsihed for global declarations,
-            // and check for end brace for namespace declarations.
-            while (!_stream.Finished && !Try(TokenType.CloseBrace))
-            {
-                var child = Declaration();
-                if (child != null && (child.Type == SyntaxType.Enum || child.Type == SyntaxType.Import))
+                do
                 {
-                    enums.Add(child);
-                    child.Parent = node;
+                    var usingToken = Consume(TokenType.Using, "Expected using");
+                    var ns = ResolveNamespace();
+                    usings.Add(new UsingDeclaration(ns, usingToken.Position));
+
+                    while (Match(TokenType.SemiColon)) ;
                 }
-                else
-                    node.AddChild(child);
+                while (Check(TokenType.Using));
             }
 
-            //Make sure that enums get processed before anything else.
-            node.Children.InsertRange(0, enums);
+            var declarations = Declarations(0);
+
+            return new UsingsNode(usings, declarations, pos);
+        }
+
+        private List<ISyntaxElement> Declarations(int tableDepth)
+        {
+            var declarations = new List<ISyntaxElement>();
+            while(!_stream.Finished)
+            {
+                if (Check(TokenType.CloseBrace))
+                    break;
+                var declaration = Declaration();
+                if(declaration != null)
+                    declarations.Add(declaration);
+            }
+
+            return declarations;
         }
 
         private ISyntaxElement Declaration()
         {
-            switch(_stream.Peek().Type)
+            try
             {
-                case TokenType.Namespace:
-                    var token = Confirm(TokenType.Namespace);
-                    var nsName = GetNamespace();
-                    var ns = new NamespaceNode(nsName, token.Position);
-                    Confirm(TokenType.OpenBrace);
-                    try
-                    {
-                        _table.EnterNamespace(nsName);
-                    }
-                    catch(Exception e)
-                    {
-                        _logger.Error(e.Message, token.Position);
+                switch (_stream.Current.Type)
+                {
+                    case TokenType.Enum: return EnumDeclaration();
+                    case TokenType.Import: return ImportDeclaration();
+                    case TokenType.Namespace: return NamespaceDeclaration();
+                    case TokenType.Object: return ObjectDeclaration();
+                    case TokenType.Script: return ScriptDeclaration(SymbolScope.Global);
+                    case TokenType.SemiColon:
+                        _stream.Read();
                         return null;
-                    }
-                    AddDeclarations(ns);
-
-                    //Make sure the declarations didn't end because the file ended.
-                    Confirm(TokenType.CloseBrace);
-                    _table.ExitNamespace(nsName);
-                    return ns;
-                case TokenType.Object:
-                    Confirm(TokenType.Object);
-                    var objName = Confirm(TokenType.Identifier);
-                    _table.EnterNew(objName.Value, SymbolType.Object);
-                    var node = _factory.CreateNode(SyntaxType.Object, objName.Value, objName.Position);
-                    if (Validate(TokenType.Colon))
-                    {
-                        var parent = Confirm(TokenType.Identifier);
-                        node.AddChild(_factory.CreateConstant(ConstantType.String, parent.Value, parent.Position));
-                    }
-                    else
-                        node.AddChild(_factory.CreateConstant(ConstantType.String, null, objName.Position));
-                    Confirm(TokenType.OpenBrace);
-                    while (!Try(TokenType.CloseBrace))
-                    {
-                        node.AddChild(Script(SymbolScope.Member));
-                    }
-                    Confirm(TokenType.CloseBrace);
-                    _table.Exit();
-                    return node;
-                case TokenType.Enum:
-                    Confirm(TokenType.Enum);
-                    var enumName = Confirm(TokenType.Identifier);
-                    _table.EnterNew(enumName.Value, SymbolType.Enum);
-                    node = _factory.CreateNode(SyntaxType.Enum, enumName.Value, enumName.Position);
-                    Confirm(TokenType.OpenBrace);
-                    if(!Try(TokenType.CloseBrace))
-                    {
-                        var value = 0;
-                        do
-                        {
-                            var name = Confirm(TokenType.Identifier);
-                            ISyntaxNode nameNode;
-                            if (Validate(TokenType.Assign))
-                            {
-                                nameNode = _factory.CreateNode(SyntaxType.Assign, name.Value, name.Position);
-                                var num = Confirm(TokenType.Number);
-                                ConstantToken<float> numToken = (ConstantToken<float>)_factory.CreateConstant(ConstantType.Real, num.Value, num.Position);
-                                value = (int)numToken.Value;
-                                _table.AddLeaf(name.Value, value);
-                                nameNode.AddChild(numToken);
-                            }
-                            else
-                            {
-                                nameNode = _factory.CreateNode(SyntaxType.Declare, name.Value, name.Position);
-                                _table.AddLeaf(name.Value, value);
-                            }
-                            value++;
-                            node.AddChild(nameNode);
-                        }
-                        while (Validate(TokenType.Comma));
-                    }
-                    Confirm(TokenType.CloseBrace);
-                    _table.Exit();
-                    return node;
-                case TokenType.Import:
-                    var import = Confirm(TokenType.Import);
-                    if (Try(TokenType.Object))
-                        return ImportObject(import.Position);
-                    else
-                        return ImportScript(import.Position);
-                case TokenType.Script:
-                    return Script(SymbolScope.Global);
-                case TokenType.SemiColon:
-                    Confirm(TokenType.SemiColon);
-                    return null;
-                default:
-                    _logger.Error($"Expected declaration, got {_stream.Peek().Type}", _stream.Read().Position);
-                    return null;
-            }
-        }
-
-        private ISyntaxElement ImportObject(TokenPosition pos)
-        {
-            Confirm(TokenType.Object);
-            List<ObjectImportArgument> importArgs = new List<ObjectImportArgument>();
-            if(Validate(TokenType.OpenParen))
-            {
-                if (!Try(TokenType.CloseParen))
-                {
-                    do
-                    {
-                        var argName = _stream.Read();
-                        Confirm(TokenType.Assign);
-                        var argValue = Confirm(TokenType.Identifier).Value;
-                        importArgs.Add(new ObjectImportArgument(argName.Value, argValue, argName.Position));
-                    }
-                    while (Validate(TokenType.Comma));
+                    default:
+                        //Todo: Handle error
+                        return null;
                 }
-                Confirm(TokenType.CloseParen);
             }
-            var sb = new StringBuilder();
-            var startPos = GetImportType(sb);
-            ImportObjectNode node;
-            if (Validate(TokenType.As))
+            catch (ParseException)
             {
-                var importName = Confirm(TokenType.Identifier);
-                node = new ImportObjectNode((IConstantToken<string>)_factory.CreateConstant(ConstantType.String, importName.Value, importName.Position), sb.ToString(), startPos);
-            }
-            else
-                node = new ImportObjectNode(sb.ToString(), startPos);
-
-            _table.AddChild(new ImportObjectLeaf(_table.Current, node.ImportName.Value, node));
-
-            node.ParseArguments(importArgs, _logger);
-            if(!Try(TokenType.OpenBrace))
-            {
-                node.AutoImplement = true;
-                return node;
-            }
-            Confirm(TokenType.OpenBrace);
-            if(!Try(TokenType.CloseBrace))
-            {
-                bool hasCtor = false;
-                do
-                {
-                    if(Try(TokenType.New, out var newToken))
-                    {
-                        if (hasCtor)
-                            _logger.Error($"Import types can only define one constructor", newToken.Position);
-                        var newNode = new ImportObjectConstructor(newToken.Position);
-                        Confirm(TokenType.OpenParen);
-                        if (!Try(TokenType.CloseParen))
-                        {
-                            do
-                            {
-                                var token = _stream.Read();
-                                var type = token.Value;
-                                if (type == "array")
-                                    type = "array1d";
-                                if (!TsTypes.BasicTypes.ContainsKey(type))
-                                    _logger.Error($"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n    ", token.Position);
-                                else
-                                    newNode.ArgumentTypes.Add(type);
-                            }
-                            while (Validate(TokenType.Comma));
-                        }
-                        Confirm(TokenType.CloseParen);
-                        node.Constructor = newNode;
-                    }
-                    else
-                    {
-                        var memberName = Confirm(TokenType.Identifier);
-                        if (Try(TokenType.OpenParen))
-                        {
-                            var methodNode = new ImportObjectMethod(memberName.Value, memberName.Position);
-                            if (Validate(TokenType.LessThan))
-                            {
-                                do
-                                {
-                                    sb.Clear();
-                                    pos = GetImportType(sb);
-                                    methodNode.Generics.Add((IConstantToken<string>)_factory.CreateConstant(ConstantType.String, sb.ToString(), pos));
-                                }
-                                while (Validate(TokenType.Comma));
-                                Confirm(TokenType.GreaterThan);
-                            }
-                            Confirm(TokenType.OpenParen);
-                            if (!Try(TokenType.CloseParen))
-                            {
-                                do
-                                {
-                                    var token = _stream.Read();
-                                    var type = token.Value;
-                                    if (type == "array")
-                                        type = "array1d";
-                                    if (!TsTypes.BasicTypes.ContainsKey(type))
-                                        _logger.Error($"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n    ", token.Position);
-                                    else
-                                        methodNode.ArgumentTypes.Add(type);
-                                }
-                                while (Validate(TokenType.Comma));
-                            }
-                            Confirm(TokenType.CloseParen);
-
-                            if (Validate(TokenType.As))
-                                methodNode.ImportName = Confirm(TokenType.Identifier).Value;
-
-                            node.Methods.Add(methodNode);
-                        }
-                        else
-                        {
-                            if (Validate(TokenType.As))
-                            {
-                                var importName = Confirm(TokenType.Identifier).Value;
-                                node.Fields.Add(new ImportObjectField(memberName.Value, importName, memberName.Position));
-                            }
-                            else
-                                node.Fields.Add(new ImportObjectField(memberName.Value, memberName.Position));
-                        }
-                    }
-
-                    while (Validate(TokenType.SemiColon)) ;
-                }
-                while (!Try(TokenType.CloseBrace));
-            }
-            Confirm(TokenType.CloseBrace);
-
-            return node;
-        }
-
-        private ISyntaxElement ImportScript(TokenPosition pos)
-        {
-            var node = _factory.CreateNode(SyntaxType.Import, pos);
-            var start = Confirm(TokenType.Identifier);
-            var baseType = new StringBuilder(start.Value);
-            do
-            {
-                baseType.Append(Confirm(TokenType.Dot).Value);
-                baseType.Append(Confirm(TokenType.Identifier).Value);
-            }
-            while (Try(TokenType.Dot));
-            node.AddChild(_factory.CreateConstant(ConstantType.String, baseType.ToString(), start.Position));
-            Confirm(TokenType.OpenParen);
-            if (!Try(TokenType.CloseParen))
-            {
-                do
-                {
-                    var token = _stream.Read();
-                    var type = token.Value;
-                    if (type == "array")
-                        type = "array1d";
-                    if (!TsTypes.BasicTypes.ContainsKey(type))
-                    {
-                        _logger.Error($"Import type must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}\n    ", token.Position);
-                        node.AddChild(null);
-                    }
-                    else
-                        node.AddChild(_factory.CreateConstant(ConstantType.String, type, token.Position));
-                }
-                while (Validate(TokenType.Comma));
-            }
-            Confirm(TokenType.CloseParen);
-            Confirm(TokenType.As);
-            var importName = Confirm(TokenType.Identifier);
-            _table.AddChild(new ImportLeaf(_table.Current, importName.Value, SymbolScope.Global, (ImportNode)node));
-            //_table.AddLeaf(importName.Value, SymbolType.Script, SymbolScope.Global);
-            node.AddChild(_factory.CreateConstant(ConstantType.String, importName.Value, importName.Position));
-            return node;
-        }
-
-        private ISyntaxElement Script(SymbolScope scope)
-        {
-            if (Try(TokenType.Event, out var eventToken))
-                _logger.Warning("event is an obsolete keyword. It will be deprecated on the next major release. Consider switching to script", eventToken.Position);
-            else if (!Validate(TokenType.Script))
-            {
-                _logger.Error($"Expected a script, got {_stream.Peek().Type}", _stream.Read().Position);
+                Synchronize(TokenType.Enum, TokenType.Import, TokenType.Namespace, TokenType.Object, TokenType.Script);
                 return null;
             }
+        }
 
-            var scriptName = Confirm(TokenType.Identifier);
-            _table.EnterNew(scriptName.Value, SymbolType.Script, scope);
-            var node = _factory.CreateNode(SyntaxType.Script, scriptName.Value, scriptName.Position);
-            if (Validate(TokenType.OpenParen) && !Validate(TokenType.CloseParen))
+        private EnumNode EnumDeclaration()
+        {
+            var start = Consume(TokenType.Enum, "Expected 'enum'");
+            var name = Consume(TokenType.Identifier, "Expected enum name");
+            if (!_table.TryEnterNew(name.Text, SymbolType.Enum))
+                Error(name, $"Name conflict between enum and {_table.Defined(name.Text).Type} {name.Text}");
+
+            Consume(TokenType.OpenBrace, "Expected '{' after enum declaration", 1);
+            var values = new List<EnumValue>();
+            if (!Check(TokenType.CloseBrace))
             {
-                var optional = false;
+                long value = 0;
                 do
                 {
-                    var parameterToken = Confirm(TokenType.Identifier);
-                    var parameter = _factory.CreateToken(SyntaxType.Variable, parameterToken.Value, parameterToken.Position);
-                    ISyntaxElement parameterElement;
-                    if (Try(TokenType.Assign, out var assign))
+                    var valueName = Consume(TokenType.Identifier, "Expected name for enum value", 1);
+                    if (Match(TokenType.Assign))
                     {
-                        optional = true;
-                        ISyntaxElement value;
-                        if (!IsConstant())
+                        var valueToken = Consume(TokenType.Number, "Enum value must be a numberic literal", 1);
+                        var style = NumberStyles.Integer;
+                        var text = valueToken.Text;
+                        if(text.StartsWith("0x"))
                         {
-                            var next = _stream.Peek().Type;
-                            switch(next)
-                            {
-                                case TokenType.Minus:
-                                    Confirm(TokenType.Minus);
-                                    var prefix = "-";
-                                    if (Validate(TokenType.Dot))
-                                        prefix += ".";
-                                    var num = Confirm(TokenType.Number);
-                                    value = _factory.CreateConstant(ConstantType.Real, prefix + num.Value, num.Position);
-                                    break;
-                                case TokenType.Dot:
-                                    Confirm(TokenType.Dot);
-                                    num = Confirm(TokenType.Number);
-                                    value = _factory.CreateConstant(ConstantType.Real, TokenType.Dot + num.Value, num.Position);
-                                    break;
-                                case TokenType.ReadOnly:
-                                    var read = Confirm(TokenType.ReadOnly);
-                                    value = _factory.CreateToken(SyntaxType.ReadOnlyValue, read.Value, read.Position);
-                                    break;
-                                default:
-                                    _logger.Error("Optional arguments must have a constant value", _stream.Peek().Position);
-                                    Validate(TokenType.Identifier);
-                                    continue;
-                            }
+                            text = text.Substring(2);
+                            style = NumberStyles.HexNumber;
                         }
-                        else
-                            value = Constant();
+                        else if(text.StartsWith("?"))
+                        {
+                            text = text.Substring(1);
+                            style = NumberStyles.HexNumber;
+                        }
+                        if(!long.TryParse(text, style, CultureInfo.InvariantCulture, out value))
+                            Error(valueToken, "Enum value must be an integer constant", 1);
+                    }
+                    if(!_table.AddLeaf(valueName.Text, value))
+                    {
+                        _table.Exit();
+                        Error(valueName, "Cannot have two enum values with the same name", 1);
+                    }
+                    values.Add(new EnumValue(valueName.Text, value++));
+                }
+                while (Match(TokenType.Comma));
+            }
+            Consume(TokenType.CloseBrace, "Expect '}' after enum values", 1);
+            _table.Exit();
+            return new EnumNode(name.Text, values, name.Position);
+        }
 
-                        var temp = _factory.CreateNode(SyntaxType.Assign, "=", assign.Position);
-                        temp.AddChild(parameter);
-                        temp.AddChild(value);
-                        parameterElement = temp;
+        private ISyntaxElement ImportDeclaration()
+        {
+            var import = Consume(TokenType.Import, "Expected 'import'");
+            if (Check(TokenType.Object))
+                return ImportObject();
+            return ImportScript(import);
+        }
+
+        private ISyntaxElement ImportObject()
+        {
+            ImportObjectNode node;
+            var start = Consume(TokenType.Object, "Expected 'object'");
+            var importArgs = new List<ObjectImportArgument>();
+            if(Match(TokenType.OpenParen) && !Match(TokenType.CloseParen))
+            {
+                do
+                {
+                    var argName = Consume(TokenType.Identifier, "Expected import argument name");
+                    Consume(TokenType.Assign, "Expected '=' after import argument");
+                    var value = Consume(TokenType.Identifier, "Expected value for import argument");
+                    importArgs.Add(new ObjectImportArgument(argName.Text, value.Text, argName.Position));
+                }
+                while (Match(TokenType.Comma));
+                Consume(TokenType.CloseParen, "Expected ')' after import object arguments");
+            }
+
+            var type = ReadDotNetType();
+            var name = type;
+            if (Match(TokenType.As))
+                name = Consume(TokenType.Identifier, "Expected name after import object declaration").Text;
+
+            if(!Check(TokenType.OpenBrace))
+            {
+                node = new ImportObjectNode(type, name, start.Position);
+                if(!_table.TryAdd(new ImportObjectLeaf(_table.Current, name, node)))
+                    Error(start, $"Name conflict with imported object and {_table.Defined(name).Type} {name}");
+                return node;
+            }
+
+            Consume(TokenType.OpenBrace, "Expected '{' after import object declaration");
+
+            // Clear floating Semi Colons from the text.
+            while (Match(TokenType.SemiColon)) ;
+
+            ImportObjectConstructor ctor = null;
+            List<ImportObjectMethod> methods = new List<ImportObjectMethod>();
+            List<ImportObjectField> fields = new List<ImportObjectField>();
+            while(!Check(TokenType.CloseBrace))
+            {
+                if (Check(TokenType.New))
+                {
+                    var token = Consume(TokenType.New, "Expected 'new'");
+                    if (ctor != null)
+                        Error(token, "Imported types can only define one constructor");
+
+                    Consume(TokenType.OpenParen, "Expected '(' after constructor declaration in import object defintion");
+                    var arguments = ReadImportArguments();
+                    Consume(TokenType.CloseParen, "Expected ')' after constructor arguments");
+                    ctor = new ImportObjectConstructor(arguments, token.Position);
+                }
+                else if (Check(TokenType.Identifier))
+                {
+                    var memberName = _stream.Read();
+                    if (Check(TokenType.OpenParen) || Check(TokenType.LessThan))
+                    {
+                        List<string> generics = null;
+                        if (Match(TokenType.LessThan))
+                        {
+                            generics = new List<string>();
+                            do
+                                generics.Add(ReadDotNetType());
+                            while (Match(TokenType.Comma));
+                            Consume(TokenType.GreaterThan, "Expected '>' after generic types");
+                        }
+                        Consume(TokenType.OpenParen, "Expected '(' after script declaration in import object definition");
+                        var arguments = ReadImportArguments();
+                        Consume(TokenType.CloseParen, "Expected ')' after script arguments");
+                        var importName = memberName.Text;
+                        if (Match(TokenType.As))
+                            importName = Consume(TokenType.Identifier, "Expected name for method in import object definition").Text;
+                        methods.Add(new ImportObjectMethod(memberName.Text, importName, generics, arguments, memberName.Position));
                     }
                     else
                     {
-                        if (optional)
-                            _logger.Error("Can't have non-optional arguments after an optional argument.", parameterToken.Position);
-
-                        parameterElement = parameter;
+                        var importName = memberName.Text;
+                        if (Match(TokenType.As))
+                            importName = Consume(TokenType.Identifier, "Expected name for field in import object definition").Text;
+                        fields.Add(new ImportObjectField(memberName.Text, importName, memberName.Position));
                     }
-                    node.AddChild(parameterElement);
-                    _table.AddLeaf(parameterToken.Value, SymbolType.Variable, SymbolScope.Local);
                 }
-                while (Validate(TokenType.Comma));
-                Confirm(TokenType.CloseParen);
+                else
+                    Error(_stream.Current, "Unexpected token in import object definition");
+
+                while (Match(TokenType.SemiColon)) ;
             }
-            node.AddChild(Statement());
-            _table.Exit();
+            Consume(TokenType.CloseBrace, "Expected '}' after import object definition");
+            if (ctor == null)
+                Error(start, "Imported object with an explicit implementation must declare a constructor");
+
+            node = new ImportObjectNode(type, name, _logger, importArgs, fields, ctor, methods, start.Position);
+            if (!_table.TryAdd(new ImportObjectLeaf(_table.Current, name, node)))
+                Error(start, $"Name conflict with imported object and {_table.Defined(name).Type} {name}");
+
             return node;
+        }
+
+        private ISyntaxElement ImportScript(Token importToken)
+        {
+            var lastDot = -1;
+            var sb = new StringBuilder();
+            do
+            {
+                sb.Append(Consume(TokenType.Identifier, "Expect name for script import").Text);
+                if (Match(TokenType.GreaterThan))
+                {
+                    sb.Append(ReadDotNetType());
+                    while (Match(TokenType.Comma))
+                        sb.Append(',').Append(ReadDotNetType());
+                    Consume(TokenType.LessThan, "Expect '>' after generic types");
+                }
+                if (_stream.Current.Type == TokenType.Dot)
+                {
+                    sb.Append('.');
+                    lastDot = sb.Length;
+                }
+            }
+            while (Match(TokenType.Dot));
+            if (lastDot == -1)
+                Error(importToken, "Expected method name for script import.");
+
+            var text = sb.ToString();
+            var type = text.Substring(0, lastDot - 1);
+            var method = text.Substring(lastDot);
+
+            Consume(TokenType.OpenParen, "Expect '(' after .NET method");
+            var arguments = ReadImportArguments();
+            Consume(TokenType.CloseParen, "Expected ')' after .NET method import arguments");
+            string importName = method;
+            if (Match(TokenType.As))
+                importName = Consume(TokenType.Identifier, "Expected name for imported .NET method").Text;
+            else if (method.IndexOf('<') != -1)
+                Error(importToken, "Must provide an import name for .NET method that has a generic type.");
+
+            var result = new ImportScriptNode(type, method, importName, arguments, importToken.Position);
+
+            if (!_table.TryAdd(new ImportLeaf(_table.Current, importName, SymbolScope.Global, result)))
+                Error(importToken, $"Name conflict between imported c# method and {_table.Defined(importName).Type} {importName}");
+
+            return result;
+        }
+
+        private NamespaceNode NamespaceDeclaration()
+        {
+            var start = Consume(TokenType.Namespace, "Expected 'namespace'");
+            var name = ResolveNamespace();
+            Consume(TokenType.OpenBrace, "Expected '{' after namespace declaration");
+            int count;
+            try
+            {
+                count = _table.EnterNamespace(name);
+            }
+            catch(Exception e)
+            {
+                Error(start, e.Message);
+                return null;
+            }
+            var declarations = Declarations(count);
+
+            Consume(TokenType.CloseBrace, "Expected '}' after namespace declarations", count);
+            _table.Exit(count);
+            return new NamespaceNode(name, declarations, start.Position);
+        }
+
+        private ObjectNode ObjectDeclaration()
+        {
+            Consume(TokenType.Object, "Expected 'object'");
+            var name = Consume(TokenType.Identifier, "Expected name for object");
+            if(!_table.TryEnterNew(name.Text, SymbolType.Object))
+                Error(name, $"Name conflict between object and {_table.Defined(name.Text).Type} {name.Text}");
+
+            string parent = null;
+            if (Match(TokenType.Colon))
+            {
+                //Todo: Change ResolveNamespace to accept custom error message.
+                parent = ResolveNamespace();
+            }
+
+            Consume(TokenType.OpenBrace, "Expected '{' after object declaration", 1);
+
+            var scripts = new List<ScriptNode>();
+            while(!Check(TokenType.CloseBrace) && !_stream.Finished)
+            {
+                //Todo: Synchronize on error
+                var script = ScriptDeclaration(SymbolScope.Member);
+                scripts.Add(script);
+            }
+            Consume(TokenType.CloseBrace, "Expected '}' after object members", 1);
+            _table.Exit();
+            return new ObjectNode(name.Text, parent, scripts, name.Position);
+        }
+
+        private ScriptNode ScriptDeclaration(SymbolScope scope)
+        {
+            Token start = null;
+            if(Check(TokenType.Event))
+            {
+                start = Consume(TokenType.Event, "Expected 'event'");
+                _logger.Warning("event is an obsolete keyword. It will be deprecated on the next major release. Consider switching to script", start.Position);
+            }
+            else
+                start = Consume(TokenType.Script, "Expected 'script'");
+
+            var name = Consume(TokenType.Identifier, "Expected name for script");
+            if(!_table.TryEnterNew(name.Text, SymbolType.Script, scope))
+                Error(name, $"Name conflict between script and {_table.Defined(name.Text).Type} {name.Text}");
+
+            var arguments = ReadScriptArguments();
+            var body = BlockStatement();
+            _table.Exit();
+            return new ScriptNode(name.Text, arguments, body, name.Position);
         }
 
         private ISyntaxElement Statement()
         {
-            if (Try(TokenType.Var, out var localToken))
+            if (Check(TokenType.Var))
+                return Locals();
+
+            return EmbeddedStatement();
+        }
+
+        private LocalsNode Locals()
+        {
+            var start = Consume(TokenType.Var, "Expected 'var'");
+            var locals = new List<VariableDeclaration>();
+            do
             {
-                var locals = _factory.CreateNode(SyntaxType.Locals, localToken.Position);
-                do
+                var name = Consume(TokenType.Identifier, "Expected name for local variable");
+                if (!_table.AddLeaf(name.Text, SymbolType.Variable, SymbolScope.Local))
+                    Error(name, $"Identifier {name.Text} is already defined");
+
+                ISyntaxElement value = null;
+                if (Check(TokenType.Assign))
                 {
-                    var localName = Confirm(TokenType.Identifier);
-                    if (!_table.Defined(localName.Value, out var symbol))
-                        _table.AddLeaf(localName.Value, SymbolType.Variable, SymbolScope.Local);
-                    else if (symbol.Type != SymbolType.Variable)
-                        _logger.Error($"Id already defined for higher priority type: {localName.Value} = {symbol.Type}", localName.Position);
-                    
-                    if (Try(TokenType.Assign, out var equalToken))
-                    {
-                        var id = _factory.CreateToken(SyntaxType.Variable, localName.Value, localToken.Position);
-                        var assign = _factory.CreateNode(SyntaxType.Assign, "=", equalToken.Position);
-                        assign.AddChild(id);
-                        assign.AddChild(Expression());
-                        locals.AddChild(assign);
-                    }
-                    else
-                    {
-                        var declare = _factory.CreateNode(SyntaxType.Declare, localName.Value, localName.Position);
-                        locals.AddChild(declare);
-                    }
+                    Consume(TokenType.Assign, "Expected '='");
+                    value = Expression();
                 }
-                while (Validate(TokenType.Comma));
-                return locals;
+                locals.Add(new VariableDeclaration(name.Text, value, name.Position));
             }
-            else
-                return EmbeddedStatement();
+            while (Match(TokenType.Comma));
+            return new LocalsNode(locals, start.Position);
         }
 
         private ISyntaxElement EmbeddedStatement()
         {
-            ISyntaxElement result;
-            if (Try(TokenType.OpenBrace))
-                result = BlockStatement();
+            if (Check(TokenType.OpenBrace))
+                return BlockStatement();
             else
-                result = SimpleStatement();
-            return result;
+                return SimpleStatement();
         }
 
         private ISyntaxElement SimpleStatement()
         {
-            var next = _stream.Peek();
-            ISyntaxElement result;
-            switch (next.Type)
+            Token token;
+            switch(_stream.Current.Type)
             {
                 case TokenType.SemiColon:
-                    Confirm(TokenType.SemiColon);
-                    result = null;
-                    break;
+                    return new EndToken(Consume(TokenType.SemiColon, "Expected ;").Position);
                 case TokenType.Break:
-                    result = _factory.CreateToken(SyntaxType.Break, Confirm(TokenType.Break).Value, next.Position);
-                    break;
+                    return new BreakToken(Consume(TokenType.Break, "Expected 'break'").Position);
                 case TokenType.Continue:
-                    result = _factory.CreateToken(SyntaxType.Continue, Confirm(TokenType.Continue).Value, next.Position);
-                    break;
+                    return new ContinueToken(Consume(TokenType.Continue, "Expected 'continue;").Position);
                 case TokenType.Return:
-                    Confirm(TokenType.Return);
-                    var temp = _factory.CreateNode(SyntaxType.Return, next.Position);
-                    if(!(Try(TokenType.OpenBrace) || Try(TokenType.CloseBrace) || Try(TokenType.SemiColon)))
-                        temp.AddChild(Expression());
-                    result = temp;
-                    break;
+                    token = Consume(TokenType.Return, "Expected 'return'");
+                    ISyntaxElement result = null;
+                    if (!(Check(TokenType.OpenBrace) || Check(TokenType.CloseBrace) || Check(TokenType.SemiColon)))
+                        result = Expression();
+                    return new ReturnNode(result, token.Position);
                 case TokenType.Repeat:
-                    Confirm(TokenType.Repeat);
-                    temp = _factory.CreateNode(SyntaxType.Repeat, next.Position);
-                    var paren = Validate(TokenType.OpenParen);
-                    temp.AddChild(Expression());
+                    token = Consume(TokenType.Repeat, "Expected 'repeat'");
+                    var paren = Match(TokenType.OpenParen);
+                    var repeatCount = Expression();
                     if (paren)
-                        Confirm(TokenType.CloseParen);
-                    temp.AddChild(BodyStatement());
-                    result = temp;
-                    break;
+                        Consume(TokenType.CloseParen, "Expected matching ')' after repeat count");
+                    var body = BodyStatement();
+                    return new RepeatNode(repeatCount, body, token.Position);
                 case TokenType.While:
-                    Confirm(TokenType.While);
-                    temp = _factory.CreateNode(SyntaxType.While, next.Position);
-                    paren = Validate(TokenType.OpenParen);
-                    temp.AddChild(Expression());
+                    token = Consume(TokenType.While, "Expected 'while'");
+                    paren = Match(TokenType.OpenParen);
+                    var condition = Expression();
                     if (paren)
-                        Confirm(TokenType.CloseParen);
-                    temp.AddChild(BodyStatement());
-                    result = temp;
-                    break;
+                        Consume(TokenType.CloseParen, "Expected matching ')' after while condition");
+                    body = BodyStatement();
+                    return new WhileNode(condition, body, token.Position);
                 case TokenType.With:
-                    Confirm(TokenType.With);
-                    temp = _factory.CreateNode(SyntaxType.With, next.Position);
-                    paren = Validate(TokenType.OpenParen);
-                    temp.AddChild(Expression());
+                    token = Consume(TokenType.With, "Expected 'with'");
+                    paren = Match(TokenType.OpenParen);
+                    var target = Expression();
                     if (paren)
-                        Confirm(TokenType.CloseParen);
-                    temp.AddChild(BodyStatement());
-                    result = temp;
-                    break;
+                        Consume(TokenType.CloseParen, "Expected matching ')' after with target");
+                    body = BodyStatement();
+                    return new WithNode(target, body, token.Position);
                 case TokenType.Do:
-                    Confirm(TokenType.Do);
-                    temp = _factory.CreateNode(SyntaxType.Do, next.Position);
-                    temp.AddChild(BodyStatement());
-                    Confirm(TokenType.Until);
-                    paren = Validate(TokenType.OpenParen);
-                    temp.AddChild(Expression());
+                    token = Consume(TokenType.Do, "Expected 'do'");
+                    body = BodyStatement();
+                    Consume(TokenType.Until, "Expected 'until' after do body");
+                    paren = Match(TokenType.OpenParen);
+                    condition = Expression();
                     if (paren)
-                        Confirm(TokenType.CloseParen);
-                    result = temp;
-                    break;
+                        Consume(TokenType.CloseParen, "Expected matching ')' after with target");
+                    return new DoNode(body, condition, token.Position);
                 case TokenType.If:
-                    Confirm(TokenType.If);
-                    temp = _factory.CreateNode(SyntaxType.If, next.Position);
-                    paren = Validate(TokenType.OpenParen);
-                    temp.AddChild(Expression());
+                    token = Consume(TokenType.If, "Expected 'if'");
+                    paren = Match(TokenType.OpenParen);
+                    condition = Expression();
                     if (paren)
-                        Confirm(TokenType.CloseParen);
-                    temp.AddChild(BodyStatement());
-                    while (Validate(TokenType.SemiColon)) ;
-                    if (Validate(TokenType.Else))
-                        temp.AddChild(BodyStatement());
-                    result = temp;
-                    break;
+                        Consume(TokenType.CloseParen, "Expected matching ')' after if condition");
+                    body = BodyStatement();
+                    Match(TokenType.SemiColon);
+                    ISyntaxElement elseBranch = null;
+                    if (Match(TokenType.Else))
+                        elseBranch = BodyStatement();
+                    return new IfNode(condition, body, elseBranch, token.Position);
                 case TokenType.For:
-                    Confirm(TokenType.For);
-                    Confirm(TokenType.OpenParen);
-                    temp = _factory.CreateNode(SyntaxType.For, next.Position);
-                    if (!Try(TokenType.SemiColon))
-                        temp.AddChild(BodyStatement());
+                    token = Consume(TokenType.For, "Expected 'for'");
+                    Consume(TokenType.OpenParen, "Expected '(' after for");
+                    ISyntaxElement init = null;
+                    ISyntaxElement increment = null;
+
+                    // If there is no initializer, we can make init an EndToken
+                    // because they don't get processed but they can be visited.
+                    if (!Check(TokenType.SemiColon))
+                        init = BodyStatement();
                     else
-                        temp.AddChild(_factory.CreateNode(SyntaxType.Block, next.Position));
-                    Confirm(TokenType.SemiColon);
-                    if (Try(TokenType.SemiColon))
-                        _logger.Error("Expected expression in for declaration", _stream.Peek().Position);
+                        init = new EndToken(_stream.Position);
+
+                    var semi = Consume(TokenType.SemiColon, "Expected ';' after for initializer");
+
+                    //Todo: Make sure this could potentially be a bool value.
+                    if (!Check(TokenType.SemiColon))
+                        condition = Expression();
                     else
-                        temp.AddChild(Expression());
-                    Confirm(TokenType.SemiColon);
-                    temp.AddChild(BodyStatement());
-                    Confirm(TokenType.CloseParen);
-                    temp.AddChild(BodyStatement());
-                    result = temp;
-                    break;
+                        condition = new ConstantToken<bool>("true", true, ConstantType.Bool, semi.Position);
+
+                    Consume(TokenType.SemiColon, "Expected ';' after for condition");
+
+                    if (!Check(TokenType.CloseParen))
+                        increment = BodyStatement();
+                    else
+                        increment = new EndToken(_stream.Position);
+
+                    Consume(TokenType.CloseParen, "Expected ')' after for increment");
+                    body = BodyStatement();
+                    return new ForNode(init, condition, increment, body, token.Position);
                 case TokenType.Switch:
-                    Confirm(TokenType.Switch);
-                    temp = _factory.CreateNode(SyntaxType.Switch, next.Position);
-                    paren = Validate(TokenType.OpenParen);
-                    temp.AddChild(Expression());
+                    token = Consume(TokenType.Switch, "Expected 'switch'");
+                    paren = Match(TokenType.OpenParen);
+                    var value = Expression();
                     if (paren)
-                        Confirm(TokenType.CloseParen);
-                    Confirm(TokenType.OpenBrace);
-                    ISyntaxNode caseNode;
-                    while(!Try(TokenType.CloseBrace))
+                        Consume(TokenType.CloseParen, "Expected matching ')' after switch value");
+                    Consume(TokenType.OpenBrace, "Expected '{' after switch value");
+                    var cases = new List<SwitchCase>();
+                    ISyntaxElement defaultCase = null;
+                    int defaultIndex = -1;
+                    var i = 0;
+                    while(!Check(TokenType.CloseBrace))
                     {
-                        if (Try(TokenType.Case, out var caseToken))
+                        if(Match(TokenType.Case))
+                            cases.Add(new SwitchCase(Expression(), SwitchBody()));
+                        else if(Check(TokenType.Default))
                         {
-                            caseNode = _factory.CreateNode(SyntaxType.Case, caseToken.Position);
-                            caseNode.AddChild(Expression());
+                            var defaultToken = Consume(TokenType.Default, "Expected 'default'");
+                            if (defaultCase == null)
+                                Error(defaultToken, "A switch statement can only have one default case");
+                            defaultCase = SwitchBody();
+                            defaultIndex = i;
                         }
-                        else if (Try(TokenType.Default, out var defaultToken))
-                            caseNode = _factory.CreateNode(SyntaxType.Default, defaultToken.Position);
-                        else
-                        {
-                            _logger.Error($"Expected case declaration, got {_stream.Peek().Value}", _stream.Read().Position);
-                            continue;
-                        }
-                        var blockStart = Confirm(TokenType.Colon);
-                        var block = _factory.CreateNode(SyntaxType.Block, blockStart.Position);
-                        while (!Try(TokenType.Case) && !Try(TokenType.Default) && !Try(TokenType.CloseBrace))
-                            block.AddChild(Statement());
-                        caseNode.AddChild(block);
-                        temp.AddChild(caseNode);
+                        i++;
                     }
-                    Confirm(TokenType.CloseBrace);
-                    result = temp;
-                    break;
+                    Consume(TokenType.CloseBrace, "Expected '}' after switch cases");
+                    return new SwitchNode(value, cases, defaultCase, defaultIndex, token.Position);
                 default:
-                    result = Expression();
-                    break;
+                    return ExpressionStatement();
             }
-
-            return result;
         }
 
-        private ISyntaxElement BlockStatement()
+        private BlockNode SwitchBody()
         {
-            var blockStart = Confirm(TokenType.OpenBrace);
-            var result = _factory.CreateNode(SyntaxType.Block, blockStart.Position);
-            while (!_stream.Finished && !Try(TokenType.CloseBrace))
-                result.AddChild(Statement());
-
-            Confirm(TokenType.CloseBrace);
-            return result;
+            List<ISyntaxElement> statements = new List<ISyntaxElement>();
+            var start = Consume(TokenType.Colon, "Expected ':' after switch case");
+            while (!_stream.Finished && !Check(TokenType.Case) && !Check(TokenType.Default) && !Check(TokenType.CloseBrace))
+                statements.Add(Statement());
+            return new BlockNode(statements, start.Position);
         }
 
-        private ISyntaxElement BodyStatement()
+        private BlockNode BlockStatement()
         {
-            ISyntaxElement body;
-            if (Try(TokenType.OpenBrace))
-                body = BlockStatement();
-            else
-            {
-                var child = Statement();
-                var temp = _factory.CreateNode(SyntaxType.Block, child.Position);
-                temp.AddChild(child);
-                body = temp;
-            }
-            return body;
+            var start = Consume(TokenType.OpenBrace, "Expected '{' at start of block");
+            var statements = new List<ISyntaxElement>();
+            while (!_stream.Finished && !Check(TokenType.CloseBrace))
+                statements.Add(Statement());
+
+            Consume(TokenType.CloseBrace, "Expected '}' after block body");
+            return new BlockNode(statements, start.Position);
+        }
+
+        private BlockNode BodyStatement()
+        {
+            if (Check(TokenType.OpenBrace))
+                return BlockStatement();
+
+            var body = Statement();
+            return new BlockNode(new List<ISyntaxElement>() { body }, body.Position);
+        }
+
+        private ISyntaxElement ExpressionStatement()
+        {
+            _canAssign = true;
+            var value = Expression();
+            _canAssign = false;
+            if (!ExpressionIsStatement(value))
+                Error(value.Position, "Only assignment, call, increment, decrement, and new expressions can be used as a statement");
+            return value;
         }
 
         private ISyntaxElement Expression()
         {
-            var value = LambdaExpression();
-            return value;
+            return LambdaExpression();
         }
 
         private ISyntaxElement LambdaExpression()
         {
-            if(Try(TokenType.Script, out var token))
+            if(Check(TokenType.Script))
             {
-                var lambda = new LambdaNode(null, token.Position);
-                var scope = $"lambda{lambdaId++}";
+                var token = _stream.Read();
+                var scope = $"lambda{_lambdaId++}";
                 _table.EnterNew(scope, SymbolType.Script, SymbolScope.Local);
-                lambda.Scope = scope;
-                if(Validate(TokenType.OpenParen))
-                {
-                    do
-                    {
-                        var arg = Confirm(TokenType.Identifier);
-                        _table.AddLeaf(arg.Value, SymbolType.Variable, SymbolScope.Local);
-                        lambda.AddChild(_factory.CreateToken(SyntaxType.Variable, arg.Value, arg.Position));
-                    }
-                    while (Validate(TokenType.Comma));
-                    Confirm(TokenType.CloseParen);
-                }
-
-                lambda.AddChild(BlockStatement());
+                var arguments = ReadScriptArguments();
+                var body = BlockStatement();
                 _table.Exit();
-                lambda.MarkVariablesAsCaptured(_table);
-                return lambda;
+                return new LambdaNode(scope, arguments, body, token.Position);
             }
-
             return AssignmentExpression();
         }
 
         private ISyntaxElement AssignmentExpression()
         {
-            // This is used to determine what = means.
-            // If this is the first pass through this method, it is an assignment.
-            // Otherwise, it should be equivalent to ==.
-            // This behaviour was defined by Gamemaker and is stupid, 
-            // but it's kept in order to improve backwards compatibilty.
-            _canAssign++;
-
-            var value = ConditionalExpression();
-            if (value == null)
+            var expr = ConditionalExpression();
+            if (expr is null)
                 return null;
 
-            // This statement is a really hacky.
-            // The only types that can be assigned to have Access in their name or are a variable.
-            // If the SyntaxType enum is ever changed, this could break.
-            if (_canAssign == 1 && (value.Type.ToString().Contains("Access") || value.Type == SyntaxType.Variable) && IsAssignment())
+            if(_canAssign && IsAssignment() && (expr.Type == SyntaxType.Variable || expr.Type.ToString().Contains("Access")))
             {
-                var next = _stream.Read();
-                var assign = _factory.CreateNode(SyntaxType.Assign, next.Value, next.Position);
-                assign.AddChild(value);
-                assign.AddChild(AssignmentExpression());
-                value = assign;
+                _canAssign = false;
+                var op = _stream.Read();
+                var next = Expression();
+                expr = new AssignNode(expr, op.Text, next, op.Position);
             }
-            --_canAssign;
-            return value;
+
+            return expr;
         }
 
         private ISyntaxElement ConditionalExpression()
         {
-            
-            var value = LogicalOrExpression();
-
-            //Example: true == false ? "hello" : "henlo"
-            if (Try(TokenType.QuestionMark, out var token))
+            var expr = LogicalOrExpression();
+            if(Check(TokenType.QuestionMark))
             {
-                var conditional = _factory.CreateNode(SyntaxType.Conditional, token.Position);
-                conditional.AddChild(value);
-                conditional.AddChild(AssignmentExpression());
-                Confirm(TokenType.Colon);
-                conditional.AddChild(AssignmentExpression());
-                value = conditional;
+                var question = Consume(TokenType.QuestionMark, "Expected '?'");
+                var left = ConditionalExpression();
+                Consume(TokenType.Colon, "Expected ':' between conditional values");
+                var right = ConditionalExpression();
+                expr = new ConditionalNode(expr, left, right, question.Position);
             }
-
-            return value;
+            return expr;
         }
 
         private ISyntaxElement LogicalOrExpression()
         {
-            var value = LogicalAndExpression();
-            while(Try(TokenType.LogicalOr, out var token))
+            var expr = LogicalAndExpression();
+            while(Check(TokenType.LogicalOr))
             {
-                var or = _factory.CreateNode(SyntaxType.Logical, token.Value, token.Position);
-                or.AddChild(value);
-                or.AddChild(LogicalAndExpression());
-                value = or;
+                var symbol = _stream.Read();
+                expr = new LogicalNode(expr, symbol.Text, LogicalAndExpression(), symbol.Position);
             }
-            return value;
+            return expr;
         }
 
         private ISyntaxElement LogicalAndExpression()
         {
-            var value = BitwiseOrExpression();
-            while (Try(TokenType.LogicalAnd, out var token))
+            var expr = BitwiseOrExpression();
+            while (Check(TokenType.LogicalAnd))
             {
-                var and = _factory.CreateNode(SyntaxType.Logical, token.Value, token.Position);
-                and.AddChild(value);
-                and.AddChild(BitwiseOrExpression());
-                value = and;
+                var symbol = _stream.Read();
+                expr = new LogicalNode(expr, symbol.Text, BitwiseOrExpression(), symbol.Position);
             }
-            return value;
+            return expr;
         }
 
         private ISyntaxElement BitwiseOrExpression()
         {
-            var value = BitwiseXorExpression();
-            while (Try(TokenType.BitwiseOr, out var token))
+            var expr = BitwiseXorExpression();
+            while (Check(TokenType.BitwiseOr))
             {
-                var or = _factory.CreateNode(SyntaxType.Bitwise, token.Value, token.Position);
-                or.AddChild(value);
-                or.AddChild(BitwiseXorExpression());
-                value = or;
+                var symbol = _stream.Read();
+                expr = new BitwiseNode(expr, symbol.Text, BitwiseXorExpression(), symbol.Position);
             }
-            return value;
+            return expr;
         }
 
         private ISyntaxElement BitwiseXorExpression()
         {
-            var value = BitwiseAndExpression();
-            while (Try(TokenType.Xor, out var token))
+            var expr = BitwiseAndExpression();
+            while (Check(TokenType.Xor))
             {
-                var xor = _factory.CreateNode(SyntaxType.Bitwise, token.Value, token.Position);
-                xor.AddChild(value);
-                xor.AddChild(BitwiseAndExpression());
-                value = xor;
+                var symbol = _stream.Read();
+                expr = new BitwiseNode(expr, symbol.Text, BitwiseAndExpression(), symbol.Position);
             }
-            return value;
+            return expr;
         }
 
         private ISyntaxElement BitwiseAndExpression()
         {
-            var value = EqualityExpression();
-            while (Try(TokenType.BitwiseAnd, out var token))
+            var expr = EqualityExpression();
+            while (Check(TokenType.BitwiseAnd))
             {
-                var and = _factory.CreateNode(SyntaxType.Bitwise, token.Value, token.Position);
-                and.AddChild(value);
-                and.AddChild(EqualityExpression());
-                value = and;
+                var symbol = _stream.Read();
+                expr = new BitwiseNode(expr, symbol.Text, EqualityExpression(), symbol.Position);
             }
-            return value;
+            return expr;
         }
 
         private ISyntaxElement EqualityExpression()
         {
-            var value = RelationalExpression();
-
-            while(Try(TokenType.Equal, out var token) || Try(TokenType.NotEqual, out token) || (_canAssign > 1 && Try(TokenType.Assign, out token)))
+            var expr = RelationalExpression();
+            while (Check(TokenType.Equal) || Check(TokenType.NotEqual) || (!_canAssign && Check(TokenType.Assign)))
             {
-                var op = token.Value == "=" ? "==" : token.Value;
-                var equal = _factory.CreateNode(SyntaxType.Equality, op, token.Position);
-                equal.AddChild(value);
-                equal.AddChild(RelationalExpression());
-                value = equal;
+                var symbol = _stream.Read();
+                expr = new EqualityNode(expr, symbol.Text, RelationalExpression(), symbol.Position);
             }
-
-            return value;
+            return expr;
         }
 
         private ISyntaxElement RelationalExpression()
         {
-            var value = ShiftExpression();
+            var expr = ShiftExpression();
 
-            while(Try(TokenType.LessThan, out var token) || Try(TokenType.LessThanOrEqual, out token) || Try(TokenType.GreaterThan, out token) || Try(TokenType.GreaterThanOrEqual, out token))
+            while(Check(TokenType.LessThan) || 
+                  Check(TokenType.LessThanOrEqual) || 
+                  Check(TokenType.GreaterThan) || 
+                  Check(TokenType.GreaterThanOrEqual))
             {
-                var compare = _factory.CreateNode(SyntaxType.Relational, token.Value, token.Position);
-                compare.AddChild(value);
-                compare.AddChild(ShiftExpression());
-                value = compare;
+                var symbol = _stream.Read();
+                expr = new RelationalNode(expr, symbol.Text, ShiftExpression(), symbol.Position);
             }
 
-            return value;
+            return expr;
         }
 
         private ISyntaxElement ShiftExpression()
         {
-            var value = AdditiveExpression();
+            var expr = AdditiveExpression();
 
-            while(Try(TokenType.ShiftLeft, out var token) || Try(TokenType.ShiftRight, out token))
+            while(Check(TokenType.ShiftLeft) || Check(TokenType.ShiftRight))
             {
-                var shift = _factory.CreateNode(SyntaxType.Shift, token.Value, token.Position);
-                shift.AddChild(value);
-                shift.AddChild(AdditiveExpression());
-                value = shift;
+                var symbol = _stream.Read();
+                expr = new ShiftNode(expr, symbol.Text, AdditiveExpression(), symbol.Position);
             }
 
-            return value;
+            return expr;
         }
 
         private ISyntaxElement AdditiveExpression()
         {
-            var value = MultiplicativeExpression();
-
-            while (Try(TokenType.Plus, out var token) || Try(TokenType.Minus, out token))
+            var expr = MultiplicativeExpression();
+            while(Check(TokenType.Plus) || Check(TokenType.Minus))
             {
-                var add = _factory.CreateNode(SyntaxType.Additive, token.Value, token.Position);
-                add.AddChild(value);
-                add.AddChild(MultiplicativeExpression());
-                value = add;
+                var symbol = _stream.Read();
+                expr = new AdditiveNode(expr, symbol.Text, MultiplicativeExpression(), symbol.Position);
             }
 
-            return value;
+            return expr;
         }
 
         private ISyntaxElement MultiplicativeExpression()
         {
-            var value = UnaryExpression();
+            var expr = UnaryExpression();
 
-            while (Try(TokenType.Multiply, out var token) || Try(TokenType.Divide, out token) || Try(TokenType.Modulo, out token))
+            while(Check(TokenType.Multiply) || Check(TokenType.Divide) || Check(TokenType.Modulo))
             {
-                var mul = _factory.CreateNode(SyntaxType.Multiplicative, token.Value, token.Position);
-                mul.AddChild(value);
-                mul.AddChild(UnaryExpression());
-                value = mul;
+                var symbol = _stream.Read();
+                expr = new MultiplicativeNode(expr, symbol.Text, UnaryExpression(), symbol.Position);
             }
 
-            return value;
+            return expr;
         }
 
         private ISyntaxElement UnaryExpression()
         {
-            if (Try(TokenType.Plus, out var token) || Try(TokenType.Minus, out token) || Try(TokenType.Not, out token) ||
-                Try(TokenType.Complement, out token) || Try(TokenType.Increment, out token) || Try(TokenType.Decrement, out token))
+            if(Check(TokenType.Plus) || 
+                Check(TokenType.Minus) || 
+                Check(TokenType.Not) ||
+                Check(TokenType.Increment) ||
+                Check(TokenType.Decrement) ||
+                Check(TokenType.Complement))
             {
-                var prefix = _factory.CreateNode(SyntaxType.Prefix, token.Value, token.Position);
-                prefix.AddChild(UnaryExpression());
-                return prefix;
+                var symbol = _stream.Read();
+                return new PrefixNode(symbol.Text, UnaryExpression(), symbol.Position);
             }
-            else
-                return PrimaryExpression();
+            return PrimaryExpression();
         }
 
         private ISyntaxElement PrimaryExpression()
         {
-            var value = PrimaryExpressionStart();
-            if (value == null)
+            var expr = PrimaryExpressionStart();
+            if (expr is null)
                 return null;
 
-            while(true)
+            while(Check(TokenType.OpenParen) || Check(TokenType.Dot) || Check(TokenType.OpenBracket))
             {
-                if (Try(TokenType.OpenParen, out var paren))
+                var symbol = _stream.Read();
+                switch(symbol.Type)
                 {
-                    var function = _factory.CreateNode(SyntaxType.FunctionCall, value.Position);
-                    function.AddChild(value);
-                    if (!Try(TokenType.CloseParen))
-                    {
-                        do
+                    case TokenType.OpenParen:
+                        var callArguments = new List<ISyntaxElement>();
+                        if(!Check(TokenType.CloseParen))
                         {
-                            function.AddChild(Expression());
+                            do
+                                callArguments.Add(Expression());
+                            while (Match(TokenType.Comma));
                         }
-                        while (Validate(TokenType.Comma));
-                    }
-                    Confirm(TokenType.CloseParen);
-                    value = function;
-                }
-                else if (Validate(TokenType.Dot))
-                {
-                    var temp = _factory.CreateNode(SyntaxType.MemberAccess, value.Position);
-                    temp.AddChild(value);
-                    if (Try(TokenType.Identifier, out var next))
-                    {
-                        temp.AddChild(_factory.CreateToken(SyntaxType.Variable, next.Value, next.Position));
-                    }
-                    else if (Try(TokenType.ReadOnly, out next))
-                    {
-                        if (next.Value != "self")
-                            _logger.Error("Invalid readonly token on the right side of an access expression", next.Position);
+                        var end = Consume(TokenType.CloseParen, "Expect ')' after script arguments");
+                        expr = new FunctionCallNode(expr, callArguments, symbol.Position, end.Position);
+                        break;
+                    case TokenType.Dot:
+                        ISyntaxElement access = null;
+                        if (Check(TokenType.Identifier))
+                        {
+                            var id = Consume(TokenType.Identifier, "Expected identifier after member access");
+                            access = new VariableToken(id.Text, id.Position);
+                        }
+                        else if (Check(TokenType.ReadOnly))
+                        {
+                            var id = Consume(TokenType.ReadOnly, "Expected readOnly after member access");
+                            if (id.Text != "self")
+                                Error(id, "Invalid readonly value on the right side of an access expression");
 
-                        temp.AddChild(_factory.CreateToken(SyntaxType.ReadOnlyValue, next.Value, next.Position));
-                    }
-                    else
-                    {
-                        _logger.Error("The value after a period in an access expression must be a variable.", next.Position);
-                        return null;
-                    }
-                    value = temp;
-                }
-                else if (Try(TokenType.OpenBracket, out var accessToken))
-                {
-                    if (value.Type == SyntaxType.New)
-                        _logger.Error("Cannot use an accessor on a newed value", accessToken.Position);
+                            access = new ReadOnlyToken(id.Text, id.Position);
+                        }
+                        else
+                            Error(_stream.Current, "The right side of an access expression must be a variable");
 
-                    ISyntaxNode access = _factory.CreateNode(SyntaxType.ArrayAccess, value.Position);
+                        expr = new MemberAccessNode(expr, access, access.Position);
+                        break;
+                    case TokenType.OpenBracket:
+                        if (expr.Type == SyntaxType.New)
+                            Error(symbol, "Cannot use an accessor on a newed value");
 
-                    access.AddChild(value);
-                    access.AddChild(Expression());
-                    if (Validate(TokenType.Comma))
-                        access.AddChild(Expression());
-                    Confirm(TokenType.CloseBracket);
-                    value = access;
+                        var accessArguments = new List<ISyntaxElement>();
+                        do
+                            accessArguments.Add(Expression());
+                        while (Match(TokenType.Comma));
+                        Consume(TokenType.CloseBracket, "Expected ']' after accessor arguments");
+                        expr = new ArrayAccessNode(expr, accessArguments, symbol.Position);
+                        break;
                 }
-                else
-                    break;
             }
-            if(Try(TokenType.Increment, out var token) || Try(TokenType.Decrement, out token))
+            if(Check(TokenType.Increment) || Check(TokenType.Decrement))
             {
-                var postfix = _factory.CreateNode(SyntaxType.Postfix, token.Value, value.Position);
-                postfix.AddChild(value);
-                value = postfix;
+                var symbol = _stream.Read();
+                expr = new PostfixNode(expr, symbol.Text, symbol.Position);
             }
 
-            return value;
+            return expr;
         }
 
         private ISyntaxElement PrimaryExpressionStart()
         {
             if (IsConstant())
-                return Constant();
-            else if (Try(TokenType.ReadOnly, out var token))
+                return Constant(0);
+
+            Token symbol;
+            if(Check(TokenType.ReadOnly))
             {
-                var val = token.Value;
-                if (val == "id")
-                    val = "self";
-                return _factory.CreateToken(SyntaxType.ReadOnlyValue, val, token.Position);
+                symbol = _stream.Read();
+                return new ReadOnlyToken(symbol.Text, symbol.Position);
             }
-            else if (Try(TokenType.Argument, out token))
+
+            if(Check(TokenType.Argument))
             {
-                var arg = _factory.CreateNode(SyntaxType.ArgumentAccess, token.Position);
-                if (token.Value != "argument")
-                    arg.AddChild(_factory.CreateConstant(ConstantType.Real, token.Value.Remove(0, 8),
-                        new TokenPosition(token.Position.Index + 8, token.Position.Line, token.Position.Column + 8, token.Position.File)));
+                symbol = _stream.Read();
+                ISyntaxElement index = null;
+                if (symbol.Text != "argument")
+                {
+                    var sub = symbol.Text.Substring(8);
+                    if (!int.TryParse(sub, out var result))
+                        Error(symbol, "Invalid argument access");
+                    index = new NumberConstant(sub, result, ConstantType.Real, symbol.Position);
+                }
                 else
                 {
-                    Confirm(TokenType.OpenBracket);
-                    arg.AddChild(Expression());
-                    Confirm(TokenType.CloseBracket);
+                    Consume(TokenType.OpenBracket, "Expected '[' after argument");
+                    index = Expression();
+                    Consume(TokenType.CloseBracket, "Expected ']' after after argument index");
                 }
-                return arg;
+                return new ArgumentAccessNode(index, symbol.Position);
             }
-            else if (Try(TokenType.Identifier, out token))
-            {
-                if (!_table.Defined(token.Value, out _))
-                    _table.AddPending(token.Value);
-                return _factory.CreateToken(SyntaxType.Variable, token.Value, token.Position);
-            }
-            else if (Validate(TokenType.OpenParen))
-            {
-                var value = Expression();
-                Confirm(TokenType.CloseParen);
-                return value;
-            }
-            else if (Try(TokenType.OpenBracket, out token))
-            {
-                var array = _factory.CreateNode(SyntaxType.ArrayLiteral, token.Position);
-                while (!Try(TokenType.CloseBracket))
-                {
-                    array.AddChild(Expression());
-                    Validate(TokenType.Comma);
-                }
-                Confirm(TokenType.CloseBracket);
-                return array;
-            }
-            else if (Try(TokenType.New, out token))
-            {
-                var start = Confirm(TokenType.Identifier);
-                var type = start.Value;
-                while (Validate(TokenType.Dot))
-                    type += "." + Confirm(TokenType.Identifier).Value;
 
-                var newNode = _factory.CreateNode(SyntaxType.New, type, start.Position);
-                Confirm(TokenType.OpenParen);
-                if (!Try(TokenType.CloseParen))
-                {
-                    do
-                    {
-                        newNode.AddChild(Expression());
-                    }
-                    while (Validate(TokenType.Comma));
-                }
-                Confirm(TokenType.CloseParen);
-                return newNode;
-            }
-            else
+            if(Check(TokenType.Identifier))
             {
-                _logger.Error("Could not parse syntax", _stream.Read().Position);
-                return null;
+                symbol = _stream.Read();
+                return new VariableToken(symbol.Text, symbol.Position);
             }
-        }
 
-        private bool Try(TokenType next)
-        {
-            if (_stream.Finished || _stream.Peek().Type != next)
-                return false;
-            return true;
-        }
-
-        private bool Try(TokenType next, out Token result)
-        {
-            result = default(Token);
-            if (_stream.Finished || _stream.Peek().Type != next)
-                return false;
-
-            result = _stream.Read();
-            return true;
-        }
-
-        private bool Validate(TokenType next)
-        {
-            if(!_stream.Finished && _stream.Peek().Type == next)
+            if(Check(TokenType.OpenParen))
             {
                 _stream.Read();
-                return true;
+                var result = Expression();
+                Consume(TokenType.CloseParen, "Expected ')'");
+                return result;
             }
-            return false;
-        }
 
-        private Token Confirm(TokenType next)
-        {
-            if (_stream.Finished)
+            if(Check(TokenType.OpenBracket))
             {
-                //Todo: test if this works.
-                _logger.Error($"Expected {next}, reached the end of file instead.", _stream.Peek().Position);
-                return null;
-            }
-            var result = _stream.Read();
-            if (result.Type != next)
-                _logger.Error($"Expected {next}, got {result.Type}", result.Position);
-            return result;
-        }
-
-        private bool IsConstant()
-        {
-            var type = _stream.Peek().Type;
-            return type == TokenType.Number || type == TokenType.String || type == TokenType.Bool;
-        }
-
-        private bool IsConstant(ISyntaxElement element)
-        {
-            return element.Type == SyntaxType.Constant;
-        }
-
-        private ISyntaxToken Constant()
-        {
-            if (Try(TokenType.Number, out var token))
-                return _factory.CreateConstant(ConstantType.Real, token.Value, token.Position);
-            else if (Try(TokenType.String, out token))
-            {
-                var value = token.Value;
-                if (value.StartsWith("'"))
-                    value = value.Trim('\'');
-                else
-                    value = value.Trim('"');
-                var match = StringParser.Match(value);
-                while (match.Success)
+                symbol = _stream.Read();
+                var args = new List<ISyntaxElement>();
+                if(!Check(TokenType.CloseBracket))
                 {
-                    switch (value[match.Index + 1])
-                    {
-                        case 'u':
-                            var i = match.Index + 2;
-                            string num = "";
-                            while (HexCharacters.Contains(char.ToLower(value[i])) && i - match.Index < 6)
-                                num += value[i++];
-                            if (num == "")
-                            {
-                                var errorPos = new TokenPosition(token.Position.Index, token.Position.Line, token.Position.Column + i, token.Position.File);
-                                _logger.Error($"Invalid hex constant", errorPos);
-                            }
-                            num = num.PadLeft(4, '0');
-                            byte[] hex = new byte[2];
-                            hex[1] = (byte)int.Parse(num.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
-                            hex[0] = (byte)int.Parse(num.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
-                            Console.WriteLine($"{hex[0]}, {hex[1]}");
-                            if (i - match.Index != 6)
-                            {
-                                if (value[i] == '\\')
-                                    i++;
-                            }
-                            value = value.Remove(match.Index, i - match.Index);
-                            value = value.Insert(match.Index, Encoding.Unicode.GetString(hex));
-                            break;
-                        case '\t':
-                            value = value.Remove(match.Index, 2);
-                            value = value.Insert(match.Index, "\t");
-                            break;
-                        case 'r':
-                            value = value.Remove(match.Index, 2);
-                            value = value.Insert(match.Index, "\r");
-                            break;
-                        case 'n':
-                            value = value.Remove(match.Index, 2);
-                            value = value.Insert(match.Index, "\n");
-                            break;
-                        case '\\':
-                            value = value.Remove(match.Index, 2);
-                            value = value.Insert(match.Index, @"\");
-                            break;
-                        default:
-                            break;
-                    }
-                    match = StringParser.Match(value, match.Index + 1);
+                    do
+                        args.Add(Expression());
+                    while (Match(TokenType.Comma));
                 }
-                return _factory.CreateConstant(ConstantType.String, value,
-                    new TokenPosition(token.Position.Index + 1, token.Position.Line, token.Position.Column + 1, token.Position.File));
+                Consume(TokenType.CloseBracket, "Expected ']' after array literal elements");
+                return new ArrayLiteralNode(args, symbol.Position);
             }
-            else if (Try(TokenType.Bool, out token))
-                return _factory.CreateConstant(ConstantType.Bool, token.Value, token.Position);
-            else
-                _logger.Error($"Expected literal, got {_stream.Peek().Type}", _stream.Read().Position);
 
+            if(Check(TokenType.New))
+            {
+                symbol = _stream.Read();
+                var type = ResolveNamespace();
+                Consume(TokenType.OpenParen, "Expected '(' after new instance name");
+                var args = new List<ISyntaxElement>();
+                if(!Check(TokenType.CloseParen))
+                {
+                    do
+                        args.Add(Expression());
+                    while (Match(TokenType.Comma));
+                }
+                var end = Consume(TokenType.CloseParen, "Expected ')' after new instance arguments");
+                return new NewNode(type, args, symbol.Position, end.Position);
+            }
+
+            if(Check(TokenType.Base))
+            {
+                symbol = _stream.Read();
+                Consume(TokenType.OpenParen, "Expected '(' after 'base'");
+                var args = new List<ISyntaxElement>();
+                if(!Check(TokenType.CloseParen))
+                {
+                    do
+                        args.Add(Expression());
+                    while (Match(TokenType.Comma));
+                }
+                var end = Consume(TokenType.CloseParen, "Expected ')' after base arguments");
+                return new BaseNode(args, end.Position, symbol.Position);
+            }
+
+            Error(_stream.Current, "Could not parse syntax");
             return null;
-        }
-
-        private TokenPosition GetImportType(StringBuilder sb)
-        {
-            var start = Confirm(TokenType.Identifier);
-            sb.Append(start.Value);
-            while(Validate(TokenType.Dot))
-            {
-                sb.Append(".");
-                sb.Append(Confirm(TokenType.Identifier).Value);
-            }
-            if(Validate(TokenType.LessThan))
-            {
-                sb.Append("<");
-                do
-                {
-                    if (Validate(TokenType.Comma))
-                        sb.Append(",");
-                    GetImportType(sb);
-                }
-                while (Try(TokenType.Comma));
-
-                Confirm(TokenType.GreaterThan);
-                sb.Append(">");
-            }
-            if(Validate(TokenType.OpenBracket))
-            {
-                sb.Append("[");
-                while (Validate(TokenType.Comma))
-                    sb.Append(",");
-                Confirm(TokenType.CloseBracket);
-                sb.Append("]");
-            }
-            return start.Position;
         }
 
         private bool IsAssignment()
         {
-            var type = _stream.Peek().Type;
-            switch(type)
+            switch (_stream.Current.Type)
             {
                 case TokenType.Assign:
                 case TokenType.PlusEquals:
@@ -1244,20 +955,350 @@ namespace TaffyScript.Compiler
             }
         }
 
-        private string GetNamespace()
+        private bool IsConstant()
         {
-            var first = Confirm(TokenType.Identifier);
-            var name = first.Value;
-            while (Validate(TokenType.Dot))
+            var type = _stream.Current.Type;
+            return type == TokenType.Number || type == TokenType.String || type == TokenType.Bool;
+        }
+
+        private bool ExpressionIsStatement(ISyntaxElement element)
+        {
+            if (element.Type == SyntaxType.Assign ||
+                element.Type == SyntaxType.Postfix ||
+                element.Type == SyntaxType.FunctionCall ||
+                element.Type == SyntaxType.New)
             {
-                name += ".";
-                name += Confirm(TokenType.Identifier).Value;
+                return true;
             }
 
-            //Make sure to remove all semi colons.
-            while (Validate(TokenType.SemiColon)) ;
+            if(element is PrefixNode prefix)
+                return prefix.Op == "++" || prefix.Op == "--";
 
-            return name;
+            return false;
+        }
+
+        private IConstantToken Constant(int tableDepth)
+        {
+            if (TryGetNumber(out var num))
+                return num;
+            else if (TryGetString(tableDepth, out var str))
+                return str;
+            else if (TryGetBool(out var b))
+                return b;
+            else
+                Error(_stream.Current, "Expected a constant value", tableDepth);
+
+            return null;
+        }
+
+        private bool TryGetBool(out ConstantToken<bool> boolConstant)
+        {
+            if(Check(TokenType.Bool))
+            {
+                var boolToken = Consume(TokenType.Bool, "Expected bool");
+                bool value = boolToken.Text == "true";
+                boolConstant = new ConstantToken<bool>(boolToken.Text, value, ConstantType.Bool, boolToken.Position);
+                return true;
+            }
+
+            boolConstant = null;
+            return false;
+        }
+
+        private bool TryGetString(int tableDepth, out ConstantToken<string> str)
+        {
+            if(Check(TokenType.String))
+            {
+                var stringToken = Consume(TokenType.String, "Expected string");
+                var text = stringToken.Text.Substring(1, stringToken.Text.Length - 2);
+                var match = StringParser.Match(text);
+                while(match.Success)
+                {
+                    switch(text[match.Index + 1])
+                    {
+                        case 'u':
+                            var i = match.Index + 2;
+                            string num = "";
+                            while (HexCharacters.Contains(char.ToLower(text[i])) && i - match.Index < 6)
+                                num += text[i++];
+
+                            if(num == "")
+                            {
+                                var sub = text.Substring(0, match.Index + 1);
+                                var last = sub.LastIndexOf('\n');
+                                var column = last == -1 ? stringToken.Position.Column + sub.Length : 
+                                                          sub.Length - last;
+                                var errorPos = new TokenPosition(stringToken.Position.Index + i,
+                                                                 stringToken.Position.Line + sub.Count(c => c == '\n'),
+                                                                 column,
+                                                                 stringToken.Position.File);
+                                Error(errorPos, "Invalid hex constant", tableDepth);
+                            }
+                            num = num.PadLeft(4, '0');
+                            byte[] hex = new byte[2];
+                            hex[1] = byte.Parse(num.Substring(0, 2), NumberStyles.HexNumber);
+                            hex[0] = byte.Parse(num.Substring(2, 2), NumberStyles.HexNumber);
+                            if(i - match.Index != 6)
+                            {
+                                if (text[i] == '\\')
+                                    i++;
+                            }
+                            text = text.Remove(match.Index, i - match.Index)
+                                       .Insert(match.Index, Encoding.Unicode.GetString(hex));
+                            break;
+                        case '\\':
+                        case 'n':
+                        case 'r':
+                        case 't':
+                            text = SimpleReplace(text, match.Index, text[match.Index + 1]);
+                            break;
+                    }
+                }
+                str = new ConstantToken<string>(stringToken.Text, text, ConstantType.String, stringToken.Position);
+                return true;
+            }
+
+            str = null;
+            return false;
+
+            string SimpleReplace(string text, int index, char character)
+            {
+                return text.Remove(index, 2).Insert(index, character.ToString());
+            }
+        }
+
+        private bool TryGetNumber(out NumberConstant number)
+        {
+            if(Check(TokenType.Number))
+            {
+                var numberToken = Consume(TokenType.Number, "Expected number");
+                var text = numberToken.Text;
+                if (text.StartsWith("0x"))
+                {
+                    text = text.Substring(2);
+                    number = new NumberConstant(numberToken.Text,
+                                                long.Parse(text, NumberStyles.HexNumber),
+                                                ConstantType.Real,
+                                                numberToken.Position);
+                }
+                else if (text.StartsWith("?"))
+                {
+                    text = text.Substring(1);
+                    number = new NumberConstant(numberToken.Text,
+                                                long.Parse(text, NumberStyles.HexNumber),
+                                                ConstantType.Real,
+                                                numberToken.Position);
+                }
+                else
+                {
+                    number = new NumberConstant(numberToken.Text,
+                                                float.Parse(text),
+                                                ConstantType.Real,
+                                                numberToken.Position);
+                }
+
+                return true;
+            }
+
+            number = null;
+            return false;
+        }
+
+        private string ResolveNamespace()
+        {
+            var sb = new StringBuilder();
+
+            var name = sb.Append(Consume(TokenType.Identifier, "Expected identifier for namespace").Text);
+            while (Match(TokenType.Dot))
+            {
+                sb.Append(".")
+                  .Append(Consume(TokenType.Identifier, "Expected identifier for namespace").Text);
+            }
+
+            return name.ToString();
+        }
+
+        private bool Match(TokenType type)
+        {
+            if (Check(type))
+            {
+                _stream.Read();
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool Check(TokenType type)
+        {
+            if (_stream.Finished)
+                return false;
+
+            return _stream.Current.Type == type;
+        }
+
+        private Token Consume(TokenType type, string message)
+        {
+            if (Check(type))
+                return _stream.Read();
+
+            Error(_stream.Current, message);
+            return null;
+        }
+
+        private Token Consume(TokenType type, string message, int exitTableCount)
+        {
+            if (Check(type))
+                return _stream.Read();
+
+            Error(_stream.Current, message, exitTableCount);
+            return null;
+        }
+
+        private void Error(Token token, string message)
+        {
+            _logger.Error(message, token.Position);
+            throw new ParseException(message);
+        }
+
+        private void Error(TokenPosition position, string message)
+        {
+            _logger.Error(message, position);
+            throw new ParseException(message);
+        }
+
+        private void Error(Token token, string message, int exitTableCount)
+        {
+            _table.Exit(exitTableCount);
+            _logger.Error(message, token.Position);
+            throw new ParseException(message);
+        }
+
+        private void Error(TokenPosition position, string message, int exitTableCount)
+        {
+            _table.Exit(exitTableCount);
+            _logger.Error(message, position);
+            throw new ParseException(message);
+        }
+
+        private string ReadDotNetType()
+        {
+            var sb = new StringBuilder(ResolveNamespace());
+            if(Match(TokenType.LessThan))
+            {
+                sb.Append("<");
+                do
+                    sb.Append(ReadDotNetType());
+                while (Match(TokenType.Comma));
+                sb.Append(Consume(TokenType.GreaterThan, "Expect '>' after generic types").Text);
+            }
+            if(Match(TokenType.OpenBracket))
+            {
+                sb.Append("[");
+                while (Match(TokenType.Comma))
+                    sb.Append(",");
+                sb.Append(Consume(TokenType.CloseBracket, "Expect ']' after array type").Text);
+            }
+            return sb.ToString();
+        }
+
+        private string ReadDotNetMethod()
+        {
+            var sb = new StringBuilder(Consume(TokenType.Identifier, "Expected c# method name").Text);
+            if (Match(TokenType.LessThan))
+            {
+                sb.Append("<");
+                do
+                    sb.Append(ReadDotNetType());
+                while (Match(TokenType.Comma));
+                sb.Append(Consume(TokenType.GreaterThan, "Expect '>' after generic types").Text);
+            }
+            return sb.ToString();
+        }
+
+        private List<string> ReadImportArguments()
+        {
+            var arguments = new List<string>();
+            if(!Check(TokenType.CloseParen))
+            {
+                do
+                {
+                    var text = _stream.Current.Text;
+                    if (text == "array")
+                        text = "array1d";
+
+                    if (!TsTypes.BasicTypes.ContainsKey(text))
+                        Error(_stream.Current, $"Import argument must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}");
+
+                    arguments.Add(text);
+                    _stream.Read();
+                }
+                while (Match(TokenType.Comma));
+            }
+
+            return arguments;
+        }
+
+        private List<VariableDeclaration> ReadScriptArguments()
+        {
+            var arguments = new List<VariableDeclaration>();
+            if (Match(TokenType.OpenParen) && !Match(TokenType.CloseParen))
+            {
+                var optional = false;
+                do
+                {
+                    var argument = Consume(TokenType.Identifier, "Expected argument name", 1);
+                    if (!_table.AddLeaf(argument.Text, SymbolType.Variable, SymbolScope.Local))
+                        Error(argument, "Cannot have two arguments with the same name", 1);
+
+                    ISyntaxElement value = null;
+                    if (Match(TokenType.Assign))
+                    {
+                        optional = true;
+                        switch (_stream.Current.Type)
+                        {
+                            case TokenType.Minus:
+                                var minus = Consume(TokenType.Minus, "Expected '-'", 1);
+                                if (!TryGetNumber(out var num))
+                                    Error(minus, "Expected number after '-'", 1);
+                                value = new NumberConstant("-" + num, -num.Value, ConstantType.Real, minus.Position);
+                                break;
+                            case TokenType.ReadOnly:
+                                var read = Consume(TokenType.ReadOnly, "Expected readonly value", 1);
+                                value = new ReadOnlyToken(read.Text, read.Position);
+                                break;
+                            default:
+                                if (!IsConstant())
+                                    Error(_stream.Current, "A default script argument must be a constant value", 1);
+
+                                value = Constant(1);
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        if (optional)
+                            Error(_stream.Current, "Cannot have a non-default script argument after a default script argument", 1);
+                    }
+                    arguments.Add(new VariableDeclaration(argument.Text, value, argument.Position));
+                }
+                while (Match(TokenType.Comma));
+                Consume(TokenType.CloseParen, "Expected ')' after script arguments", 1);
+            }
+
+            return arguments;
+        }
+
+        private void Synchronize(params TokenType[] tokens)
+        {
+            _stream.Read();
+            var set = new HashSet<TokenType>(tokens);
+            while(!_stream.Finished)
+            {
+                if (_stream.Current != null && set.Contains(_stream.Current.Type))
+                    return;
+                _stream.Read();
+            }
         }
     }
 }

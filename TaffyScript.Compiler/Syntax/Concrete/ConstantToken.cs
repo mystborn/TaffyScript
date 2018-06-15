@@ -2,19 +2,20 @@
 {
     public class ConstantToken<T> : SyntaxToken, IConstantToken<T>
     {
-        private T _value;
-
-        public T Value => _value;
-        public ConstantType ConstantType { get; }
-        public object WeakValue => _value;
         public override SyntaxType Type => SyntaxType.Constant;
 
+        public override string Name { get; }
+        public T Value { get; }
+        public ConstantType ConstantType { get; }
+        public object WeakValue => Value;
 
-        internal ConstantToken(string text, TokenPosition position, ConstantType type, T realValue)
-            : base(text, position)
+
+        public ConstantToken(string name, T realValue, ConstantType type, TokenPosition position)
+            : base(position)
         {
+            Name = name;
             ConstantType = type;
-            _value = realValue;
+            Value = realValue;
         }
 
         public override void Accept(ISyntaxElementVisitor visitor)

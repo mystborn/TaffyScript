@@ -38,5 +38,7 @@ namespace LanguageTests {
         print("");
         run_reflection_tests();
         print("");
+        run_repeat_tests();
+        print("");
     }
 }

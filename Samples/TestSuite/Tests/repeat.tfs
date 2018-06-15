@@ -1,0 +1,68 @@
+using UnitTest;
+
+namespace LanguageTests {
+    script run_repeat_tests() {
+        var tests = new obj_unit_test("Repeat Tests",
+                                      run_repeat_faulty_tests,
+                                      repeat_number_literal,
+                                      repeat_number_variable,
+                                      repeat_break,
+                                      repeat_continue);
+        tests.run_tests();
+    }
+
+    script run_repeat_faulty_tests() {
+        assert(try_expect(repeat_string_variable, "InvalidTsTypeException"));
+        test_it("Faulty Repeat");
+    }
+
+    script repeat_number_literal() {
+        test_it("repeat(num)");
+        var i = 0;
+        repeat(5) {
+            i++;
+        }
+        assert_equal(i, 5);
+    }
+
+    script repeat_number_variable() {
+        test_it("repeat(var)");
+        var i = 0;
+        var count = 5;
+        repeat(count) {
+            i++;
+        }
+        assert_equal(i, 5);
+    }
+
+    script repeat_string_variable() {
+        test_it("repeat(string)");
+        var i = 0;
+        var s = "moo";
+        repeat(s) {
+            i++;
+        }
+    }
+
+    script repeat_break() {
+        test_it("repeat(i) { break; }");
+        var i = 0;
+        repeat(5) {
+            if(++i == 3)
+                break;
+        }
+        assert_equal(i, 3);
+    }
+
+    script repeat_continue() {
+        test_it("repeat(i) { continue; }");
+        var i = 0;
+        var total = 0;
+        repeat(5) {
+            i++;
+            continue;
+            total++;
+        }
+        assert_equal(total, 0);
+    }
+}

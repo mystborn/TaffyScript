@@ -42,11 +42,6 @@ namespace TaffyScript
         public static Dictionary<string, string> Inherits { get; } = new Dictionary<string, string>();
 
         /// <summary>
-        /// Gets a stack trace of the currently executing events.
-        /// </summary>
-        public static Stack<string> EventType { get; } = new Stack<string>();
-
-        /// <summary>
         /// Maps imported types to a func that will construct an instance of the type.
         /// </summary>
         public static Dictionary<string, Func<TsObject[], ITsInstance>> WrappedConstructors { get; } = new Dictionary<string, Func<TsObject[], ITsInstance>>();
@@ -308,12 +303,28 @@ namespace TaffyScript
                         InstanceScripts.Add(origin, name, del);
                     return true;
                 }
-                Inherits.TryGetValue(type, out type);
             }
-            while (type != null);
+            while (Inherits.TryGetValue(type, out type));
 
             del = null;
             return false;
+        }
+
+        public static TsDelegate GetDelegate(string type, string name)
+        {
+            var origin = type;
+            TsDelegate result;
+            do
+            {
+                if (InstanceScripts.TryGetValue(type, name, out result))
+                {
+                    if (type != origin)
+                        InstanceScripts.Add(origin, name, result);
+                    return result;
+                }
+            }
+            while (Inherits.TryGetValue(type, out type));
+            throw new ArgumentException($"Type {type} does not define the script {name}.");
         }
 
         /// <summary>

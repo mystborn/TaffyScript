@@ -38,7 +38,7 @@ namespace TaffyScript.Compiler
         For,
         Return,
         Block,
-        Import,
+        ImportScript,
         Enum,
         Script,
         ArgumentAccess,
@@ -48,6 +48,7 @@ namespace TaffyScript.Compiler
         New,
         ImportObject,
         Lambda,
+        Base,
 
         //Token
         Constant,
@@ -55,6 +56,6 @@ namespace TaffyScript.Compiler
         End,
         Break,
         Continue,
-        ReadOnlyValue
+        ReadOnly
     }
 }

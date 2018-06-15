@@ -1,11 +1,18 @@
-﻿namespace TaffyScript.Compiler.Syntax
+using System.Collections.Generic;
+
+namespace TaffyScript.Compiler.Syntax
 {
     public class NamespaceNode : SyntaxNode
     {
         public override SyntaxType Type => SyntaxType.Namespace;
+        public string Name { get; }
+        public List<ISyntaxElement> Declarations { get; }
 
-        internal NamespaceNode(string value, TokenPosition position) : base(value, position)
+        public NamespaceNode(string name, List<ISyntaxElement> declarations, TokenPosition position)
+            : base(position)
         {
+            Name = name;
+            Declarations = declarations;
         }
 
         public override void Accept(ISyntaxElementVisitor visitor)

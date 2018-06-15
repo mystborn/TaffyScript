@@ -21,18 +21,18 @@ namespace TaffyScript.Compiler.FrontEnd
         /// <summary>
         /// The value of this token.
         /// </summary>
-        public string Value { get; }
+        public string Text { get; }
 
-        public Token(TokenType type, string value, TokenPosition position)
+        public Token(TokenType type, string text, TokenPosition position)
         {
             Type = type;
-            Value = value;
+            Text = text;
             Position = position;
         }
 
         public override string ToString()
         {
-            return $"Token: Type {Type} | Value {Value} | Position {Position}";
+            return $"Token: Type {Type} | Text {Text} | Position {Position}";
         }
     }
 }

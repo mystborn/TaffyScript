@@ -36,5 +36,5 @@ namespace LanguageTests {
     }
 
     //Auto generate wrapper class.
-    import object(typing=strong, case=snake_case) HashSet<TsObject> as ds_set;
+    import object(typing=strong, casing=snake_case) HashSet<TsObject> as ds_set;
 }

@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Serialization;
+using TaffyScript.Compiler.FrontEnd;
+using TaffyScript.Compiler.Syntax;
 
 namespace TaffyScript.Compiler.Backend
 {
@@ -41,13 +43,20 @@ namespace TaffyScript.Compiler.Backend
             if (_logger.Errors.Count != 0)
                 return new CompilerResult(_logger);
 
-            var parser = new Parser(_logger);
+            var table = new SymbolTable();
+            var root = new RootNode();
+            var parser = new Parser(_logger, table, root);
             ParseFilesInProjectDirectory(projectDir, parser, GetExcludeSet(projectDir, config));
             if(_logger.Errors.Count != 0)
                 return new CompilerResult(_logger);
 
-            var generator = new MsilWeakCodeGen(parser.Table, config, _logger);
-            var result = generator.CompileTree(parser.Tree);
+            var resolver = new Resolver(_logger, table);
+            resolver.Resolve(root);
+            if (_logger.Errors.Count != 0)
+                return new CompilerResult(_logger);
+
+            var generator = new MsilWeakCodeGen(table, config, _logger);
+            var result = generator.CompileTree(root);
             if (result.Errors.Count > 0)
                 return result;
             else
@@ -101,13 +110,20 @@ namespace TaffyScript.Compiler.Backend
             if (_logger.Errors.Count != 0)
                 return new CompilerResult(_logger);
 
-            var parser = new Parser(_logger);
+            var table = new SymbolTable();
+            var root = new RootNode();
+            var parser = new Parser(_logger, table, root);
             parser.Parse(code);
             if (_logger.Errors.Count != 0)
                 return new CompilerResult(_logger);
 
-            var generator = new MsilWeakCodeGen(parser.Table, config, _logger);
-            var result = generator.CompileTree(parser.Tree);
+            var resolver = new Resolver(_logger, table);
+            resolver.Resolve(root);
+            if (_logger.Errors.Count != 0)
+                return new CompilerResult(_logger);
+
+            var generator = new MsilWeakCodeGen(table, config, _logger);
+            var result = generator.CompileTree(root);
             if (result.Errors.Count > 0)
                 return result;
             else

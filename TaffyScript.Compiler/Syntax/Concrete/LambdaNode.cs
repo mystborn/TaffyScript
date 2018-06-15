@@ -6,48 +6,22 @@ namespace TaffyScript.Compiler.Syntax
 {
     public class LambdaNode : SyntaxNode
     {
-        private List<ISyntaxElement> _arguments;
-
         public override SyntaxType Type => SyntaxType.Lambda;
-        public ISyntaxElement Body => Children[Children.Count - 1];
-        public string Scope { get; set; }
+        public string Scope { get; }
+        public List<VariableDeclaration> Arguments { get; }
+        public BlockNode Body { get; }
 
-        public IReadOnlyList<ISyntaxElement> Arguments
+        public LambdaNode(string scope, List<VariableDeclaration> arguments, BlockNode body, TokenPosition position) 
+            : base(position)
         {
-            get
-            {
-                if (_arguments is null)
-                    _arguments = Children.GetRange(0, Children.Count - 1);
-                return _arguments;
-            }
-        }
-
-        public LambdaNode(string value, TokenPosition position) 
-            : base(value, position)
-        {
+            Scope = scope;
+            Arguments = arguments;
+            Body = body;
         }
 
         public override void Accept(ISyntaxElementVisitor visitor)
         {
             visitor.Visit(this);
-        }
-
-        public void MarkVariablesAsCaptured(SymbolTable table)
-        {
-            MarkVariablesAsCaptured((BlockNode)Body, table);
-        }
-
-        private void MarkVariablesAsCaptured(ISyntaxNode node, SymbolTable table)
-        {
-            foreach(var child in node.Children)
-            {
-                if (child is VariableToken variable && table.Defined(variable.Text, out var symbol) && symbol is VariableLeaf leaf)
-                {
-                    leaf.IsCaptured = true;
-                }
-                else if (child is ISyntaxNode sn)
-                    MarkVariablesAsCaptured(sn, table);
-            }
         }
     }
 }

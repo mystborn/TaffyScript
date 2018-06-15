@@ -8,43 +8,18 @@ namespace TaffyScript.Compiler.Syntax
 {
     public class ImportObjectMethod
     {
-        private List<string> _args;
-        private List<IConstantToken<string>> _generics;
-
         public string ExternalName { get; }
-        public string ImportName { get; set; }
+        public string ImportName { get; }
+        public List<string> Generics { get; }
+        public List<string> Arguments { get; }
         public TokenPosition Position { get; }
 
-        public List<string> ArgumentTypes
-        {
-            get
-            {
-                if (_args == null)
-                    _args = new List<string>();
-                return _args;
-            }
-        }
-
-        public List<IConstantToken<string>> Generics
-        {
-            get
-            {
-                if (_generics == null)
-                    _generics = new List<IConstantToken<string>>();
-                return _generics;
-            }
-        }
-
-        public ImportObjectMethod(string name, TokenPosition position)
-        {
-            ImportName = ExternalName = name;
-            Position = position;
-        }
-
-        public ImportObjectMethod(string externalName, string importName, TokenPosition position)
+        public ImportObjectMethod(string externalName, string importName, List<string> generics, List<string> arguments, TokenPosition position)
         {
             ExternalName = externalName;
             ImportName = importName;
+            Generics = generics;
+            Arguments = arguments;
             Position = position;
         }
     }

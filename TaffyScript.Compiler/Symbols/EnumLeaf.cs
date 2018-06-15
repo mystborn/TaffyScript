@@ -8,9 +8,9 @@ namespace TaffyScript.Compiler
 {
     public class EnumLeaf : SymbolLeaf
     {
-        public int Value { get; }
+        public long Value { get; }
 
-        public EnumLeaf(SymbolNode parent, string name, SymbolType type, SymbolScope scope, int value) : base(parent, name, type, scope)
+        public EnumLeaf(SymbolNode parent, string name, SymbolType type, SymbolScope scope, long value) : base(parent, name, type, scope)
         {
             Value = value;
         }

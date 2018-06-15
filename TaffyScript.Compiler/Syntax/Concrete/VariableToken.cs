@@ -1,11 +1,16 @@
-﻿namespace TaffyScript.Compiler.Syntax
+using System.Collections.Generic;
+
+namespace TaffyScript.Compiler.Syntax
 {
     public class VariableToken : SyntaxToken
     {
         public override SyntaxType Type => SyntaxType.Variable;
+        public override string Name { get; }
 
-        public VariableToken(string value, TokenPosition position) : base(value, position)
+        public VariableToken(string name, TokenPosition position)
+            : base(position)
         {
+            Name = name;
         }
 
         public override void Accept(ISyntaxElementVisitor visitor)

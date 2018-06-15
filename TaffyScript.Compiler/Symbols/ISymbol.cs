@@ -4,8 +4,8 @@
     {
         SymbolType Type { get; }
         SymbolScope Scope { get; }
-        bool IsLeaf { get; }
         string Name { get; }
+        bool IsLeaf { get; }
         SymbolNode Parent { get; }
     }
 }

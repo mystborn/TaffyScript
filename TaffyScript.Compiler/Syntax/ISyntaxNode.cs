@@ -8,9 +8,5 @@ namespace TaffyScript.Compiler.Syntax
 {
     public interface ISyntaxNode : ISyntaxElement
     {
-        // Convert this to an enum?
-        List<ISyntaxElement> Children { get; }
-
-        void AddChild(ISyntaxElement child);
     }
 }

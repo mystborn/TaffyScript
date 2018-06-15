@@ -9,9 +9,9 @@ namespace TaffyScript.Compiler
 {
     public class ImportLeaf : SymbolLeaf
     {
-        public ImportNode Node { get; }
+        public ImportScriptNode Node { get; }
 
-        public ImportLeaf(SymbolNode parent, string name, SymbolScope scope, ImportNode node)
+        public ImportLeaf(SymbolNode parent, string name, SymbolScope scope, ImportScriptNode node)
             : base(parent, name, SymbolType.Script, scope)
         {
             Node = node;

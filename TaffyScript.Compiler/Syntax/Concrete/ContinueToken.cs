@@ -1,10 +1,14 @@
-﻿namespace TaffyScript.Compiler.Syntax
+using System.Collections.Generic;
+
+namespace TaffyScript.Compiler.Syntax
 {
     public class ContinueToken : SyntaxToken
     {
         public override SyntaxType Type => SyntaxType.Continue;
+        public override string Name => "continue";
 
-        public ContinueToken(string value, TokenPosition position) : base(value, position)
+        public ContinueToken(TokenPosition position)
+            : base(position)
         {
         }
 

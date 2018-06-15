@@ -39,7 +39,8 @@ namespace TaffyScript.Compiler
         /// </summary>
         public void Exit()
         {
-            Current = Current.Parent;
+            if(Current.Parent != null)
+                Current = Current.Parent;
         }
 
         public void Exit(int count)
@@ -63,18 +64,29 @@ namespace TaffyScript.Compiler
             Current = Current.EnterNew(scopeName, type, scope);
         }
 
-        public bool TryCreate(string scope, SymbolType type)
+        public bool TryEnterNew(string scope, SymbolType type)
         {
             if (!Current.Children.TryGetValue(scope, out var symbol))
             {
-                Current.EnterNew(scope, type);
+                Current = Current.EnterNew(scope, type);
                 return true;
             }
             else
                 return false;
         }
 
-        public bool TryAdd(SymbolNode symbol)
+        public bool TryEnterNew(string scopeName, SymbolType type, SymbolScope scope)
+        {
+            if (!Current.Children.TryGetValue(scopeName, out var symbol))
+            {
+                Current = Current.EnterNew(scopeName, type, scope);
+                return true;
+            }
+            else
+                return false;
+        }
+
+        public bool TryAdd(ISymbol symbol)
         {
             if (Current.Children.ContainsKey(symbol.Name))
                 return false;
@@ -87,10 +99,14 @@ namespace TaffyScript.Compiler
             if (ns == null || ns == "")
                 return 0;
             var parts = ns.Split('.');
+            var count = 0;
             foreach (var part in parts)
             {
                 if (part == "")
+                {
+                    Exit(count);
                     throw new ArgumentException("The given namespace was invalid", "ns");
+                }
                 if (!Current.Children.TryGetValue(part, out var symbol))
                 {
                     Current = Current.EnterNew(part, SymbolType.Namespace);
@@ -98,9 +114,13 @@ namespace TaffyScript.Compiler
                 else if (!symbol.IsLeaf)
                     Current = (SymbolNode)symbol;
                 else
+                {
+                    Exit(count);
                     throw new Backend.NameConflictException($"Could not enter the namespace {ns}. Part {part} had a name conflict with symbol {symbol}");
+                }
+                count++;
             }
-            return parts.Length;
+            return count;
         }
 
         public void ExitNamespace(string ns)
@@ -210,7 +230,7 @@ namespace TaffyScript.Compiler
         /// <param name="name"></param>
         /// <param name="value"></param>
         /// <returns></returns>
-        public bool AddLeaf(string name, int value)
+        public bool AddLeaf(string name, long value)
         {
             if (!Defined(name, out var overwrite))
             {

@@ -18,26 +18,24 @@ namespace LanguageTests {
         return p;
     }
 
-    struct node {
+    struct linked_list_node {
         next;
         previous;
         value;
     }
 
-    script node_create_after(before, value) {
-        var n = new node();
-        n.value = value;
+    struct linked_list {
+        head,
+        tail,
+        count
+    }
 
-        if(before == noone) {
-            n.next = noone;
-            n.previous = noone;
-        } else {
-            n.next = before.next;
-            n.previous = before;
-            before.next = n;
-        }
-        
-        return n;
+    script linked_list_create() {
+        var ll = new linked_list();
+        ll.head = null;
+        ll.tail = null;
+        ll.count = 0;
+        return ll;
     }
 }
 

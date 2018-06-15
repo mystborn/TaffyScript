@@ -6,25 +6,42 @@ namespace TaffyScript.Compiler.Syntax
     public class ImportObjectNode : SyntaxNode
     {
         public override SyntaxType Type => SyntaxType.ImportObject;
-        public IConstantToken<string> ImportName { get; }
-        public bool AutoImplement { get; set; }
+        public string DotNetType { get; }
+        public string ImportName { get; }
+        public bool AutoImplement { get; }
+        public List<ImportObjectField> Fields { get; } = null;
+        public ImportObjectConstructor Constructor { get; } = null;
+        public List<ImportObjectMethod> Methods { get; } = null;
+
         public ImportCasing Casing { get; private set; } = ImportCasing.Native;
         public bool WeaklyTyped { get; private set; } = true;
         public bool IncludeStandard { get; private set; } = false;
-        public List<ImportObjectField> Fields { get; private set; } = new List<ImportObjectField>();
-        public ImportObjectConstructor Constructor { get; set; }
-        public List<ImportObjectMethod> Methods { get; private set; } = new List<ImportObjectMethod>();
 
-        public ImportObjectNode(string value, TokenPosition position) 
-            : base(value, position)
+        public ImportObjectNode(string dotNetType, string importName, TokenPosition position)
+            : base(position)
         {
-            ImportName = new ConstantToken<string>(value, position, ConstantType.String, value);
+            DotNetType = dotNetType;
+            ImportName = importName;
+            AutoImplement = true;
         }
 
-        public ImportObjectNode(IConstantToken<string> importName, string value, TokenPosition position)
-            : base(value, position)
+        public ImportObjectNode(string dotNetType,
+                                string importName,
+                                IErrorLogger logger,
+                                List<ObjectImportArgument> importArguments,
+                                List<ImportObjectField> fields, 
+                                ImportObjectConstructor constructor, 
+                                List<ImportObjectMethod> methods,
+                                TokenPosition position)
+            : base(position)
         {
+            DotNetType = dotNetType;
             ImportName = importName;
+            ParseArguments(importArguments, logger);
+            Fields = fields;
+            Constructor = constructor;
+            Methods = methods;
+            AutoImplement = false;
         }
 
         public override void Accept(ISyntaxElementVisitor visitor)
@@ -32,7 +49,7 @@ namespace TaffyScript.Compiler.Syntax
             visitor.Visit(this);
         }
 
-        public void ParseArguments(IEnumerable<ObjectImportArgument> arguments, IErrorLogger logger)
+        private void ParseArguments(IEnumerable<ObjectImportArgument> arguments, IErrorLogger logger)
         {
             var set = new HashSet<string>();
             foreach(var arg in arguments)
@@ -45,7 +62,7 @@ namespace TaffyScript.Compiler.Syntax
 
                 switch(arg.Name)
                 {
-                    case "case":
+                    case "casing":
                         switch(arg.Value)
                         {
                             case "pascal_case":

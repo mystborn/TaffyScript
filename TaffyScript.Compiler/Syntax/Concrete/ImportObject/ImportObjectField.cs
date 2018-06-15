@@ -12,12 +12,6 @@ namespace TaffyScript.Compiler.Syntax
         public string ExternalName { get; }
         public string ImportName { get; }
 
-        public ImportObjectField(string name, TokenPosition position)
-        {
-            Position = position;
-            ImportName = ExternalName = name;
-        }
-
         public ImportObjectField(string externalName, string importName, TokenPosition position)
         {
             Position = position;

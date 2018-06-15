@@ -1,10 +1,14 @@
-﻿namespace TaffyScript.Compiler.Syntax
+using System.Collections.Generic;
+
+namespace TaffyScript.Compiler.Syntax
 {
     public class EndToken : SyntaxToken
     {
         public override SyntaxType Type => SyntaxType.End;
+        public override string Name => ";";
 
-        public EndToken(string value, TokenPosition position) : base(value, position)
+        public EndToken(TokenPosition position)
+            : base(position)
         {
         }
 

@@ -43,7 +43,6 @@ namespace TaffyScript.Compiler
             //Todo: File-Handling.
 
             sb.AppendLine("import Bcl.EnvironmentGetVariable(string) as environment_get_variable");
-            sb.AppendLine("import Bcl.EventInherited(instance, array) as base");
 
             sb.AppendLine("import Math.Exp(double) as exp");
             sb.AppendLine("import Math.Floor(double) as floor");

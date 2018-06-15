@@ -1,10 +1,14 @@
-﻿namespace TaffyScript.Compiler.Syntax
+using System.Collections.Generic;
+
+namespace TaffyScript.Compiler.Syntax
 {
     public class BreakToken : SyntaxToken
     {
-        public override SyntaxType Type => SyntaxType.Additive;
+        public override SyntaxType Type => SyntaxType.Break;
+        public override string Name => "break";
 
-        public BreakToken(string value, TokenPosition position) : base(value, position)
+        public BreakToken(TokenPosition position)
+            : base(position)
         {
         }
 
