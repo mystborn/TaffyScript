@@ -53,6 +53,25 @@ object obj_user {
 // Closing...
 ```
 
+## Features
+* Built in C#
+* Compiles into a valid .NET assembly
+* Dynamic Typing
+* Does not use DLR
+* Accessable from existing .NET projects
+* Import external .NET methods.
+* Basic Reflection
+
+## Sounds Great! How Can I Get it?
+You can now download a precompiled binary from the [releases](https://github.com/mystborn/TaffyScript/releases) page! Please note that TaffyScript is windows only.
+
+## Nuget
+Both the TaffyScript implementation and it's base class library are available via nuget:
+* https://www.nuget.org/packages/TaffyScript/
+* https://www.nuget.org/packages/TaffyScript.BCL/
+
+You can use these to use TaffyScript projects inside of .NET project
+
 ## Want to contribute?
 Occasionally I'll add issues with the `opinion wanted` label. These are issues asking about new features or language changes that I want some additional feedback on. The easiest way to contribute is to comment on those.
 
