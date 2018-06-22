@@ -13,6 +13,7 @@ namespace TaffyScript
         String,
         Array1,
         Array2,
-        Delegate
+        Delegate,
+        Instance
     }
 }

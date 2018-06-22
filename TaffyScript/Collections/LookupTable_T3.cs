@@ -37,7 +37,7 @@ namespace TaffyScript.Collections
         {
             get
             {
-                if(TryGetInternalSource(row, out var inner))
+                if(TryGetRow(row, out var inner))
                 {
                     if (inner.TryGetValue(col, out var value))
                         return value;
@@ -49,7 +49,7 @@ namespace TaffyScript.Collections
             }
             set
             {
-                var inner = GetInternalSource(row);
+                var inner = GetRow(row);
                 var count = inner.Count;
                 inner[col] = value;
                 if (inner.Count > count)
@@ -122,7 +122,7 @@ namespace TaffyScript.Collections
         /// <param name="value">The value to add.</param>
         public void Add(TRow row, TCol col, TValue value)
         {
-            var dict = GetInternalSource(row);
+            var dict = GetRow(row);
             dict.Add(col, value);
             _count++;
         }
@@ -130,6 +130,14 @@ namespace TaffyScript.Collections
         public void Add(TableItem<TRow, TCol, TValue> item)
         {
             Add(item.Row, item.Col, item.Value);
+        }
+
+        public void AddRow(TRow row, Dictionary<TCol, TValue> columns)
+        {
+            if (_source.ContainsKey(row))
+                throw new ArgumentException("Cannot add the same row twice", nameof(row));
+
+            _source[row] = columns;
         }
 
         /// <summary>
@@ -149,7 +157,7 @@ namespace TaffyScript.Collections
         /// <returns></returns>
         public bool ContainsIndex(TRow row, TCol col)
         {
-            if(TryGetInternalSource(row, out var inner))
+            if(TryGetRow(row, out var inner))
                 return inner.ContainsKey(col);
 
             return false;
@@ -213,7 +221,7 @@ namespace TaffyScript.Collections
         /// <param name="col">The column of the value.</param>
         public bool Remove(TRow row, TCol col)
         {
-            if (TryGetInternalSource(row, out var inner))
+            if (TryGetRow(row, out var inner))
             {
                 _count--;
                 return inner.Remove(col);
@@ -230,14 +238,14 @@ namespace TaffyScript.Collections
         /// <returns></returns>
         public bool TryGetValue(TRow row, TCol col, out TValue value)
         {
-            if (TryGetInternalSource(row, out var inner))
+            if (TryGetRow(row, out var inner))
                 return inner.TryGetValue(col, out value);
 
             value = default(TValue);
             return false;
         }
 
-        private Dictionary<TCol, TValue> GetInternalSource(TRow key)
+        public Dictionary<TCol, TValue> GetRow(TRow key)
         {
             if(!_source.TryGetValue(key, out var inner))
             {
@@ -248,7 +256,7 @@ namespace TaffyScript.Collections
             return inner;
         }
 
-        private bool TryGetInternalSource(TRow key, out Dictionary<TCol, TValue> inner)
+        public bool TryGetRow(TRow key, out Dictionary<TCol, TValue> inner)
         {
             return _source.TryGetValue(key, out inner);
         }

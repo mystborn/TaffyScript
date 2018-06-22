@@ -68,7 +68,7 @@ namespace TaffyScript
         /// <param name="srcIndex"></param>
         /// <param name="length"></param>
         /// <returns></returns>
-        public static TsObject ArrayCopy(TsObject dest, int destIndex, TsObject src, int srcIndex, int length)
+        public static TsObject ArrayCopy(TsObject src, int srcIndex, TsObject dest, int destIndex, int length)
         {
             //We need to get the value wrapper in case we need to resize the internal array.
             var destWrapper = dest.Value as TsMutableValue<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "dest");
@@ -78,11 +78,11 @@ namespace TaffyScript
             if (destIndex + length >= destValue.Length)
             {
                 var temp = new TsObject[destIndex + length + 1];
-                Buffer.BlockCopy(destValue, 0, temp, 0, destValue.Length);
+                Array.Copy(destValue, 0, temp, 0, destValue.Length);
                 destValue = temp;
                 destWrapper.StrongValue = destValue;
             }
-            Buffer.BlockCopy(srcValue, srcIndex, destValue, destIndex, length);
+            Array.Copy(srcValue, srcIndex, destValue, destIndex, length);
             return TsObject.Empty();
         }
 
@@ -93,7 +93,7 @@ namespace TaffyScript
         /// <param name="args"></param>
         /// <returns></returns>
         [WeakMethod]
-        public static TsObject ArrayCreate(TsInstance target, TsObject[] args)
+        public static TsObject ArrayCreate(ITsInstance target, TsObject[] args)
         {
             var size = args[0].GetInt();
             var value = TsObject.Empty();
@@ -154,7 +154,40 @@ namespace TaffyScript
         }
 
         [WeakMethod]
-        public static TsObject Choose(TsInstance target, TsObject[] args)
+        public static TsObject CallInstanceScript(ITsInstance inst, TsObject[] args)
+        {
+            if (TsReflection.TryGetScript((string)args[1], (string)args[2], out var ev))
+            {
+                TsObject[] copy;
+                if (args.Length > 3)
+                {
+                    copy = new TsObject[args.Length - 3];
+                    Array.Copy(args, 3, copy, 0, copy.Length);
+                }
+                else
+                    copy = null;
+
+                return ev.Invoke(args[0].GetInstance(), copy);
+            }
+            return TsObject.Empty();
+        }
+
+        [WeakMethod]
+        public static TsObject CallGlobalScript(ITsInstance inst, TsObject[] args)
+        {
+            if (args.Length < 1)
+                throw new ArgumentException("You must pass at least a script name to script_execute.");
+            var name = args[0].GetString();
+            if (!TsReflection.GlobalScripts.TryGetValue(name, out var function))
+                throw new ArgumentException($"Tried to execute a non-existant function: {name}");
+            var parameters = new TsObject[args.Length - 1];
+            if (parameters.Length != 0)
+                Array.Copy(args, 1, parameters, 0, parameters.Length);
+            return function.Invoke(inst, parameters);
+        }
+
+        [WeakMethod]
+        public static TsObject Choose(ITsInstance target, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentException("There must be at least one argument passed to Choose.");
@@ -177,31 +210,27 @@ namespace TaffyScript
         }
 
         [WeakMethod]
-        public static TsObject EventInherited(TsInstance inst, TsObject[] args)
+        [Obsolete]
+        public static TsObject EventPerform(ITsInstance inst, TsObject[] args)
         {
-            if (TsInstance.TryGetDelegate(inst.Parent, TsInstance.EventType.Peek(), out var ev))
-                return ev.Invoke(inst, args);
+            if(inst.TryGetDelegate((string)args[1], out var ev))
+            {
+                TsObject[] copy;
+                if (args.Length > 2)
+                {
+                    copy = new TsObject[args.Length - 2];
+                    Array.Copy(args, 2, copy, 0, copy.Length);
+                }
+                else
+                    copy = null;
+
+                return ev.Invoke(args[0].GetInstance(), copy);
+            }
             return TsObject.Empty();
         }
 
         [WeakMethod]
-        public static TsObject EventPerform(TsInstance inst, TsObject[] args)
-        {
-            if (TsInstance.TryGetDelegate(inst.ObjectType, (string)args[0], out var ev))
-                return ev.Invoke(inst);
-            return TsObject.Empty();
-        }
-
-        [WeakMethod]
-        public static TsObject EventPerformObject(TsInstance inst, TsObject[] args)
-        {
-            if (TsInstance.TryGetDelegate((string)args[0], (string)args[1], out var ev))
-                return ev.Invoke(inst);
-            return TsObject.Empty();
-        }
-
-        [WeakMethod]
-        public static TsObject Max(TsInstance target, TsObject[] args)
+        public static TsObject Max(ITsInstance target, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
@@ -216,7 +245,7 @@ namespace TaffyScript
         }
 
         [WeakMethod]
-        public static TsObject Min(TsInstance target, TsObject[] args)
+        public static TsObject Min(ITsInstance target, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
@@ -272,23 +301,9 @@ namespace TaffyScript
             return (float)Math.Round(n);
         }
 
-        [WeakMethod]
-        public static TsObject ScriptExecute(TsInstance target, TsObject[] args)
-        {
-            if (args.Length < 1)
-                throw new ArgumentException("You must pass at least a script name to script_execute.");
-            var name = args[0].GetString();
-            if (!TsInstance.GlobalScripts.TryGetValue(name, out var function))
-                throw new ArgumentException($"Tried to execute a non-existant function: {name}");
-            var parameters = new TsObject[args.Length - 1];
-            if (parameters.Length != 0)
-                Array.Copy(args, 1, parameters, 0, parameters.Length);
-            return function.Invoke(target, parameters);
-        }
-
         public static bool ScriptExists(string name)
         {
-            return TsInstance.GlobalScripts.ContainsKey(name);
+            return TsReflection.GlobalScripts.ContainsKey(name);
         }
 
         public static void ShowError(string message, bool throws)
@@ -331,7 +346,7 @@ namespace TaffyScript
             return str.Substring(index, count);
         }
 
-        public static int StringCount(string subString, string str)
+        public static int StringCount(string str, string subString)
         {
             // Code found here:
             // https://stackoverflow.com/questions/541954/how-would-you-count-occurrences-of-a-string-within-a-string
@@ -357,7 +372,7 @@ namespace TaffyScript
             return sb.ToString();
         }
 
-        public static string StringInsert(string subString, string str, int index)
+        public static string StringInsert(string str, string subString, int index)
         {
             return str.Insert(index, subString);
         }
@@ -403,7 +418,7 @@ namespace TaffyScript
             return str[index];
         }
 
-        public static int StringPos(string subString, string str)
+        public static int StringPos(string str, string subString)
         {
             return str.IndexOf(subString);
         }

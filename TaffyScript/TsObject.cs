@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TaffyScript.Collections;
 
 namespace TaffyScript
 {
@@ -167,10 +168,10 @@ namespace TaffyScript
         /// Creates a TaffyScript object from an instances id.
         /// </summary>
         /// <param name="instance">The instance to get the id from.</param>
-        public TsObject(TsInstance instance)
+        public TsObject(ITsInstance instance)
         {
-            Type = VariableType.Real;
-            Value = new TsImmutableValue<float>(instance.Id);
+            Type = VariableType.Instance;
+            Value = new TsImmutableValue<ITsInstance>(instance);
         }
 
         /// <summary>
@@ -226,7 +227,7 @@ namespace TaffyScript
         /// <returns></returns>
         public bool GetBool()
         {
-            return GetFloat() >= .5f;
+            return GetFloat() > 0f;
         }
 
         /// <summary>
@@ -363,14 +364,24 @@ namespace TaffyScript
         }
 
         /// <summary>
-        /// Gets the instance that has an id matching the value held by this object.
+        /// Gets the instance held by this object.
         /// </summary>
         /// <returns></returns>
-        public TsInstance GetInstance()
+        public ITsInstance GetInstance()
         {
-            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
-                throw new InvalidInstanceException();
-            return inst;
+            if (Type != VariableType.Instance)
+                throw new InvalidTsTypeException($"Variable is supposed to be of type Instance, is {Type} instead.");
+
+            return (ITsInstance)Value.WeakValue;
+        }
+
+        /// <summary>
+        /// Gets the instance held by this object without checking its type.
+        /// </summary>
+        /// <returns></returns>
+        public ITsInstance GetInstanceUnchecked()
+        {
+            return (ITsInstance)Value.WeakValue;
         }
 
         /// <summary>
@@ -437,9 +448,7 @@ namespace TaffyScript
         /// <param name="value">The value of the variable.</param>
         public void MemberSet(string name, float value)
         {
-            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
-                throw new InvalidInstanceException();
-            inst[name] = new TsObject(value);
+            GetInstance()[name] = value;
         }
 
         /// <summary>
@@ -449,9 +458,7 @@ namespace TaffyScript
         /// <param name="value">The value of the variable.</param>
         public void MemberSet(string name, string value)
         {
-            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
-                throw new InvalidInstanceException();
-            inst[name] = new TsObject(value);
+            GetInstance()[name] = value;
         }
 
         /// <summary>
@@ -461,9 +468,7 @@ namespace TaffyScript
         /// <param name="value">The value of the variable.</param>
         public void MemberSet(string name, TsObject value)
         {
-            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
-                throw new InvalidInstanceException();
-            inst[name] = value;
+            GetInstance()[name] = value;
         }
 
         /// <summary>
@@ -473,11 +478,7 @@ namespace TaffyScript
         /// <returns></returns>
         public TsObject MemberGet(string name)
         {
-            if (!TsInstance.TryGetInstance(GetFloat(), out var inst))
-            {
-                throw new InvalidInstanceException();
-            }
-            return inst[name];
+            return GetInstance()[name];
         }
 
         #endregion
@@ -583,7 +584,7 @@ namespace TaffyScript
             else if(index2 >= self.StrongValue[index1].Length)
             {
                 var temp = new TsObject[index2 + 1];
-                Array.Copy(self.StrongValue[index1], 0, temp, 0, self.StrongValue[index2].Length);
+                Array.Copy(self.StrongValue[index1], 0, temp, 0, self.StrongValue[index1].Length);
                 self.StrongValue[index1] = temp;
             }
             self.StrongValue[index1][index2] = right;
@@ -654,7 +655,7 @@ namespace TaffyScript
             return GetDelegate().Invoke(args);
         }
 
-        public TsObject DelegateInvoke(TsInstance target, params TsObject[] args)
+        public TsObject DelegateInvoke(ITsInstance target, params TsObject[] args)
         {
             return GetDelegate().Invoke(target, args);
         }
@@ -680,9 +681,49 @@ namespace TaffyScript
         /// <returns></returns>
         public override string ToString()
         {
-            if (Type == VariableType.Null)
-                return "undefined";
-            return GetValue().ToString();
+            switch(Type)
+            {
+                case VariableType.Array1:
+                    var builder = new StringBuilder();
+                    ArrayToString(builder, (TsObject[])Value.WeakValue);
+                    return builder.ToString();
+                case VariableType.Array2:
+                    builder = new StringBuilder();
+                    var outer = (TsObject[][])Value.WeakValue;
+                    builder.Append("[");
+                    if(outer.Length == 0)
+                        builder.Append(",]");
+                    else
+                    {
+                        ArrayToString(builder, outer[0]);
+                        for(var i = 1; i < outer.Length; i++)
+                        {
+                            builder.Append(", ");
+                            ArrayToString(builder, outer[i]);
+                        }
+                        builder.Append("]");
+                    }
+                    return builder.ToString();
+                case VariableType.Null:
+                    return "null";
+                default:
+                    return GetValue().ToString();
+            }
+        }
+
+        private void ArrayToString(StringBuilder builder, TsObject[] array)
+        {
+            builder.Append("[");
+            if(array.Length != 0)
+            {
+                builder.Append(array[0].ToString());
+                for(var i = 1; i < array.Length; i++)
+                {
+                    builder.Append(", ");
+                    builder.Append(array[i].ToString());
+                }
+            }
+            builder.Append("]");
         }
 
         /// <summary>
@@ -692,13 +733,14 @@ namespace TaffyScript
         /// <returns></returns>
         public override bool Equals(object obj)
         {
+            if (obj is TsObject other)
+                return this == other;
+
             var held = Value.WeakValue;
             if (held is null)
                 return obj is null;
-            else if (obj is TsObject other)
-                return this == other;
-            else
-                return held.Equals(obj);
+
+            return held.Equals(obj);
         }
 
         #endregion
@@ -774,7 +816,7 @@ namespace TaffyScript
 
         public static explicit operator TsInstance(TsObject right)
         {
-            return right.GetInstance();
+            return (TsInstance)right.GetInstance();
         }
 
         public static explicit operator TsDelegate(TsObject right)
@@ -1372,7 +1414,7 @@ namespace TaffyScript
             return obj.Type == VariableType.Delegate;
         }
 
-        public static bool IsUndefined(TsObject obj)
+        public static bool IsNull(TsObject obj)
         {
             return obj.Type == VariableType.Null;
         }
@@ -1382,10 +1424,11 @@ namespace TaffyScript
             switch(obj.Type)
             {
                 case VariableType.Array1:
+                    return "array1";
                 case VariableType.Array2:
-                    return "array";
+                    return "array2";
                 case VariableType.Null:
-                    return "undefined";
+                    return "null";
                 case VariableType.Real:
                     return "real";
                 case VariableType.String:
@@ -1398,6 +1441,5 @@ namespace TaffyScript
         }
 
         #endregion
-
     }
 }

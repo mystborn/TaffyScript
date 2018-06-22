@@ -10,7 +10,6 @@ namespace LanguageTests {
                                        run_subtraction_faulty_tests);
 
         tests.run_tests();
-        tests.destroy();
     }
 
     script run_subtraction_faulty_tests() {

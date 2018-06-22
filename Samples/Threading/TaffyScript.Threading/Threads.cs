@@ -16,7 +16,7 @@ namespace TaffyScript.Threading.Extern
         private static object _key = new object();
 
         [WeakMethod]
-        public static TsObject TaskStart(TsInstance inst, TsObject[] args)
+        public static TsObject TaskStart(ITsInstance inst, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args");
@@ -25,7 +25,7 @@ namespace TaffyScript.Threading.Extern
             switch(args[0].Type)
             {
                 case VariableType.String:
-                    script = TsInstance.GlobalScripts[args[0].GetStringUnchecked()];
+                    script = TsReflection.GlobalScripts[args[0].GetStringUnchecked()];
                     break;
                 case VariableType.Delegate:
                     script = args[0].GetDelegateUnchecked();
@@ -44,7 +44,7 @@ namespace TaffyScript.Threading.Extern
         }
 
         [WeakMethod]
-        public static TsObject ThreadFire(TsInstance inst, TsObject[] args)
+        public static TsObject ThreadFire(ITsInstance inst, TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args");
@@ -53,7 +53,7 @@ namespace TaffyScript.Threading.Extern
             switch (args[0].Type)
             {
                 case VariableType.String:
-                    script = TsInstance.GlobalScripts[args[0].GetStringUnchecked()];
+                    script = TsReflection.GlobalScripts[args[0].GetStringUnchecked()];
                     break;
                 case VariableType.Delegate:
                     script = args[0].GetDelegateUnchecked();
@@ -73,12 +73,12 @@ namespace TaffyScript.Threading.Extern
             return TsObject.Empty();
         }
 
-        public static TsInstance TaskResult(int taskId)
+        public static TsObject TaskResult(int taskId)
         {
             if(_tasks.TryGetValue(taskId, out var task))
             {
                 Task.WaitAny(task);
-                var inst = new TsInstance("TaffyScript.Threading.thread_result");
+                var inst = new DynamicInstance("TaffyScript.Threading.thread_result");
                 inst["id"] = taskId;
                 if(task.Status == TaskStatus.Faulted)
                 {

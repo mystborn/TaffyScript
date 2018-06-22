@@ -7,7 +7,6 @@ namespace LanguageTests {
                                       ternary_argument_assign);
 
         tests.run_tests();
-        tests.destroy();
     }
 
     script ternary_var_assign() {

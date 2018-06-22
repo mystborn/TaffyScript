@@ -1,0 +1,92 @@
+// Lambdas aren't implemented yet;
+// This file shows a potential implementation.
+// Currently it's excluded from the build.
+
+using UnitTest;
+
+namespace LanguageTests {
+    script run_lambda_tests() {
+        var tests = new obj_unit_test("Lambda Tests",
+                                      lambda_no_capture,
+                                      lambda_capture_local,
+                                      lambda_capture_argument,
+                                      lambda_capture_default_argument,
+                                      lambda_argument,
+                                      lambda_local,
+                                      lambda_nested_lambda);
+
+        tests.run_tests();
+    }
+
+    script lambda_no_capture() {
+        test_it("lambda { no_capture }");
+        var i = script {
+            return 1
+        }
+        var result = i();
+        assert_equal(result, 1);
+    }
+
+    script lambda_capture_local() {
+        test_it("lambda { local_capture }");
+        var i = 1;
+        var s = script {
+            return i;
+        }
+        var result = s();
+        assert_equal(result, 1);
+    }
+
+    script lambda_capture_argument() {
+        test_it("lambda { arg_capture }");
+        var s = scr_get_arg_capture_script(1);
+        var result = s();
+        assert_equal(result, 1);
+    }
+
+    script lambda_capture_default_argument() {
+        test_it("lambda { arg_default_capture }");
+        var s = scr_get_arg_capture_script();
+        var result = s();
+        assert_equal(result, 2);
+    }
+
+    script lambda_argument() {
+        test_it("lambda(arg) {}");
+        var s = script(arg) {
+            return arg;
+        }
+        var result = s(2);
+        assert_equal(result, 2);
+    }
+
+    script scr_get_arg_capture_script(arg = 2) {
+        return script { return arg; }
+    }
+
+    script lambda_local() {
+        test_it("lambda { var i = 0 }");
+        var s = script {
+            var i = 1;
+            return i;
+        }
+        var result = s();
+        assert_equal(result, 1);
+    }
+
+    script lambda_nested_lambda() {
+        test_it("lambda { lambda {} }");
+        var s = scr_get_nested_lambda();
+        var result = s();
+        assert_equal(result, 3);
+    }
+    
+    script scr_get_nested_lambda() {
+        return script {
+            var i = 2;
+            var f = script { i++; }
+            f();
+            return i;
+        }
+    }
+}

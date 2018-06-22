@@ -1,0 +1,40 @@
+using UnitTest;
+using TaffyScript.Collections;
+
+namespace LanguageTests {
+
+    script run_import_tests() {
+        var tests = new obj_unit_test("Import Tests", import_create_ds_list);
+        tests.run_tests();
+    }
+
+    script import_create_ds_list() {
+        test_it("import new ds_list");
+        var list = new ds_list();
+        list.add("Hello");
+        var value = list.get(0);
+        assert_equal(value, "Hello");
+    }
+    
+    //Explicitly import class and method.
+    //Please note that this is an example created for the tests
+    //The BCL already has a ds_list import that should be used instead.
+    import object List<TsObject> as obj_list {
+        //Import fields and properties.
+        Count as size;
+
+        //Import single constructor. Doesn't have to be parameterless ctor.
+        new();
+
+        //Import methods with a new name.
+        Add(object) as add;
+        Clear() as clear;
+        RemoveAt(int) as delete;
+        get_Item(int) as get;
+        set_Item(int, object) as set;
+        Insert(int, object) as insert;
+    }
+
+    //Auto generate wrapper class.
+    import object(typing=strong, casing=snake_case) HashSet<TsObject> as ds_set;
+}

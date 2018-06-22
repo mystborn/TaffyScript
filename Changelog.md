@@ -1,3 +1,140 @@
+# Release 1.9.1
+* Fixed bug related to `base`
+* Made some additions to ds_grid and ds_map
+
+# Release 1.9.0
+### Lambda Scripts
+You can now define inline scripts, also known as lambda functions or anonymous functions. The lambdas can capture variables defined in the surrounding scope. They can alos be assigned to variables, and those variables can be called like scripts. To define a lambda, use the following syntax inside of a a script: `script() {  }`. Note the lack of a script name. For more examples, check out the [test file](https://github.com/mystborn/TaffyScript/blob/master/Samples/TestSuite/Tests/lambda.tfs). In addition, you can also use global and instance scripts as first class objects. In other words, you can assign hem to variables (instance scripts will be bound to the instance), and the variables can be called like scripts.
+
+### Reworked Object Generation
+This feature isn't really a big change to TaffyScript code. It does provide a nice increase to runtime code and provides a base for future improvements. However any .NET code interfacing with TS will notice a large change. All TaffyScript types now get generated into real .NET objects. Certain parts are still strange, such as all methods being static, but it will make using these objects be a more natural experience.
+
+### Full Changelog
+* Reimplemented `with`
+* Implemented anonymous scripts
+    * All scripts can now be used as first class objects e.g. they can be assigned to variables and those variables can be called like scripts.
+* Completely changed the way objects are generated
+    * TaffyScript types get translated into .NET types
+    * Improved instance creation code and runtime
+    * Real object inheritance
+    * Improved runtime performance for objects
+    * Improved compile time
+    * Significant quality of life improvement to external code interfacing
+    * Rewrote `TsInstance` to a minimal abstract class that all generated types inherit.
+* Completely rewrote the front end
+    * 30% compile time improvement
+    * Much more extensible
+    * Significantly improved error messages during lexing and parsing
+    * AST types are strongly typed
+* CLI
+    * Now outputs warnings as well as errors
+    * Added flag to time the compile time: `/t`
+* Added variable resolution pass before code generation
+    * Improves error messages
+    * Enforces code correctness to remove certain undefined behaviour
+    * Improves lambda capturing
+* Made the `event` keyword obsolete (pending deprecation)
+    * Instance events (now known as instance scripts) are declared using the `script` keyword
+* Restructured the project layout
+    * TaffyScript CLI moved to it's own project
+    * Improved error logging
+* Added tests for the following
+    * arrays
+    * anonymous/first-class scripts
+    * with
+    * BCL math scripts
+    * return
+    * reflection
+    * strings
+    * repeat
+* Improved import object code generation
+    * Include constructor from the wrapped type
+    * Cast explicityl from and implicitly to TsObject
+    * Specify whether to import the methods inherited from `object` with the flag `include_std=[true|false]`
+    * Changed the `case` flag to `casing`
+* Added language support for `base`
+* Added the `null` keyword to represent a null value.
+* Added bounds check to scripts with explicit arguments when using debug mode
+* Added `Name` property to `ISyntaxToken`
+* Added `DynamicInstance` class for general purpose instances
+* Added `TsReflection` class for reflection code
+* Improved reflection on imported types (Ongoing)
+* Improved PascalCase member name conversion on imported types
+* Improved block code generation
+* Improved Base Type name generation to avoid naming conflicts
+* Improved TsObject equality comparison
+* Improved `TsObject.ToString()` for arrays
+* Improved sequence point marking
+* Improved `for` code generation
+* Improved shift code generation
+* Improved `switch` code generation
+* Many small improvements to compile times
+* Fixed bug related to `enum` name resolution
+* Fixed bug related to instance `script` scoping
+* Fixed bug related to parsing hex characters in a string
+* Fixed many bugs related to namespace resolution
+* Fixed addition bug
+* Fixed repeat bug related to `continue` and `break`
+* Fixed enum values being limited to `int`s - now support any `long` value
+* Removed `Destroyed` delegate from ITsInstance now that instances are garbage collected
+* Removed the `Text` property from `ISyntaxNode`
+* Deprecated `exit` statement; `return` can now be used with no value
+* Made the `noone` keyword obsolete
+* Various BCL changes and fixes
+* Removed the following classes from the TaffyScript namespace because they were no longer in use
+    * IBinder<T>
+    * ClassBinder<T>
+    * StructBinder<T>
+    * FastList<T>
+    * DataStructureDestroyedException
+* Removed the following classes from TaffyScript.Compiler because they were no longer in use
+    * ISyntaxTree
+    * InvalidTokenException
+    * UnrecognizedTokenException
+    * ISyntaxElementFactory
+    * ISyntaxTree
+    * SyntaxElementFactory
+    * SyntaxTree
+
+# Release 1.7.0
+### Temporarily Removed `with`; Permanently Changed it's Functionality
+TaffyScript instances are no longer bound to an id. Therefore, the way with originally worked is no longer valid. Removing id's from instances will make them work much faster (depending on the operations, sometimes up to a 300% increase), and allow them to be garbage collected. This means you no longer have to call `.destroy()` on every instance. It also makes the next major change much easier to implement.
+
+### Import C# Objects
+You can now import a c# object to be usable from within TaffyScript. When imported, a special wrapper class is created that allows the object to be used as any other TS object. There are two import modes: explicit and automatic. In the eplicit mode you layout what methods, fields, properties, and constructor to import. In the automatic mode, all methods/properties/fields that have valid TS types are imported, as well as the first valid constructor. Until the wiki page is created you can check out [this](https://github.com/mystborn/TaffyScript/blob/master/Samples/TestSuite/Tests/object_import.tfs) page which shows some example imports.
+
+### Object Indexers
+_This functionality is still under consideration and is highly subject to change._
+
+You can now define indexers on objects. This functionality was created to support accessors on c# objects. To define an accessor, simply define a combination of `get` and `set` events on an object. Then you can call those methods using array access syntax. The values inside the brackets will be passed to the respective method.
+
+### Deprecated ds_* Scripts
+These scripts were removed in favor of imported c# objects. The new c# objects are ds_list, ds_map, and ds_grid. More information will be added to the wiki soon.
+
+### Full Changelog
+* Made Binders more efficient
+* Fixed excluding files
+* Made all `ISyntaxElement`s have a `Text` property. Means less casting and more clear code during compilation phase.
+* Better errors when using an addition operator.
+* Added an `ITsInstance` interface that all instances must derive from
+* Made `TsInstance` inherit from `ITsInstance`.
+* Changed TsScript first argument to be `ITsInstance`.
+* Changed `TsDelegate` `Target` to be of type `ITsInstance`. 
+* All WeakMethod first arguments have been changed to use `ITsInstance` instead of `TsInstance`.
+* Removed `InstanceEnumerator` as it no longer functioned.
+* Temporarily removed variable_instance_* scripts.
+* Made `TsObject` wrap `ITsInstance`.
+* Added some timer related methods to the UnitTest library.
+* Added MemberAccessException.
+* Implemented types for ds_list, ds_map, and ds_grid.
+* Added the ability to import c# objects.
+* Temporarily removed `with` block.
+* Added the ability to natively import any type that inherits from `ITsInstance` in a fashion similar to importing `WeakMethod`s.
+* Allow objects to have indexer syntax with get and set scripts.
+* Fixed bug when resizing a 2d array.
+* Fully deprecated ds_* scripts
+* Removed indexer accessor tokens
+
 # Release 1.6.1.0
 _General fixes and updates related to the script rework. Many bug fixes and performance enhancements._
 

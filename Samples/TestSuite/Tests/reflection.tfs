@@ -1,0 +1,165 @@
+using UnitTest;
+
+namespace LanguageTests {
+    script run_reflection_tests() {
+        var tests = new obj_unit_test("Reflection Tests",
+                                      event_perform_object_with_args,
+                                      event_perform_object_without_args,
+                                      reflection_object_get_name,
+                                      reflection_object_get_parent,
+                                      reflection_object_is_ancestor,
+                                      reflection_script_execute,
+                                      reflection_script_exists,
+                                      reflection_global_exists,
+                                      reflection_global_get,
+                                      reflection_global_get_names,
+                                      reflection_global_set,
+                                      reflection_instance_exists,
+                                      reflection_instance_get,
+                                      reflection_instance_get_names,
+                                      reflection_instance_set);
+        tests.run_tests();
+    }
+
+    script event_perform_object_with_args() {
+        test_it("call_instance_script(args..)");
+        var result;
+        var obj = new obj_mirror();
+        result = call_instance_script(obj, "LanguageTests.obj_mirror", "echo", 7);
+
+        assert_equal(result, 7);
+    }
+
+    script event_perform_object_without_args() {
+        test_it("call_instance_script()");
+        var result;
+        var obj = new obj_mirror();
+        result = call_instance_script(obj, obj_mirror, "get10");
+
+        assert_equal(result, 10);
+    }
+
+    script reflection_object_get_name() {
+        test_it("object_get_name()");
+        var obj = new obj_mirror();
+        assert_equal(object_get_name(obj), "LanguageTests.obj_mirror");
+    }
+
+    script reflection_object_get_parent() {
+        test_it("object_get_parent()");
+        var obj = new obj_mirror();
+        assert_equal(object_get_parent(obj), "");
+        obj = new obj_comp3();
+        assert_equal(object_get_parent(obj), "LanguageTests.obj_comp2");
+    }
+
+    script reflection_object_is_ancestor() {
+        test_it("object_is_ancestor()");
+        assert(object_is_ancestor(obj_comp1, obj_comp3));
+    }
+
+    script reflection_script_execute() {
+        test_it("call_global_script()");
+        var result = call_global_script("LanguageTests.reflection_echo", 10);
+        assert_equal(result, 10);
+    }
+
+    script reflection_script_exists() {
+        test_it("script_exists()");
+        assert(script_exists("LanguageTests.reflection_echo"));
+        assert_is_false(script_exists("reflection_moo"));
+    }
+
+    script reflection_global_exists() {
+        test_it("variable_global_exists()");
+        global.val = 10;
+        assert(variable_global_exists("val"));
+    }
+
+    script reflection_global_get() {
+        test_it("variable_global_get");
+        global.val = 11;
+        var result = variable_global_get("val");
+        assert_equal(result, 11);
+    }
+
+    script reflection_global_get_names() {
+        test_it("variable_global_get_names()");
+        global.val = 12;
+        var found = false;
+        var names = variable_global_get_names();
+        for(var i = 0; i < array_length_1d(names); i++) {
+            if(names[i] == "val") {
+                found = true;
+                break;
+            }
+        }
+        assert(found);
+    }
+
+    script reflection_global_set() {
+        test_it("variable_global_set()");
+        variable_global_set("val", 13);
+        assert_equal(global.val, 13);
+    }
+
+    script reflection_instance_exists() {
+        test_it("variable_instance_exists()");
+        var obj = new obj_mirror();
+        assert(variable_instance_exists(obj, "value"));
+        assert_is_false(variable_instance_exists(obj, "moo"));
+    }
+
+    script reflection_instance_get() {
+        test_it("variable_instance_get()");
+        var obj = new obj_mirror();
+        assert_equal(variable_instance_get(obj, "value"), 10);
+    }
+
+    script reflection_instance_get_names() {
+        test_it("variable_instance_get_names()");
+        var obj = new obj_mirror();
+        var names = variable_instance_get_names(obj);
+        var found = false;
+        for(var i = 0; i < array_length_1d(names); i++) {
+            if(names[i] == "value") {
+                found = true;
+                break;
+            }
+        }
+        assert(found);
+    }
+
+    script reflection_instance_set() {
+        test_it("variable_instance_set()");
+        var obj = new obj_mirror();
+        variable_instance_set(obj, "value", 12);
+        assert_equal(obj.value, 12);
+        variable_instance_set(obj, "sound", "moo");
+        assert_equal(obj.sound, "moo");
+    }
+
+    script reflection_echo() {
+        return argument0;
+    }
+
+    object obj_mirror {
+        script create() {
+            value = 10;
+        }
+
+        script get10() {
+            return 10;
+        }
+
+        script echo(arg) {
+            return arg;
+        }
+    }
+
+    object obj_change {
+        script create(value = 15) {
+            self.value = value;
+        }
+    }
+}
