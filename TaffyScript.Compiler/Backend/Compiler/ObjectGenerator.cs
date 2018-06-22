@@ -10,9 +10,9 @@ namespace TaffyScript.Compiler.Backend
 {
     public class ObjectGenerator
     {
-        private static FieldInfo baseMemberField = typeof(TsInstanceTemp).GetField("_members", BindingFlags.NonPublic | BindingFlags.Instance);
-        private static Type _baseType = typeof(TsInstanceTemp);
-        private static ConstructorInfo _baseConstructor = typeof(TsInstanceTemp).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
+        private static FieldInfo baseMemberField = typeof(TsInstance).GetField("_members", BindingFlags.NonPublic | BindingFlags.Instance);
+        private static Type _baseType = typeof(TsInstance);
+        private static ConstructorInfo _baseConstructor = typeof(TsInstance).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
         private static ConstructorInfo _definitionConstructor = typeof(ObjectDefinition).GetConstructor(new[] { typeof(string),
                                                                                                                 typeof(string),
                                                                                                                 typeof(Dictionary<string, TsDelegate>),
@@ -70,7 +70,7 @@ namespace TaffyScript.Compiler.Backend
                 _tryGetDelegateStore.Add(parentType, parentTryGetDelegate);
             }
 
-            if (parentType != null && !typeof(TsInstanceTemp).IsAssignableFrom(parentType))
+            if (parentType != null && !typeof(TsInstance).IsAssignableFrom(parentType))
             {
                 members = parentType.GetField("_members", BindingFlags.FlattenHierarchy | BindingFlags.NonPublic | BindingFlags.Instance);
                 if (members == null || members.FieldType != typeof(Dictionary<string, TsObject>))

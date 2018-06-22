@@ -1,6 +1,7 @@
 ## Personal Ingores
 Samples/Moddable/GameBase/References/
 Samples/Moddable/GameMod/References/
+SyntaxGenerator/
 *.nuspec
 *.nupkg
 *.bak

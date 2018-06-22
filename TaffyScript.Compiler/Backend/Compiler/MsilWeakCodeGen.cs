@@ -1006,7 +1006,7 @@ namespace TaffyScript.Compiler.Backend
                         builder.SetParent(parent);
                     }
                     else
-                        builder.SetParent(typeof(TsInstanceTemp));
+                        builder.SetParent(typeof(TsInstance));
 
                     type = builder;
                     _definedTypes.Add(objectSymbol, type);
@@ -1471,13 +1471,13 @@ namespace TaffyScript.Compiler.Backend
                         switch (token.Name)
                         {
                             case "global":
-                                emit.LdFld(typeof(TsInstanceTemp).GetField("Global"));
+                                emit.LdFld(typeof(TsInstance).GetField("Global"));
                                 break;
                             case "self":
                                 emit.LdArg(0 + _argOffset);
                                 break;
                             case "other":
-                                emit.Call(typeof(TsInstanceTemp).GetMethod("get_Other"));
+                                emit.Call(typeof(TsInstance).GetMethod("get_Other"));
                                 break;
                             default:
                                 _logger.Error($"Cannot access member on readonly value {token.Name}", token.Position);
@@ -2585,13 +2585,13 @@ namespace TaffyScript.Compiler.Backend
                 switch(read.Name)
                 {
                     case "global":
-                        emit.LdFld(typeof(TsInstanceTemp).GetField("Global"));
+                        emit.LdFld(typeof(TsInstance).GetField("Global"));
                         break;
                     case "self":
                         emit.LdArg(0 + _argOffset);
                         break;
                     case "other":
-                        emit.Call(typeof(TsInstanceTemp).GetMethod("get_Other"));
+                        emit.Call(typeof(TsInstance).GetMethod("get_Other"));
                         break;
                     default:
                         _logger.Error("Invalid syntax detected", right.Position);
@@ -2821,7 +2821,7 @@ namespace TaffyScript.Compiler.Backend
             else
                 _parent = null;
 
-            Type parent = typeof(TsInstanceTemp);
+            Type parent = typeof(TsInstance);
 
             if (_parent != null)
                 parent = GetDefinedType(_parent, objectNode.Inherits.Position);
@@ -3126,9 +3126,9 @@ namespace TaffyScript.Compiler.Backend
         private Func<ILEmitter> GetReadOnlyLoadFunc(ReadOnlyToken read)
         {
             if (read.Name == "global")
-                return () => emit.LdFld(typeof(TsInstanceTemp).GetField("Global"));
+                return () => emit.LdFld(typeof(TsInstance).GetField("Global"));
             else if (read.Name == "other")
-                return () => emit.Call(typeof(TsInstanceTemp).GetMethod("get_Other"));
+                return () => emit.Call(typeof(TsInstance).GetMethod("get_Other"));
             else
                 return () => emit.LdArg(0 + _argOffset);
         }
@@ -3393,7 +3393,7 @@ namespace TaffyScript.Compiler.Backend
                     emit.LdArg(0 + _argOffset);
                     break;
                 case "other":
-                    emit.Call(typeof(TsInstanceTemp).GetMethod("get_Other"));
+                    emit.Call(typeof(TsInstance).GetMethod("get_Other"));
                     break;
                 case "argument_count":
                     if(_argumentCount == null)
@@ -3417,9 +3417,9 @@ namespace TaffyScript.Compiler.Backend
                     break;
                 case "global":
                     if (_needAddress)
-                        emit.LdFldA(typeof(TsInstanceTemp).GetField("Global"));
+                        emit.LdFldA(typeof(TsInstance).GetField("Global"));
                     else
-                        emit.LdFld(typeof(TsInstanceTemp).GetField("Global"));
+                        emit.LdFld(typeof(TsInstance).GetField("Global"));
                     break;
                 case "pi":
                     emit.LdFloat((float)Math.PI);
@@ -3915,8 +3915,8 @@ namespace TaffyScript.Compiler.Backend
                 return;
             }
             var other = GetLocal(typeof(ITsInstance));
-            var get = typeof(TsInstanceTemp).GetMethod("get_Other");
-            var set = typeof(TsInstanceTemp).GetMethod("set_Other");
+            var get = typeof(TsInstance).GetMethod("get_Other");
+            var set = typeof(TsInstance).GetMethod("set_Other");
 
             emit.Call(get)
                 .StLocal(other)

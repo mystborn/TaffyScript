@@ -1,3 +1,93 @@
+# Release 1.9.0
+### Lambda Scripts
+
+### Full Changelog
+* Reimplemented `with`
+* Implemented anonymous scripts
+    * All scripts can now be used as first class objects e.g. they can be assigned to variables and those variables can be called like scripts.
+* Completely changed the way objects are generated
+    * TaffyScript types get translated into .NET types
+    * Improved instance creation code and runtime
+    * Real object inheritance
+    * Improved runtime performance for objects
+    * Improved compile time
+    * Significant quality of life improvement to external code interfacing
+    * Rewrote `TsInstance` to a minimal abstract class that all generated types inherit.
+* Completely rewrote the front end
+    * 30% compile time improvement
+    * Much more extensible
+    * Significantly improved error messages during lexing and parsing
+    * AST types are strongly typed
+* CLI
+    * Now outputs warnings as well as errors
+    * Added flag to time the compile time: `/t`
+* Added variable resolution pass before code generation
+    * Improves error messages
+    * Enforces code correctness to remove certain undefined behaviour
+    * Improves lambda capturing
+* Made the `event` keyword obsolete (pending deprecation)
+    * Instance events (now known as instance scripts) are declared using the `script` keyword
+* Restructured the project layout
+    * TaffyScript CLI moved to it's own project
+    * Improved error logging
+* Added tests for the following
+    * arrays
+    * anonymous/first-class scripts
+    * with
+    * BCL math scripts
+    * return
+    * reflection
+    * strings
+    * repeat
+* Improved import object code generation
+    * Include constructor from the wrapped type
+    * Cast explicityl from and implicitly to TsObject
+    * Specify whether to import the methods inherited from `object` with the flag `include_std=[true|false]`
+    * Changed the `case` flag to `casing`
+* Added language support for `base`
+* Added the `null` keyword to represent a null value.
+* Added bounds check to scripts with explicit arguments when using debug mode
+* Added `Name` property to `ISyntaxToken`
+* Added `DynamicInstance` class for general purpose instances
+* Added `TsReflection` class for reflection code
+* Improved reflection on imported types (Ongoing)
+* Improved PascalCase member name conversion on imported types
+* Improved block code generation
+* Improved Base Type name generation to avoid naming conflicts
+* Improved TsObject equality comparison
+* Improved `TsObject.ToString()` for arrays
+* Improved sequence point marking
+* Improved `for` code generation
+* Improved shift code generation
+* Improved `switch` code generation
+* Many small improvements to compile times
+* Fixed bug related to `enum` name resolution
+* Fixed bug related to instance `script` scoping
+* Fixed bug related to parsing hex characters in a string
+* Fixed many bugs related to namespace resolution
+* Fixed addition bug
+* Fixed repeat bug related to `continue` and `break`
+* Fixed enum values being limited to `int`s - now support any `long` value
+* Removed `Destroyed` delegate from ITsInstance now that instances are garbage collected
+* Removed the `Text` property from `ISyntaxNode`
+* Deprecated `exit` statement; `return` can now be used with no value
+* Made the `noone` keyword obsolete
+* Various BCL changes and fixes
+* Removed the following classes from the TaffyScript namespace because they were no longer in use
+    * IBinder<T>
+    * ClassBinder<T>
+    * StructBinder<T>
+    * FastList<T>
+    * DataStructureDestroyedException
+* Removed the following classes from TaffyScript.Compiler because they were no longer in use
+    * ISyntaxTree
+    * InvalidTokenException
+    * UnrecognizedTokenException
+    * ISyntaxElementFactory
+    * ISyntaxTree
+    * SyntaxElementFactory
+    * SyntaxTree
+
 # Release 1.7.0
 ### Temporarily Removed `with`; Permanently Changed it's Functionality
 TaffyScript instances are no longer bound to an id. Therefore, the way with originally worked is no longer valid. Removing id's from instances will make them work much faster (depending on the operations, sometimes up to a 300% increase), and allow them to be garbage collected. This means you no longer have to call `.destroy()` on every instance. It also makes the next major change much easier to implement.

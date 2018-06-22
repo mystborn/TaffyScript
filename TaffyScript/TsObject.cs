@@ -814,9 +814,9 @@ namespace TaffyScript
             return right.GetString();
         }
 
-        public static explicit operator TsInstanceTemp(TsObject right)
+        public static explicit operator TsInstance(TsObject right)
         {
-            return (TsInstanceTemp)right.GetInstance();
+            return (TsInstance)right.GetInstance();
         }
 
         public static explicit operator TsDelegate(TsObject right)
@@ -899,7 +899,7 @@ namespace TaffyScript
             return new TsObject(right);
         }
 
-        public static implicit operator TsObject(TsInstanceTemp right)
+        public static implicit operator TsObject(TsInstance right)
         {
             return new TsObject(right);
         }

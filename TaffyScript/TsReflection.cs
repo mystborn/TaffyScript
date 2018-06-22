@@ -112,7 +112,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static bool VariableGlobalExists(string name)
         {
-            return TsInstanceTemp.Global._members.ContainsKey(name);
+            return TsInstance.Global._members.ContainsKey(name);
         }
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace TaffyScript
         /// <returns></returns>
         public static TsObject VariableGlobalGet(string name)
         {
-            if (TsInstanceTemp.Global._members.TryGetValue(name, out var result))
+            if (TsInstance.Global._members.TryGetValue(name, out var result))
                 return result;
             return TsObject.Empty();
         }
@@ -133,9 +133,9 @@ namespace TaffyScript
         /// <returns></returns>
         public static TsObject[] VariableGlobalGetNames()
         {
-            var arr = new TsObject[TsInstanceTemp.Global._members.Count];
+            var arr = new TsObject[TsInstance.Global._members.Count];
             int i = 0;
-            foreach (var key in TsInstanceTemp.Global._members.Keys)
+            foreach (var key in TsInstance.Global._members.Keys)
                 arr[i++] = key;
 
             return arr;
@@ -148,7 +148,7 @@ namespace TaffyScript
         /// <param name="value">The value to set</param>
         public static void VariableGlobalSet(string name, TsObject value)
         {
-            TsInstanceTemp.Global._members[name] = value;
+            TsInstance.Global._members[name] = value;
         }
 
         /// <summary>
@@ -161,7 +161,7 @@ namespace TaffyScript
         {
             switch(inst)
             {
-                case TsInstanceTemp ts:
+                case TsInstance ts:
                     return ts._members.ContainsKey(name);
                 case DynamicInstance di:
                     return di._members.ContainsKey(name);
@@ -200,7 +200,7 @@ namespace TaffyScript
             int i;
             switch(inst)
             {
-                case TsInstanceTemp ts:
+                case TsInstance ts:
                     arr = new TsObject[ts._members.Count];
                     i = 0;
                     foreach (var key in ts._members.Keys)
