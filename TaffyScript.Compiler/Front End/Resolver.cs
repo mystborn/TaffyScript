@@ -13,16 +13,20 @@ namespace TaffyScript.Compiler.FrontEnd
     public class Resolver : ISyntaxElementVisitor
     {
         private bool _inLambda = false;
+        private bool _hasParent = false;
         private LoopType _currentLoop = LoopType.None;
         private MethodType _currentMethod = MethodType.None;
         private Environment _environment = new Environment();
         private IErrorLogger _logger;
         private SymbolTable _table;
+        private SymbolResolver _resolver;
+        private Dictionary<string, string> _inheritance = new Dictionary<string, string>();
 
-        public Resolver(IErrorLogger logger, SymbolTable table)
+        public Resolver(IErrorLogger logger, SymbolTable table, SymbolResolver resolver)
         {
             _logger = logger;
             _table = table;
+            _resolver = resolver;
         }
 
         public void Resolve(RootNode root)
@@ -90,7 +94,10 @@ namespace TaffyScript.Compiler.FrontEnd
         public void Visit(BaseNode baseNode)
         {
             if (_currentMethod != MethodType.Instance)
-                _logger.Error("Cannot use 'base' outside of an instance script.");
+                _logger.Error("Cannot use 'base' outside of an instance script.", baseNode.Position);
+
+            if (!_hasParent)
+                _logger.Error("Cannot use 'base' inside of a type that doesn't have a parent.", baseNode.Position);
 
             foreach(var arg in baseNode.Arguments)
             {
@@ -119,7 +126,7 @@ namespace TaffyScript.Compiler.FrontEnd
         public void Visit(BreakToken breakToken)
         {
             if (_currentLoop == LoopType.None)
-                _logger.Error("Cannot use 'break' outside of a loop or switch case.");
+                _logger.Error("Cannot use 'break' outside of a loop or switch case.", breakToken.Position);
 
             return;
         }
@@ -142,7 +149,7 @@ namespace TaffyScript.Compiler.FrontEnd
         public void Visit(ContinueToken continueToken)
         {
             if (_currentLoop != LoopType.Loop)
-                _logger.Error("Cannot use 'continue' outside of a loop.");
+                _logger.Error("Cannot use 'continue' outside of a loop.", continueToken.Position);
 
             return;
         }
@@ -261,7 +268,7 @@ namespace TaffyScript.Compiler.FrontEnd
             foreach(var variable in locals.Locals)
             {
                 if (_environment.Encountered(variable.Name))
-                    _logger.Error("Tried to declare a variable that has already been encountered in the current scope.");
+                    _logger.Error("Tried to declare a variable that has already been encountered in the current scope.", variable.Position);
                 _environment.Define(variable.Name);
 
                 variable.Value?.Accept(this);
@@ -319,12 +326,24 @@ namespace TaffyScript.Compiler.FrontEnd
         public void Visit(ObjectNode objectNode)
         {
             _table.Enter(objectNode.Name);
+
+            if (objectNode.Inherits != null)
+            {
+                if(_resolver.TryResolveType(objectNode.Inherits, out var parentSymbol) && _table.Current is ObjectSymbol obj)
+                {
+                    obj.Inherits = parentSymbol;
+                    _hasParent = true;
+                }
+                else
+                    _logger.Error("Tried to inherit from a non-existant type", objectNode.Position);
+            }
             foreach (var script in objectNode.Scripts)
             {
                 script.Parent = objectNode;
                 script.Accept(this);
             }
             _table.Exit();
+            _hasParent = false;
         }
 
         public void Visit(PostfixNode postfix)
@@ -426,11 +445,16 @@ namespace TaffyScript.Compiler.FrontEnd
 
         public void Visit(UsingsNode usingsNode)
         {
+            foreach (var ns in usingsNode.Usings)
+                _table.AddNamespaceToDefinitionLookup(ns.Namespace);
+
             foreach (var declaration in usingsNode.Declarations)
             {
                 declaration.Parent = usingsNode;
                 declaration.Accept(this);
             }
+
+            _table.RemoveAllNamespacesFromDefinitionLookup();
         }
 
         public void Visit(VariableToken variableToken)

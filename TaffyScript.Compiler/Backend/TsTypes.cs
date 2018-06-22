@@ -32,6 +32,7 @@ namespace TaffyScript.Compiler
                 return _standardMethods;
             }
         }
+        public static Type[] ArgumentTypes = new[] { typeof(ITsInstance), typeof(TsObject[]) };
 
         static TsTypes()
         {

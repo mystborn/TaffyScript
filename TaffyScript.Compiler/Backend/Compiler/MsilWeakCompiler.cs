@@ -50,12 +50,16 @@ namespace TaffyScript.Compiler.Backend
             if(_logger.Errors.Count != 0)
                 return new CompilerResult(_logger);
 
-            var resolver = new Resolver(_logger, table);
+            var symbolResolver = new SymbolResolver(table, _logger);
+            var resolver = new Resolver(_logger, table, symbolResolver);
+
+            // You MUST create the generator before resolving so it can load in
+            // the included assemblies.
+            var generator = new MsilWeakCodeGen(table, symbolResolver, config, _logger);
             resolver.Resolve(root);
             if (_logger.Errors.Count != 0)
                 return new CompilerResult(_logger);
 
-            var generator = new MsilWeakCodeGen(table, config, _logger);
             var result = generator.CompileTree(root);
             if (result.Errors.Count > 0)
                 return result;
@@ -117,12 +121,14 @@ namespace TaffyScript.Compiler.Backend
             if (_logger.Errors.Count != 0)
                 return new CompilerResult(_logger);
 
-            var resolver = new Resolver(_logger, table);
+            var symbolResolver = new SymbolResolver(table, _logger);
+            var resolver = new Resolver(_logger, table, symbolResolver);
+            var generator = new MsilWeakCodeGen(table, symbolResolver, config, _logger);
+
             resolver.Resolve(root);
             if (_logger.Errors.Count != 0)
                 return new CompilerResult(_logger);
 
-            var generator = new MsilWeakCodeGen(table, config, _logger);
             var result = generator.CompileTree(root);
             if (result.Errors.Count > 0)
                 return result;

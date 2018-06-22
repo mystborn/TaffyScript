@@ -25,7 +25,7 @@ namespace TaffyScript.Threading.Extern
             switch(args[0].Type)
             {
                 case VariableType.String:
-                    script = TsInstance.GlobalScripts[args[0].GetStringUnchecked()];
+                    script = TsReflection.GlobalScripts[args[0].GetStringUnchecked()];
                     break;
                 case VariableType.Delegate:
                     script = args[0].GetDelegateUnchecked();
@@ -53,7 +53,7 @@ namespace TaffyScript.Threading.Extern
             switch (args[0].Type)
             {
                 case VariableType.String:
-                    script = TsInstance.GlobalScripts[args[0].GetStringUnchecked()];
+                    script = TsReflection.GlobalScripts[args[0].GetStringUnchecked()];
                     break;
                 case VariableType.Delegate:
                     script = args[0].GetDelegateUnchecked();
@@ -78,7 +78,7 @@ namespace TaffyScript.Threading.Extern
             if(_tasks.TryGetValue(taskId, out var task))
             {
                 Task.WaitAny(task);
-                var inst = new TsInstance("TaffyScript.Threading.thread_result");
+                var inst = new DynamicInstance("TaffyScript.Threading.thread_result");
                 inst["id"] = taskId;
                 if(task.Status == TaskStatus.Faulted)
                 {

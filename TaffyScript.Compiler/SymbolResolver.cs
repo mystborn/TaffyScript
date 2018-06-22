@@ -1,0 +1,94 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using TaffyScript.Compiler.FrontEnd;
+using TaffyScript.Compiler.Syntax;
+
+namespace TaffyScript.Compiler
+{
+    public class SymbolResolver
+    {
+        SymbolTable _table;
+        IErrorLogger _logger;
+
+        public SymbolResolver(SymbolTable table, IErrorLogger logger)
+        {
+            _table = table;
+            _logger = logger;
+        }
+
+        public bool TryResolveNamespace(MemberAccessNode node, out ISyntaxElement resolved, out SymbolNode namespaceNode)
+        {
+            if (node.Left is ISyntaxToken token && _table.Defined(token.Name, out var symbol) && symbol.Type == SymbolType.Namespace)
+            {
+                namespaceNode = (SymbolNode)symbol;
+                resolved = node.Right;
+                return true;
+            }
+            else if (node.Left is MemberAccessNode)
+            {
+                var ns = new Stack<ISyntaxToken>();
+                resolved = node.Right;
+                var start = node;
+                while (node.Left is MemberAccessNode member)
+                {
+                    node = member;
+                    if (node.Right is ISyntaxToken id)
+                        ns.Push(id);
+                    else
+                    {
+                        namespaceNode = default(SymbolNode);
+                        return false;
+                    }
+                }
+
+                if (node.Left is ISyntaxToken left)
+                    ns.Push(left);
+                else
+                    _logger.Error("Invalid syntax detected", node.Left.Position);
+
+                var sb = new System.Text.StringBuilder();
+                var iterations = 0;
+                while (ns.Count > 0)
+                {
+                    var top = ns.Pop();
+                    sb.Append(top.Name);
+                    sb.Append(".");
+                    if (_table.Defined(top.Name, out symbol) && symbol.Type == SymbolType.Namespace)
+                    {
+                        _table.Enter(top.Name);
+                        iterations++;
+                    }
+                    else
+                    {
+                        namespaceNode = default(SymbolNode);
+                        _table.Exit(iterations);
+                        return false;
+                    }
+                }
+                namespaceNode = _table.Current;
+                _table.Exit(iterations);
+                return true;
+            }
+            resolved = default(ISyntaxElement);
+            namespaceNode = default(SymbolNode);
+            return false;
+        }
+
+        public bool TryResolveType(ISyntaxElement typeElement, out ISymbol typeSymbol)
+        {
+            if(((typeElement is MemberAccessNode memberAccess &&
+                 TryResolveNamespace(memberAccess, out var token, out var ns) &&
+                 ns.Children.TryGetValue(((ISyntaxToken)token).Name, out typeSymbol)) ||
+                (_table.Defined(((ISyntaxToken)typeElement).Name, out typeSymbol))))
+            {
+                return true;
+            }
+
+            typeSymbol = default(ISymbol);
+            return false;
+        }
+    }
+}

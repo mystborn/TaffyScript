@@ -655,7 +655,7 @@ namespace TaffyScript
             return GetDelegate().Invoke(args);
         }
 
-        public TsObject DelegateInvoke(TsInstance target, params TsObject[] args)
+        public TsObject DelegateInvoke(ITsInstance target, params TsObject[] args)
         {
             return GetDelegate().Invoke(target, args);
         }
@@ -814,9 +814,9 @@ namespace TaffyScript
             return right.GetString();
         }
 
-        public static explicit operator TsInstance(TsObject right)
+        public static explicit operator TsInstanceTemp(TsObject right)
         {
-            return (TsInstance)right.GetInstance();
+            return (TsInstanceTemp)right.GetInstance();
         }
 
         public static explicit operator TsDelegate(TsObject right)
@@ -899,7 +899,7 @@ namespace TaffyScript
             return new TsObject(right);
         }
 
-        public static implicit operator TsObject(TsInstance right)
+        public static implicit operator TsObject(TsInstanceTemp right)
         {
             return new TsObject(right);
         }

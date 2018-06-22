@@ -111,6 +111,14 @@ namespace TaffyScript.Compiler.Backend
             return this;
         }
 
+        public ILEmitter BeqS(Label label)
+        {
+            _types.Pop();
+            _types.Pop();
+            _generator.Emit(OpCodes.Beq_S, label);
+            return this;
+        }
+
         public ILEmitter Bge(Label label)
         {
             _types.Pop();
@@ -165,6 +173,12 @@ namespace TaffyScript.Compiler.Backend
             return this;
         }
 
+        public ILEmitter BrS(Label label)
+        {
+            _generator.Emit(OpCodes.Br, label);
+            return this;
+        }
+
         public ILEmitter BrFalse(Label label)
         {
             _types.Pop();
@@ -172,10 +186,24 @@ namespace TaffyScript.Compiler.Backend
             return this;
         }
 
+        public ILEmitter BrFalseS(Label label)
+        {
+            _types.Pop();
+            _generator.Emit(OpCodes.Brfalse_S, label);
+            return this;
+        }
+
         public ILEmitter BrTrue(Label label)
         {
             _types.Pop();
             _generator.Emit(OpCodes.Brtrue, label);
+            return this;
+        }
+
+        public ILEmitter BrTrueS(Label label)
+        {
+            _types.Pop();
+            _generator.Emit(OpCodes.Brtrue_S, label);
             return this;
         }
 
@@ -226,6 +254,60 @@ namespace TaffyScript.Compiler.Backend
                 _types.Pop();
 
             _generator.Emit(OpCodes.Call, ctor);
+
+            return this;
+        }
+
+        public ILEmitter CallBase(ConstructorInfo ctor, int input)
+        {
+            _types.Pop();
+            for (var i = 0; i < input; i++)
+                _types.Pop();
+
+            _generator.Emit(OpCodes.Call, ctor);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Calls a method explicitly, ignoring virtual methods.
+        /// </summary>
+        /// <param name="method"></param>
+        /// <returns></returns>
+        public ILEmitter CallE(MethodInfo method)
+        {
+            if (method == null)
+                return this;
+            var length = method.GetParameters().Length;
+            if (!method.IsStatic)
+                length += 1;
+            for (var i = 0; i < length; i++)
+                _types.Pop();
+
+            _generator.Emit(OpCodes.Call, method);
+
+            if (method.ReturnType != typeof(void))
+                _types.Push(method.ReturnType);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Calls a method explicitly, ignoring virtual methods.
+        /// </summary>
+        /// <param name="method"></param>
+        /// <returns></returns>
+        public ILEmitter CallE(MethodInfo method, int input, Type output)
+        {
+            if (method == null)
+                return this;
+            for (var i = 0; i < input; i++)
+                _types.Pop();
+
+            _generator.Emit(OpCodes.Call, method);
+
+            if (output != typeof(void))
+                _types.Push(output);
 
             return this;
         }
@@ -493,6 +575,12 @@ namespace TaffyScript.Compiler.Backend
             return this;
         }
 
+        public ILEmitter LdIndRef()
+        {
+            _generator.Emit(OpCodes.Ldind_Ref);
+            return this;
+        }
+
         public ILEmitter LdInt(int value)
         {
             switch(value)
@@ -561,7 +649,10 @@ namespace TaffyScript.Compiler.Backend
                     _generator.Emit(OpCodes.Ldloc_3);
                     break;
                 default:
-                    _generator.Emit(OpCodes.Ldloc, (short)(builder.LocalIndex));
+                    if (builder.LocalIndex < 255)
+                        _generator.Emit(OpCodes.Ldloc_S, (byte)builder.LocalIndex);
+                    else
+                        _generator.Emit(OpCodes.Ldloc, (short)(builder.LocalIndex));
                     break;
             }
             _types.Push(builder.LocalType);
@@ -570,7 +661,11 @@ namespace TaffyScript.Compiler.Backend
 
         public ILEmitter LdLocalA(LocalBuilder builder)
         {
-            _generator.Emit(OpCodes.Ldloca, (short)builder.LocalIndex);
+            if (builder.LocalIndex < 255)
+                _generator.Emit(OpCodes.Ldloca_S, (byte)builder.LocalIndex);
+            else
+                _generator.Emit(OpCodes.Ldloca, (short)builder.LocalIndex);
+
             var type = builder.LocalType;
             if (type.IsValueType)
                 type = type.MakePointerType();

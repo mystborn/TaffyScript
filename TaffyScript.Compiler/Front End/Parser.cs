@@ -344,14 +344,15 @@ namespace TaffyScript.Compiler
         {
             Consume(TokenType.Object, "Expected 'object'");
             var name = Consume(TokenType.Identifier, "Expected name for object");
-            if(!_table.TryEnterNew(name.Text, SymbolType.Object))
+            if(!_table.TryAdd(new ObjectSymbol(_table.Current, name.Text)))
                 Error(name, $"Name conflict between object and {_table.Defined(name.Text).Type} {name.Text}");
+            _table.Enter(name.Text);
 
-            string parent = null;
+            ISyntaxElement parent = null;
             if (Match(TokenType.Colon))
             {
                 //Todo: Change ResolveNamespace to accept custom error message.
-                parent = ResolveNamespace();
+                parent = ReadTaffyScriptType("Invalid type name for object parent");
             }
 
             Consume(TokenType.OpenBrace, "Expected '{' after object declaration", 1);
@@ -904,7 +905,8 @@ namespace TaffyScript.Compiler
             if(Check(TokenType.New))
             {
                 symbol = _stream.Read();
-                var type = ResolveNamespace();
+                var type = ReadTaffyScriptType("Invalid type name after 'new'");
+
                 Consume(TokenType.OpenParen, "Expected '(' after new instance name");
                 var args = new List<ISyntaxElement>();
                 if(!Check(TokenType.CloseParen))
@@ -1287,6 +1289,18 @@ namespace TaffyScript.Compiler
             }
 
             return arguments;
+        }
+
+        private ISyntaxElement ReadTaffyScriptType(string errorMessage)
+        {
+            var token = Consume(TokenType.Identifier, errorMessage);
+            ISyntaxElement type = new VariableToken(token.Text, token.Position);
+            while (Match(TokenType.Dot))
+            {
+                token = Consume(TokenType.Identifier, errorMessage);
+                type = new MemberAccessNode(type, new VariableToken(token.Text, token.Position), token.Position);
+            }
+            return type;
         }
 
         private void Synchronize(params TokenType[] tokens)

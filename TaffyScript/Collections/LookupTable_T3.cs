@@ -132,6 +132,14 @@ namespace TaffyScript.Collections
             Add(item.Row, item.Col, item.Value);
         }
 
+        public void AddRow(TRow row, Dictionary<TCol, TValue> columns)
+        {
+            if (_source.ContainsKey(row))
+                throw new ArgumentException("Cannot add the same row twice", nameof(row));
+
+            _source[row] = columns;
+        }
+
         /// <summary>
         /// Removes all values from the <see cref="LookupTable{TRow, TCol, TValue}"/>.
         /// </summary>

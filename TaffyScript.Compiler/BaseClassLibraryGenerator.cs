@@ -47,9 +47,7 @@ namespace TaffyScript.Compiler
             sb.AppendLine("import Math.Exp(double) as exp");
             sb.AppendLine("import Math.Floor(double) as floor");
 
-            sb.AppendLine("import TsInstance.InstanceChange(instance, array) as instance_change");
-            sb.AppendLine("import TsInstance.InstanceCopy(instance, array) as instance_copy");
-            sb.AppendLine("import TsInstance.InstanceCreate(instance, array) as instance_create");
+            sb.AppendLine("import TsReflection.InstanceCreate(instance, array) as instance_create");
 
             sb.AppendLine("import TsObject.IsArray(object) as is_array");
             sb.AppendLine("import TsObject.IsReal(object) as is_number");
@@ -65,9 +63,9 @@ namespace TaffyScript.Compiler
             sb.AppendLine("import Bcl.Max(instance, array) as max");
             sb.AppendLine("import Bcl.Min(instance, array) as min");
 
-            sb.AppendLine("import TsInstance.ObjectGetName(instance) as object_get_name");
-            sb.AppendLine("import TsInstance.ObjectGetParent(instance) as object_get_parent");
-            sb.AppendLine("import TsInstance.ObjectIsAncestor(string, string) as object_is_ancestor");
+            sb.AppendLine("import TsReflection.ObjectGetName(instance) as object_get_name");
+            sb.AppendLine("import TsReflection.ObjectGetParent(instance) as object_get_parent");
+            sb.AppendLine("import TsReflection.ObjectIsAncestor(string, string) as object_is_ancestor");
 
             sb.AppendLine("import Bcl.Random(float) as random");
             sb.AppendLine("import Bcl.RandomGetSeed() as random_get_seed");
@@ -106,14 +104,14 @@ namespace TaffyScript.Compiler
 
             sb.AppendLine("import TsObject.Typeof(object) as typeof");
 
-            sb.AppendLine("import TsInstance.VariableGlobalExists(string) as variable_global_exists");
-            sb.AppendLine("import TsInstance.VariableGlobalGet(string) as variable_global_get");
-            sb.AppendLine("import TsInstance.VariableGlobalGetNames() as variable_global_get_names");
-            sb.AppendLine("import TsInstance.VariableGlobalSet(string, object) as variable_global_set");
-            sb.AppendLine("import TsInstance.VariableInstanceExists(instance, string) as variable_instance_exists");
-            sb.AppendLine("import TsInstance.VariableInstanceGet(instance, string) as variable_instance_get");
-            sb.AppendLine("import TsInstance.VariableInstanceGetNames(instance) as variable_instance_get_names");
-            sb.AppendLine("import TsInstance.VariableInstanceSet(instance, string, object) as variable_instance_set");
+            sb.AppendLine("import TsReflection.VariableGlobalExists(string) as variable_global_exists");
+            sb.AppendLine("import TsReflection.VariableGlobalGet(string) as variable_global_get");
+            sb.AppendLine("import TsReflection.VariableGlobalGetNames() as variable_global_get_names");
+            sb.AppendLine("import TsReflection.VariableGlobalSet(string, object) as variable_global_set");
+            sb.AppendLine("import TsReflection.VariableInstanceExists(instance, string) as variable_instance_exists");
+            sb.AppendLine("import TsReflection.VariableInstanceGet(instance, string) as variable_instance_get");
+            sb.AppendLine("import TsReflection.VariableInstanceGetNames(instance) as variable_instance_get_names");
+            sb.AppendLine("import TsReflection.VariableInstanceSet(instance, string, object) as variable_instance_set");
             
             sb.AppendLine("import object TsList as ds_list");
             sb.AppendLine("import object TsMap as ds_map");

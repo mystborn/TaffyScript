@@ -62,6 +62,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Backend\Compiler\ObjectGenerator.cs" />
+    <Compile Include="Backend\Compiler\TypeEqualityComparer.cs" />
     <Compile Include="BaseClassLibraryGenerator.cs" />
     <Compile Include="Backend\Builder.cs" />
     <Compile Include="Backend\Compiler\Closure.cs" />
@@ -86,11 +88,13 @@
     <Compile Include="Front End\Resolver.cs" />
     <Compile Include="IErrorLogger.cs" />
     <Compile Include="StringUtils.cs" />
+    <Compile Include="SymbolResolver.cs" />
     <Compile Include="Symbols\EnumLeaf.cs" />
     <Compile Include="Symbols\ImportLeaf.cs" />
     <Compile Include="Symbols\ImportObjectLeaf.cs" />
     <Compile Include="Symbols\InvalidSymbolException.cs" />
     <Compile Include="Symbols\ISymbol.cs" />
+    <Compile Include="Symbols\ObjectSymbol.cs" />
     <Compile Include="Symbols\SymbolLeaf.cs" />
     <Compile Include="Symbols\SymbolNode.cs" />
     <Compile Include="Symbols\SymbolScope.cs" />

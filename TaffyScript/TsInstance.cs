@@ -1,4 +1,4 @@
-﻿using System;
+﻿/*using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -427,7 +427,7 @@ namespace TaffyScript
                 return ts.Parent ?? "";
             /*if (Inherits.TryGetValue(inst.ObjectType, out var parent))
                 return parent;*/
-            else
+            /*else
                 return "";
         }
 
@@ -559,3 +559,4 @@ namespace TaffyScript
         }
     }
 }
+*/

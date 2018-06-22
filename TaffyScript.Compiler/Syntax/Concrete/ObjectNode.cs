@@ -6,10 +6,10 @@ namespace TaffyScript.Compiler.Syntax
     {
         public override SyntaxType Type => SyntaxType.Object;
         public string Name { get; }
-        public string Inherits { get; }
+        public ISyntaxElement Inherits { get; }
         public List<ScriptNode> Scripts { get; }
 
-        public ObjectNode(string name, string inherits, List<ScriptNode> scripts, TokenPosition position)
+        public ObjectNode(string name, ISyntaxElement inherits, List<ScriptNode> scripts, TokenPosition position)
             : base(position)
         {
             Name = name;

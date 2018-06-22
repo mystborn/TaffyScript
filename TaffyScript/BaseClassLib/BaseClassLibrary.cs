@@ -156,7 +156,7 @@ namespace TaffyScript
         [WeakMethod]
         public static TsObject CallInstanceScript(ITsInstance inst, TsObject[] args)
         {
-            if (TsInstance.TryGetDelegate((string)args[1], (string)args[2], out var ev))
+            if (TsReflection.TryGetScript((string)args[1], (string)args[2], out var ev))
             {
                 TsObject[] copy;
                 if (args.Length > 3)
@@ -178,7 +178,7 @@ namespace TaffyScript
             if (args.Length < 1)
                 throw new ArgumentException("You must pass at least a script name to script_execute.");
             var name = args[0].GetString();
-            if (!TsInstance.GlobalScripts.TryGetValue(name, out var function))
+            if (!TsReflection.GlobalScripts.TryGetValue(name, out var function))
                 throw new ArgumentException($"Tried to execute a non-existant function: {name}");
             var parameters = new TsObject[args.Length - 1];
             if (parameters.Length != 0)
@@ -303,7 +303,7 @@ namespace TaffyScript
 
         public static bool ScriptExists(string name)
         {
-            return TsInstance.GlobalScripts.ContainsKey(name);
+            return TsReflection.GlobalScripts.ContainsKey(name);
         }
 
         public static void ShowError(string message, bool throws)

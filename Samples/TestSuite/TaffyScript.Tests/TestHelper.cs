@@ -21,7 +21,7 @@ namespace TaffyScript.Tests
                 Array.Copy(args, 1, delArgs, 0, delArgs.Length);
             }
 
-            var result = new TsInstance("obj_exception");
+            var result = new DynamicInstance("obj_exception");
             try
             {
                 del.Invoke(delArgs);
@@ -77,7 +77,7 @@ namespace TaffyScript.Tests
             timer.Start();
             del.Invoke(delArgs);
             timer.Stop();
-            var result = new TsInstance("obj_timer_result");
+            var result = new DynamicInstance("obj_timer_result");
             result["ms"] = timer.ElapsedMilliseconds;
             result["ticks"] = timer.ElapsedTicks;
             return result;

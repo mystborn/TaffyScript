@@ -57,6 +57,7 @@ namespace TaffyScript.Compiler.Backend
 
         private SymbolTable _table;
         private IErrorLogger _logger;
+        private SymbolResolver _resolver;
 
         /// <summary>
         /// Row=Namespace, Col=MethodName, Value=MethodInfo
@@ -64,7 +65,21 @@ namespace TaffyScript.Compiler.Backend
         private readonly LookupTable<string, string, MethodInfo> _methods = new LookupTable<string, string, MethodInfo>();
         private readonly LookupTable<string, string, long> _enums = new LookupTable<string, string, long>();
         private readonly BindingFlags _methodFlags = BindingFlags.Public | BindingFlags.Static;
+
+        /// <summary>
+        /// Maps namespaces to the types that hold the global scripts inside that namespace.
+        /// </summary>
         private readonly Dictionary<string, TypeBuilder> _baseTypes = new Dictionary<string, TypeBuilder>();
+
+        private readonly Dictionary<Type, ConstructorInfo> _constructors = new Dictionary<Type, ConstructorInfo>(TypeEqualityComparer.Single);
+
+        //Todo: Combine the following two dictionaries.
+        /// <summary>
+        /// Maps typenames to the methods defined by that type.
+        /// </summary>
+        private readonly Dictionary<ISymbol, Dictionary<string, MethodInfo>> _instanceMethods = new Dictionary<ISymbol, Dictionary<string, MethodInfo>>();
+        private readonly Dictionary<ISymbol, Type> _definedTypes = new Dictionary<ISymbol, Type>();
+        private Dictionary<TypeBuilder, TypeBuilder> _unresolvedTypes = new Dictionary<TypeBuilder, TypeBuilder>(TypeBuilderEqualityComparer.Single);
 
         /// <summary>
         /// Used to memoize unary operaters.
@@ -138,7 +153,7 @@ namespace TaffyScript.Compiler.Backend
         private Closure _closure = null;
         private int _closures = 0;
         private int _argOffset = 0;
-        private string _parent = null;
+        private ISymbol _parent = null;
 
         #endregion
 
@@ -189,7 +204,7 @@ namespace TaffyScript.Compiler.Backend
             }
         }
 
-        private MethodInfo GetGlobalScripts { get; } = typeof(TsInstance).GetMethod("get_GlobalScripts");
+        private MethodInfo GetGlobalScripts { get; } = typeof(TsReflection).GetMethod("get_GlobalScripts");
 
         #endregion
 
@@ -200,10 +215,11 @@ namespace TaffyScript.Compiler.Backend
         /// </summary>
         /// <param name="table">The symbols defined for this code generator.</param>
         /// <param name="config">The build config used when creating the final assembly.</param>
-        public MsilWeakCodeGen(SymbolTable table, BuildConfig config, IErrorLogger errorLogger)
+        public MsilWeakCodeGen(SymbolTable table, SymbolResolver resolver, BuildConfig config, IErrorLogger errorLogger)
         {
             _logger = errorLogger;
             _table = table;
+            _resolver = resolver;
             _isDebug = config.Mode == CompileMode.Debug;
             _asmName = new AssemblyName(System.IO.Path.GetFileName(config.Output));
             _asm = AppDomain.CurrentDomain.DefineDynamicAssembly(_asmName, AssemblyBuilderAccess.Save);
@@ -307,6 +323,24 @@ namespace TaffyScript.Compiler.Backend
             foreach (var type in _baseTypes.Values)
                 type.CreateType();
 
+            if(_unresolvedTypes.Count != 0)
+            {
+                var swap = new Dictionary<TypeBuilder, TypeBuilder>();
+                while (_unresolvedTypes.Count > 0)
+                {
+                    foreach (var kvp in _unresolvedTypes)
+                    {
+                        if (kvp.Value.IsCreated())
+                            kvp.Key.CreateType();
+                        else
+                            swap.Add(kvp.Key, kvp.Value);
+                    }
+                    var temp = _unresolvedTypes;
+                    _unresolvedTypes = swap;
+                    swap = temp;
+                }
+            }
+
             //Write any special imports to the module manifest.
             if (_specialImports != null)
             {
@@ -346,9 +380,12 @@ namespace TaffyScript.Compiler.Backend
             {
                 if (type.GetCustomAttribute<WeakObjectAttribute>() != null)
                 {
+                    //Todo: Optimize this
                     var count = _table.EnterNamespace(type.Namespace);
                     if (!_table.TryEnterNew(type.Name, SymbolType.Object))
                         _logger.Warning($"Name conflict encountered with object {type.Name} defined in assembly {asm.GetName().Name}");
+                    else
+                        _definedTypes.Add(_table.Current, type);
 
                     _table.Exit(count + 1);
                 }
@@ -420,11 +457,8 @@ namespace TaffyScript.Compiler.Backend
                                     external = input[3];
                                     type = _typeParser.GetType(external);
                                     count = _table.EnterNamespace(input[1]);
-                                    var leaf = new ImportObjectLeaf(_table.Current, input[2], null)
-                                    {
-                                        HasImportedObject = true,
-                                        Constructor = type.GetConstructors().First()
-                                    };
+                                    var leaf = new SymbolLeaf(_table.Current, input[2], SymbolType.Object, SymbolScope.Global);
+                                    _definedTypes.Add(leaf, type);
                                     _table.AddChild(leaf);
                                     _table.Exit(count);
                                     break;
@@ -903,64 +937,6 @@ namespace TaffyScript.Compiler.Backend
             locals.Push(local);
         }
 
-        private bool TryResolveNamespace(MemberAccessNode node, out ISyntaxElement resolved, out SymbolNode namespaceNode)
-        {
-            if(node.Left is ISyntaxToken token && _table.Defined(token.Name, out var symbol) && symbol.Type == SymbolType.Namespace)
-            {
-                namespaceNode = (SymbolNode)symbol;
-                resolved = node.Right;
-                return true;
-            }
-            else if (node.Left is MemberAccessNode)
-            {
-                var ns = new Stack<ISyntaxToken>();
-                resolved = node.Right;
-                var start = node;
-                while (node.Left is MemberAccessNode member)
-                {
-                    node = member;
-                    if (node.Right is ISyntaxToken id)
-                        ns.Push(id);
-                    else
-                    {
-                        namespaceNode = default(SymbolNode);
-                        return false;
-                    }
-                }
-
-                if (node.Left is ISyntaxToken left)
-                    ns.Push(left);
-                else
-                    _logger.Error("Invalid syntax detected", node.Left.Position);
-
-                var sb = new System.Text.StringBuilder();
-                var iterations = 0;
-                while (ns.Count > 0)
-                {
-                    var top = ns.Pop();
-                    sb.Append(top.Name);
-                    sb.Append(".");
-                    if (_table.Defined(top.Name, out symbol) && symbol.Type == SymbolType.Namespace)
-                    {
-                        _table.Enter(top.Name);
-                        iterations++;
-                    }
-                    else
-                    {
-                        namespaceNode = default(SymbolNode);
-                        _table.Exit(iterations);
-                        return false;
-                    }
-                }
-                namespaceNode = _table.Current;
-                _table.Exit(iterations);
-                return true;
-            }
-            resolved = default(ISyntaxElement);
-            namespaceNode = default(SymbolNode);
-            return false;
-        }
-
         private SymbolTable CopyTable(SymbolTable table)
         {
             var copy = new SymbolTable();
@@ -1015,7 +991,114 @@ namespace TaffyScript.Compiler.Backend
             }
         }
 
-#endregion
+        private Type GetDefinedType(ISymbol objectSymbol, TokenPosition position)
+        {
+            if(!_definedTypes.TryGetValue(objectSymbol, out var type))
+            {
+                if(objectSymbol is ObjectSymbol os)
+                {
+                    var typeName = $"{GetAssetNamespace(objectSymbol)}.{objectSymbol.Name}".TrimStart('.');
+                    var builder = _module.DefineType(typeName);
+                    builder.AddInterfaceImplementation(typeof(ITsInstance));
+                    if (os.Inherits != null)
+                    {
+                        var parent = GetDefinedType(os.Inherits, position);
+                        builder.SetParent(parent);
+                    }
+                    else
+                        builder.SetParent(typeof(TsInstanceTemp));
+
+                    type = builder;
+                    _definedTypes.Add(objectSymbol, type);
+                }
+                else if(objectSymbol is ImportObjectLeaf leaf)
+                {
+                    var temp = emit;
+                    leaf.ImportObject.Accept(this);
+                    emit = temp;
+                    type = leaf.Constructor.DeclaringType;
+                    _definedTypes.Add(objectSymbol, type);
+                }
+            }
+
+            if (type is null)
+                _logger.Error($"Tried to get type that doesn't exist: {$"{GetAssetNamespace(objectSymbol)}.{objectSymbol.Name}".TrimStart('.')}", position);
+
+            return type;
+        }
+
+        private MethodInfo GetInstanceMethod(ISymbol objectSymbol, string methodName, TokenPosition position)
+        {
+            if(!_instanceMethods.TryGetValue(objectSymbol, out var methods))
+            {
+                methods = new Dictionary<string, MethodInfo>();
+                _instanceMethods.Add(objectSymbol, methods);
+            }
+
+            var type = GetDefinedType(objectSymbol, position);
+
+            if (!methods.TryGetValue(methodName, out var method))
+            {
+                if(objectSymbol is ObjectSymbol obj)
+                {
+                    if (obj.Children.ContainsKey(methodName))
+                    {
+                        var builder = type as TypeBuilder;
+                        method = builder.DefineMethod(methodName, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), ScriptArgs);
+                    }
+                    else if (obj.Inherits != null)
+                    {
+                        method = GetInstanceMethod(obj.Inherits, methodName, position);
+                    }
+                    else
+                    {
+                        _logger.Error("Tried to call script that does not exist", position);
+                        return null;
+                    }
+                }
+                else
+                {
+                    method = type.GetMethod(methodName, BindingFlags.FlattenHierarchy | BindingFlags.Public | BindingFlags.Static, null, ScriptArgs, null);
+                    if (method is null)
+                    {
+                        _logger.Error("Tried to call script that doesn't exist", position);
+                        return null;
+                    }
+                }
+                methods.Add(methodName, method);
+            }
+
+            return method;
+        }
+
+        private ConstructorInfo GetInstanceConstructor(ISymbol objectSymbol, TokenPosition position)
+        {
+            ConstructorInfo constructor;
+            var type = GetDefinedType(objectSymbol, position);
+            if (type is null)
+                return null;
+
+            if(!_constructors.TryGetValue(type, out constructor))
+            {
+                if (type is TypeBuilder builder)
+                {
+                    constructor = builder.DefineConstructor(MethodAttributes.Public |
+                                                                MethodAttributes.HideBySig |
+                                                                MethodAttributes.SpecialName |
+                                                                MethodAttributes.RTSpecialName,
+                                                            CallingConventions.HasThis,
+                                                            new[] { typeof(TsObject[]) });
+                }
+                else
+                    constructor = type.GetConstructor(new[] { typeof(TsObject[]) });
+
+                _constructors.Add(type, constructor);
+            }
+
+            return constructor;
+        }
+
+        #endregion
 
         #region Visitor
 
@@ -1388,13 +1471,13 @@ namespace TaffyScript.Compiler.Backend
                         switch (token.Name)
                         {
                             case "global":
-                                emit.LdFld(typeof(TsInstance).GetField("Global"));
+                                emit.LdFld(typeof(TsInstanceTemp).GetField("Global"));
                                 break;
                             case "self":
                                 emit.LdArg(0 + _argOffset);
                                 break;
                             case "other":
-                                emit.Call(typeof(TsInstance).GetMethod("get_Other"));
+                                emit.Call(typeof(TsInstanceTemp).GetMethod("get_Other"));
                                 break;
                             default:
                                 _logger.Error($"Cannot access member on readonly value {token.Name}", token.Position);
@@ -1709,17 +1792,17 @@ namespace TaffyScript.Compiler.Backend
                 _logger.Error("Cannot call 'base' from a type with no parent.", baseNode.Position);
                 return;
             }
+            var script = GetInstanceMethod(_parent, emit.Method.Name, baseNode.Position);
+            if(script == null)
+            {
+                emit.Call(TsTypes.Empty);
+                return;
+            }
+
             MarkSequencePoint(baseNode.Position, baseNode.EndPosition);
             emit.LdArg(0 + _argOffset);
             LoadFunctionArguments(baseNode.Arguments);
-            emit.LdStr(_parent)
-                .LdStr(emit.Method.Name)
-                .Call(typeof(TsInstance).GetMethod("GetDelegate",
-                      BindingFlags.Static | BindingFlags.Public,
-                      null,
-                      new[] { typeof(string), typeof(string) }, null))
-                .Call(typeof(TsDelegate).GetMethod("Invoke", new[] { typeof(ITsInstance), typeof(TsObject[]) }));
-
+            emit.Call(script, 2, typeof(TsObject));
         }
 
         public void Visit(BitwiseNode bitwise)
@@ -2015,7 +2098,7 @@ namespace TaffyScript.Compiler.Backend
                 name = token.Name;
             else if (functionCall.Callee is MemberAccessNode memberAccess)
             {
-                if (TryResolveNamespace(memberAccess, out callSite, out var namespaceNode))
+                if (_resolver.TryResolveNamespace(memberAccess, out callSite, out var namespaceNode))
                 {
                     //explicit namespace -> function call
                     //e.g. name.space.func_name();
@@ -2454,7 +2537,7 @@ namespace TaffyScript.Compiler.Backend
         public void Visit(MemberAccessNode memberAccess)
         {
             ISymbol enumSymbol;
-            if(TryResolveNamespace(memberAccess, out var resolved, out var namespaceNode))
+            if(_resolver.TryResolveNamespace(memberAccess, out var resolved, out var namespaceNode))
             {
                 if (resolved is MemberAccessNode member)
                 {
@@ -2502,13 +2585,13 @@ namespace TaffyScript.Compiler.Backend
                 switch(read.Name)
                 {
                     case "global":
-                        emit.LdFld(typeof(TsInstance).GetField("Global"));
+                        emit.LdFld(typeof(TsInstanceTemp).GetField("Global"));
                         break;
                     case "self":
                         emit.LdArg(0 + _argOffset);
                         break;
                     case "other":
-                        emit.Call(typeof(TsInstance).GetMethod("get_Other"));
+                        emit.Call(typeof(TsInstanceTemp).GetMethod("get_Other"));
                         break;
                     default:
                         _logger.Error("Invalid syntax detected", right.Position);
@@ -2654,67 +2737,41 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(NewNode newNode)
         {
-            if(_table.Defined(newNode.TypeName, out var symbol))
+            if (!_resolver.TryResolveType(newNode.TypeName, out var symbol))
             {
-                if(symbol.Type == SymbolType.Object)
+                _logger.Error("Tried to create type that doesn't exist", newNode.TypeName.Position);
+                emit.Call(TsTypes.Empty);
+                return;
+            }
+
+            if(symbol.Type == SymbolType.Object)
+            {
+                MarkSequencePoint(newNode.Position, newNode.EndPosition);
+                var ctor = GetInstanceConstructor(symbol, newNode.Position);
+                if (newNode.Arguments.Count > 0)
                 {
-                    MarkSequencePoint(newNode.Position, newNode.EndPosition);
-                    ConstructorInfo ctor;
-                    if(symbol is ImportObjectLeaf leaf)
+                    emit.LdInt(newNode.Arguments.Count)
+                        .NewArr(typeof(TsObject));
+
+                    for (var i = 0; i < newNode.Arguments.Count; ++i)
                     {
-                        if (!leaf.HasImportedObject)
-                        {
-                            var temp = emit;
-                            leaf.ImportObject.Accept(this);
-                            emit = temp;
-                        }
+                        emit.Dup()
+                            .LdInt(i);
 
-                        ctor = leaf.Constructor;
+                        newNode.Arguments[i].Accept(this);
+                        ConvertTopToObject();
+
+                        emit.StElem(typeof(TsObject));
                     }
-                    else
-                    {
-                        var name = newNode.TypeName;
-                        var pos = newNode.Position;
-                        ctor = typeof(TsInstance).GetConstructor(new[] { typeof(string), typeof(TsObject[]) });
-                        var ns = GetAssetNamespace(symbol);
-                        if (ns != "")
-                            name = $"{ns}.{name}";
-                        emit.LdStr(name);
-                    }
-                    if (newNode.Arguments.Count > 0)
-                    {
-                        emit.LdInt(newNode.Arguments.Count)
-                            .NewArr(typeof(TsObject));
-
-                        for (var i = 0; i < newNode.Arguments.Count; ++i)
-                        {
-                            emit.Dup()
-                                .LdInt(i);
-
-                            newNode.Arguments[i].Accept(this);
-                            ConvertTopToObject();
-
-                            emit.StElem(typeof(TsObject));
-                        }
-                    }
-                    else
-                        emit.LdNull();
-
-                    emit.New(ctor);
-                    /*if (newNode.Parent.Type == SyntaxType.Block)
-                        emit.Pop();
-                    else
-                        emit.New(TsTypes.Constructors[typeof(ITsInstance)]);*/
                 }
                 else
-                {
-                    _logger.Error($"Tried to create an instance of something that wasn't an object: {newNode.TypeName}", newNode.Position);
-                    emit.Call(TsTypes.Empty);
-                }
+                    emit.LdNull();
+
+                emit.New(ctor, 1);
             }
             else
             {
-                _logger.Error($"Tried to create an instance of a type that doesn't exist: {newNode.TypeName}", newNode.Position);
+                _logger.Error($"Tried to create an instance of something that wasn't an object: {newNode.TypeName}", newNode.Position);
                 emit.Call(TsTypes.Empty);
             }
         }
@@ -2722,88 +2779,93 @@ namespace TaffyScript.Compiler.Backend
         public void Visit(ObjectNode objectNode)
         {
             var name = $"{_namespace}.{objectNode.Name}".TrimStart('.');
-
-            var type = _module.DefineType(name, TypeAttributes.Public);
-
             _table.Enter(objectNode.Name);
 
-            string parent = objectNode.Inherits;
-            if(parent != null)
+            TypeBuilder type;
+            ConstructorBuilder constructor;
+
+            if (_definedTypes.TryGetValue(_table.Current, out var tempType))
+                type = (TypeBuilder)tempType;
+            else
             {
-                if(!_table.Defined(parent, out var symbol))
-                {
-                    _logger.Error($"Tried to inherit from non-existant type {parent}", objectNode.Position);
-                    return;
-                }
-
-                if(symbol.Type != SymbolType.Object)
-                {
-                    _logger.Error("Tried to inherit from non object identifier", objectNode.Position);
-                    return;
-                }
-                else if(symbol is ImportObjectLeaf leaf)
-                {
-                    _logger.Error($"Cannot inherit from imported type {leaf.Name}", objectNode.Position);
-                    return;
-                }
-
-                parent = $"{GetAssetNamespace(symbol)}.{symbol.Name}".TrimStart('.');
+                type = _module.DefineType(name, TypeAttributes.Public);
+                _definedTypes.Add(_table.Current, type);
             }
+            if (!_instanceMethods.TryGetValue(_table.Current, out var methods))
+            {
+                methods = new Dictionary<string, MethodInfo>();
+                _instanceMethods.Add(_table.Current, methods);
+            }
+            if (_constructors.TryGetValue(type, out var tempCtor))
+                constructor = (ConstructorBuilder)tempCtor;
+            else
+            {
+                constructor = type.DefineConstructor(MethodAttributes.Public |
+                                           MethodAttributes.HideBySig |
+                                           MethodAttributes.SpecialName |
+                                           MethodAttributes.RTSpecialName,
+                                       CallingConventions.HasThis,
+                                       new[] { typeof(TsObject[]) });
+
+                _constructors.Add(type, constructor);
+            }
+
+            type.AddInterfaceImplementation(typeof(ITsInstance));
+
             var temp = _parent;
-            _parent = parent;
-
-            var addMethod = typeof(LookupTable<string, string, TsDelegate>).GetMethod("Add", new[] { typeof(string), typeof(string), typeof(TsDelegate) });
-            var init = Initializer;
-
-            if(parent != null)
+            if (objectNode.Inherits != null)
             {
-                init.Call(typeof(TsInstance).GetMethod("get_Inherits"))
-                    .LdStr(name)
-                    .LdStr(parent)
-                    .Call(typeof(Dictionary<string, string>).GetMethod("Add"));
+                if(!_resolver.TryResolveType(objectNode.Inherits, out _parent))
+                    _logger.Error($"Tried to inherit from non-existant type: {((ISyntaxToken)objectNode.Inherits).Name}", objectNode.Inherits.Position);
             }
+            else
+                _parent = null;
 
-            init.Call(typeof(TsInstance).GetMethod("get_Types"))
-                .LdStr(name)
-                .Call(typeof(List<string>).GetMethod("Add"));
+            Type parent = typeof(TsInstanceTemp);
 
-            if(objectNode.Scripts.Count > 0)
-                init.Call(typeof(TsInstance).GetMethod("get_InstanceScripts"));
-            
-            for(var i = 0; i < objectNode.Scripts.Count; i++)
+            if (_parent != null)
+                parent = GetDefinedType(_parent, objectNode.Inherits.Position);
+
+            var definition = ObjectGenerator.GenerateObjectDefinition(type, parent, objectNode.Position, _logger);
+            var scripts = new List<MethodInfo>();
+
+            for (var i = 0; i < objectNode.Scripts.Count; i++)
             {
                 var script = objectNode.Scripts[i];
-                var method = type.DefineMethod(script.Name, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), ScriptArgs);
+                MethodBuilder method;
+                if (!methods.TryGetValue(script.Name, out var tempMethod))
+                {
+                    method = type.DefineMethod(script.Name, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), ScriptArgs);
+                    methods.Add(script.Name, method);
+                }
+                else
+                    method = (MethodBuilder)tempMethod;
+
                 ScriptStart(script.Name, method, ScriptArgs);
 
                 ProcessScriptArguments(script.Arguments);
                 script.Body.Accept(this);
                 BlockNode body = (BlockNode)script.Body;
                 var last = body.Body.Count == 0 ? null : body.Body[body.Body.Count - 1];
-                if(body.Body.Count == 0 || last.Type != SyntaxType.Return)
+                if (body.Body.Count == 0 || last.Type != SyntaxType.Return)
                 {
                     emit.Call(TsTypes.Empty)
                         .Ret();
                 }
 
                 ScriptEnd();
-
-                if (i != objectNode.Scripts.Count - 1)
-                    init.Dup();
-
-                init.LdStr(name)
-                    .LdStr(script.Name)
-                    .LdNull()
-                    .LdFtn(method)
-                    .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                    .LdStr(script.Name)
-                    .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                    .Call(addMethod);
+                scripts.Add(method);
             }
+            ConstructorInfo parentCtor = null;
+            if (_parent != null)
+                parentCtor = GetInstanceConstructor(_parent, objectNode.Position);
 
-            var attrib = new CustomAttributeBuilder(typeof(WeakObjectAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
-            type.SetCustomAttribute(attrib);
-            type.CreateType();
+            definition.FinalizeType(constructor, parentCtor, scripts, Initializer);
+
+            if (parent != null && parent is TypeBuilder builder && !builder.IsCreated())
+                _unresolvedTypes.Add(type, builder);
+            else
+                type.CreateType();
 
             _table.Exit();
             _parent = temp;
@@ -3064,9 +3126,9 @@ namespace TaffyScript.Compiler.Backend
         private Func<ILEmitter> GetReadOnlyLoadFunc(ReadOnlyToken read)
         {
             if (read.Name == "global")
-                return () => emit.LdFld(typeof(TsInstance).GetField("Global"));
+                return () => emit.LdFld(typeof(TsInstanceTemp).GetField("Global"));
             else if (read.Name == "other")
-                return () => emit.Call(typeof(TsInstance).GetMethod("get_Other"));
+                return () => emit.Call(typeof(TsInstanceTemp).GetMethod("get_Other"));
             else
                 return () => emit.LdArg(0 + _argOffset);
         }
@@ -3331,7 +3393,7 @@ namespace TaffyScript.Compiler.Backend
                     emit.LdArg(0 + _argOffset);
                     break;
                 case "other":
-                    emit.Call(typeof(TsInstance).GetMethod("get_Other"));
+                    emit.Call(typeof(TsInstanceTemp).GetMethod("get_Other"));
                     break;
                 case "argument_count":
                     if(_argumentCount == null)
@@ -3355,9 +3417,9 @@ namespace TaffyScript.Compiler.Backend
                     break;
                 case "global":
                     if (_needAddress)
-                        emit.LdFldA(typeof(TsInstance).GetField("Global"));
+                        emit.LdFldA(typeof(TsInstanceTemp).GetField("Global"));
                     else
-                        emit.LdFld(typeof(TsInstance).GetField("Global"));
+                        emit.LdFld(typeof(TsInstanceTemp).GetField("Global"));
                     break;
                 case "pi":
                     emit.LdFloat((float)Math.PI);
@@ -3442,6 +3504,7 @@ namespace TaffyScript.Compiler.Backend
         public void Visit(RepeatNode repeat)
         {
             var secret = GetLocal(typeof(int));
+            var count = GetLocal(typeof(int));
             var body = emit.DefineLabel();
             var start = emit.DefineLabel();
             var end = emit.DefineLabel();
@@ -3452,11 +3515,11 @@ namespace TaffyScript.Compiler.Backend
             emit.LdInt(0)
                 .StLocal(secret);
             LoadElementAsInt(repeat.Count);
-            emit.MarkLabel(body)
-                .Dup()
-                .PopTop()
+            emit.StLocal(count)
+                .MarkLabel(body)
                 .LdLocal(secret)
-                .Ble(end);
+                .LdLocal(count)
+                .Bge(end);
             repeat.Body.Accept(this);
             emit.MarkLabel(start)
                 .LdLocal(secret)
@@ -3464,9 +3527,7 @@ namespace TaffyScript.Compiler.Backend
                 .Add()
                 .StLocal(secret)
                 .Br(body)
-                .MarkLabel(end)
-                .PushType(typeof(int))
-                .Pop();
+                .MarkLabel(end);
 
             FreeLocal(secret);
         }
@@ -3854,8 +3915,8 @@ namespace TaffyScript.Compiler.Backend
                 return;
             }
             var other = GetLocal(typeof(ITsInstance));
-            var get = typeof(TsInstance).GetMethod("get_Other");
-            var set = typeof(TsInstance).GetMethod("set_Other");
+            var get = typeof(TsInstanceTemp).GetMethod("get_Other");
+            var set = typeof(TsInstanceTemp).GetMethod("set_Other");
 
             emit.Call(get)
                 .StLocal(other)
@@ -3884,13 +3945,14 @@ namespace TaffyScript.Compiler.Backend
             var importType = _typeParser.GetType(importNode.DotNetType);
 
             if (importType.IsAbstract || importType.IsEnum || !importType.IsClass)
-                _logger.Error($"Could not import the type {importType.Name}. Imported types must be concrete and currently must be a class.", importNode.Position);
+                _logger.Error($"Could not import the type {importType.FullName}. Imported types must be concrete and currently must be a class.", importNode.Position);
 
             var ns = GetAssetNamespace(leaf);
             var name = $"{ns}.{importNode.ImportName}".TrimStart('.');
 
             if(typeof(ITsInstance).IsAssignableFrom(importType))
             {
+                _definedTypes.Add(leaf, importType);
                 var ctor = importType.GetConstructor(new[] { typeof(TsObject[]) });
                 if(ctor is null)
                 {
@@ -3906,7 +3968,7 @@ namespace TaffyScript.Compiler.Backend
                     .New(ctor)
                     .Ret();
 
-                Initializer.Call(typeof(TsInstance).GetMethod("get_WrappedConstructors"))
+                Initializer.Call(typeof(TsReflection).GetMethod("get_Constructors"))
                            .LdStr(name)
                            .LdNull()
                            .LdFtn(wrappedCtor)
@@ -3924,6 +3986,7 @@ namespace TaffyScript.Compiler.Backend
             }
             var parent = importNode.WeaklyTyped ? typeof(ObjectWrapper) : typeof(Object);
             var type = _module.DefineType(name, TypeAttributes.Public, parent, new[] { typeof(ITsInstance) });
+            _definedTypes.Add(leaf, type);
 
             var source = type.DefineField("_source", importType, FieldAttributes.Private);
             var objectType = type.DefineProperty("ObjectType", PropertyAttributes.None, typeof(string), null);
@@ -3973,7 +4036,7 @@ namespace TaffyScript.Compiler.Backend
                                            new[] { typeof(TsObject) });
 
             var cast = new ILEmitter(castTo, new[] { typeof(TsObject) });
-            cast.LdArg(0)
+            cast.LdArgA(0)
                 .Call(typeof(TsObject).GetMethod("get_Value"))
                 .Call(typeof(ITsValue).GetMethod("get_WeakValue"))
                 .CastClass(type)
@@ -3999,12 +4062,23 @@ namespace TaffyScript.Compiler.Backend
                                                   new[] { importType });
             
             var wrap = new ILEmitter(wrapCtor, new[] { type, importType });
+            wrap.LdArg(0);
+
+            if (importNode.WeaklyTyped)
+                wrap.CallBase(typeof(ObjectWrapper).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null));
+            else
+                wrap.CallBase(typeof(Object).GetConstructor(Type.EmptyTypes));
+
             wrap.LdArg(0)
-                .CallBase(typeof(Object).GetConstructor(Type.EmptyTypes))
-                .LdArg(0)
                 .LdArg(1)
                 .StFld(source)
                 .Ret();
+
+            if(!_instanceMethods.TryGetValue(leaf, out var instanceMethods))
+            {
+                instanceMethods = new Dictionary<string, MethodInfo>();
+                _instanceMethods.Add(leaf, instanceMethods);
+            }
 
             var writeOnly = new List<string>();
             var readOnly = new List<string>();
@@ -4020,7 +4094,7 @@ namespace TaffyScript.Compiler.Backend
                     var field = importType.GetMember(fld.ExternalName, MemberTypes.Field | MemberTypes.Property, BindingFlags.Public | BindingFlags.Instance).FirstOrDefault();
                     if(field == null)
                     {
-                        _logger.Error($"Could not find the Field or Property {fld.ExternalName} on the type {importType.Name}", fld.Position);
+                        _logger.Error($"Could not find the Field or Property {fld.ExternalName} on the type {importType.FullName}", fld.Position);
                         continue;
                     }
                     switch(field)
@@ -4046,7 +4120,7 @@ namespace TaffyScript.Compiler.Backend
                     }
 
                     var method = importType.GetMethod(mthd.ExternalName, BindingFlags.Public | BindingFlags.Instance, null, args, null);
-                    AddMethodToTypeWrapper(method, weakFlags, type, mthd.ImportName, mthd.Position, source, call, tryd, readOnly);
+                    AddMethodToTypeWrapper(method, weakFlags, type, mthd.ImportName, mthd.Position, source, call, tryd, readOnly, instanceMethods);
                 }
 
                 var ctorArgNames = importNode.Constructor.Arguments;
@@ -4114,12 +4188,12 @@ namespace TaffyScript.Compiler.Backend
                                     if(pi.CanRead && IsMethodSupported(pi.GetMethod))
                                     {
                                         foundIndexer = true;
-                                        AddMethodToTypeWrapper(pi.GetMethod, weakFlags, type, "get", importNode.Position, source, call, tryd, readOnly);
+                                        AddMethodToTypeWrapper(pi.GetMethod, weakFlags, type, "get", importNode.Position, source, call, tryd, readOnly, instanceMethods);
                                     }
                                     if(pi.CanWrite && IsMethodSupported(pi.SetMethod))
                                     {
                                         foundIndexer = true;
-                                        AddMethodToTypeWrapper(pi.SetMethod, weakFlags, type, "set", importNode.Position, source, call, tryd, readOnly);
+                                        AddMethodToTypeWrapper(pi.SetMethod, weakFlags, type, "set", importNode.Position, source, call, tryd, readOnly, instanceMethods);
                                     }
                                 }
                                 else
@@ -4157,7 +4231,7 @@ namespace TaffyScript.Compiler.Backend
                     }
                 }
                 foreach(var mi in validMethods)
-                    AddMethodToTypeWrapper(mi, weakFlags, type, transformName(mi.Name), importNode.Position, source, call, tryd, readOnly);
+                    AddMethodToTypeWrapper(mi, weakFlags, type, transformName(mi.Name), importNode.Position, source, call, tryd, readOnly, instanceMethods);
 
                 if (!foundConstructor)
                     _logger.Error($"No valid constructor was found for the imported type {importType}", importNode.Position);
@@ -4451,14 +4525,15 @@ namespace TaffyScript.Compiler.Backend
         }
 
         private void AddMethodToTypeWrapper(MethodInfo method, 
-                                    MethodAttributes weakFlags, 
-                                    TypeBuilder type, 
-                                    string importName, 
-                                    TokenPosition methodPosition, 
-                                    FieldInfo source, 
-                                    ILEmitter call, 
-                                    ILEmitter tryd,
-                                    List<string> readOnly)
+                                            MethodAttributes weakFlags, 
+                                            TypeBuilder type, 
+                                            string importName, 
+                                            TokenPosition methodPosition, 
+                                            FieldInfo source, 
+                                            ILEmitter call, 
+                                            ILEmitter tryd,
+                                            List<string> readOnly,
+                                            Dictionary<string, MethodInfo> methods)
         {
             var weakMethod = type.DefineMethod(importName, weakFlags, typeof(TsObject), ScriptArgs);
             weakMethod.SetImplementationFlags(MethodImplAttributes.AggressiveInlining);
@@ -4525,6 +4600,7 @@ namespace TaffyScript.Compiler.Backend
                 .MarkLabel(next);
 
             readOnly.Add(importName);
+            methods.Add(importName, weakMethod);
         }
 
         private void AddConstructorToTypeWrapper(ConstructorInfo ctor, TypeBuilder type, FieldInfo source, bool isWeaklyTyped, ImportObjectLeaf leaf)
@@ -4577,7 +4653,7 @@ namespace TaffyScript.Compiler.Backend
                 .New(createMethod, 1)
                 .Ret();
             
-            Initializer.Call(typeof(TsInstance).GetMethod("get_WrappedConstructors"))
+            Initializer.Call(typeof(TsReflection).GetMethod("get_Constructors"))
                        .LdStr(type.FullName)
                        .LdNull()
                        .LdFtn(wrappedCtor)
