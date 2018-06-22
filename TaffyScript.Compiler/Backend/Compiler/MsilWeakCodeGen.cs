@@ -381,6 +381,8 @@ namespace TaffyScript.Compiler.Backend
                 if (type.GetCustomAttribute<WeakObjectAttribute>() != null)
                 {
                     //Todo: Optimize this
+                    //      If the namespace of this iteration matches the last one, no need to exit and reenter.
+                    //      Just stay in the namespace.
                     var count = _table.EnterNamespace(type.Namespace);
                     if (!_table.TryEnterNew(type.Name, SymbolType.Object))
                         _logger.Warning($"Name conflict encountered with object {type.Name} defined in assembly {asm.GetName().Name}");

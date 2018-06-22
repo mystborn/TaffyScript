@@ -1,5 +1,9 @@
 # Release 1.9.0
 ### Lambda Scripts
+You can now define inline scripts, also known as lambda functions or anonymous functions. The lambdas can capture variables defined in the surrounding scope. They can alos be assigned to variables, and those variables can be called like scripts. To define a lambda, use the following syntax inside of a a script: `script() {  }`. Note the lack of a script name. For more examples, check out the [test file](https://github.com/mystborn/TaffyScript/blob/master/Samples/TestSuite/Tests/lambda.tfs). In addition, you can also use global and instance scripts as first class objects. In other words, you can assign hem to variables (instance scripts will be bound to the instance), and the variables can be called like scripts.
+
+### Reworked Object Generation
+This feature isn't really a big change to TaffyScript code. It does provide a nice increase to runtime code and provides a base for future improvements. However any .NET code interfacing with TS will notice a large change. All TaffyScript types now get generated into real .NET objects. Certain parts are still strange, such as all methods being static, but it will make using these objects be a more natural experience.
 
 ### Full Changelog
 * Reimplemented `with`
@@ -93,7 +97,7 @@
 TaffyScript instances are no longer bound to an id. Therefore, the way with originally worked is no longer valid. Removing id's from instances will make them work much faster (depending on the operations, sometimes up to a 300% increase), and allow them to be garbage collected. This means you no longer have to call `.destroy()` on every instance. It also makes the next major change much easier to implement.
 
 ### Import C# Objects
-You can now import a c# object to be usable from within TaffyScript. When imported, a special wrapper class is created that allows the object to be used as any other TS object. There are two import modes: explicit and automatic. In the eplicit mode you layout what methods, fields, properties, and constructor to import. In the automatic mode, all methods/properties/fields that have valid TS types are imported, as well as the first valid constructor. Until the wiki page is created you can check out [this](https://github.com/mystborn/TaffyScript/blob/dev-experimental/Samples/TestSuite/Tests/object_import.tfs) page which shows some example imports.
+You can now import a c# object to be usable from within TaffyScript. When imported, a special wrapper class is created that allows the object to be used as any other TS object. There are two import modes: explicit and automatic. In the eplicit mode you layout what methods, fields, properties, and constructor to import. In the automatic mode, all methods/properties/fields that have valid TS types are imported, as well as the first valid constructor. Until the wiki page is created you can check out [this](https://github.com/mystborn/TaffyScript/blob/master/Samples/TestSuite/Tests/object_import.tfs) page which shows some example imports.
 
 ### Object Indexers
 _This functionality is still under consideration and is highly subject to change._

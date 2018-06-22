@@ -100,15 +100,17 @@ namespace TaffyScript.Compiler.Backend
 
         protected void VerifyReferencesExists(string projectDir, Action<string> onReference, BuildConfig config)
         {
-            //Todo: Look for assemblies in the global assembly cache
-            //Update: After some tinkering, it seems this is not easily achieved.
-            //        The best way to determine if an assembly exists is to use gacutil,
-            //        however, I cannot figure out a way to find a path to the asm.
-            //        You could just force search %windir%\Microsoft.NET\assembly
-            //        but you'd have top at least guess that one folder will be the correct one.
-            //        Still, here is some psuedo code to do so.
-            //        I'm not currently using it becuase it's not stable enough.
-            //        Still, it could be useful. Maybe used when a compile option is specified
+            // Todo:     Look for assemblies in the global assembly cache
+            // Update:   After some tinkering, it seems this is not easily achieved.
+            //           The best way to determine if an assembly exists is to use gacutil,
+            //           however, I cannot figure out a way to find a path to the asm.
+            //           You could just force search %windir%\Microsoft.NET\assembly
+            //           but you'd have top at least guess that one folder will be the correct one.
+            //           Still, here is some psuedo code to do so.
+            //           I'm not currently using it becuase it's not stable enough.
+            //           Still, it could be useful. Maybe used when a compile option is specified
+            // Update 2: There might be some helper functions in the Microsoft.Build assembly.
+            //           Further research is needed.
 
             /*
             var cpuArchitecture = "64";

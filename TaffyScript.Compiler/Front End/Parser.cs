@@ -351,7 +351,6 @@ namespace TaffyScript.Compiler
             ISyntaxElement parent = null;
             if (Match(TokenType.Colon))
             {
-                //Todo: Change ResolveNamespace to accept custom error message.
                 parent = ReadTaffyScriptType("Invalid type name for object parent");
             }
 

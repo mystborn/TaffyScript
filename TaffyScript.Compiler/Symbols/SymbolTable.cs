@@ -138,10 +138,7 @@ namespace TaffyScript.Compiler
 
         public void AddSymbolToDefinitionLookup(SymbolNode node)
         {
-            // Todo: Measure performance impact of Contains.
-            //       Consider switching to HashSet.
-            //if (!_others.Contains(node))
-                _others.Add(node);
+            _others.Add(node);
         }
 
         public void RemoveSymbolFromDefinitionLookup(SymbolNode node)

@@ -55,8 +55,6 @@ namespace TaffyScript.Compiler
             sb.AppendLine("import TsObject.IsDelegate(object) as is_delegate");
             sb.AppendLine("import TsObject.IsNull(object) as is_null");
 
-            //Todo: lengthdir, lerp
-
             sb.AppendLine("import Math.Log(double) as ln");
             sb.AppendLine("import Math.Log10(double) as log10");
             sb.AppendLine("import Math.Log(double, double) as logn");
