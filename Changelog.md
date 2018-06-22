@@ -1,3 +1,7 @@
+# Release 1.9.1
+* Fixed bug related to `base`
+* Made some additions to ds_grid and ds_map
+
 # Release 1.9.0
 ### Lambda Scripts
 You can now define inline scripts, also known as lambda functions or anonymous functions. The lambdas can capture variables defined in the surrounding scope. They can alos be assigned to variables, and those variables can be called like scripts. To define a lambda, use the following syntax inside of a a script: `script() {  }`. Note the lack of a script name. For more examples, check out the [test file](https://github.com/mystborn/TaffyScript/blob/master/Samples/TestSuite/Tests/lambda.tfs). In addition, you can also use global and instance scripts as first class objects. In other words, you can assign hem to variables (instance scripts will be bound to the instance), and the variables can be called like scripts.
