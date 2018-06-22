@@ -41,6 +41,9 @@ namespace TaffyScript.Collections
                 case "set":
                     _source[(int)args[0], (int)args[1]] = args[2];
                     break;
+                case "add":
+                    add(null, args);
+                    break;
                 case "add_disk":
                     _source.OverDisk((int)args[0], (int)args[1], (int)args[2], (w, h, g) => g[w, h] += args[3]);
                     break;
@@ -70,6 +73,8 @@ namespace TaffyScript.Collections
                     return get_region_min(null, args);
                 case "get_region_sum":
                     return get_region_sum(null, args);
+                case "multiply":
+                    return multiply(null, args);
                 case "multiply_disk":
                     _source.OverDisk((int)args[0], (int)args[1], (int)args[2], (w, h, g) => g[w, h] *= args[3]);
                     break;
@@ -144,12 +149,14 @@ namespace TaffyScript.Collections
         {
             switch (delegateName)
             {
-
                 case "get":
                     del = new TsDelegate(get, "get", this);
                     return true;
                 case "set":
                     del = new TsDelegate(set, "set", this);
+                    return true;
+                case "add":
+                    del = new TsDelegate(add, "add", this);
                     return true;
                 case "add_disk":
                     del = new TsDelegate(add_disk, "add_disk", this);
@@ -189,6 +196,9 @@ namespace TaffyScript.Collections
                     return true;
                 case "get_region_sum":
                     del = new TsDelegate(get_region_sum, "get_region_sum", this);
+                    return true;
+                case "multiply":
+                    del = new TsDelegate(multiply, "multiply", this);
                     return true;
                 case "multiply_disk":
                     del = new TsDelegate(multiply_disk, "multiply_disk", this);
@@ -255,6 +265,12 @@ namespace TaffyScript.Collections
         public TsObject set(ITsInstance inst, params TsObject[] args)
         {
             _source[(int)args[0], (int)args[1]] = args[2];
+            return TsObject.Empty();
+        }
+
+        public TsObject add(ITsInstance inst, params TsObject[] args)
+        {
+            _source[(int)args[0], (int)args[1]] += args[2];
             return TsObject.Empty();
         }
 
@@ -443,6 +459,12 @@ namespace TaffyScript.Collections
                 sum += g[w, h];
             });
             return sum;
+        }
+
+        public TsObject multiply(ITsInstance inst, params TsObject[] args)
+        {
+            _source[(int)args[0], (int)args[1]] *= args[2];
+            return TsObject.Empty();
         }
 
         public TsObject multiply_disk(ITsInstance inst, params TsObject[] args)

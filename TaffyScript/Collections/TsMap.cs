@@ -33,13 +33,6 @@ namespace TaffyScript.Collections
         {
             switch(scriptName)
             {
-                case "get":
-                    if (_source.TryGetValue(args[0], out var result))
-                        return result;
-                    break;
-                case "set":
-                    _source[args[0]] = args[1];
-                    break;
                 case "add":
                     if (_source.ContainsKey(args[0]))
                         return false;
@@ -48,12 +41,19 @@ namespace TaffyScript.Collections
                 case "clear":
                     _source.Clear();
                     break;
-                case "remove":
-                    return _source.Remove(args[0]);
                 case "contains_key":
                     return _source.ContainsKey(args[0]);
                 case "copy":
                     return new TsMap(_source);
+                case "get":
+                    if (_source.TryGetValue(args[0], out var result))
+                        return result;
+                    break;
+                case "remove":
+                    return _source.Remove(args[0]);
+                case "set":
+                    _source[args[0]] = args[1];
+                    break;
                 default:
                     throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
             }

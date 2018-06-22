@@ -967,7 +967,8 @@ namespace TaffyScript.Compiler
             if (element.Type == SyntaxType.Assign ||
                 element.Type == SyntaxType.Postfix ||
                 element.Type == SyntaxType.FunctionCall ||
-                element.Type == SyntaxType.New)
+                element.Type == SyntaxType.New ||
+                element.Type == SyntaxType.Base)
             {
                 return true;
             }
