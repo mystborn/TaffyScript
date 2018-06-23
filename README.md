@@ -1,6 +1,6 @@
 # TaffyScript
 ## What is TaffyScript?
-TaffyScript is a dynamic programming language designed to be embedded into .NET applications. The primary purpose of the language is to be used for implementing game logic, and for the easy addition of mod support. However, it can be used as a general purpose language if desired. Originally it was based off of the [GameMaker Language](https://docs.yoyogames.com/source/dadiospice/002_reference/001_gml%20language%20overview/), but it no longer bares much resemblance. For more info, check out the [wiki](https://github.com/mystborn/TaffyScript/wiki).
+TaffyScript is a dynamic programming language designed to be embedded into .NET applications. The primary purpose of the language is to be used for implementing game logic, and for the easy addition of mod support. However, it can be used as a general purpose language if desired. Originally it was based off of the [GameMaker Language](https://docs.yoyogames.com/source/dadiospice/002_reference/001_gml%20language%20overview/), but it no longer bears much resemblance. For more info, check out the [wiki](https://github.com/mystborn/TaffyScript/wiki).
 
 ## Nuget
 Both the TaffyScript implementation and it's base class library are available via nuget:
