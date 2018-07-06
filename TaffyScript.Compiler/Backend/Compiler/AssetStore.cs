@@ -422,6 +422,7 @@ namespace TaffyScript.Compiler.Backend
         public ObjectInfo(Type type, Type parent, MethodInfo tryGetDelegate, ConstructorInfo constructor, FieldInfo members, FieldInfo scripts)
         {
             Type = type;
+            Parent = parent;
             TryGetDelegate = tryGetDelegate;
             Members = members;
             Constructor = constructor;
