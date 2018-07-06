@@ -1435,6 +1435,8 @@ namespace TaffyScript
                     return "string";
                 case VariableType.Delegate:
                     return "script";
+                case VariableType.Instance:
+                    return obj.GetInstanceUnchecked().ObjectType;
                 default:
                     return "unknown";
             }

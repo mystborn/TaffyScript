@@ -4,17 +4,20 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-namespace TaffyScript.Threading.Extern
+namespace TaffyScript.Threading
 {
+    [WeakBaseType]
     public static class Locks
     {
-        public static void MoniterEnter(TsObject obj)
+        [WeakMethod]
+        public static TsObject moniter_enter(ITsInstance inst, TsObject[] args)
         {
-            Monitor.Enter(obj.GetValue());
+            Monitor.Enter(args[0].GetValue());
+            return TsObject.Empty();
         }
 
         [WeakMethod]
-        public static TsObject MoniterTryEnter(ITsInstance inst, TsObject[] args)
+        public static TsObject moniter_try_enter(ITsInstance inst, TsObject[] args)
         {
             if (args.Length < 1)
                 throw new ArgumentOutOfRangeException("args", "There must be at least one argument to call moniter_try_enter");
@@ -24,9 +27,11 @@ namespace TaffyScript.Threading.Extern
                 return Monitor.TryEnter(args[0].GetValue());
         }
 
-        public static void MoniterExit(TsObject obj)
+        [WeakMethod]
+        public static TsObject moniter_exit(ITsInstance inst, TsObject[] args)
         {
-            Monitor.Exit(obj.GetValue());
+            Monitor.Exit(args[0].GetValue());
+            return TsObject.Empty();
         }
     }
 }

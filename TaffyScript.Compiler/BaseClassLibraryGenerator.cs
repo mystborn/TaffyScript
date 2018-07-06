@@ -115,6 +115,11 @@ namespace TaffyScript.Compiler
             sb.AppendLine("import object TsMap as ds_map");
             sb.AppendLine("import object TsGrid as ds_grid");
 
+            sb.AppendLine("namespace TaffyScript.Xml {");
+            sb.AppendLine("import object TaffyScript.Xml.XmlReader;");
+            sb.AppendLine("import object TaffyScript.Xml.XmlReaderSettings;");
+            sb.AppendLine("}");
+
             return sb.ToString();
         }
     }

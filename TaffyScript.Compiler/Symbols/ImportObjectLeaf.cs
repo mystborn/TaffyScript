@@ -11,6 +11,7 @@ namespace TaffyScript.Compiler
     {
         public ImportObjectNode ImportObject { get; }
         public System.Reflection.ConstructorInfo Constructor { get; set; }
+        public System.Reflection.MethodInfo TryGetDelegate { get; set; }
         public bool HasImportedObject { get; set; } = false;
 
 

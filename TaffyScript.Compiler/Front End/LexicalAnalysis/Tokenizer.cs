@@ -250,7 +250,7 @@ namespace TaffyScript.Compiler.FrontEnd
                             case '*':
                                 Advance();
                                 Advance();
-                                while(!InternalFinished && PeekChar() != '*' && PeekNext() != '/')
+                                while(!InternalFinished && !(PeekChar() == '*' && PeekNext() == '/'))
                                 {
                                     if (PeekChar() == '\n')
                                     {

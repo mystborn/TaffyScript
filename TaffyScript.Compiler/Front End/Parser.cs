@@ -198,6 +198,10 @@ namespace TaffyScript.Compiler
             if (Match(TokenType.As))
                 name = Consume(TokenType.Identifier, "Expected name after import object declaration").Text;
 
+            var index = name.LastIndexOf('.');
+            if (index++ != -1)
+                name = name.Substring(index, name.Length - index);
+
             if(!Check(TokenType.OpenBrace))
             {
                 node = new ImportObjectNode(type, name, start.Position);
@@ -471,6 +475,7 @@ namespace TaffyScript.Compiler
                 case TokenType.Do:
                     token = Consume(TokenType.Do, "Expected 'do'");
                     body = BodyStatement();
+                    while (Match(TokenType.SemiColon)) ;
                     Consume(TokenType.Until, "Expected 'until' after do body");
                     paren = Match(TokenType.OpenParen);
                     condition = Expression();
@@ -538,7 +543,7 @@ namespace TaffyScript.Compiler
                         else if(Check(TokenType.Default))
                         {
                             var defaultToken = Consume(TokenType.Default, "Expected 'default'");
-                            if (defaultCase == null)
+                            if (defaultCase != null)
                                 Error(defaultToken, "A switch statement can only have one default case");
                             defaultCase = SwitchBody();
                             defaultIndex = i;
@@ -1049,12 +1054,19 @@ namespace TaffyScript.Compiler
                                        .Insert(match.Index, Encoding.Unicode.GetString(hex));
                             break;
                         case '\\':
+                            text = SimpleReplace(text, match.Index, '\\');
+                            break;
                         case 'n':
+                            text = SimpleReplace(text, match.Index, '\n');
+                            break;
                         case 'r':
+                            text = SimpleReplace(text, match.Index, '\r');
+                            break;
                         case 't':
-                            text = SimpleReplace(text, match.Index, text[match.Index + 1]);
+                            text = SimpleReplace(text, match.Index, '\t');
                             break;
                     }
+                    match = StringParser.Match(text, match.Index + 1);
                 }
                 str = new ConstantToken<string>(stringToken.Text, text, ConstantType.String, stringToken.Position);
                 return true;

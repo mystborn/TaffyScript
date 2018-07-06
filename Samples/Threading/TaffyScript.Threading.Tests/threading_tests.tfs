@@ -1,30 +1,29 @@
 using TaffyScript.Threading;
-using TaffyScript.Threading.Locks;
 
 namespace TaffyScript.Threading.Tests {
     script main {
         print("Threading without locks")
-        thread_fire(print_thread_id);
-        thread_fire(print_thread_id);
+        task_run(print_thread_id);
+        task_run(print_thread_id);
         thread_sleep(500);
         print("\nFinished!\n");
+
+        var key = new ThreadLock();
+        var callback = script { print_thread_id_locked(key); }
         print("Threading with locks");
-        var m = new moniter();
-        thread_fire(print_thread_id_locked, m);
-        thread_fire(print_thread_id_locked, m);
+        task_run(callback);
+        task_run(callback);
         thread_sleep(500);
         print("Finished\n");
-        print("Starting threads that have a result:");
-        var thread1 = thread_start(script_with_result);
-        var thread2 = thread_start(script_with_result);
-        var result = thread_get_result(thread1);
-        print_thread_result(result);
-        result = thread_get_result_array(thread2);
+
+        print("Starting thread that has a result:");
+        var task = task_run(script_with_result);
+        var result = task.result;
         print_thread_result(result);
 
         print("\nStarting thread that throws an exception:")
-        thread1 = thread_start(script_with_exception);
-        result = thread_get_result(thread1);
+        task = thread_start(script_with_exception);
+        result = task.result;
         print_thread_result(result);
     }
 
@@ -54,17 +53,9 @@ namespace TaffyScript.Threading.Tests {
     }
 
     script print_thread_result(result) {
-        var value, exception;
-        if(typeof(result) == "array") {
-            exception = result[0];
-            value = result[1];
-        } else {
-            exception = result.exception;
-            value = result.result;
-        }
-        if(exception != "")
-            print("Thread Failed: " + exception);
+        if(result.exception != "")
+            print("Thread Failed: " + result.exception);
         else
-            print("Thread Result: " + string(value));
+            print("Thread Result: " + string(result.value));
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+﻿/*using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,7 +10,7 @@ namespace TaffyScript.Compiler.Backend
 {
     public class ObjectGenerator
     {
-        private static FieldInfo baseMemberField = typeof(TsInstance).GetField("_members", BindingFlags.NonPublic | BindingFlags.Instance);
+        private static FieldInfo _baseMemberField = typeof(TsInstance).GetField("_members", BindingFlags.NonPublic | BindingFlags.Instance);
         private static Type _baseType = typeof(TsInstance);
         private static ConstructorInfo _baseConstructor = typeof(TsInstance).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
         private static ConstructorInfo _definitionConstructor = typeof(ObjectDefinition).GetConstructor(new[] { typeof(string),
@@ -77,7 +77,7 @@ namespace TaffyScript.Compiler.Backend
                     members = type.DefineField("_members", typeof(Dictionary<string, TsObject>), FieldAttributes.Family);
             }
             else
-                members = baseMemberField;
+                members = _baseMemberField;
 
             var scripts = type.DefineField("_scripts", typeof(Dictionary<string, TsDelegate>), FieldAttributes.Private | FieldAttributes.Static);
 
@@ -219,30 +219,7 @@ namespace TaffyScript.Compiler.Backend
             var memberLookupFailed = mthd.DefineLabel();
             var memberRightType = mthd.DefineLabel();
             var scriptLookupFailed = mthd.DefineLabel();
-            mthd.LdArg(0)
-                .LdFld(membersField)
-                .LdArg(1)
-                .LdLocalA(member)
-                .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
-                .BrFalseS(memberLookupFailed)
-                .LdLocalA(member)
-                .Call(typeof(TsObject).GetMethod("get_Type"))
-                .LdInt(5)
-                .BeqS(memberRightType)
-                .LdArg(2)
-                .LdNull()
-                .StIndRef()
-                .LdBool(false)
-                .Ret()
-                .MarkLabel(memberRightType)
-                .LdArg(2)
-                .LdLocalA(member)
-                .Call(typeof(TsObject).GetMethod("GetDelegate"))
-                .StIndRef()
-                .LdBool(true)
-                .Ret()
-                .MarkLabel(memberLookupFailed)
-                .LdFld(scriptsField)
+            mthd.LdFld(scriptsField)
                 .LdArg(1)
                 .LdArg(2)
                 .Call(typeof(Dictionary<string, TsDelegate>).GetMethod("TryGetValue"))
@@ -253,23 +230,47 @@ namespace TaffyScript.Compiler.Backend
                 .LdArg(0)
                 .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsDelegate), typeof(ITsInstance) }))
                 .StIndRef()
-                .LdArg(0)
-                .LdFld(membersField)
-                .LdArg(1)
-                .LdArg(2)
-                .LdIndRef()
-                .New(TsTypes.Constructors[typeof(TsDelegate)])
-                .Call(typeof(Dictionary<string, TsObject>).GetMethod("Add"))
                 .LdBool(true)
                 .Ret()
                 .MarkLabel(scriptLookupFailed);
 
-            if(parentMethod != null)
+            if(membersField.DeclaringType == type)
+            {
+                mthd.LdArg(0)
+                    .LdFld(membersField)
+                    .LdArg(1)
+                    .LdLocalA(member)
+                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
+                    .BrFalseS(memberLookupFailed)
+                    .LdLocalA(member)
+                    .Call(typeof(TsObject).GetMethod("get_Type"))
+                    .LdInt(5)
+                    .BeqS(memberRightType)
+                    .LdArg(2)
+                    .LdNull()
+                    .StIndRef()
+                    .LdBool(false)
+                    .Ret()
+                    .MarkLabel(memberRightType)
+                    .LdArg(2)
+                    .LdLocalA(member)
+                    .Call(typeof(TsObject).GetMethod("GetDelegate"))
+                    .StIndRef()
+                    .LdBool(true)
+                    .Ret()
+                    .MarkLabel(memberLookupFailed)
+                    .LdArg(2)
+                    .LdNull()
+                    .StIndRef()
+                    .LdBool(false)
+                    .Ret();
+            }
+            else if(parentMethod != null)
             {
                 mthd.LdArg(0)
                     .LdArg(1)
                     .LdArg(2)
-                    .Call(parentMethod, 3, null)
+                    .CallE(parentMethod, 3, null)
                     .Ret();
             }
             else
@@ -299,3 +300,4 @@ namespace TaffyScript.Compiler.Backend
         }
     }
 }
+*/

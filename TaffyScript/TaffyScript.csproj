@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="Attributes\WeakBaseTypeAttribute.cs" />
     <Compile Include="BaseClassLib\BaseClassLibrary.cs" />
+    <Compile Include="Xml\XmlReader.cs" />
     <Compile Include="Collections\Grid.cs" />
     <Compile Include="Collections\TsGrid.cs" />
     <Compile Include="Collections\TsList.cs" />
@@ -70,6 +71,7 @@
     <Compile Include="Attributes\WeakLibraryAttribute.cs" />
     <Compile Include="Attributes\WeakMethodAttribute.cs" />
     <Compile Include="Attributes\WeakObjectAttribute.cs" />
+    <Compile Include="Xml\XmlReaderSettings.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
