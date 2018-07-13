@@ -1408,6 +1408,11 @@ namespace TaffyScript.Compiler.Backend
                         emit.ConvertFloat();
                         top = typeof(float);
                     }
+                    else if(top == typeof(ITsInstance))
+                    {
+                        ConvertTopToObject();
+                        top = typeof(TsObject);
+                    }
                     var argTypes = new[] { typeof(string), top };
                     var assignMethod = typeof(TsObject).GetMethod("MemberSet", argTypes);
                     if (assignMethod == null)
@@ -3771,8 +3776,8 @@ namespace TaffyScript.Compiler.Backend
             emit.MarkLabel(start);
             GetAddressIfPossible(whileNode.Condition);
             var top = emit.GetTop();
-            if(top == typeof(TsObject) || top == typeof(TsObject).MakePointerType())
-                emit.Call(TsTypes.ObjectCasts[typeof(bool)]);
+            if (top == typeof(TsObject) || top == typeof(TsObject).MakePointerType())
+                CallInstanceMethod(TsTypes.ObjectCasts[typeof(bool)], whileNode.Position);
             else if(top == typeof(float))
                 emit.ConvertInt(false);
             else if(top != typeof(bool) && top != typeof(int))

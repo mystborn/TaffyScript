@@ -17,7 +17,7 @@ namespace TaffyScript.Collections
             set => SetMember(memberName, value);
         }
 
-        public string ObjectType => "ds_map";
+        public string ObjectType => "Map";
         public Dictionary<TsObject, TsObject> Source => _source;
 
         public TsMap(TsObject[] args)

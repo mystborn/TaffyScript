@@ -17,7 +17,7 @@ namespace TaffyScript.Collections
             set => SetMember(memberName, value);
         }
 
-        public string ObjectType => "ds_list";
+        public string ObjectType => "List";
         public List<TsObject> Source => _source;
 
         public TsList(TsObject[] args)

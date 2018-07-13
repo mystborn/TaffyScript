@@ -18,7 +18,7 @@ namespace TaffyScript.Collections
             set => SetMember(memberName, value);
         }
 
-        public string ObjectType => "ds_grid";
+        public string ObjectType => "Grid";
         public Grid<TsObject> Source => _source;
 
         public TsGrid(TsObject[] args)

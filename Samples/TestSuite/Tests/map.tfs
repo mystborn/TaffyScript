@@ -24,21 +24,21 @@ namespace LanguageTests {
     }
 
     script map_create() {
-        test_it("var m = new ds_map()");
-        var map = new ds_map();
-        assert_equal(object_get_name(map), "ds_map");
+        test_it("var m = new Map()");
+        var map = new Map();
+        assert_equal(object_get_name(map), "Map");
     }
 
     script map_add_new() {
         test_it("map.add(key (uniq), val)");
-        var map = new ds_map();
+        var map = new Map();
         assert(map.add("key", "val"));
         assert_equal(map.count, 1);
     }
 
     script map_add_duplicate() {
         test_it("map.add(key (dup), val)");
-        var map = new ds_map();
+        var map = new Map();
         assert(map.add("key", 4));
         assert_is_false(map.add("key", "val"));
         assert_equal(map.count, 1);
@@ -46,7 +46,7 @@ namespace LanguageTests {
 
     script map_clear() {
         test_it("map.clear()");
-        var map = new ds_map();
+        var map = new Map();
         map.add(0, 2);
         map.add("moo", "cow");
         assert_equal(map.count, 2);
@@ -56,7 +56,7 @@ namespace LanguageTests {
 
     script map_remove_true() {
         test_it("map.remove(key) == true");
-        var map = new ds_map();
+        var map = new Map();
         map.add(0, 2);
         map.add("moo", "cow");
         assert_equal(map.count, 2);
@@ -66,7 +66,7 @@ namespace LanguageTests {
 
     script map_remove_false() {
         test_it("map.remove(key) == false");
-        var map = new ds_map();
+        var map = new Map();
         map.add(0, 2);
         map.add("moo", "cow");
         assert_equal(map.count, 2);
@@ -76,7 +76,7 @@ namespace LanguageTests {
 
     script map_contains_key_true() {
         test_it("map.contains_key(key) == true");
-        var map = new ds_map();
+        var map = new Map();
         map.add(0, 2);
         map.add("moo", "cow");
         assert(map.contains_key("moo"));
@@ -84,7 +84,7 @@ namespace LanguageTests {
 
     script map_contains_key_false() {
         test_it("map.contains_key(key) == false");
-        var map = new ds_map();
+        var map = new Map();
         map.add(0, 2);
         map.add("moo", "cow");
         assert_is_false(map.contains_key("cow"));
@@ -92,7 +92,7 @@ namespace LanguageTests {
 
     script map_copy() {
         test_it("map.copy()");
-        var map = new ds_map();
+        var map = new Map();
         map.add(0, 2);
         map.add("moo", "cow");
         var copy = map.copy();
@@ -103,7 +103,7 @@ namespace LanguageTests {
 
     script map_keys_some() {
         test_it("map.keys.length > 0");
-        var map = new ds_map();
+        var map = new Map();
         map.add(0, 2);
         map.add("moo", "cow");
         var keys = map.keys;
@@ -112,35 +112,35 @@ namespace LanguageTests {
 
     script map_keys_none() {
         test_it("map.keys.length == 0");
-        var map = new ds_map();
+        var map = new Map();
         var keys = map.keys;
         assert_equal(array_length_1d(keys), 0);
     }
 
     script map_get_script() {
         test_it("map.get(key)");
-        var map = new ds_map();
+        var map = new Map();
         map.add("moo", "cow");
         assert_equal(map.get("moo"), "cow");
     }
 
     script map_get_access() {
         test_it("val = map[key]");
-        var map = new ds_map();
+        var map = new Map();
         map.add("moo", "cow");
         assert_equal(map["moo"], "cow");
     }
 
     script map_set_script() {
         test_it("map.set(key, val)");
-        var map = new ds_map();
+        var map = new Map();
         map.set("moo", "cow");
         assert_equal(map["moo"], "cow");
     }
 
     script map_set_access() {
         test_it("map[key] = val");
-        var map = new ds_map();
+        var map = new Map();
         map["moo"] = "cow";
         assert_equal(map["moo"], "cow");
     }

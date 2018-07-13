@@ -86,7 +86,7 @@ namespace LanguageTests {
 
     script prefix_increment_list() {
         test_it("++list");
-        var list = new ds_list();
+        var list = new List();
         list.add(2);
         ++list[0];
         assert_equal(list[0], 3);
@@ -97,7 +97,7 @@ namespace LanguageTests {
 
     script prefix_decrement_list() {
         test_it("--list");
-        var list = new ds_list();
+        var list = new List();
         list.add(2);
         --list[0];
         assert_equal(list[0], 1);
