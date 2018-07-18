@@ -25,7 +25,7 @@ You can now download a precompiled binary from the [releases](https://github.com
 ```cs
 script main {
     print("Hello, World!");
-    var user = new obj_user("Script");
+    var user = new User("Script");
     print_user(user);
     user.name = "Taffy";
     print_user(user);
@@ -36,7 +36,8 @@ script print_user(user) {
     print("User: " + user.name);
 }
 
-object obj_user {
+object User {
+    // This script is equivalent to a constructor
     script create(name) {
         self.name = "";
     }
