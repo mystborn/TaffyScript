@@ -105,6 +105,17 @@ namespace TaffyScript
             return false;
         }
 
+        public static bool ObjectIs(string type, string expectedType)
+        {
+            do
+            {
+                if (type == expectedType)
+                    return true;
+            }
+            while (Inherits.TryGetValue(type, out type));
+            return false;
+        }
+
         /// <summary>
         /// Determines if a global variable with the specified name exists.
         /// </summary>

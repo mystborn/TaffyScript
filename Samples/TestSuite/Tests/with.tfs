@@ -31,7 +31,7 @@ namespace LanguageTests {
 
     script with_can_access_local_cs() {
         test_it("with(cs) local");
-        var list = new ds_list();
+        var list = new List();
         list.add(3);
         with(list) {
             assert_equal(count, 1);
@@ -48,7 +48,7 @@ namespace LanguageTests {
 
     script with_can_call_event_cs() {
         test_it("with(cs) event()");
-        var list = new ds_list();
+        var list = new List();
         with(list) {
             add(4, 3);
         }

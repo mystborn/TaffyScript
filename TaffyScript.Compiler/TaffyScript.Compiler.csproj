@@ -62,7 +62,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Backend\Compiler\ObjectGenerator.cs" />
+    <Compile Include="Backend\Compiler\AssetStore.cs" />
     <Compile Include="Backend\Compiler\TypeEqualityComparer.cs" />
     <Compile Include="BaseClassLibraryGenerator.cs" />
     <Compile Include="Backend\Builder.cs" />

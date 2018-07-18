@@ -111,9 +111,14 @@ namespace TaffyScript.Compiler
             sb.AppendLine("import TsReflection.VariableInstanceGetNames(instance) as variable_instance_get_names");
             sb.AppendLine("import TsReflection.VariableInstanceSet(instance, string, object) as variable_instance_set");
             
-            sb.AppendLine("import object TsList as ds_list");
-            sb.AppendLine("import object TsMap as ds_map");
-            sb.AppendLine("import object TsGrid as ds_grid");
+            sb.AppendLine("import object TsList as List");
+            sb.AppendLine("import object TsMap as Map");
+            sb.AppendLine("import object TsGrid as Grid");
+
+            sb.AppendLine("namespace TaffyScript.Xml {");
+            sb.AppendLine("import object TaffyScript.Xml.XmlReader;");
+            sb.AppendLine("import object TaffyScript.Xml.XmlReaderSettings;");
+            sb.AppendLine("}");
 
             return sb.ToString();
         }

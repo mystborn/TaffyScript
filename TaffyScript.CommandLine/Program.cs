@@ -29,7 +29,9 @@ namespace TaffyScript.CommandLine
             if (extra.Count != 0)
                 path = extra[0];
 
-            //path = @"C:\Users\Chris\Source\Repos\GmParser\Samples\TestSuite\Tests";
+#if DEBUG
+            path = @"C:\Users\Chris\Source\TaffyScript\WhereIsEveryone";
+#endif
 
             if (generateBuild)
             {

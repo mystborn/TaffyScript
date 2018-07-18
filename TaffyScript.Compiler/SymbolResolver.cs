@@ -19,6 +19,30 @@ namespace TaffyScript.Compiler
             _logger = logger;
         }
 
+        public string GetAssetNamespace(ISymbol symbol)
+        {
+            var sb = new StringBuilder();
+            var parent = symbol.Parent;
+            while(parent != null && parent.Type == SymbolType.Namespace)
+            {
+                sb.Insert(0, parent.Name + ".");
+                parent = parent.Parent;
+            }
+            return sb.ToString().TrimEnd();
+        }
+
+        public string GetAssetFullName(ISymbol symbol)
+        {
+            var sb = new StringBuilder(symbol.Name);
+            symbol = symbol.Parent;
+            while(symbol != null && symbol.Type == SymbolType.Namespace)
+            {
+                sb.Insert(0, symbol.Name + ".");
+                symbol = symbol.Parent;
+            }
+            return sb.ToString().TrimStart('.');
+        }
+
         public bool TryResolveNamespace(MemberAccessNode node, out ISyntaxElement resolved, out SymbolNode namespaceNode)
         {
             if (node.Left is ISyntaxToken token && _table.Defined(token.Name, out var symbol) && symbol.Type == SymbolType.Namespace)
@@ -47,7 +71,10 @@ namespace TaffyScript.Compiler
                 if (node.Left is ISyntaxToken left)
                     ns.Push(left);
                 else
-                    _logger.Error("Invalid syntax detected", node.Left.Position);
+                {
+                    namespaceNode = default(SymbolNode);
+                    return false;
+                }
 
                 var sb = new System.Text.StringBuilder();
                 var iterations = 0;

@@ -17,7 +17,7 @@ namespace TaffyScript.Collections
             set => SetMember(memberName, value);
         }
 
-        public string ObjectType => "ds_list";
+        public string ObjectType => "List";
         public List<TsObject> Source => _source;
 
         public TsList(TsObject[] args)
@@ -57,6 +57,12 @@ namespace TaffyScript.Collections
                     while (_source.Count <= index)
                         _source.Add(TsObject.Empty());
                     _source[index] = args[1];
+                    break;
+                case "shuffle":
+                    _source.Shuffle();
+                    break;
+                case "sort":
+                    _source.Sort();
                     break;
                 default:
                     throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
@@ -117,6 +123,12 @@ namespace TaffyScript.Collections
                     return true;
                 case "set":
                     del = new TsDelegate(set, "set", this);
+                    return true;
+                case "shuffle":
+                    del = new TsDelegate(shuffle, "shuffle", this);
+                    return true;
+                case "sort":
+                    del = new TsDelegate(sort, "sort", this);
                     return true;
                 default:
                     del = null;
@@ -181,6 +193,18 @@ namespace TaffyScript.Collections
             while (_source.Count <= index)
                 _source.Add(TsObject.Empty());
             _source[index] = args[1];
+            return TsObject.Empty();
+        }
+
+        public TsObject shuffle(ITsInstance inst, TsObject[] args)
+        {
+            _source.Shuffle();
+            return TsObject.Empty();
+        }
+
+        public TsObject sort(ITsInstance inst, TsObject[] args)
+        {
+            _source.Sort();
             return TsObject.Empty();
         }
     }

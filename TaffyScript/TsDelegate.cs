@@ -110,14 +110,14 @@ namespace TaffyScript
 
         public static bool operator ==(TsDelegate left, TsDelegate right)
         {
-            if (left != null)
+            if (!(left is null))
                 return left.Equals(right);
             else return right is null;
         }
 
         public static bool operator !=(TsDelegate left, TsDelegate right)
         {
-            if (left != null)
+            if (!(left is null))
                 return !left.Equals(right);
             else return !(right is null);
         }
