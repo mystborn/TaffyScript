@@ -1,3 +1,48 @@
+# Release 1.9.3
+### Object Casing
+Before this update, I personally named objects using a mix of hungarian notation and snake_casing. They would start with `obj_` to denote that they were objects, followed by their name. Moving forward, this is not the "standard" way to name objects. Of course users are free to use whatever naming conventions fit them, but all objects in the BCL will use the PascalCase naming convention. As such, the following 
+
+* Changed the preferred object casing to PascalCase
+    * Changed ds_list to List
+    * Changed ds_map to Map
+    * Changed ds_grid to Grid
+* Fixed a bug where the compiler failed to emit code for valid assignments to variables accessed from an instance
+* The type `EventCache<T>` was added to TaffyScript to make it easier to wrap objects with event handlers
+* Updated certain XmlReader scripts to have more useful return values
+
+# Release 1.9.2
+* TaffyScript.Threading has been completely changed
+    * Removed TaffyScript.Threading
+    * Updated TaffyScript.Threading.Extern to TaffyScript.Threading
+    * TaffyScript.Threading is now a WeakLibrary
+    * System.Threading.Tasks.Task<TsObject> are now wrapped by TaffyScript.Threading.Task
+    * There are global scripts to facilitate some of the commonly used Thread/Task static methods
+    * Locks are implemented using a ThreadLock object
+* Added an Xml namespace to the BCL
+    * Added an XmlReader class for reading xml files
+    * Added an XmlReaderSettings class to create more precise XmlReaders
+* Added the scripts `sort` and `shuffle` to ds_list
+* Removed ObjectWrapper.Members and made ObjectWrapper.\_members protected so inherited classes use the field instead.
+* Changed the script `typeof` to return an instances type instead of "instance"
+* Improved compiler internals
+    * Added the AssetStore class to make object and script generation cleaner, faster, and less bug-ridden
+    * Removed ObjectGenerator
+    * Made steps to make a runtime interpreter more possible
+* More Bug Fixes
+    * Fixed bug related to the until statement of a do-until block.
+    * Fixed bug related to calling a parent constructor
+    * Fixed a bug that stopped the output from giving a clear error when not passing enough arguments to a script on debug mode
+    * Fixed switch statements not always going to the correct case
+    * Fixed default cases in a switch statement not parsing correctly
+    * Fixed while loops not working if the condition wasn't a bool
+    * Fixed bug related to multiline comments not parsing correctly.
+    * Fixed bug related to importing objects with their qualified name
+    * Fixed bug where adding a semicolon after the do body without braces would cause the parser to throw
+    * Fixed bug where escape characters weren't getting parsed correctly
+    * Fixed bug where objects inheriting from imported objects couldn't access the members field
+    * Fixed bug where trying to compare two TsDelegates would cause an infinite loop
+    * Fixed bug where you couldn't get the parent type of an object
+
 # Release 1.9.1
 * Fixed bug related to `base`
 * Made some additions to ds_grid and ds_map
