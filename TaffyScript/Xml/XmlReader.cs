@@ -23,7 +23,7 @@ namespace TaffyScript.Xml
 
         public XmlReader(TsObject[] args)
         {
-            Source = args.Length == 1 ? InternalReader.Create((string)args[0]) : InternalReader.Create((string)args[0], ((XmlReaderSettings)args[1]).Settings);
+            Source = args.Length == 1 ? InternalReader.Create((string)args[0]) : InternalReader.Create((string)args[0] ((XmlReaderSettings)args[1]).Settings);
         }
 
         public XmlReader(System.Xml.XmlReader reader)
@@ -297,33 +297,29 @@ namespace TaffyScript.Xml
             if (args[0].Type == VariableType.Real)
                 Source.MoveToAttribute((int)args[0]);
             else
-                Source.MoveToAttribute((string)args[0]);
+                return Source.MoveToAttribute((string)args[0]);
 
-            return TsObject.Empty();
+            return true;
         }
 
         public TsObject move_to_content(ITsInstance inst, TsObject[] args)
         {
-            Source.MoveToContent();
-            return TsObject.Empty();
+            return (float)Source.MoveToContent();
         }
 
         public TsObject move_to_element(ITsInstance inst, TsObject[] args)
         {
-            Source.MoveToElement();
-            return TsObject.Empty();
+            return Source.MoveToElement();
         }
 
         public TsObject move_to_first_attribute(ITsInstance inst, TsObject[] args)
         {
-            Source.MoveToFirstAttribute();
-            return TsObject.Empty();
+            return Source.MoveToFirstAttribute();
         }
 
         public TsObject move_to_next_attribute(ITsInstance inst, TsObject[] args)
         {
-            Source.MoveToNextAttribute();
-            return TsObject.Empty();
+            return Source.MoveToNextAttribute();
         }
 
         public TsObject read(ITsInstance inst, TsObject[] args)

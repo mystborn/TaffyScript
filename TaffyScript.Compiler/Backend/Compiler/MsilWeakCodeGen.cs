@@ -1390,12 +1390,12 @@ namespace TaffyScript.Compiler.Backend
                 {
                     GetAddressIfPossible(member.Left);
                     var top = emit.GetTop();
+                    LocalBuilder secret = null;
                     if (top == typeof(TsObject))
                     {
-                        var secret = GetLocal();
+                        secret = GetLocal();
                         emit.StLocal(secret)
                             .LdLocalA(secret);
-                        FreeLocal(secret);
                     }
                     else if (top != typeof(TsObject).MakePointerType())
                         _logger.Error("Invalid syntax detected", member.Left.Position);
@@ -1408,7 +1408,7 @@ namespace TaffyScript.Compiler.Backend
                         emit.ConvertFloat();
                         top = typeof(float);
                     }
-                    else if(top == typeof(ITsInstance))
+                    else if(typeof(ITsInstance).IsAssignableFrom(top))
                     {
                         ConvertTopToObject();
                         top = typeof(TsObject);
@@ -1422,6 +1422,9 @@ namespace TaffyScript.Compiler.Backend
                     }
                     else
                         emit.Call(typeof(TsObject).GetMethod("MemberSet", argTypes));
+
+                    if (secret != null)
+                        FreeLocal(secret);
                 }
             }
             else
