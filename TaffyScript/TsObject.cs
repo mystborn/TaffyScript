@@ -1391,57 +1391,5 @@ namespace TaffyScript
         #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 
         #endregion
-
-        #region Base Class Library
-
-        public static bool IsArray(TsObject obj)
-        {
-            return obj.Type == VariableType.Array1 || obj.Type == VariableType.Array2;
-        }
-
-        public static bool IsReal(TsObject obj)
-        {
-            return obj.Type == VariableType.Real;
-        }
-
-        public static bool IsString(TsObject obj)
-        {
-            return obj.Type == VariableType.String;
-        }
-
-        public static bool IsDelegate(TsObject obj)
-        {
-            return obj.Type == VariableType.Delegate;
-        }
-
-        public static bool IsNull(TsObject obj)
-        {
-            return obj.Type == VariableType.Null;
-        }
-
-        public static string Typeof(TsObject obj)
-        {
-            switch(obj.Type)
-            {
-                case VariableType.Array1:
-                    return "array1";
-                case VariableType.Array2:
-                    return "array2";
-                case VariableType.Null:
-                    return "null";
-                case VariableType.Real:
-                    return "real";
-                case VariableType.String:
-                    return "string";
-                case VariableType.Delegate:
-                    return "script";
-                case VariableType.Instance:
-                    return obj.GetInstanceUnchecked().ObjectType;
-                default:
-                    return "unknown";
-            }
-        }
-
-        #endregion
     }
 }

@@ -23,7 +23,7 @@ namespace TaffyScript.Xml
 
         public XmlReader(TsObject[] args)
         {
-            Source = args.Length == 1 ? InternalReader.Create((string)args[0]) : InternalReader.Create((string)args[0] ((XmlReaderSettings)args[1]).Settings);
+            Source = args.Length == 1 ? InternalReader.Create((string)args[0]) : InternalReader.Create((string)args[0], ((XmlReaderSettings)args[1]).Settings);
         }
 
         public XmlReader(System.Xml.XmlReader reader)

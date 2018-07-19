@@ -31,7 +31,7 @@ namespace LanguageTests {
     script list_create() {
         test_it("var l = new List()");
         var list = new List();
-        assert_equal(object_get_name(list), "List");
+        assert_equal(typeof(list), "List");
     }
 
     script list_add_one() {

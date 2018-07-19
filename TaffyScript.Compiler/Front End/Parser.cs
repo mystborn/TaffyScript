@@ -1065,6 +1065,12 @@ namespace TaffyScript.Compiler
                         case 't':
                             text = SimpleReplace(text, match.Index, '\t');
                             break;
+                        case '"':
+                            text = SimpleReplace(text, match.Index, '"');
+                            break;
+                        case '\'':
+                            text = SimpleReplace(text, match.Index, '\'');
+                            break;
                     }
                     match = StringParser.Match(text, match.Index + 1);
                 }

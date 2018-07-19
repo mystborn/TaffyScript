@@ -305,8 +305,8 @@ namespace TaffyScript.Collections
                     temp[w, h] = 0;
 
             var srcWidth = _source.GetLength(0);
-            var copyWidth = Math.Min(srcWidth, width);
-            var copyHeight = Math.Min(_source.GetLength(1), height);
+            var copyWidth = System.Math.Min(srcWidth, width);
+            var copyHeight = System.Math.Min(_source.GetLength(1), height);
 
             var srcOffset = 0;
             var dstOffset = 0;

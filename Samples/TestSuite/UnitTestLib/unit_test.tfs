@@ -2,6 +2,8 @@
 //To find more information, you can view the project here:
 //https://github.com/gm-core/gamatas
 
+using TaffyScript.Reflection;
+
 namespace UnitTest {
     object obj_unit_test {
         script create(test_suite_name) {
@@ -11,8 +13,8 @@ namespace UnitTest {
             test_number = 0;
             tests_failed = false;
             test_suite = test_suite_name;
-            test_description = "";
-            tests = new ds_list();
+            test_description = ""
+            tests = new List();
             for(var i = 1; i < argument_count; i++) {
                 tests.add(argument[i]);
             }
@@ -71,32 +73,6 @@ namespace UnitTest {
         }
     }
 
-    script assert_exists {
-        global._unit_test.test_number++;
-        if(!instance_exists(argument0)){
-            var msg;
-            if(argument_count > 1)
-                msg = argument1;
-            else
-                msg = scr_ut_create_assert_error(string(argument0) + " has no instances");
-
-            test_fail(msg);
-        }
-    }
-
-    script assert_does_not_exist {
-        global._unit_test.test_number++;
-        if(instance_exists(argument0)){
-            var msg;
-            if(argument_count > 1)
-                msg = argument1;
-            else
-                msg = scr_ut_create_assert_error(string(argument0) + " should not exist");
-
-            test_fail(msg);
-        }
-    }
-
     script assert_is_true {
         if(argument_count > 1)
             assert_equal(argument0, true, argument1);
@@ -111,9 +87,9 @@ namespace UnitTest {
             assert_equal(argument0, false);
     }
 
-    script assert_is_undefined {
+    script assert_is_null {
         global._unit_test.test_number++;
-        if(!is_undefined(argument0)) {
+        if(!is_null(argument0)) {
             var msg;
             if(argument_count > 1)
                 msg = argument1;

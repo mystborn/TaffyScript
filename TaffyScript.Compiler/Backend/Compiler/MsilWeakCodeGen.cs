@@ -430,10 +430,10 @@ namespace TaffyScript.Compiler.Backend
         /// <param name="asm"></param>
         private void ReadResources(Assembly asm)
         {
-            var resources = asm.GetManifestResourceNames();
-            if (resources.Contains(SpecialImportsFileName))
+            var resource = asm.GetManifestResourceNames().Where(f => f.EndsWith(SpecialImportsFileName)).FirstOrDefault();
+            if (resource != null)
             {
-                using (var stream = asm.GetManifestResourceStream(SpecialImportsFileName))
+                using (var stream = asm.GetManifestResourceStream(resource))
                 {
                     using (var reader = new System.IO.StreamReader(stream))
                     {
@@ -3293,7 +3293,7 @@ namespace TaffyScript.Compiler.Backend
                         emit.LdFld(typeof(TsInstance).GetField("Global"));
                     break;
                 case "pi":
-                    emit.LdFloat((float)Math.PI);
+                    emit.LdFloat((float)System.Math.PI);
                     break;
                 case "noone":
                     _logger.Warning("The keyword noone is obsolete and will be deprecated next major release. Consider removing it", readOnlyToken.Position);

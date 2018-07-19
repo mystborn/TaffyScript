@@ -17,9 +17,9 @@ namespace LanguageTests {
     script return_nothing_works() {
         test_it("script { return }");
         var result = return_nothing_semicolon();
-        assert(is_null(result));
+        assert_is_null(result);
         result = return_nothing_end_brace();
-        assert(is_null(result));
+        assert_is_null(result);
     }
 
     script return_something() {

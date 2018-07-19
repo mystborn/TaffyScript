@@ -38,6 +38,7 @@ namespace TaffyScript.Compiler.Backend
 
             config.Output = Path.GetFileName(config.Output);
             var expectedOutput = Path.Combine(dir, config.Output);
+            config.References.Add(typeof(TsObject).Assembly.Location);
 
             VerifyReferencesExists(projectDir, dir, config);
             if (_logger.Errors.Count != 0)
@@ -56,6 +57,7 @@ namespace TaffyScript.Compiler.Backend
             // You MUST create the generator before resolving so it can load in
             // the included assemblies.
             var generator = new MsilWeakCodeGen(table, symbolResolver, config, _logger);
+
             resolver.Resolve(root);
             if (_logger.Errors.Count != 0)
                 return new CompilerResult(_logger);
@@ -66,7 +68,7 @@ namespace TaffyScript.Compiler.Backend
             else
             {
                 expectedOutput += Path.GetExtension(result.PathToAssembly);
-                CopyFileIfNewer(typeof(TsObject).Assembly.Location, Path.Combine(dir, typeof(TsObject).Assembly.GetName().Name + ".dll"));
+                //CopyFileIfNewer(typeof(TsObject).Assembly.Location, Path.Combine(dir, typeof(TsObject).Assembly.GetName().Name + ".dll"));
                 if (result.PathToAssembly != expectedOutput)
                 {
                     if (File.Exists(expectedOutput))

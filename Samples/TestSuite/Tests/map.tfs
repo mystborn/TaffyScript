@@ -1,5 +1,4 @@
 using UnitTest;
-using TaffyScript.Collections;
 
 namespace LanguageTests {
     script run_map_tests() {
@@ -26,7 +25,7 @@ namespace LanguageTests {
     script map_create() {
         test_it("var m = new Map()");
         var map = new Map();
-        assert_equal(object_get_name(map), "Map");
+        assert_equal(typeof(map), "Map");
     }
 
     script map_add_new() {

@@ -8,6 +8,7 @@
 // * exp
 
 using UnitTest;
+using TaffyScript.Math;
 
 namespace LanguageTests {
     script run_math_tests() {
