@@ -1243,15 +1243,12 @@ namespace TaffyScript.Compiler
             {
                 do
                 {
-                    var text = _stream.Current.Text;
-                    if (text == "array")
-                        text = "array1d";
+                    var token = _stream.Read();
 
-                    if (!TsTypes.BasicTypes.ContainsKey(text))
-                        Error(_stream.Current, $"Import argument must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}");
+                    if (!TsTypes.BasicTypes.ContainsKey(token.Text))
+                        Error(token, $"Import argument must be one of the following: {string.Join(", ", TsTypes.BasicTypes.Keys)}");
 
-                    arguments.Add(text);
-                    _stream.Read();
+                    arguments.Add(token.Text);
                 }
                 while (Match(TokenType.Comma));
             }

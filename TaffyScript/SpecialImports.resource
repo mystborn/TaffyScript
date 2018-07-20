@@ -4,9 +4,7 @@
 0::array_copy:GlobalScripts.array_copy
 0::array_create:GlobalScripts.array_create
 0::array_equals:GlobalScripts.array_equals
-0::array_height_2d:GlobalScripts.array_height_2d
-0::array_length_1d:GlobalScripts.array_length_1d
-0::array_length_2d:GlobalScripts.array_length_2d
+0::array_length:GlobalScripts.array_length
 0::real:GlobalScripts.real
 0::show_error:GlobalScripts.show_error
 0::print:GlobalScripts.print

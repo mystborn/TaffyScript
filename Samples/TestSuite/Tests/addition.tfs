@@ -22,8 +22,6 @@ namespace LanguageTests {
         assert(try_expect(number_literal_plus_string_var, "InvalidOperationException"));
         assert(try_expect(number_var_plus_array1, "InvalidOperationException"));
         assert(try_expect(number_literal_plus_array1, "InvalidOperationException"));
-        assert(try_expect(number_var_plus_array2, "InvalidOperationException"));
-        assert(try_expect(number_literal_plus_array2, "InvalidOperationException"));
         assert(try_expect(number_var_plus_delegate_var, "InvalidOperationException"));
         assert(try_expect(number_var_plus_delegate_literal, "InvalidOperationException"));
         assert(try_expect(number_literal_plus_delegate_var, "InvalidOperationException"));
@@ -33,8 +31,6 @@ namespace LanguageTests {
         assert(try_expect(string_literal_plus_number_var, "InvalidOperationException"));
         assert(try_expect(string_var_plus_array1, "InvalidOperationException"));
         assert(try_expect(string_literal_plus_array1, "InvalidOperationException"));
-        assert(try_expect(string_var_plus_array2, "InvalidOperationException"));
-        assert(try_expect(string_literal_plus_array2, "InvalidOperationException"));
         assert(try_expect(string_var_plus_delegate_var, "InvalidOperationException"));
         assert(try_expect(string_var_plus_delegate_literal, "InvalidOperationException"));
         assert(try_expect(string_literal_plus_delegate_var, "InvalidOperationException"));
@@ -44,17 +40,8 @@ namespace LanguageTests {
         assert(try_expect(array1_plus_string_var, "InvalidOperationException"));
         assert(try_expect(array1_plus_string_literal, "InvalidOperationException"));
         assert(try_expect(array1_plus_array1, "InvalidOperationException"));
-        assert(try_expect(array1_plus_array2, "InvalidOperationException"));
         assert(try_expect(array1_plus_delegate_var, "InvalidOperationException"));
         assert(try_expect(array1_plus_delegate_literal, "InvalidOperationException"));
-        assert(try_expect(array2_plus_number_var, "InvalidOperationException"));
-        assert(try_expect(array2_plus_number_literal, "InvalidOperationException"));
-        assert(try_expect(array2_plus_string_var, "InvalidOperationException"));
-        assert(try_expect(array2_plus_string_literal, "InvalidOperationException"));
-        assert(try_expect(array2_plus_array1, "InvalidOperationException"));
-        assert(try_expect(array2_plus_array2, "InvalidOperationException"));
-        assert(try_expect(array2_plus_delegate_var, "InvalidOperationException"));
-        assert(try_expect(array2_plus_delegate_literal, "InvalidOperationException"));
         assert(try_expect(delegate_var_plus_number_var, "InvalidOperationException"));
         assert(try_expect(delegate_var_plus_number_literal, "InvalidOperationException"));
         assert(try_expect(delegate_literal_plus_number_var, "InvalidOperationException"));
@@ -65,8 +52,6 @@ namespace LanguageTests {
         assert(try_expect(delegate_literal_plus_string_literal, "InvalidOperationException"));
         assert(try_expect(delegate_var_plus_array1, "InvalidOperationException"));
         assert(try_expect(delegate_literal_plus_array1, "InvalidOperationException"));
-        assert(try_expect(delegate_var_plus_array2, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_plus_array2, "InvalidOperationException"));
         assert(try_expect(delegate_var_plus_delegate_var, "InvalidOperationException"));
         assert(try_expect(delegate_var_plus_delegate_literal, "InvalidOperationException"));
         assert(try_expect(delegate_literal_plus_delegate_var, "InvalidOperationException"));
@@ -131,21 +116,6 @@ namespace LanguageTests {
     script number_literal_plus_array1() {
         test_it("1 + a1");
         var arr = [];
-        var result = 1 + arr;
-    }
-
-    script number_var_plus_array2() {
-        test_it("n + a2");
-        var n = 1;
-        var arr;
-        arr[0, 0] = 0;
-        var result = n + arr;
-    }
-
-    script number_literal_plus_array2() {
-        test_it("1 + a2");
-        var arr;
-        arr[0, 0] = 0;
         var result = 1 + arr;
     }
 
@@ -233,21 +203,6 @@ namespace LanguageTests {
         var result = "" + arr;
     }
 
-    script string_var_plus_array2() {
-        test_it("s + a2");
-        var s = "";
-        var arr;
-        arr[0, 0] = 30;
-        var result = s + arr;
-    }
-
-    script string_literal_plus_array2() {
-        test_it("'' + a2");
-        var arr;
-        arr[0, 0] = 30;
-        var result = "" + arr;
-    }
-
     script string_var_plus_delegate_var() {
         test_it("s + d");
         var s = "";
@@ -305,14 +260,6 @@ namespace LanguageTests {
         var result = arr1 + arr2;
     }
 
-    script array1_plus_array2() {
-        test_it("a1 + a2");
-        var arr1 = [];
-        var arr2;
-        arr2[0, 0] = 0;
-        var result = arr1 + arr2;
-    }
-
     script array1_plus_delegate_var() {
         test_it("a1 + d");
         var arr = [];
@@ -323,68 +270,6 @@ namespace LanguageTests {
     script array1_plus_delegate_literal() {
         test_it("a1 + nop");
         var arr = [];
-        var result = arr + nop;
-    }
-
-    script array2_plus_number_var() {
-        test_it("a2 + n");
-        var arr;
-        arr[0, 0] = 0;
-        var n = 1;
-        var result = arr + n;
-    }
-
-    script array2_plus_number_literal() {
-        test_it("a2 + 1");
-        var arr;
-        arr[0, 0] = 0;
-        var result = arr + 1;
-    }
-
-    script array2_plus_string_var() {
-        test_it("a2 + s");
-        var arr;
-        arr[0, 0] = 0;
-        var s = "";
-        var result = arr + s;
-    }
-
-    script array2_plus_string_literal() {
-        test_it("a2 + ''");
-        var arr;
-        arr[0, 0] = 0;
-        var result = arr + "";
-    }
-
-    script array2_plus_array1() {
-        test_it("a2 + a1");
-        var arr1;
-        arr1[0, 0] = 0;
-        var arr2 = [];
-        var result = arr1 + arr2;
-    }
-
-    script array2_plus_array2() {
-        test_it("a2 + a2");
-        var arr1;
-        arr1[0, 0] = 0;
-        var arr2;
-        arr2[0, 0] = 0;
-        var result = arr1 + arr2;
-    }
-
-    script  array2_plus_delegate_var() {
-        test_it("a2 + d");
-        var arr;
-        arr[0, 0] = 0;
-        var del = nop;
-        var result = arr + del;
-    }
-
-    script array2_plus_delegate_literal() {
-        test_it("a2 + nop");
-        var arr;
-        arr[0, 0] = 0;
         var result = arr + nop;
     }
 
@@ -446,21 +331,6 @@ namespace LanguageTests {
     script delegate_literal_plus_array1() {
         test_it("nop + a1");
         var arr = [];
-        var result = nop + arr;
-    }
-
-    script delegate_var_plus_array2() {
-        test_it("d + a2");
-        var del = nop;
-        var arr;
-        arr[0, 0] = 0;
-        var result = del + arr;
-    }
-
-    script delegate_literal_plus_array2() {
-        test_it("nop + a2");
-        var arr;
-        arr[0, 0] = 0;
         var result = nop + arr;
     }
 

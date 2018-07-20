@@ -23,6 +23,8 @@ namespace LanguageTests {
                                       array1_length,
                                       array2_height,
                                       array2_length,
+                                      array4_get,
+                                      array4_length,
                                       array_is_array);
 
         tests.run_tests();
@@ -40,20 +42,20 @@ namespace LanguageTests {
     script array1_create_literal {
         test_it("arr = []");
         var arr = [];
-        assert_equal(typeof(arr), "array1")
+        assert_equal(typeof(arr), "array")
     }
 
     script array1_create_script {
         test_it("arr = array_create()");
         var arr = array_create(1);
-        assert_equal(typeof(arr), "array1");
+        assert_equal(typeof(arr), "array");
     }
 
     script array1_create_variable {
         test_it("var arr; arr[0] = 0");
         var arr;
         arr[0] = 0;
-        assert_equal(typeof(arr), "array1");
+        assert_equal(typeof(arr), "array");
     }
 
     script array1_set_in_bounds {
@@ -86,11 +88,11 @@ namespace LanguageTests {
         test_it("var arr; arr[0,1] = val");
         var arr;
         arr[0, 1] = "moo";
-        assert_equal(typeof(arr), "array2");
+        assert_equal(typeof(arr), "array");
     }
 
     script array2_set_left_ib_right_ib() {
-        test_it("arr[0 (ib), 0 (ib)] = val")
+        test_it("arr[0 (ib), 0 (ib)] = val");
         var arr;
         arr[0, 0] = 0;
         arr[0, 0] = 33;
@@ -179,14 +181,14 @@ namespace LanguageTests {
     script array1_length() {
         test_it("array_length_1d(arr)");
         var arr = [0,1,2];
-        assert_equal(array_length_1d(arr), 3);
+        assert_equal(array_length(arr), 3);
     }
 
     script array2_height() {
         test_it("array_height_2d(arr)");
         var arr;
         arr[3, 5] = "moo";
-        assert_equal(array_height_2d(arr), 4);
+        assert_equal(array_length(arr), 4);
     }
 
     script array2_length() {
@@ -194,13 +196,27 @@ namespace LanguageTests {
         var arr;
         arr[2, 4] = "moo";
         arr[3, 5] = 3;
-        assert_equal(array_length_2d(arr, 2), 5);
-        assert_equal(array_length_2d(arr, 3), 6);
+        assert_equal(array_length(arr, 2), 5);
+        assert_equal(array_length(arr, 3), 6);
+    }
+
+    script array4_get(){
+        test_it("var = arr[0, 0, 0, 0]");
+        var arr;
+        arr[0, 0, 0, 4] = "moo";
+        assert_equal(arr[0, 0, 0, 4], "moo");
+    }
+
+    script array4_length() {
+        test_it("array_length(arr, 0, 0, 0)");
+        var arr;
+        arr[0, 0, 0, 4] = "moo";
+        assert_equal(array_length(arr, 0, 0, 0), 5);
     }
 
     script array_is_array() {
         test_it("typeof(array)");
         var arr = [0,1,2];
-        assert_equal(typeof(arr), "array1");
+        assert_equal(typeof(arr), "array");
     }
 }

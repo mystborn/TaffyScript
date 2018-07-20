@@ -54,8 +54,7 @@ namespace TaffyScript.Compiler
                 { typeof(string), objType.GetMethod("GetString") },
                 { typeof(ITsInstance), objType.GetMethod("GetInstance") },
                 { typeof(TsDelegate), objType.GetMethod("GetDelegate") },
-                { typeof(TsObject[]), objType.GetMethod("GetArray1D") },
-                { typeof(TsObject[][]), objType.GetMethod("GetArray2D") }
+                { typeof(TsObject[]), objType.GetMethod("GetArray", Type.EmptyTypes) }
             };
 
             Constructors = new Dictionary<Type, ConstructorInfo>()
@@ -75,8 +74,7 @@ namespace TaffyScript.Compiler
                 { typeof(string), objType.GetConstructor(new[] { typeof(string) }) },
                 { typeof(ITsInstance), objType.GetConstructor(new[] { typeof(ITsInstance) }) },
                 { typeof(TsDelegate), objType.GetConstructor(new[] { typeof(TsDelegate) }) },
-                { typeof(TsObject[]), objType.GetConstructor(new[] { typeof(TsObject[]) }) },
-                { typeof(TsObject[][]), objType.GetConstructor(new[] { typeof(TsObject[][]) }) }
+                { typeof(TsObject[]), objType.GetConstructor(new[] { typeof(TsObject[]) }) }
             };
 
             BasicTypes = new Dictionary<string, Type>()
@@ -96,8 +94,7 @@ namespace TaffyScript.Compiler
                 { "string", typeof(string) },
                 { "instance", typeof(ITsInstance) },
                 { "delegate", typeof(TsDelegate) },
-                { "array1d", typeof(TsObject[]) },
-                { "array2d", typeof(TsObject[][]) },
+                { "array", typeof(TsObject[]) },
                 { "object", typeof(TsObject) }
             };
 

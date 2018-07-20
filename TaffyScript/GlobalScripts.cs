@@ -60,8 +60,8 @@ namespace TaffyScript
         [WeakMethod]
         public static TsObject array_equals(ITsInstance inst, TsObject[] args)
         {
-            var left = args[0].GetArray1D();
-            var right = args[1].GetArray1D();
+            var left = args[0].GetArray();
+            var right = args[1].GetArray();
             if (left.Length != right.Length)
                 return false;
             for(var i = 0; i < left.Length; i++)
@@ -74,21 +74,23 @@ namespace TaffyScript
         }
 
         [WeakMethod]
-        public static TsObject array_height_2d(ITsInstance inst, TsObject[] args)
+        public static TsObject array_length(ITsInstance inst, TsObject[] args)
         {
-            return args[0].GetArray2D().Length;
-        }
-
-        [WeakMethod]
-        public static TsObject array_length_1d(ITsInstance inst, TsObject[] args)
-        {
-            return args[0].GetArray1D().Length;
-        }
-
-        [WeakMethod]
-        public static TsObject array_length_2d(ITsInstance inst, TsObject[] args)
-        {
-            return args[0].GetArray2D()[(int)args[1]]?.Length ?? 0;
+            switch(args.Length)
+            {
+                case 1:
+                    return args[0].GetArray().Length;
+                case 2:
+                    return args[0].GetArray((int)args[1]).Length;
+                case 3:
+                    return args[0].GetArray((int)args[1], (int)args[2]).Length;
+                default:
+                    var indeces = new int[args.Length - 1];
+                    var i = 0;
+                    while (i < indeces.Length)
+                        indeces[i++] = (int)args[i];
+                    return args[0].GetArray(indeces).Length;
+            }
         }
 
         [WeakMethod]
@@ -266,10 +268,8 @@ namespace TaffyScript
         {
             switch (args[0].Type)
             {
-                case VariableType.Array1:
-                    return "array1";
-                case VariableType.Array2:
-                    return "array2";
+                case VariableType.Array:
+                    return "array";
                 case VariableType.Null:
                     return "null";
                 case VariableType.Real:

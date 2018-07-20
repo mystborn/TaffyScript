@@ -89,7 +89,7 @@ namespace TaffyScript.Reflection
 
         public static TsObject is_array(ITsInstance inst, TsObject[] args)
         {
-            return args[0].Type == VariableType.Array1 || args[0].Type == VariableType.Array2;
+            return args[0].Type == VariableType.Array;
         }
 
         public static TsObject is_instance(ITsInstance inst, TsObject[] args)

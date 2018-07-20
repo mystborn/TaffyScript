@@ -180,18 +180,8 @@ namespace TaffyScript
         /// <param name="array">The value of the object.</param>
         public TsObject(TsObject[] array)
         {
-            Type = VariableType.Array1;
+            Type = VariableType.Array;
             Value = new TsMutableValue<TsObject[]>(array);
-        }
-
-        /// <summary>
-        /// Creates a TaffyScript object from a 2D array.
-        /// </summary>
-        /// <param name="array">The value of the object.</param>
-        public TsObject(TsObject[][] array)
-        {
-            Type = VariableType.Array2;
-            Value = new TsMutableValue<TsObject[][]>(array);
         }
 
         /// <summary>
@@ -210,11 +200,6 @@ namespace TaffyScript
         public static TsObject Empty()
         {
             return new TsObject(VariableType.Null, new TsImmutableValue<object>(null));
-        }
-
-        public static TsObject NooneObject()
-        {
-            return new TsObject(Noone);
         }
 
         #endregion
@@ -388,22 +373,30 @@ namespace TaffyScript
         /// Gets the 1D array held by this object.
         /// </summary>
         /// <returns></returns>
-        public TsObject[] GetArray1D()
+        public TsObject[] GetArray()
         {
-            if (Type != VariableType.Array1)
+            if (Type != VariableType.Array)
                 throw new InvalidTsTypeException($"Variable is supposed to be of type Array1D, is {Type} instead.");
             return ((TsMutableValue<TsObject[]>)Value).StrongValue;
         }
 
-        /// <summary>
-        /// Gets the 2D array held by this object.
-        /// </summary>
-        /// <returns></returns>
-        public TsObject[][] GetArray2D()
+        public TsObject[] GetArray(int index)
         {
-            if (Type != VariableType.Array2)
-                throw new InvalidTsTypeException($"Variable is supposed to be of type Array2D, is {Type} instead.");
-            return ((TsMutableValue<TsObject[][]>)Value).StrongValue;
+            return GetArray()[index].GetArray();
+        }
+
+        public TsObject[] GetArray(int index1, int index2)
+        {
+            return GetArray()[index1].GetArray()[index2].GetArray();
+        }
+
+        public TsObject[] GetArray(params int[] indeces)
+        {
+            var arr = GetArray();
+            for (var i = 0; i < indeces.Length; i++)
+                arr = arr[indeces[i]].GetArray();
+
+            return arr;
         }
 
         /// <summary>
@@ -490,33 +483,27 @@ namespace TaffyScript
         /// </summary>
         /// <param name="index">The array index.</param>
         /// <param name="right">The value of the index.</param>
-        public void ArraySet(TsObject index, TsObject right)
-            => ArraySet((int)index, right);
-
-        /// <summary>
-        /// Sets the value at the given index in the 1D array held by this object.
-        /// </summary>
-        /// <param name="index">The array index.</param>
-        /// <param name="right">The value of the index.</param>
-        public void ArraySet(int index, TsObject right)
+        public void ArraySet(TsObject right, int index)
         {
-            if (index < 0)
-                throw new ArgumentOutOfRangeException("index");
-
-            if (Type != VariableType.Array1)
+            if (Type != VariableType.Array)
             {
-                Type = VariableType.Array1;
+                Type = VariableType.Array;
                 var temp = new TsObject[index + 1];
+                for (var i = 0; i < index; i++)
+                    temp[index] = Empty();
                 temp[index] = right;
                 Value = new TsMutableValue<TsObject[]>(temp);
                 return;
             }
+
             var self = (TsMutableValue<TsObject[]>)Value;
             var arr = self.StrongValue;
             if (index >= arr.Length)
             {
                 var temp = new TsObject[index + 1];
                 Array.Copy(arr, 0, temp, 0, arr.Length);
+                for (var i = arr.Length; i < index; i++)
+                    temp[i] = Empty();
                 arr = temp;
                 self.StrongValue = temp;
             }
@@ -529,74 +516,53 @@ namespace TaffyScript
         /// <param name="index1">The index of the first dimension.</param>
         /// <param name="index2">The index of the second dimension.</param>
         /// <param name="right">The value of the index.</param>
-        public void ArraySet(TsObject index1, TsObject index2, TsObject right)
-            => ArraySet((int)index1, (int)index2, right);
-
-        /// <summary>
-        /// Sets the value at the given indeces in the 2D array held by this object.
-        /// </summary>
-        /// <param name="index1">The index of the first dimension.</param>
-        /// <param name="index2">The index of the second dimension.</param>
-        /// <param name="right">The value of the index.</param>
-        public void ArraySet(int index1, TsObject index2, TsObject right)
-            => ArraySet(index1, (int)index2, right);
-
-        /// <summary>
-        /// Sets the value at the given indeces in the 2D array held by this object.
-        /// </summary>
-        /// <param name="index1">The index of the first dimension.</param>
-        /// <param name="index2">The index of the second dimension.</param>
-        /// <param name="right">The value of the index.</param>
-        public void ArraySet(TsObject index1, int index2, TsObject right)
-            => ArraySet((int)index1, index2, right);
-
-        /// <summary>
-        /// Sets the value at the given indeces in the 2D array held by this object.
-        /// </summary>
-        /// <param name="index1">The index of the first dimension.</param>
-        /// <param name="index2">The index of the second dimension.</param>
-        /// <param name="right">The value of the index.</param>
-        public void ArraySet(int index1, int index2, TsObject right)
+        public void ArraySet(TsObject right, int index1, int index2)
         {
-            if (index1 < 0 || index2 < 0)
-                throw new ArgumentOutOfRangeException($"{(index1 < 0 ? nameof(index1) : nameof(index2))}");
-
-            if (Type != VariableType.Array2)
-            {
-                Type = VariableType.Array2;
-                var temp = new TsObject[index1 + 1][];
-                var inner = new TsObject[index2 + 1];
-                inner[index2] = right;
-                temp[index1] = inner;
-                Value = new TsMutableValue<TsObject[][]>(temp);
-                return;
-            }
-
-            var self = (TsMutableValue<TsObject[][]>)Value;
-            if(index1 >= self.StrongValue.Length)
-            {
-                var temp = new TsObject[index1 + 1][];
-                Array.Copy(self.StrongValue, 0, temp, 0, self.StrongValue.Length);
-                self.StrongValue = temp;
-            }
-            if (self.StrongValue[index1] == null)
-                self.StrongValue[index1] = new TsObject[index2 + 1];
-            else if(index2 >= self.StrongValue[index1].Length)
-            {
-                var temp = new TsObject[index2 + 1];
-                Array.Copy(self.StrongValue[index1], 0, temp, 0, self.StrongValue[index1].Length);
-                self.StrongValue[index1] = temp;
-            }
-            self.StrongValue[index1][index2] = right;
+            GetOrMakeArrayIndex(index1)[index1].ArraySet(right, index2);
         }
 
-        /// <summary>
-        /// Gets the value at the given index in the 1D array held by this object.
-        /// </summary>
-        /// <param name="index">The index of the value.</param>
-        /// <returns></returns>
-        public TsObject ArrayGet(TsObject index)
-            => ArrayGet((int)index);
+        public void ArraySet(TsObject right, int index1, int index2, int index3)
+        {
+            GetOrMakeArrayIndex(index1)[index1].GetOrMakeArrayIndex(index2)[index2].ArraySet(right, index3);
+        }
+
+        public void ArraySet(TsObject right, params int[] indeces)
+        {
+            ref var obj = ref this;
+            var last = indeces.Length - 1;
+            for (var i = 0; i < last; i++)
+                obj = ref obj.GetOrMakeArrayIndex(indeces[i])[indeces[i]];
+
+            obj.ArraySet(right, indeces[last]);
+        }
+
+        private TsObject[] GetOrMakeArrayIndex(int index)
+        {
+            if (Type != VariableType.Array)
+            {
+                Type = VariableType.Array;
+                var temp = new TsObject[++index];
+                for (var i = 0; i < index; i++)
+                    temp[i] = Empty();
+                Value = new TsMutableValue<TsObject[]>(temp);
+                return temp;
+            }
+            else
+            {
+                var self = (TsMutableValue<TsObject[]>)Value;
+                var arr = self.StrongValue;
+                if(arr.Length <= index)
+                {
+                    var temp = new TsObject[++index];
+                    Array.Copy(arr, 0, temp, 0, arr.Length);
+                    for (var i = arr.Length; i < index; i++)
+                        temp[i] = Empty();
+                    self.StrongValue = temp;
+                    return temp;
+                }
+                return arr;
+            }
+        }
 
         /// <summary>
         /// Gets the value at the given index in the 1D array held by this object.
@@ -605,35 +571,8 @@ namespace TaffyScript
         /// <returns></returns>
         public TsObject ArrayGet(int index)
         {
-            return GetArray1D()[index];
+            return GetArray()[index];
         }
-
-        /// <summary>
-        /// Gets the value at the given indeces in the 2D array held by this object.
-        /// </summary>
-        /// <param name="index1">The index of the first dimension.</param>
-        /// <param name="index2">The index of the second dimension.</param>
-        /// <returns></returns>
-        public TsObject ArrayGet(TsObject index1, TsObject index2)
-            => ArrayGet((int)index1, (int)index2);
-
-        /// <summary>
-        /// Gets the value at the given indeces in the 2D array held by this object.
-        /// </summary>
-        /// <param name="index1">The index of the first dimension.</param>
-        /// <param name="index2">The index of the second dimension.</param>
-        /// <returns></returns>
-        public TsObject ArrayGet(TsObject index1, int index2)
-            => ArrayGet((int)index1, index2);
-
-        /// <summary>
-        /// Gets the value at the given indeces in the 2D array held by this object.
-        /// </summary>
-        /// <param name="index1">The index of the first dimension.</param>
-        /// <param name="index2">The index of the second dimension.</param>
-        /// <returns></returns>
-        public TsObject ArrayGet(int index1, TsObject index2)
-            => ArrayGet(index1, (int)index2);
 
         /// <summary>
         /// Gets the value at the given indeces in the 2D array held by this object.
@@ -643,7 +582,21 @@ namespace TaffyScript
         /// <returns></returns>
         public TsObject ArrayGet(int index1, int index2)
         {
-            return GetArray2D()[index1][index2];
+            return GetArray()[index1].GetArray()[index2];
+        }
+
+        public TsObject ArrayGet(int index1, int index2, int index3)
+        {
+            return GetArray()[index1].GetArray()[index2].GetArray()[index3];
+        }
+
+        public TsObject ArrayGet(params int[] indeces)
+        {
+            var obj = this;
+            for (var i = 0; i < indeces.Length; i++)
+                obj = obj.GetArray()[indeces[i]];
+
+            return obj;
         }
 
         #endregion
@@ -683,26 +636,9 @@ namespace TaffyScript
         {
             switch(Type)
             {
-                case VariableType.Array1:
+                case VariableType.Array:
                     var builder = new StringBuilder();
                     ArrayToString(builder, (TsObject[])Value.WeakValue);
-                    return builder.ToString();
-                case VariableType.Array2:
-                    builder = new StringBuilder();
-                    var outer = (TsObject[][])Value.WeakValue;
-                    builder.Append("[");
-                    if(outer.Length == 0)
-                        builder.Append(",]");
-                    else
-                    {
-                        ArrayToString(builder, outer[0]);
-                        for(var i = 1; i < outer.Length; i++)
-                        {
-                            builder.Append(", ");
-                            ArrayToString(builder, outer[i]);
-                        }
-                        builder.Append("]");
-                    }
                     return builder.ToString();
                 case VariableType.Null:
                     return "null";
@@ -826,12 +762,7 @@ namespace TaffyScript
 
         public static explicit operator TsObject[](TsObject right)
         {
-            return right.GetArray1D();
-        }
-
-        public static explicit operator TsObject[][](TsObject right)
-        {
-            return right.GetArray2D();
+            return right.GetArray();
         }
 
         public static implicit operator TsObject(bool right)
@@ -910,11 +841,6 @@ namespace TaffyScript
         }
 
         public static implicit operator TsObject(TsObject[] right)
-        {
-            return new TsObject(right);
-        }
-
-        public static implicit operator TsObject(TsObject[][] right)
         {
             return new TsObject(right);
         }
@@ -1164,8 +1090,6 @@ namespace TaffyScript
                     return left.GetFloatUnchecked() == right.GetFloatUnchecked();
                 case VariableType.String:
                     return left.GetStringUnchecked() == right.GetStringUnchecked();
-                case VariableType.Array1:
-                case VariableType.Array2:
                 default:
                     return left.GetValue() == right.GetValue();
             }
@@ -1213,8 +1137,6 @@ namespace TaffyScript
                     return left.GetFloatUnchecked() != right.GetFloatUnchecked();
                 case VariableType.String:
                     return left.GetStringUnchecked() != right.GetStringUnchecked();
-                case VariableType.Array1:
-                case VariableType.Array2:
                 default:
                     return left.GetValue() != right.GetValue();
             }

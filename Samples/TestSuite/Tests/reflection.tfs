@@ -89,7 +89,7 @@ namespace LanguageTests {
         global.val = 12;
         var found = false;
         var names = variable_global_get_names();
-        for(var i = 0; i < array_length_1d(names); i++) {
+        for(var i = 0; i < array_length(names); i++) {
             if(names[i] == "val") {
                 found = true;
                 break;
@@ -122,7 +122,7 @@ namespace LanguageTests {
         var obj = new obj_mirror();
         var names = variable_instance_get_names(obj);
         var found = false;
-        for(var i = 0; i < array_length_1d(names); i++) {
+        for(var i = 0; i < array_length(names); i++) {
             if(names[i] == "value") {
                 found = true;
                 break;
