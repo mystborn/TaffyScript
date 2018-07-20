@@ -7,7 +7,7 @@ using System.Xml;
 
 namespace TaffyScript.Xml
 {
-    [WeakObject]
+    [TaffyScriptObject]
     public class XmlReaderSettings : ITsInstance
     {
         public System.Xml.XmlReaderSettings Settings { get; }

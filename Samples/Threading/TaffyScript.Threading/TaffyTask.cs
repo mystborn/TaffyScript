@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TaffyScript.Threading
 {
-    [WeakObject]
+    [TaffyScriptObject]
     public class Task : ITsInstance
     {
         private Task<TsObject> _task;

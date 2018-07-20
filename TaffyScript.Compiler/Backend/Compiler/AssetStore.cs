@@ -163,7 +163,7 @@ namespace TaffyScript.Compiler.Backend
 
             GenerateInitializeMethod(info);
 
-            var attrib = new CustomAttributeBuilder(typeof(WeakObjectAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
+            var attrib = new CustomAttributeBuilder(typeof(TaffyScriptObjectAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
             type.SetCustomAttribute(attrib);
         }
 

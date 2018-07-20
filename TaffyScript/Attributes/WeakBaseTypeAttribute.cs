@@ -5,9 +5,9 @@ namespace TaffyScript
     /// <summary>
     /// Tags a type as a TaffyScript base type.
     /// </summary>
-    public class WeakBaseTypeAttribute : Attribute
+    public class TaffyScriptBaseTypeAttribute : Attribute
     {
-        public WeakBaseTypeAttribute()
+        public TaffyScriptBaseTypeAttribute()
         {
         }
     }

@@ -249,7 +249,7 @@ namespace TaffyScript.Compiler.FrontEnd
             _table.Enter(lambdaNode.Scope);
             _environment = new Environment(_environment);
             foreach (var arg in lambdaNode.Arguments)
-                _environment.Define(arg.Name);
+                _environment.Define(arg.Name, EncounterType.Local);
 
             var inLambda = _inLambda;
             _inLambda = true;
@@ -267,9 +267,8 @@ namespace TaffyScript.Compiler.FrontEnd
         {
             foreach(var variable in locals.Locals)
             {
-                if (_environment.Encountered(variable.Name))
+                if (!_environment.Define(variable.Name, EncounterType.Local))
                     _logger.Error("Tried to declare a variable that has already been encountered in the current scope.", variable.Position);
-                _environment.Define(variable.Name);
 
                 variable.Value?.Accept(this);
             }
@@ -385,6 +384,9 @@ namespace TaffyScript.Compiler.FrontEnd
         {
             if(returnNode.Result != null)
             {
+                if (_table.Current.Name == "create" && _currentMethod == MethodType.Instance)
+                    _logger.Error("Cannot return a value from an instances create script", returnNode.Result.Position);
+
                 returnNode.Result.Parent = returnNode;
                 returnNode.Result.Accept(this);
             }
@@ -406,7 +408,7 @@ namespace TaffyScript.Compiler.FrontEnd
             _currentMethod = script.Parent.Type == SyntaxType.Object ? MethodType.Instance : MethodType.Global;
             _environment = new Environment(_environment);
             foreach (var arg in script.Arguments)
-                _environment.Define(arg.Name);
+                _environment.Define(arg.Name, EncounterType.Local);
             script.Body.Parent = script;
             script.Body.Accept(this);
             _environment = _environment.Enclosing;
@@ -459,12 +461,19 @@ namespace TaffyScript.Compiler.FrontEnd
 
         public void Visit(VariableToken variableToken)
         {
-            _environment.Define(variableToken.Name);
+            if(!_environment.Encountered(variableToken.Name, out _) && _table.Defined(variableToken.Name, out var symbol) && symbol.Type == SymbolType.Variable)
+            {
+                if (_currentMethod != MethodType.Instance)
+                    _logger.Error($"Tried to use undefined variable {variableToken.Name}", variableToken.Position);
+                else
+                    _environment.Define(variableToken.Name, EncounterType.Instance);
+            }
+
             if(_inLambda)
             {
                 if(_environment.Depth(variableToken.Name) != 0)
                 {
-                    if (_table.Defined(variableToken.Name, out var symbol) && symbol is VariableLeaf leaf)
+                    if (_table.Defined(variableToken.Name, out symbol) && symbol is VariableLeaf leaf)
                         leaf.IsCaptured = true;
                 }
             }
@@ -504,9 +513,16 @@ namespace TaffyScript.Compiler.FrontEnd
             Lambda
         }
 
+        private enum EncounterType
+        {
+            None,
+            Local,
+            Instance
+        }
+
         private class Environment
         {
-            private HashSet<string> _encountered = new HashSet<string>();
+            private Dictionary<string, EncounterType> _encountered = new Dictionary<string, EncounterType>();
 
             public Environment Enclosing { get; }
 
@@ -520,22 +536,23 @@ namespace TaffyScript.Compiler.FrontEnd
                 Enclosing = enclosing;
             }
 
-            public bool Encountered(string name)
+            public bool Encountered(string name, out EncounterType encounter)
             {
-                if (_encountered.Contains(name))
+                if (_encountered.TryGetValue(name, out encounter))
                     return true;
 
                 if (Enclosing != null)
-                    return Enclosing.Encountered(name);
+                    return Enclosing.Encountered(name, out encounter);
 
+                encounter = EncounterType.None;
                 return false;
             }
 
-            public bool Define(string name)
+            public bool Define(string name, EncounterType type)
             {
-                if (!Encountered(name))
+                if (!Encountered(name, out var encounter))
                 {
-                    _encountered.Add(name);
+                    _encountered[name] = type;
                     return true;
                 }
                 return false;
@@ -545,7 +562,7 @@ namespace TaffyScript.Compiler.FrontEnd
             {
                 var i = 0;
                 var env = this;
-                while(!env._encountered.Contains(name))
+                while(!env._encountered.ContainsKey(name))
                 {
                     i++;
                     env = env.Enclosing;

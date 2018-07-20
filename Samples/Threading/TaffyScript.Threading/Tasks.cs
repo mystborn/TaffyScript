@@ -8,10 +8,10 @@ using RealTask = System.Threading.Tasks.Task;
 
 namespace TaffyScript.Threading
 {
-    [WeakBaseType]
+    [TaffyScriptBaseType]
     public static class Tasks
     {
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject task_run(ITsInstance inst, TsObject[] args)
         {
             return args.Length == 1
@@ -19,7 +19,7 @@ namespace TaffyScript.Threading
                 : new Task(RealTask.Run(() => args[0].GetDelegate().Invoke(), ((TaskCancellationToken)args[1]).Source.Token));
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject task_wait_all(ITsInstance inst, TsObject[] args)
         {
             var tasks = new RealTask[args.Length];
@@ -37,7 +37,7 @@ namespace TaffyScript.Threading
             }
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject task_wait_any(ITsInstance inst, TsObject[] args)
         {
             var tasks = new RealTask[args.Length];
@@ -55,20 +55,20 @@ namespace TaffyScript.Threading
             }
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject thread_pool_queue_item(ITsInstance inst, TsObject[] args)
         {
             return ThreadPool.QueueUserWorkItem((obj) => args[0].GetDelegate().Invoke());
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject thread_sleep(ITsInstance inst, TsObject[] args)
         {
             Thread.Sleep((int)args[0]);
             return TsObject.Empty();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject thread_get_id(ITsInstance inst, TsObject[] args)
         {
             return Thread.CurrentThread.ManagedThreadId;

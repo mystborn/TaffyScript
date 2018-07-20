@@ -6,9 +6,9 @@ namespace TaffyScript
     /// Tags an object as a weak TaffyScript object.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
-    public class WeakObjectAttribute : Attribute
+    public class TaffyScriptObjectAttribute : Attribute
     {
-        public WeakObjectAttribute()
+        public TaffyScriptObjectAttribute()
         {
         }
     }

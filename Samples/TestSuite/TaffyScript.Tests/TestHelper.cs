@@ -10,7 +10,7 @@ namespace TaffyScript.Tests
 {
     public static class TestHelper
     {
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject Try(ITsInstance target, TsObject[] args)
         {
             var del = (TsDelegate)args[0];
@@ -39,7 +39,7 @@ namespace TaffyScript.Tests
             return result;
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject TryExpect(ITsInstance target, TsObject[] args)
         {
             var del = (TsDelegate)args[0];
@@ -62,7 +62,7 @@ namespace TaffyScript.Tests
             return false;
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject TimeInvoke(ITsInstance target, TsObject[] args)
         {
             var del = (TsDelegate)args[0];

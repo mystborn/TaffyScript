@@ -20,7 +20,7 @@ namespace TaffyScript.Compiler.Backend
         #region Constants
 
         /// <summary>
-        /// Special file name that will be stored in the output assembly manifest that contains a list of imported methods with the <see cref="WeakMethodAttribute"/>.
+        /// Special file name that will be stored in the output assembly manifest that contains a list of imported methods with the <see cref="TaffyScriptMethodAttribute"/>.
         /// </summary>
         private const string SpecialImportsFileName = "SpecialImports.resource";
 
@@ -244,7 +244,7 @@ namespace TaffyScript.Compiler.Backend
             // Initialize all specified references.
             foreach (var asm in config.References.Select(s => _assemblyLoader.LoadAssembly(s)))
             {
-                if(asm.GetCustomAttribute<WeakLibraryAttribute>() != null)
+                if(asm.GetCustomAttribute<TaffyScriptLibraryAttribute>() != null)
                 {
                     ProcessWeakAssembly(asm);
                     ReadResources(asm);
@@ -259,7 +259,7 @@ namespace TaffyScript.Compiler.Backend
             InitTsMethods();
 
             //Marks this assembly as weakly typed.
-            attrib = new CustomAttributeBuilder(typeof(WeakLibraryAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
+            attrib = new CustomAttributeBuilder(typeof(TaffyScriptLibraryAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
             _asm.SetCustomAttribute(attrib);
         }
 
@@ -288,7 +288,7 @@ namespace TaffyScript.Compiler.Backend
             if (output == ".exe")
             {
                 var init = Initializer;
-                foreach (var asm in _assemblyLoader.LoadedAssemblies.Values.Where(a => a.GetCustomAttribute<WeakLibraryAttribute>() != null))
+                foreach (var asm in _assemblyLoader.LoadedAssemblies.Values.Where(a => a.GetCustomAttribute<TaffyScriptLibraryAttribute>() != null))
                 {
                     var name = asm.GetName().Name;
                     var initMethod = asm.GetType($"{name}.{name.Replace('.', '_')}_Initializer")?.GetMember("Initialize");
@@ -378,7 +378,7 @@ namespace TaffyScript.Compiler.Backend
         {
             foreach(var type in asm.ExportedTypes)
             {
-                if (type.GetCustomAttribute<WeakObjectAttribute>() != null)
+                if (type.GetCustomAttribute<TaffyScriptObjectAttribute>() != null)
                 {
                     //Todo: Optimize this
                     //      If the namespace of this iteration matches the last one, no need to exit and reenter.
@@ -395,7 +395,7 @@ namespace TaffyScript.Compiler.Backend
                 {
                     ProcessEnum(type);
                 }
-                else if(type.GetCustomAttribute<WeakBaseTypeAttribute>() != null)
+                else if(type.GetCustomAttribute<TaffyScriptBaseTypeAttribute>() != null)
                 {
                     var count = _table.EnterNamespace(type.Namespace);
                     foreach (var method in type.GetMethods(_methodFlags).Where(mi => IsMethodValid(mi)))
@@ -528,7 +528,7 @@ namespace TaffyScript.Compiler.Backend
                 if (name.StartsWith("."))
                     name = name.TrimStart('.');
                 type = _module.DefineType(name, TypeAttributes.Public);
-                var attrib = new CustomAttributeBuilder(typeof(WeakBaseTypeAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
+                var attrib = new CustomAttributeBuilder(typeof(TaffyScriptBaseTypeAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
                 type.SetCustomAttribute(attrib);
                 _baseTypes.Add(ns, type);
             }
@@ -2267,7 +2267,7 @@ namespace TaffyScript.Compiler.Backend
                 return;
             }
 
-            if (method.GetCustomAttribute<WeakMethodAttribute>() != null)
+            if (method.GetCustomAttribute<TaffyScriptMethodAttribute>() != null)
             {
                 if(IsMethodValid(method))
                 {

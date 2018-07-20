@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 
 namespace TaffyScript.Reflection
 {
-    [WeakBaseType]
+    [TaffyScriptBaseType]
     public static class ReflectionScripts
     {
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject call_global_script(ITsInstance inst, TsObject[] args)
         {
             if (args.Length < 1)
@@ -23,7 +23,7 @@ namespace TaffyScript.Reflection
             return function.Invoke(inst, parameters);
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject call_instance_script(ITsInstance inst, TsObject[] args)
         {
             if (TsReflection.TryGetScript((string)args[1], (string)args[2], out var ev))
@@ -42,7 +42,7 @@ namespace TaffyScript.Reflection
             return TsObject.Empty();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject instance_create(ITsInstance inst, TsObject[] args)
         {
             var type = (string)args[0];
@@ -58,13 +58,13 @@ namespace TaffyScript.Reflection
             return new TsObject(ctor(ctorArgs));
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject instance_get_name(ITsInstance inst, TsObject[] args)
         {
             return args[0].GetInstance().ObjectType;
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject instance_get_parent(ITsInstance inst, TsObject[] args)
         {
             if (TsReflection.Inherits.TryGetValue(args[0].GetInstance().ObjectType, out var parent))
@@ -72,7 +72,7 @@ namespace TaffyScript.Reflection
             return "";
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject instance_is(ITsInstance inst, TsObject[] args)
         {
             var type = args[0].GetInstance().ObjectType;
@@ -131,7 +131,7 @@ namespace TaffyScript.Reflection
             return false;
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject script_exists(ITsInstance inst, TsObject[] args)
         {
             return TsReflection.GlobalScripts.ContainsKey((string)args[0]);

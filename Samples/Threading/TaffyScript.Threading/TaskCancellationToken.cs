@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace TaffyScript.Threading
 {
-    [WeakObject]
+    [TaffyScriptObject]
     public class TaskCancellationToken : ITsInstance
     {
         private CancellationTokenSource _source;

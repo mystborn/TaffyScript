@@ -6,9 +6,9 @@ namespace TaffyScript
     /// Tags an assembly as a weak TaffyScript assembly.
     /// </summary>
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false)]
-    public class WeakLibraryAttribute : Attribute
+    public class TaffyScriptLibraryAttribute : Attribute
     {
-        public WeakLibraryAttribute()
+        public TaffyScriptLibraryAttribute()
         {
         }
     }

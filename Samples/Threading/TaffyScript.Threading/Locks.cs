@@ -6,17 +6,17 @@ using System.Threading;
 
 namespace TaffyScript.Threading
 {
-    [WeakBaseType]
+    [TaffyScriptBaseType]
     public static class Locks
     {
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject moniter_enter(ITsInstance inst, TsObject[] args)
         {
             Monitor.Enter(args[0].GetValue());
             return TsObject.Empty();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject moniter_try_enter(ITsInstance inst, TsObject[] args)
         {
             if (args.Length < 1)
@@ -27,7 +27,7 @@ namespace TaffyScript.Threading
                 return Monitor.TryEnter(args[0].GetValue());
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject moniter_exit(ITsInstance inst, TsObject[] args)
         {
             Monitor.Exit(args[0].GetValue());

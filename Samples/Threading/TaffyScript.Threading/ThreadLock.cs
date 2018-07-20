@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace TaffyScript.Threading
 {
-    [WeakObject]
+    [TaffyScriptObject]
     public class ThreadLock : ITsInstance
     {
         private object _key = new object();

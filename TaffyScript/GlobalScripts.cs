@@ -16,13 +16,13 @@ namespace TaffyScript
         // the c# global namespace, all of the scripts are explicitly defined
         // in Resources/SpecialImports.resource
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject ToString(ITsInstance inst, TsObject[] args)
         {
             return args[0].Type != VariableType.String ? new TsObject(args[0].ToString()) : args[0];
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject array_copy(ITsInstance inst, TsObject[] args)
         {
             var srcWrapper = args[0].Value as TsMutableValue<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "src");
@@ -43,7 +43,7 @@ namespace TaffyScript
             return TsObject.Empty();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject array_create(ITsInstance target, TsObject[] args)
         {
             var size = args[0].GetInt();
@@ -57,7 +57,7 @@ namespace TaffyScript
             return new TsObject(result);
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject array_equals(ITsInstance inst, TsObject[] args)
         {
             var left = args[0].GetArray();
@@ -73,7 +73,7 @@ namespace TaffyScript
             return true;
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject array_length(ITsInstance inst, TsObject[] args)
         {
             switch(args.Length)
@@ -93,20 +93,20 @@ namespace TaffyScript
             }
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject print(ITsInstance inst, TsObject[] args)
         {
             Console.WriteLine(args[0]);
             return TsObject.Empty();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject real(ITsInstance inst, TsObject[] args)
         {
             return float.Parse((string)args[0]);
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject show_error(ITsInstance inst, TsObject[] args)
         {
             var error = new UserDefinedException((string)args[0]);
@@ -117,7 +117,7 @@ namespace TaffyScript
             return TsObject.Empty();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_char_at(ITsInstance inst, TsObject[] args)
         {
             var str = (string)args[0];
@@ -125,13 +125,13 @@ namespace TaffyScript
             return index >= str.Length || index < 0 ? "" : str[index].ToString();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_copy(ITsInstance inst, TsObject[] args)
         {
             return args[0].GetString().Substring((int)args[1], (int)args[2]);
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_count(ITsInstance inst, TsObject[] args)
         {
             var str = (string)args[0];
@@ -142,13 +142,13 @@ namespace TaffyScript
             return (str.Length - str.Replace(subString, "").Length) / subString.Length;
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_delete(ITsInstance inst, TsObject[] args)
         {
             return args[0].GetString().Remove((int)args[1], (int)args[2]);
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_digits(ITsInstance inst, TsObject[] args)
         {
             var str = (string)args[0];
@@ -165,19 +165,19 @@ namespace TaffyScript
             return sb.ToString();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_insert(ITsInstance inst, TsObject[] args)
         {
             return args[0].GetString().Insert((int)args[2], (string)args[1]);
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_length(ITsInstance inst, TsObject[] args)
         {
             return args[0].GetString().Length;
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_letters(ITsInstance inst, TsObject[] args)
         {
             var str = (string)args[0];
@@ -193,7 +193,7 @@ namespace TaffyScript
             return sb.ToString();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_letters_digits(ITsInstance inst, TsObject[] args)
         {
             var str = (string)args[0];
@@ -209,25 +209,25 @@ namespace TaffyScript
             return sb.ToString();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_lower(ITsInstance inst, TsObject[] args)
         {
             return args[0].GetString().ToLower();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_ord_at(ITsInstance inst, TsObject[] args)
         {
             return (float)args[0].GetString()[(int)args[1]];
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_pos(ITsInstance inst, TsObject[] args)
         {
             return args[0].GetString().IndexOf((string)args[1]);
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_repeat(ITsInstance inst, TsObject[] args)
         {
             var str = (string)args[0];
@@ -240,7 +240,7 @@ namespace TaffyScript
             return sb.ToString();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_replace(ITsInstance inst, TsObject[] args)
         {
             var str = (string)args[0];
@@ -251,19 +251,19 @@ namespace TaffyScript
             return index != -1 ? str.Substring(0, index) + newString + str.Substring(index + subString.Length) : str;
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_replace_all(ITsInstance inst, TsObject[] args)
         {
             return args[0].GetString().Replace((string)args[1], (string)args[2]);
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject string_upper(ITsInstance inst, TsObject[] args)
         {
             return args[0].GetString().ToUpper();
         }
 
-        [WeakMethod]
+        [TaffyScriptMethod]
         public static TsObject Typeof(ITsInstance inst, TsObject[] args)
         {
             switch (args[0].Type)

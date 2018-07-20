@@ -7,7 +7,7 @@ using TaffyScript.Collections;
 
 namespace TaffyScript
 {
-    [WeakBaseType]
+    [TaffyScriptBaseType]
     public static class TsReflection
     {
         /// <summary>

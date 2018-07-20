@@ -8,7 +8,7 @@ using InternalReader = System.Xml.XmlReader;
 
 namespace TaffyScript.Xml
 {
-    [WeakObject]
+    [TaffyScriptObject]
     public class XmlReader : ITsInstance
     {
         public InternalReader Source { get; }
