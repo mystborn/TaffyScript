@@ -12,13 +12,6 @@ namespace TaffyScript
     /// </summary>
     public struct TsObject
     {
-        #region Constants
-
-        public const float All = -3f;
-        public const float Noone = -4f;
-
-        #endregion
-
         #region Properties
 
         public VariableType Type { get; private set; }

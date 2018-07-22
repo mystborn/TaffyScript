@@ -30,7 +30,7 @@ namespace TaffyScript
     /// </para>
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public struct TsImmutableValue<T> : ITsValue
+    public class TsImmutableValue<T> : ITsValue
     {
         public T StrongValue { get; }
         public object WeakValue => StrongValue;
