@@ -19,42 +19,28 @@ namespace TaffyScript
         [TaffyScriptMethod]
         public static TsObject ToString(ITsInstance inst, TsObject[] args)
         {
-            return args[0].Type != VariableType.String ? new TsObject(args[0].ToString()) : args[0];
+            return args[0].ToString();
         }
 
         [TaffyScriptMethod]
         public static TsObject array_copy(ITsInstance inst, TsObject[] args)
         {
-            var srcWrapper = args[0].Value as TsMutableValue<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "src");
-            var srcIndex = (int)args[1];
-            var dstWrapper = args[2].Value as TsMutableValue<TsObject[]> ?? throw new ArgumentException("Can only copy 1D arrays", "dest");
-            var dstIndex = (int)args[3];
-            var length = (int)args[4];
-            var src = srcWrapper.StrongValue;
-            var dst = dstWrapper.StrongValue;
-            if(dstIndex + length >= dst.Length)
-            {
-                var temp = new TsObject[dstIndex + length + 1];
-                Array.Copy(dst, 0, temp, 0, dst.Length);
-                dst = temp;
-                dstWrapper.StrongValue = dst;
-            }
-            Array.Copy(src, srcIndex, dst, dstIndex, length);
-            return TsObject.Empty();
+            Array.Copy(args[0].GetArray(), (int)args[1], args[2].GetArray(), (int)args[3], (int)args[4]);
+            return TsObject.Empty;
         }
 
         [TaffyScriptMethod]
         public static TsObject array_create(ITsInstance target, TsObject[] args)
         {
             var size = args[0].GetInt();
-            var value = TsObject.Empty();
+            var value = TsObject.Empty;
             if (args.Length > 1)
                 value = args[1];
             var result = new TsObject[size];
             for (var i = 0; i < size; ++i)
                 result[i] = value;
 
-            return new TsObject(result);
+            return result;
         }
 
         [TaffyScriptMethod]
@@ -97,7 +83,7 @@ namespace TaffyScript
         public static TsObject print(ITsInstance inst, TsObject[] args)
         {
             Console.WriteLine(args[0]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         [TaffyScriptMethod]
@@ -114,7 +100,7 @@ namespace TaffyScript
                 throw error;
 
             Console.WriteLine(error);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         [TaffyScriptMethod]
@@ -279,7 +265,7 @@ namespace TaffyScript
                 case VariableType.Delegate:
                     return "script";
                 case VariableType.Instance:
-                    return args[0].GetInstanceUnchecked().ObjectType;
+                    return args[0].GetInstance().ObjectType;
                 default:
                     return "unknown";
             }

@@ -50,6 +50,12 @@
     <Compile Include="GeneralScripts.cs" />
     <Compile Include="GlobalScripts.cs" />
     <Compile Include="Math\MathScripts.cs" />
+    <Compile Include="Object\TsArray.cs" />
+    <Compile Include="Object\TsDelegateWrapper.cs" />
+    <Compile Include="Object\TsInstanceWrapper.cs" />
+    <Compile Include="Object\TsNull.cs" />
+    <Compile Include="Object\TsNumber.cs" />
+    <Compile Include="Object\TsString.cs" />
     <Compile Include="Reflection\ReflectionScripts.cs" />
     <Compile Include="Xml\XmlReader.cs" />
     <Compile Include="Collections\Grid.cs" />
@@ -66,9 +72,8 @@
     <Compile Include="Reflection\TaffyScriptLoader.cs" />
     <Compile Include="TsDelegate.cs" />
     <Compile Include="TsInstance.cs" />
-    <Compile Include="TsObject.cs" />
+    <Compile Include="Object\TsObject.cs" />
     <Compile Include="Reflection\TsReflection.cs" />
-    <Compile Include="TsValue.cs" />
     <Compile Include="Exceptions\InvalidTsTypeException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VariableType.cs" />

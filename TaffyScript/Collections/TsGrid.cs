@@ -115,7 +115,7 @@ namespace TaffyScript.Collections
                 default:
                     throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
             }
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsDelegate GetDelegate(string scriptName)
@@ -247,12 +247,12 @@ namespace TaffyScript.Collections
 
         public static explicit operator TsGrid(TsObject obj)
         {
-            return (TsGrid)obj.Value.WeakValue;
+            return (TsGrid)obj.WeakValue;
         }
 
         public static implicit operator TsObject(TsGrid grid)
         {
-            return new TsObject(grid);
+            return new TsInstanceWrapper(grid);
         }
 
 #pragma warning disable IDE1006 // Naming Styles
@@ -265,19 +265,19 @@ namespace TaffyScript.Collections
         public TsObject set(ITsInstance inst, params TsObject[] args)
         {
             _source[(int)args[0], (int)args[1]] = args[2];
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject add(ITsInstance inst, params TsObject[] args)
         {
             _source[(int)args[0], (int)args[1]] += args[2];
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject add_disk(ITsInstance inst, params TsObject[] args)
         {
             _source.OverDisk((int)args[0], (int)args[1], (int)args[2], (w, h, g) => g[w, h] += args[3]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject add_grid_region(ITsInstance inst, params TsObject[] args)
@@ -313,19 +313,19 @@ namespace TaffyScript.Collections
                 }
             }
 
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject add_region(ITsInstance inst, params TsObject[] args)
         {
             _source.OverRegion((int)args[0], (int)args[1], (int)args[2], (int)args[3], (w, h, g) => g[w, h] += args[4]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject clear(ITsInstance inst, params TsObject[] args)
         {
             _source.Clear(args[0]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject copy(ITsInstance inst, params TsObject[] args)
@@ -335,7 +335,7 @@ namespace TaffyScript.Collections
 
         public TsObject get_disk_max(ITsInstance inst, params TsObject[] args)
         {
-            TsObject i = TsObject.Empty();
+            TsObject i = TsObject.Empty;
             var set = false;
             _source.OverDisk((int)args[0], (int)args[1], (int)args[2], (w, h, g) =>
             {
@@ -356,7 +356,7 @@ namespace TaffyScript.Collections
 
         public TsObject get_disk_mean(ITsInstance inst, params TsObject[] args)
         {
-            var mean = new TsObject(0);
+            TsObject mean = 0f;
             var iter = 0;
             _source.OverDisk((int)args[0], (int)args[1], (int)args[2], (w, h, g) =>
             {
@@ -369,7 +369,7 @@ namespace TaffyScript.Collections
         public TsObject get_disk_min(ITsInstance inst, params TsObject[] args)
         {
             bool set = false;
-            TsObject i = TsObject.Empty();
+            TsObject i = TsObject.Empty;
             _source.OverDisk((int)args[0], (int)args[1], (int)args[2], (w, h, g) =>
             {
                 if (!set)
@@ -389,7 +389,7 @@ namespace TaffyScript.Collections
 
         public TsObject get_disk_sum(ITsInstance inst, params TsObject[] args)
         {
-            var mean = new TsObject(0);
+            TsObject mean = 0f;
             _source.OverDisk((int)args[0], (int)args[1], (int)args[2], (w, h, g) =>
             {
                 mean += g[w, h];
@@ -399,7 +399,7 @@ namespace TaffyScript.Collections
 
         public TsObject get_region_max(ITsInstance inst, params TsObject[] args)
         {
-            TsObject i = TsObject.Empty();
+            TsObject i = TsObject.Empty;
             var set = false;
             _source.OverRegion((int)args[0], (int)args[1], (int)args[2], (int)args[3], (w, h, g) =>
             {
@@ -420,7 +420,7 @@ namespace TaffyScript.Collections
 
         public TsObject get_region_mean(ITsInstance inst, params TsObject[] args)
         {
-            var mean = new TsObject(0);
+            TsObject mean = 0f;
             var iter = 0;
             _source.OverRegion((int)args[0], (int)args[1], (int)args[2], (int)args[3], (w, h, g) =>
             {
@@ -433,7 +433,7 @@ namespace TaffyScript.Collections
         public TsObject get_region_min(ITsInstance inst, params TsObject[] args)
         {
             bool set = false;
-            TsObject i = TsObject.Empty();
+            TsObject i = TsObject.Empty;
             _source.OverRegion((int)args[0], (int)args[1], (int)args[2], (int)args[3], (w, h, g) =>
             {
                 if (!set)
@@ -453,7 +453,7 @@ namespace TaffyScript.Collections
 
         public TsObject get_region_sum(ITsInstance inst, params TsObject[] args)
         {
-            var sum = new TsObject(0);
+            TsObject sum = 0f;
             _source.OverRegion((int)args[0], (int)args[1], (int)args[2], (int)args[3], (w, h, g) =>
             {
                 sum += g[w, h];
@@ -464,13 +464,13 @@ namespace TaffyScript.Collections
         public TsObject multiply(ITsInstance inst, params TsObject[] args)
         {
             _source[(int)args[0], (int)args[1]] *= args[2];
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject multiply_disk(ITsInstance inst, params TsObject[] args)
         {
             _source.OverDisk((int)args[0], (int)args[1], (int)args[2], (w, h, g) => g[w, h] *= args[3]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject multiply_grid_region(ITsInstance inst, params TsObject[] args)
@@ -506,19 +506,19 @@ namespace TaffyScript.Collections
                 }
             }
 
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject multiply_region(ITsInstance inst, params TsObject[] args)
         {
             _source.OverRegion((int)args[0], (int)args[1], (int)args[2], (int)args[3], (w, h, g) => g[w, h] *= args[4]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject set_disk(ITsInstance inst, params TsObject[] args)
         {
             _source.OverDisk((int)args[0], (int)args[1], (int)args[2], (w, h, g) => g[w, h] *= args[3]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject set_grid_region(ITsInstance inst, params TsObject[] args)
@@ -554,31 +554,31 @@ namespace TaffyScript.Collections
                 }
             }
 
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject set_region(ITsInstance inst, params TsObject[] args)
         {
             _source.OverRegion((int)args[0], (int)args[1], (int)args[2], (int)args[3], (w, h, g) => g[w, h] = args[4]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject resize(ITsInstance inst, params TsObject[] args)
         {
             _source.Resize((int)args[0], (int)args[1]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject shuffle(ITsInstance inst, params TsObject[] args)
         {
             _source.Shuffle();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject sort(ITsInstance inst, params TsObject[] args)
         {
             _source.Sort((int)args[0], (bool)args[1]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject value_exists_in_disk(ITsInstance inst, params TsObject[] args)
@@ -590,7 +590,7 @@ namespace TaffyScript.Collections
         {
             if (_source.InDisk((int)args[0], (int)args[1], (int)args[2], args[3], out var result, (w, h) => new TsObject[] { w, h }))
                 return result;
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject value_exists_in_region(ITsInstance inst, params TsObject[] args)
@@ -602,7 +602,7 @@ namespace TaffyScript.Collections
         {
             if (_source.InRegion((int)args[0], (int)args[1], (int)args[2], (int)args[3], args[4], out var result, (w, h) => new TsObject[] { w, h }))
                 return result;
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
     }
 }

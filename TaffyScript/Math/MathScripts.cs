@@ -82,10 +82,10 @@ namespace TaffyScript.Math
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
-            var max = args[0].GetFloat();
+            var max = args[0].GetNumber();
             for (var i = 1; i < args.Length; i++)
             {
-                var num = args[i].GetFloat();
+                var num = args[i].GetNumber();
                 if (num > max)
                     max = num;
             }
@@ -97,10 +97,10 @@ namespace TaffyScript.Math
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
-            var min = args[0].GetFloat();
+            var min = args[0].GetNumber();
             for (var i = 1; i < args.Length; i++)
             {
-                var num = args[i].GetFloat();
+                var num = args[i].GetNumber();
                 if (num < min)
                     min = num;
             }
@@ -132,7 +132,7 @@ namespace TaffyScript.Math
             var seed = (int)args[0];
             Rng = new Random(seed);
             RandomSeed = seed;
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         [TaffyScriptMethod]

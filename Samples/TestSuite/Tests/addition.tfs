@@ -17,45 +17,40 @@ namespace LanguageTests {
     }
 
     script run_addition_faulty_tests() {
-        assert(try_expect(number_var_plus_string_var, "InvalidOperationException"));
-        assert(try_expect(number_var_plus_string_literal, "InvalidOperationException"));
-        assert(try_expect(number_literal_plus_string_var, "InvalidOperationException"));
-        assert(try_expect(number_var_plus_array1, "InvalidOperationException"));
-        assert(try_expect(number_literal_plus_array1, "InvalidOperationException"));
-        assert(try_expect(number_var_plus_delegate_var, "InvalidOperationException"));
-        assert(try_expect(number_var_plus_delegate_literal, "InvalidOperationException"));
-        assert(try_expect(number_literal_plus_delegate_var, "InvalidOperationException"));
-        assert(try_expect(number_literal_plus_delegate_literal, "InvalidOperationException"));
-        assert(try_expect(string_var_plus_number_var, "InvalidOperationException"));
-        assert(try_expect(string_var_plus_number_literal, "InvalidOperationException"));
-        assert(try_expect(string_literal_plus_number_var, "InvalidOperationException"));
-        assert(try_expect(string_var_plus_array1, "InvalidOperationException"));
-        assert(try_expect(string_literal_plus_array1, "InvalidOperationException"));
-        assert(try_expect(string_var_plus_delegate_var, "InvalidOperationException"));
-        assert(try_expect(string_var_plus_delegate_literal, "InvalidOperationException"));
-        assert(try_expect(string_literal_plus_delegate_var, "InvalidOperationException"));
-        assert(try_expect(string_literal_plus_delegate_literal, "InvalidOperationException"));
-        assert(try_expect(array1_plus_number_var, "InvalidOperationException"));
-        assert(try_expect(array1_plus_number_literal, "InvalidOperationException"));
-        assert(try_expect(array1_plus_string_var, "InvalidOperationException"));
-        assert(try_expect(array1_plus_string_literal, "InvalidOperationException"));
-        assert(try_expect(array1_plus_array1, "InvalidOperationException"));
-        assert(try_expect(array1_plus_delegate_var, "InvalidOperationException"));
-        assert(try_expect(array1_plus_delegate_literal, "InvalidOperationException"));
-        assert(try_expect(delegate_var_plus_number_var, "InvalidOperationException"));
-        assert(try_expect(delegate_var_plus_number_literal, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_plus_number_var, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_plus_number_literal, "InvalidOperationException"));
-        assert(try_expect(delegate_var_plus_string_var, "InvalidOperationException"));
-        assert(try_expect(delegate_var_plus_string_literal, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_plus_string_var, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_plus_string_literal, "InvalidOperationException"));
-        assert(try_expect(delegate_var_plus_array1, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_plus_array1, "InvalidOperationException"));
-        assert(try_expect(delegate_var_plus_delegate_var, "InvalidOperationException"));
-        assert(try_expect(delegate_var_plus_delegate_literal, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_plus_delegate_var, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_plus_delegate_literal, "InvalidOperationException"));
+
+        assert(try_expect(number_var_plus_string_var, "InvalidTsTypeException"));
+        assert(try_expect(number_var_plus_string_literal, "InvalidTsTypeException"));
+        assert(try_expect(number_literal_plus_string_var, "InvalidTsTypeException"));
+        assert(try_expect(number_var_plus_array1, "InvalidTsTypeException"));
+        assert(try_expect(number_literal_plus_array1, "InvalidTsTypeException"));
+        assert(try_expect(number_var_plus_delegate_var, "InvalidTsTypeException"));
+        assert(try_expect(number_var_plus_delegate_literal, "InvalidTsTypeException"));
+        assert(try_expect(number_literal_plus_delegate_var, "InvalidTsTypeException"));
+        assert(try_expect(string_var_plus_number_var, "InvalidTsTypeException"));
+        assert(try_expect(string_var_plus_number_literal, "InvalidTsTypeException"));
+        assert(try_expect(string_literal_plus_number_var, "InvalidTsTypeException"));
+        assert(try_expect(string_var_plus_array1, "InvalidTsTypeException"));
+        assert(try_expect(string_literal_plus_array1, "InvalidTsTypeException"));
+        assert(try_expect(string_var_plus_delegate_var, "InvalidTsTypeException"));
+        assert(try_expect(string_var_plus_delegate_literal, "InvalidTsTypeException"));
+        assert(try_expect(array1_plus_number_var, "InvalidTsTypeException"));
+        assert(try_expect(array1_plus_number_literal, "InvalidTsTypeException"));
+        assert(try_expect(array1_plus_string_var, "InvalidTsTypeException"));
+        assert(try_expect(array1_plus_string_literal, "InvalidTsTypeException"));
+        assert(try_expect(array1_plus_array1, "InvalidTsTypeException"));
+        assert(try_expect(array1_plus_delegate_var, "InvalidTsTypeException"));
+        assert(try_expect(array1_plus_delegate_literal, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_plus_number_var, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_plus_number_literal, "InvalidTsTypeException"));
+        assert(try_expect(delegate_literal_plus_number_var, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_plus_string_var, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_plus_string_literal, "InvalidTsTypeException"));
+        assert(try_expect(delegate_literal_plus_string_var, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_plus_array1, "InvalidTsTypeException"));
+        assert(try_expect(delegate_literal_plus_array1, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_plus_delegate_var, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_plus_delegate_literal, "InvalidTsTypeException"));
+        assert(try_expect(delegate_literal_plus_delegate_var, "InvalidTsTypeException"));
         test_it("Faulty Addition");
     }
 
@@ -138,11 +133,6 @@ namespace LanguageTests {
         var result = 1 + del;
     }
 
-    script number_literal_plus_delegate_literal() {
-        test_it("1 + nop");
-        var result = 1 + nop;
-    }
-
     script string_var_plus_number_var() {
         test_it("s + n");
         var s = "";
@@ -216,17 +206,6 @@ namespace LanguageTests {
         var result = s + nop;
     }
 
-    script string_literal_plus_delegate_var() {
-        test_it("'' + d");
-        var del = nop;
-        var result = "" + del;
-    }
-
-    script string_literal_plus_delegate_literal() {
-        test_it("'' + nop");
-        var result = "" + nop;
-    }
-
     script array1_plus_number_var() {
         test_it("a1 + n");
         var arr = [];
@@ -292,11 +271,6 @@ namespace LanguageTests {
         var result = nop + n;
     }
 
-    script delegate_literal_plus_number_literal() {
-        test_it("nop + 1");
-        var result = nop + 1;
-    }
-
     script delegate_var_plus_string_var() {
         test_it("d + s");
         var del = nop;
@@ -314,11 +288,6 @@ namespace LanguageTests {
         test_it("nop + s");
         var s = "";
         var result = nop + s;
-    }
-
-    script delegate_literal_plus_string_literal() {
-        test_it("nop + ''");
-        var result = nop + "";
     }
 
     script delegate_var_plus_array1() {
@@ -351,10 +320,5 @@ namespace LanguageTests {
         test_it("nop + d");
         var del = nop;
         var result = nop + del;
-    }
-
-    script delegate_literal_plus_delegate_literal() {
-        test_it("nop + nop");
-        var result = nop + nop;
     }
 }

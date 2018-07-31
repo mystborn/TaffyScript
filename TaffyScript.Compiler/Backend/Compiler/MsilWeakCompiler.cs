@@ -68,7 +68,6 @@ namespace TaffyScript.Compiler.Backend
             else
             {
                 expectedOutput += Path.GetExtension(result.PathToAssembly);
-                //CopyFileIfNewer(typeof(TsObject).Assembly.Location, Path.Combine(dir, typeof(TsObject).Assembly.GetName().Name + ".dll"));
                 if (result.PathToAssembly != expectedOutput)
                 {
                     if (File.Exists(expectedOutput))
@@ -137,7 +136,6 @@ namespace TaffyScript.Compiler.Backend
             else
             {
                 expectedOutput += Path.GetExtension(result.PathToAssembly);
-                CopyFileIfNewer(typeof(TaffyScript.TsObject).Assembly.Location, Path.Combine(dir, typeof(TaffyScript.TsObject).Assembly.GetName().Name + ".dll"));
                 if (result.PathToAssembly != expectedOutput)
                 {
                     MoveFile(result.PathToAssembly, expectedOutput);

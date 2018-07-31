@@ -87,5 +87,11 @@ namespace TaffyScript.Tests
         {
             GC.Collect();
         }
+
+        public static long GetUsedMemory()
+        {
+            //return GC.GetTotalMemory(false);
+            return Environment.WorkingSet;
+        }
     }
 }

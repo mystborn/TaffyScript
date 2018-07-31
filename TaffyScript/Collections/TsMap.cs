@@ -57,7 +57,7 @@ namespace TaffyScript.Collections
                 default:
                     throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
             }
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsDelegate GetDelegate(string delegateName)
@@ -118,12 +118,12 @@ namespace TaffyScript.Collections
 
         public static explicit operator TsMap(TsObject obj)
         {
-            return (TsMap)obj.Value.WeakValue;
+            return (TsMap)obj.WeakValue;
         }
 
         public static implicit operator TsObject(TsMap map)
         {
-            return new TsObject(map);
+            return new TsInstanceWrapper(map);
         }
 
 #pragma warning disable IDE1006 // Naming Styles
@@ -136,7 +136,7 @@ namespace TaffyScript.Collections
         public TsObject set(ITsInstance inst, params TsObject[] args)
         {
             _source[args[0]] = args[1];
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject add(ITsInstance inst, params TsObject[] args)
@@ -151,7 +151,7 @@ namespace TaffyScript.Collections
         public TsObject clear(ITsInstance inst, params TsObject[] args)
         {
             _source.Clear();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject remove(ITsInstance inst, params TsObject[] args)

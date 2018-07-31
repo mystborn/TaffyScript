@@ -12,8 +12,8 @@ namespace TaffyScript.Threading
         [TaffyScriptMethod]
         public static TsObject moniter_enter(ITsInstance inst, TsObject[] args)
         {
-            Monitor.Enter(args[0].GetValue());
-            return TsObject.Empty();
+            Monitor.Enter(args[0].WeakValue);
+            return TsObject.Empty;
         }
 
         [TaffyScriptMethod]
@@ -22,16 +22,16 @@ namespace TaffyScript.Threading
             if (args.Length < 1)
                 throw new ArgumentOutOfRangeException("args", "There must be at least one argument to call moniter_try_enter");
             if (args.Length == 2)
-                return Monitor.TryEnter(args[0].GetValue(), (int)args[1]);
+                return Monitor.TryEnter(args[0].WeakValue, (int)args[1]);
             else
-                return Monitor.TryEnter(args[0].GetValue());
+                return Monitor.TryEnter(args[0].WeakValue);
         }
 
         [TaffyScriptMethod]
         public static TsObject moniter_exit(ITsInstance inst, TsObject[] args)
         {
-            Monitor.Exit(args[0].GetValue());
-            return TsObject.Empty();
+            Monitor.Exit(args[0].WeakValue);
+            return TsObject.Empty;
         }
     }
 }

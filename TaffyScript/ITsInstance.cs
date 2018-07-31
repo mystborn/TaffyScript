@@ -41,17 +41,17 @@ namespace TaffyScript
         /// <summary>
         /// Gets a delegate defined by this instance.
         /// </summary>
-        /// <param name="delegateName">The name of the delegate.</param>
+        /// <param name="scriptName">The name of the delegate.</param>
         /// <param name="del">If found, the delegate.</param>
         /// <returns>True if found, false otherwise.</returns>
-        bool TryGetDelegate(string delegateName, out TsDelegate del);
+        bool TryGetDelegate(string scriptName, out TsDelegate del);
 
         /// <summary>
         /// Gets a delegate defined by this instance.
         /// </summary>
-        /// <param name="delegateName">The name of the delegate.</param>
+        /// <param name="scriptName">The name of the delegate.</param>
         /// <returns></returns>
-        TsDelegate GetDelegate(string delegateName);
+        TsDelegate GetDelegate(string scriptName);
 
         /// <summary>
         /// Calls a script defined or assigned to the instance.

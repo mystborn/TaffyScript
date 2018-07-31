@@ -55,7 +55,7 @@ namespace TaffyScript.Collections
                 case "set":
                     var index = (int)args[0];
                     while (_source.Count <= index)
-                        _source.Add(TsObject.Empty());
+                        _source.Add(TsObject.Empty);
                     _source[index] = args[1];
                     break;
                 case "shuffle":
@@ -67,7 +67,7 @@ namespace TaffyScript.Collections
                 default:
                     throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
             }
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsDelegate GetDelegate(string scriptName)
@@ -138,12 +138,12 @@ namespace TaffyScript.Collections
 
         public static explicit operator TsList(TsObject obj)
         {
-            return (TsList)obj.Value.WeakValue;
+            return (TsList)obj.WeakValue;
         }
 
         public static implicit operator TsObject(TsList list)
         {
-            return new TsObject(list);
+            return new TsInstanceWrapper(list);
         }
 
 #pragma warning disable IDE1006 // Naming Styles
@@ -151,13 +151,13 @@ namespace TaffyScript.Collections
         public TsObject add(ITsInstance inst, TsObject[] args)
         {
             _source.AddRange(args);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject clear(ITsInstance inst, TsObject[] args)
         {
             _source.Clear();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject copy(ITsInstance inst, TsObject[] args)
@@ -173,7 +173,7 @@ namespace TaffyScript.Collections
         public TsObject insert(ITsInstance inst, TsObject[] args)
         {
             _source.Insert((int)args[0], args[1]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject index_of(ITsInstance inst, TsObject[] args)
@@ -184,28 +184,28 @@ namespace TaffyScript.Collections
         public TsObject remove(ITsInstance inst, TsObject[] args)
         {
             _source.RemoveAt((int)args[0]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject set(ITsInstance inst, TsObject[] args)
         {
             var index = (int)args[0];
             while (_source.Count <= index)
-                _source.Add(TsObject.Empty());
+                _source.Add(TsObject.Empty);
             _source[index] = args[1];
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject shuffle(ITsInstance inst, TsObject[] args)
         {
             _source.Shuffle();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject sort(ITsInstance inst, TsObject[] args)
         {
             _source.Sort();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
     }
 }

@@ -13,38 +13,35 @@ namespace LanguageTests {
     }
 
     script run_division_faulty_tests() {
-        assert(try_expect(number_var_divide_string_var, "InvalidOperationException"));
-        assert(try_expect(number_literal_divide_string_var, "InvalidOperationException"));
-        assert(try_expect(number_var_divide_array1, "InvalidOperationException"));
-        assert(try_expect(number_literal_divide_array1, "InvalidOperationException"));
-        assert(try_expect(number_var_divide_delegate_var, "InvalidOperationException"));
-        assert(try_expect(number_var_divide_delegate_literal, "InvalidOperationException"));
-        assert(try_expect(number_literal_divide_delegate_var, "InvalidOperationException"));
-        assert(try_expect(number_literal_divide_delegate_literal, "InvalidOperationException"));
-        assert(try_expect(string_var_divide_number_var, "InvalidOperationException"));
-        assert(try_expect(string_var_divide_number_literal, "InvalidOperationException"));
-        assert(try_expect(string_var_divide_string_var, "InvalidOperationException"));
-        assert(try_expect(string_var_divide_array1, "InvalidOperationException"));
-        assert(try_expect(string_var_divide_delegate_var, "InvalidOperationException"));
-        assert(try_expect(string_var_divide_delegate_literal, "InvalidOperationException"));
-        assert(try_expect(array1_divide_number_var, "InvalidOperationException"));
-        assert(try_expect(array1_divide_number_literal, "InvalidOperationException"));
-        assert(try_expect(array1_divide_string_var, "InvalidOperationException"));
-        assert(try_expect(array1_divide_array1, "InvalidOperationException"));
-        assert(try_expect(array1_divide_delegate_var, "InvalidOperationException"));
-        assert(try_expect(array1_divide_delegate_literal, "InvalidOperationException"));
-        assert(try_expect(delegate_var_divide_number_var, "InvalidOperationException"));
-        assert(try_expect(delegate_var_divide_number_literal, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_divide_number_var, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_divide_number_literal, "InvalidOperationException"));
-        assert(try_expect(delegate_var_divide_string_var, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_divide_string_var, "InvalidOperationException"));
-        assert(try_expect(delegate_var_divide_array1, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_divide_array1, "InvalidOperationException"));
-        assert(try_expect(delegate_var_divide_delegate_var, "InvalidOperationException"));
-        assert(try_expect(delegate_var_divide_delegate_literal, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_divide_delegate_var, "InvalidOperationException"));
-        assert(try_expect(delegate_literal_divide_delegate_literal, "InvalidOperationException"));
+        assert(try_expect(number_var_divide_string_var, "InvalidTsTypeException"));
+        assert(try_expect(number_literal_divide_string_var, "InvalidTsTypeException"));
+        assert(try_expect(number_var_divide_array1, "InvalidTsTypeException"));
+        assert(try_expect(number_literal_divide_array1, "InvalidTsTypeException"));
+        assert(try_expect(number_var_divide_delegate_var, "InvalidTsTypeException"));
+        assert(try_expect(number_var_divide_delegate_literal, "InvalidTsTypeException"));
+        assert(try_expect(number_literal_divide_delegate_var, "InvalidTsTypeException"));
+        assert(try_expect(string_var_divide_number_var, "InvalidTsTypeException"));
+        assert(try_expect(string_var_divide_number_literal, "InvalidTsTypeException"));
+        assert(try_expect(string_var_divide_string_var, "InvalidTsTypeException"));
+        assert(try_expect(string_var_divide_array1, "InvalidTsTypeException"));
+        assert(try_expect(string_var_divide_delegate_var, "InvalidTsTypeException"));
+        assert(try_expect(string_var_divide_delegate_literal, "InvalidTsTypeException"));
+        assert(try_expect(array1_divide_number_var, "InvalidTsTypeException"));
+        assert(try_expect(array1_divide_number_literal, "InvalidTsTypeException"));
+        assert(try_expect(array1_divide_string_var, "InvalidTsTypeException"));
+        assert(try_expect(array1_divide_array1, "InvalidTsTypeException"));
+        assert(try_expect(array1_divide_delegate_var, "InvalidTsTypeException"));
+        assert(try_expect(array1_divide_delegate_literal, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_divide_number_var, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_divide_number_literal, "InvalidTsTypeException"));
+        assert(try_expect(delegate_literal_divide_number_var, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_divide_string_var, "InvalidTsTypeException"));
+        assert(try_expect(delegate_literal_divide_string_var, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_divide_array1, "InvalidTsTypeException"));
+        assert(try_expect(delegate_literal_divide_array1, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_divide_delegate_var, "InvalidTsTypeException"));
+        assert(try_expect(delegate_var_divide_delegate_literal, "InvalidTsTypeException"));
+        assert(try_expect(delegate_literal_divide_delegate_var, "InvalidTsTypeException"));
         test_it("Faulty Division");
     }
 
@@ -119,11 +116,6 @@ namespace LanguageTests {
         test_it("1 / d");
         var del = nop;
         var result = 1 / del;
-    }
-
-    script number_literal_divide_delegate_literal() {
-        test_it("1 / nop");
-        var result = 1 / nop;
     }
 
     script string_var_divide_number_var() {
@@ -225,11 +217,6 @@ namespace LanguageTests {
         var result = nop / n;
     }
 
-    script delegate_literal_divide_number_literal() {
-        test_it("nop / 1");
-        var result = nop / 1;
-    }
-
     script delegate_var_divide_string_var() {
         test_it("d / s");
         var del = nop;
@@ -273,10 +260,5 @@ namespace LanguageTests {
         test_it("nop / d");
         var del = nop;
         var result = nop / del;
-    }
-
-    script delegate_literal_divide_delegate_literal() {
-        test_it("nop / nop");
-        var result = nop / nop;
     }
 }

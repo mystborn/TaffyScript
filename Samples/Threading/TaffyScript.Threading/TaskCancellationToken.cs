@@ -100,43 +100,43 @@ namespace TaffyScript.Threading
         private TsObject cancel(ITsInstance inst, TsObject[] args)
         {
             _source.Cancel();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         private TsObject cancel_after(ITsInstance inst, TsObject[] args)
         {
             _source.CancelAfter((int)args[0]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         private TsObject dispose(ITsInstance inst, TsObject[] args)
         {
             _source.Dispose();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         private TsObject register(ITsInstance inst, TsObject[] args)
         {
             var register = _source.Token.Register(() => args[0].GetDelegate().Invoke());
             var result = new DynamicInstance("TaffyScript.Threading.TaskCancellationTokenRegistration");
-            result["unregister"] = new TsDelegate((i, a) => { register.Dispose(); return TsObject.Empty(); }, "unregister", result);
+            result["unregister"] = new TsDelegate((i, a) => { register.Dispose(); return TsObject.Empty; }, "unregister", result);
             return result;
         }
 
         private TsObject throw_if_cancelled(ITsInstance inst, TsObject[] args)
         {
             _source.Token.ThrowIfCancellationRequested();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public static implicit operator TsObject(TaskCancellationToken token)
         {
-            return new TsObject(token);
+            return new TsInstanceWrapper(token);
         }
 
         public static explicit operator TaskCancellationToken(TsObject obj)
         {
-            return (TaskCancellationToken)obj.Value.WeakValue;
+            return (TaskCancellationToken)obj.WeakValue;
         }
     }
 }

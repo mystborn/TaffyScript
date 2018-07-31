@@ -53,7 +53,7 @@ namespace TaffyScript
         {
             if (_members.TryGetValue(delegateName, out var member) && member.Type == VariableType.Delegate)
             {
-                del = member.GetDelegateUnchecked();
+                del = member.GetDelegate();
                 return true;
             }
 
@@ -63,12 +63,12 @@ namespace TaffyScript
 
         public static implicit operator TsObject(DynamicInstance instance)
         {
-            return new TsObject(instance);
+            return new TsInstanceWrapper(instance);
         }
 
         public static explicit operator DynamicInstance(TsObject obj)
         {
-            return (DynamicInstance)obj.Value.WeakValue;
+            return (DynamicInstance)obj.WeakValue;
         }
     }
 }

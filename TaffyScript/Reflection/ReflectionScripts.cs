@@ -39,7 +39,7 @@ namespace TaffyScript.Reflection
 
                 return ev.Invoke(args[0].GetInstance(), copy);
             }
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         [TaffyScriptMethod]
@@ -55,7 +55,7 @@ namespace TaffyScript.Reflection
                 ctorArgs = new TsObject[args.Length - 1];
                 Array.Copy(args, 1, ctorArgs, 0, args.Length - 1);
             }
-            return new TsObject(ctor(ctorArgs));
+            return new TsInstanceWrapper(ctor(ctorArgs));
         }
 
         [TaffyScriptMethod]
@@ -144,7 +144,7 @@ namespace TaffyScript.Reflection
 
         public static TsObject variable_global_get(ITsInstance inst, TsObject[] args)
         {
-            return TsInstance.Global._members.TryGetValue((string)args[0], out var result) ? result : TsObject.Empty();
+            return TsInstance.Global._members.TryGetValue((string)args[0], out var result) ? result : TsObject.Empty;
         }
 
         public static TsObject variable_global_get_names(ITsInstance inst, TsObject[] args)
@@ -160,7 +160,7 @@ namespace TaffyScript.Reflection
         public static TsObject variable_global_set(ITsInstance inst, TsObject[] args)
         {
             TsInstance.Global._members[(string)args[0]] = args[1];
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public static TsObject variable_instance_exists(ITsInstance inst, TsObject[] args)
@@ -219,7 +219,7 @@ namespace TaffyScript.Reflection
         public static TsObject variable_instance_set(ITsInstance inst, TsObject[] args)
         {
             args[0].GetInstance().SetMember((string)args[1], args[2]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
     }
 }

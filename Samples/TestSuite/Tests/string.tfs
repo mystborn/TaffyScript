@@ -55,11 +55,7 @@ namespace LanguageTests {
 
     script string_from_array2() {
         test_it("array2 -> string");
-        var arr;
-        arr[1, 1] = "moo";
-        arr[1, 0] = "cow";
-        arr[0, 1] = "oink";
-        arr[0, 0] = "pig";
+        var arr = [["pig","oink"], ["cow","moo"]];
         assert_equal(string(arr), "[[pig, oink], [cow, moo]]");
     }
 

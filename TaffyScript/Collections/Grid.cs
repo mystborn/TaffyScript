@@ -298,7 +298,7 @@ namespace TaffyScript.Collections
                 throw new ArgumentOutOfRangeException(nameof(height));
 
             var temp = new TsObject[width, height];
-            var zero = new TsObject(0);
+            TsObject zero = 0;
 
             for (var h = 0; h < height; ++h)
                 for (var w = 0; w < width; ++w)

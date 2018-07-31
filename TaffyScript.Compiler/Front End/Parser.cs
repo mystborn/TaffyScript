@@ -109,7 +109,7 @@ namespace TaffyScript.Compiler
                         _stream.Read();
                         return null;
                     default:
-                        //Todo: Handle error
+                        Error(_stream.Current, "Expected a declaration");
                         return null;
                 }
             }
@@ -653,7 +653,7 @@ namespace TaffyScript.Compiler
             while(Check(TokenType.LogicalOr))
             {
                 var symbol = _stream.Read();
-                expr = new LogicalNode(expr, symbol.Text, LogicalAndExpression(), symbol.Position);
+                expr = new LogicalNode(expr, "||", LogicalAndExpression(), symbol.Position);
             }
             return expr;
         }
@@ -664,7 +664,7 @@ namespace TaffyScript.Compiler
             while (Check(TokenType.LogicalAnd))
             {
                 var symbol = _stream.Read();
-                expr = new LogicalNode(expr, symbol.Text, BitwiseOrExpression(), symbol.Position);
+                expr = new LogicalNode(expr, "&&", BitwiseOrExpression(), symbol.Position);
             }
             return expr;
         }

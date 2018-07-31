@@ -2,6 +2,14 @@ using UnitTest;
 
 namespace LanguageTests {
     script main {
+        var memory = gc_get_used_memory();
+        var result = time_invoke(run_all_tests);
+        print("Used memory: " + string(gc_get_used_memory() - memory));
+        print("Ticks: " + string(result.ticks));
+        print("MS: " + string(result.ms));
+    }
+
+    script run_all_tests() {
         run_addition_tests();
         print("");
         run_subtraction_tests();
@@ -39,6 +47,10 @@ namespace LanguageTests {
         run_reflection_tests();
         print("");
         run_repeat_tests();
+        print("");
+        run_logical_and_tests();
+        print("");
+        run_logical_or_tests();
         print("");
     }
 }

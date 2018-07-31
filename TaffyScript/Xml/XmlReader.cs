@@ -263,13 +263,13 @@ namespace TaffyScript.Xml
         public TsObject close(ITsInstance inst, TsObject[] args)
         {
             Source.Close();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject dispose(ITsInstance inst, TsObject[] args)
         {
             Source.Dispose();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject get(ITsInstance inst, TsObject[] args)
@@ -365,7 +365,7 @@ namespace TaffyScript.Xml
         public TsObject read_end_element(ITsInstance inst, TsObject[] args)
         {
             Source.ReadEndElement();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject read_inner_xml(ITsInstance inst, TsObject[] args)
@@ -381,7 +381,7 @@ namespace TaffyScript.Xml
         public TsObject read_start_element(ITsInstance inst, TsObject[] args)
         {
             Source.ReadStartElement();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject read_subtree(ITsInstance inst, TsObject[] args)
@@ -407,23 +407,23 @@ namespace TaffyScript.Xml
         public TsObject resolve_entity(ITsInstance inst, TsObject[] args)
         {
             Source.ResolveEntity();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public TsObject skip(ITsInstance inst, TsObject[] args)
         {
             Source.Skip();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         public static implicit operator TsObject(XmlReader reader)
         {
-            return new TsObject(reader);
+            return new TsInstanceWrapper(reader);
         }
 
         public static explicit operator XmlReader(TsObject obj)
         {
-            return (XmlReader)obj.Value.WeakValue;
+            return (XmlReader)obj.WeakValue;
         }
     }
 }

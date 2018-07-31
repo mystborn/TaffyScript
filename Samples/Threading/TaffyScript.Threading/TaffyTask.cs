@@ -74,7 +74,7 @@ namespace TaffyScript.Threading
                     }
                     catch(AggregateException e)
                     {
-                        return Tasks.CreateTaskResult(TsObject.Empty(), e.InnerException.ToString());
+                        return Tasks.CreateTaskResult(TsObject.Empty, e.InnerException.ToString());
                     }
                 case "status":
                     return (int)_task.Status;
@@ -121,7 +121,7 @@ namespace TaffyScript.Threading
         private TsObject dispose(ITsInstance inst, TsObject[] args)
         {
             _task.Dispose();
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         private TsObject start(ITsInstance inst, TsObject[] args)
@@ -138,12 +138,12 @@ namespace TaffyScript.Threading
 
         public static implicit operator TsObject(Task task)
         {
-            return new TsObject(task);
+            return new TsInstanceWrapper(task);
         }
 
         public static explicit operator Task(TsObject obj)
         {
-            return (Task)obj.Value.WeakValue;
+            return (Task)obj.WeakValue;
         }
     }
 }

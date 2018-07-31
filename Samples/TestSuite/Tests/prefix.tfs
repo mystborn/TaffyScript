@@ -13,10 +13,6 @@ namespace LanguageTests {
                                       prefix_decrement_array,
                                       prefix_increment_list,
                                       prefix_decrement_list,
-                                     /* prefix_increment_grid,
-                                      prefix_decrement_grid,
-                                      prefix_increment_map,
-                                      prefix_decrement_map,*/
                                       prefix_increment_local_var,
                                       prefix_decrement_local_var,
                                       prefix_increment_global_var,

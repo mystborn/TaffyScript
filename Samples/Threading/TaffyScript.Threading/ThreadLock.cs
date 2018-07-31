@@ -79,18 +79,28 @@ namespace TaffyScript.Threading
         private TsObject _lock(ITsInstance inst, TsObject[] args)
         {
             Monitor.Enter(_key);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         private TsObject unlock(ITsInstance inst, TsObject[] args)
         {
             Monitor.Exit(_key);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         private TsObject try_lock(ITsInstance inst, TsObject[] args)
         {
             return args != null && args.Length > 0 ? Monitor.TryEnter(_key, (int)args[0]) : Monitor.TryEnter(_key);
+        }
+
+        public static implicit operator TsObject(ThreadLock threadLock)
+        {
+            return new TsInstanceWrapper(threadLock);
+        }
+
+        public static explicit operator ThreadLock(TsObject obj)
+        {
+            return (ThreadLock)obj.WeakValue;
         }
     }
 }

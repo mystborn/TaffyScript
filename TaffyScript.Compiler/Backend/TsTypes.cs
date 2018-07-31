@@ -59,22 +59,22 @@ namespace TaffyScript.Compiler
 
             Constructors = new Dictionary<Type, ConstructorInfo>()
             {
-                { typeof(bool), objType.GetConstructor(new[] { typeof(bool) }) },
-                { typeof(char), objType.GetConstructor(new[] { typeof(char) }) },
-                { typeof(byte), objType.GetConstructor(new[] { typeof(byte) }) },
-                { typeof(sbyte), objType.GetConstructor(new[] { typeof(sbyte) }) },
-                { typeof(short), objType.GetConstructor(new[] { typeof(short) }) },
-                { typeof(ushort), objType.GetConstructor(new[] { typeof(ushort) }) },
-                { typeof(int), objType.GetConstructor(new[] { typeof(int) }) },
-                { typeof(uint), objType.GetConstructor(new[] { typeof(uint) }) },
-                { typeof(long), objType.GetConstructor(new[] { typeof(long) }) },
-                { typeof(ulong), objType.GetConstructor(new[] { typeof(ulong) }) },
-                { typeof(float), objType.GetConstructor(new[] { typeof(float) }) },
-                { typeof(double), objType.GetConstructor(new[] { typeof(double) }) },
-                { typeof(string), objType.GetConstructor(new[] { typeof(string) }) },
-                { typeof(ITsInstance), objType.GetConstructor(new[] { typeof(ITsInstance) }) },
-                { typeof(TsDelegate), objType.GetConstructor(new[] { typeof(TsDelegate) }) },
-                { typeof(TsObject[]), objType.GetConstructor(new[] { typeof(TsObject[]) }) }
+                { typeof(bool), typeof(TsNumber).GetConstructor(new[] { typeof(bool) }) },
+                { typeof(byte), typeof(TsNumber).GetConstructor(new[] { typeof(byte) }) },
+                { typeof(sbyte), typeof(TsNumber).GetConstructor(new[] { typeof(sbyte) }) },
+                { typeof(short), typeof(TsNumber).GetConstructor(new[] { typeof(short) }) },
+                { typeof(ushort), typeof(TsNumber).GetConstructor(new[] { typeof(ushort) }) },
+                { typeof(int), typeof(TsNumber).GetConstructor(new[] { typeof(int) }) },
+                { typeof(uint), typeof(TsNumber).GetConstructor(new[] { typeof(uint) }) },
+                { typeof(long), typeof(TsNumber).GetConstructor(new[] { typeof(long) }) },
+                { typeof(ulong), typeof(TsNumber).GetConstructor(new[] { typeof(ulong) }) },
+                { typeof(float), typeof(TsNumber).GetConstructor(new[] { typeof(float) }) },
+                { typeof(double), typeof(TsNumber).GetConstructor(new[] { typeof(double) }) },
+                { typeof(char), typeof(TsString).GetConstructor(new[] { typeof(char) }) },
+                { typeof(string), typeof(TsString).GetConstructor(new[] { typeof(string) }) },
+                { typeof(ITsInstance), typeof(TsInstanceWrapper).GetConstructor(new[] { typeof(ITsInstance) }) },
+                { typeof(TsDelegate), typeof(TsDelegateWrapper).GetConstructor(new[] { typeof(TsDelegate) }) },
+                { typeof(TsObject[]), typeof(TsArray).GetConstructor(new[] { typeof(TsObject[]) }) }
             };
 
             BasicTypes = new Dictionary<string, Type>()
@@ -98,7 +98,7 @@ namespace TaffyScript.Compiler
                 { "object", typeof(TsObject) }
             };
 
-            Empty = objType.GetMethod("Empty");
+            Empty = objType.GetMethod("get_Empty");
         }
     }
 }

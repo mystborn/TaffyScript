@@ -6,21 +6,17 @@ namespace LanguageTests {
                                       run_array_faulty_tests,
                                       array1_create_literal,
                                       array1_create_script,
-                                      array1_create_variable,
                                       array1_set_in_bounds,
-                                      array1_set_out_of_bounds,
                                       array1_get_in_bounds,
-                                      array2_create_variable,
+                                      array2_create,
                                       array2_set_left_ib_right_ib,
-                                      array2_set_left_ib_right_oob,
-                                      array2_set_left_oob_right_ib,
-                                      array2_set_left_oob_right_oob,
                                       array2_get_left_ib_right_ib,
                                       array_copy_test,
                                       array_create_script_with_default,
                                       array_equals_true,
                                       array_equals_false,
                                       array1_length,
+                                      array1_length_member,
                                       array2_height,
                                       array2_length,
                                       array4_get,
@@ -32,11 +28,14 @@ namespace LanguageTests {
 
     script run_array_faulty_tests() {
         assert(try_expect(array1_get_out_of_bounds, "IndexOutOfRangeException"));
+        assert(try_expect(array1_set_out_of_bounds, "IndexOutOfRangeException"));
         assert(try_expect(array2_get_left_ib_right_oob, "IndexOutOfRangeException"));
         assert(try_expect(array2_get_left_oob_right_ib, "IndexOutOfRangeException"));
         assert(try_expect(array2_get_left_oob_right_oob, "IndexOutOfRangeException"));
+        assert(try_expect(array2_set_left_ib_right_oob, "IndexOutOfRangeException"));
+        assert(try_expect(array2_set_left_oob_right_ib, "IndexOutOfRangeException"));
+        assert(try_expect(array2_set_left_oob_right_ib, "IndexOutOfRangeException"));
         test_it("Faulty Array");
-
     }
 
     script array1_create_literal {
@@ -48,13 +47,6 @@ namespace LanguageTests {
     script array1_create_script {
         test_it("arr = array_create()");
         var arr = array_create(1);
-        assert_equal(typeof(arr), "array");
-    }
-
-    script array1_create_variable {
-        test_it("var arr; arr[0] = 0");
-        var arr;
-        arr[0] = 0;
         assert_equal(typeof(arr), "array");
     }
 
@@ -80,72 +72,62 @@ namespace LanguageTests {
     }
 
     script array1_get_out_of_bounds {
+        test_it("i = arr[1] (oob)")
         var arr = [0, 2];
         var i = arr[2];
     }
 
-    script array2_create_variable {
+    script array2_create {
         test_it("var arr; arr[0,1] = val");
-        var arr;
-        arr[0, 1] = "moo";
+        var arr = [["", "moo"]];
         assert_equal(typeof(arr), "array");
     }
 
     script array2_set_left_ib_right_ib() {
         test_it("arr[0 (ib), 0 (ib)] = val");
-        var arr;
-        arr[0, 0] = 0;
+        var arr = [[0]];
         arr[0, 0] = 33;
         assert_equal(arr[0, 0], 33);
     }
 
     script array2_set_left_ib_right_oob() {
         test_it("arr[0 (ib), 1 (oob)] = val");
-        var arr;
-        arr[0, 0] = 0;
-        arr[0, 1] = 33;
+        var arr = [[0],[33]];
         assert_equal(arr[0, 1], 33);
     }
 
     script array2_set_left_oob_right_ib() {
-        test_it("arr[1 (oob), 0 (ib)] = val")
-        var arr;
-        arr[0, 0] = 0;
-        arr[1, 0] = 33;
+        test_it("arr[1 (oob), 0 (ib)] = val");
+        var arr = [[0,33]];
         assert_equal(arr[1, 0], 33);
     }
 
     script array2_set_left_oob_right_oob() {
         test_it("arr[1 (oob), 1 (oob)] = val");
-        var arr;
-        arr[0, 0] = 0;
-        arr[1, 1] = 33;
-        assert_equal(arr[1, 1], 33);
+        var arr = [[0]];
+        assert_equal(arr[0, 1], 33);
     }
 
     script array2_get_left_ib_right_ib() {
         test_it("val = arr[0 (ib), 0 (ib)]");
-        var arr;
-        arr[0, 0] = 33;
+        var arr = [[33]];
         var result = arr[0, 0];
         assert_equal(result, 33);
     }
 
     script array2_get_left_ib_right_oob() {
-        var arr;
-        arr[0, 0] = 0;
+        test_it("arr[0, 1 (oob)]");
+        var arr = [[0]];
         var result = arr[0, 1];
     }
 
     script array2_get_left_oob_right_ib() {
-        var arr;
-        arr[0, 0] = 0;
+        var arr = [[0]];
         var result = arr[1, 0];
     }
 
     script array2_get_left_oob_right_oob() {
-        var arr;
-        arr[0, 0] = 0;
+        var arr = [[0]];
         var result = arr[1, 1];
     }
 
@@ -184,33 +166,34 @@ namespace LanguageTests {
         assert_equal(array_length(arr), 3);
     }
 
+    script array1_length_member() {
+        test_it("arr.count");
+        var arr = [0,1,2];
+        assert_equal(arr.count, 3);
+    }
+
     script array2_height() {
         test_it("array_height_2d(arr)");
-        var arr;
-        arr[3, 5] = "moo";
+        var arr = [0,0,0,[0,0,0,0,"moo"]];
         assert_equal(array_length(arr), 4);
     }
 
     script array2_length() {
         test_it("array_length_2d(arr, index)");
-        var arr;
-        arr[2, 4] = "moo";
-        arr[3, 5] = 3;
+        var arr = [0,0,[0,0,0,0,"moo"],[0,0,0,0,0,3]];
         assert_equal(array_length(arr, 2), 5);
         assert_equal(array_length(arr, 3), 6);
     }
 
     script array4_get(){
         test_it("var = arr[0, 0, 0, 0]");
-        var arr;
-        arr[0, 0, 0, 4] = "moo";
+        var arr = [[[[0,0,0,0,"moo"]]]];
         assert_equal(arr[0, 0, 0, 4], "moo");
     }
 
     script array4_length() {
         test_it("array_length(arr, 0, 0, 0)");
-        var arr;
-        arr[0, 0, 0, 4] = "moo";
+        var arr = [[[[0,0,0,0,"moo"]]]];
         assert_equal(array_length(arr, 0, 0, 0), 5);
     }
 

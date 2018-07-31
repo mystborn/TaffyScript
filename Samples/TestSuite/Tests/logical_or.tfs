@@ -1,0 +1,40 @@
+using UnitTest;
+
+namespace LanguageTests {
+    script run_logical_or_tests() {
+        var tests = new obj_unit_test("And Tests",
+                                      logical_or_symbol_short_curcuit,
+                                      logical_or_keyword_short_circuit,
+                                      logical_or_symbol_full,
+                                      logival_or_keyword_full);
+        tests.run_tests();
+    }
+
+    script logical_or_symbol_short_curcuit() {
+        test_it("if(true || true)");
+        var i = 0;
+        if(true || ++i);
+        assert_equal(i, 0);
+    }
+
+    script logical_or_keyword_short_circuit() {
+        test_it("if(true or true)");
+        var i = 0;
+        if(true or ++i);
+        assert_equal(i, 0);
+    }
+
+    script logical_or_symbol_full() {
+        test_it("if(false || true)");
+        var i = 0;
+        if(false || ++i);
+        assert_equal(i, 1);
+    }
+
+    script logival_or_keyword_full() {
+        test_it("if(false or true)");
+        var i = 0;
+        if(false or ++i);
+        assert_equal(i, 1);
+    }
+}

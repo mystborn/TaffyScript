@@ -65,7 +65,7 @@ namespace TaffyScript.Threading
         public static TsObject thread_sleep(ITsInstance inst, TsObject[] args)
         {
             Thread.Sleep((int)args[0]);
-            return TsObject.Empty();
+            return TsObject.Empty;
         }
 
         [TaffyScriptMethod]

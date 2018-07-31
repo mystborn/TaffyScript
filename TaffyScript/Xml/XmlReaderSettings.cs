@@ -157,17 +157,17 @@ namespace TaffyScript.Xml
         public TsObject reset(ITsInstance inst, TsObject[] args)
         {
             Settings.Reset();
-            return TsObject.Empty();
+            return TsObject.Empty;
         } 
 
         public static implicit operator TsObject(XmlReaderSettings settings)
         {
-            return new TsObject(settings);
+            return new TsInstanceWrapper(settings);
         }
 
         public static explicit operator XmlReaderSettings(TsObject obj)
         {
-            return (XmlReaderSettings)obj.Value.WeakValue;
+            return (XmlReaderSettings)obj.WeakValue;
         }
     }
 }
