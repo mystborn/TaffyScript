@@ -167,22 +167,22 @@ namespace LanguageTests {
     }
 
     script array1_length_member() {
-        test_it("arr.count");
+        test_it("arr.length");
         var arr = [0,1,2];
-        assert_equal(arr.count, 3);
+        assert_equal(arr.length, 3);
     }
 
     script array2_height() {
         test_it("array_height_2d(arr)");
         var arr = [0,0,0,[0,0,0,0,"moo"]];
-        assert_equal(array_length(arr), 4);
+        assert_equal(arr.length, 4);
     }
 
     script array2_length() {
         test_it("array_length_2d(arr, index)");
         var arr = [0,0,[0,0,0,0,"moo"],[0,0,0,0,0,3]];
-        assert_equal(array_length(arr, 2), 5);
-        assert_equal(array_length(arr, 3), 6);
+        assert_equal(arr.get_length(2), 5);
+        assert_equal(arr.get_length(3), 6);
     }
 
     script array4_get(){

@@ -1,0 +1,19 @@
+using UnitTest;
+using TaffyScript.Reflection;
+
+namespace LanguageTests {
+    script run_scope_tests() {
+        var tests = new obj_unit_test("Scope Tests",
+                                      scope_double_variable);
+
+        tests.run_tests();
+    }
+
+    script scope_double_variable() {
+        test_it("var i; var i;");
+        var i;
+        assert(is_null(i));
+        var i = 10;
+        assert_equal(i, 10);
+    }
+}

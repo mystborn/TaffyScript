@@ -14,6 +14,7 @@ namespace TaffyScript.Compiler.FrontEnd
     {
         private bool _inLambda = false;
         private bool _hasParent = false;
+        private bool _inWith = false;
         private LoopType _currentLoop = LoopType.None;
         private MethodType _currentMethod = MethodType.None;
         private Environment _environment = new Environment();
@@ -267,8 +268,10 @@ namespace TaffyScript.Compiler.FrontEnd
         {
             foreach(var variable in locals.Locals)
             {
-                if (!_environment.Define(variable.Name, EncounterType.Local))
+                if (_environment.Encountered(variable.Name, out var encounterType) && encounterType != EncounterType.Local)
                     _logger.Error("Tried to declare a variable that has already been encountered in the current scope.", variable.Position);
+                else
+                    _environment.FastDefine(variable.Name, EncounterType.Local);
 
                 variable.Value?.Accept(this);
             }
@@ -461,9 +464,9 @@ namespace TaffyScript.Compiler.FrontEnd
 
         public void Visit(VariableToken variableToken)
         {
-            if(!_environment.Encountered(variableToken.Name, out _) && _table.Defined(variableToken.Name, out var symbol) && symbol.Type == SymbolType.Variable)
+            if(!_environment.Encountered(variableToken.Name, out _) && !_table.Defined(variableToken.Name, out var symbol) && !_inWith)
             {
-                if (_currentMethod != MethodType.Instance)
+                if (_currentMethod == MethodType.Global)
                     _logger.Error($"Tried to use undefined variable {variableToken.Name}", variableToken.Position);
                 else
                     _environment.Define(variableToken.Name, EncounterType.Instance);
@@ -492,10 +495,13 @@ namespace TaffyScript.Compiler.FrontEnd
 
         public void Visit(WithNode withNode)
         {
+            var inWith = _inWith;
+            _inWith = true;
             withNode.Target.Parent = withNode;
             withNode.Target.Accept(this);
             withNode.Body.Parent = withNode;
             withNode.Body.Accept(this);
+            _inWith = inWith;
         }
 
         private enum LoopType
@@ -546,6 +552,11 @@ namespace TaffyScript.Compiler.FrontEnd
 
                 encounter = EncounterType.None;
                 return false;
+            }
+
+            public void FastDefine(string name, EncounterType type)
+            {
+                _encountered[name] = type;
             }
 
             public bool Define(string name, EncounterType type)

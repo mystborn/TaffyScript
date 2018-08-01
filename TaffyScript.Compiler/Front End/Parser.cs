@@ -408,7 +408,7 @@ namespace TaffyScript.Compiler
             do
             {
                 var name = Consume(TokenType.Identifier, "Expected name for local variable");
-                if (!_table.AddLeaf(name.Text, SymbolType.Variable, SymbolScope.Local))
+                if (!_table.AddLeaf(name.Text, SymbolType.Variable, SymbolScope.Local) && _table.Defined(name.Text).Type != SymbolType.Variable)
                     Error(name, $"Identifier {name.Text} is already defined");
 
                 ISyntaxElement value = null;

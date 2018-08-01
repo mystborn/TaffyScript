@@ -1017,7 +1017,25 @@ namespace TaffyScript.Compiler.Backend
         {
             arrayAccess.Left.Accept(this);
             var top = emit.GetTop();
-            if (!typeof(TsObject).IsAssignableFrom(top))
+
+            if(top == typeof(string))
+            {
+                if (arrayAccess.Arguments.Count > 1)
+                {
+                    _logger.Error("Invalid number of arguments for string access", arrayAccess.Position);
+                    emit.Pop()
+                        .Call(TsTypes.Empty);
+                }
+                var chr = GetLocal(typeof(char));
+                LoadElementAsInt(arrayAccess.Arguments[0]);
+                emit.Call(typeof(string).GetMethod("get_Chars"))
+                    .StLocal(chr)
+                    .LdLocalA(chr)
+                    .Call(typeof(char).GetMethod("ToString", Type.EmptyTypes));
+                FreeLocal(chr);
+                return;
+            }
+            else if (!typeof(TsObject).IsAssignableFrom(top))
             {
                 _logger.Error("Encountered invalid syntax", arrayAccess.Position);
                 return;

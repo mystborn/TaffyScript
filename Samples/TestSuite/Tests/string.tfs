@@ -11,6 +11,7 @@ namespace LanguageTests {
                                       string_from_array2,
                                       string_from_delegate,
                                       string_from_instance,
+                                      string_get,
                                       string_char_at_test,
                                       string_copy_test,
                                       string_count_test,
@@ -79,6 +80,12 @@ namespace LanguageTests {
     script float_from_string() {
         test_it("string -> float");
         assert_equal(real("1.5"), 15);
+    }
+
+    script string_get() {
+        test_it("string.get()");
+        var chr = "hello"[1];
+        assert_equal(chr, "e");
     }
 
     script string_char_at_test() {

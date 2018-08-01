@@ -52,5 +52,7 @@ namespace LanguageTests {
         print("");
         run_logical_or_tests();
         print("");
+        run_scope_tests();
+        print("");
     }
 }
