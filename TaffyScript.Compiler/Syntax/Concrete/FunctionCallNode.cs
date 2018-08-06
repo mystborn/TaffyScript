@@ -9,7 +9,7 @@ namespace TaffyScript.Compiler.Syntax
         public List<ISyntaxElement> Arguments { get; }
         public TokenPosition EndPosition { get; }
 
-        public FunctionCallNode(ISyntaxElement callee, List<ISyntaxElement> arguments, TokenPosition endPosition, TokenPosition position)
+        public FunctionCallNode(ISyntaxElement callee, List<ISyntaxElement> arguments, TokenPosition position, TokenPosition endPosition)
             : base(position)
         {
             Callee = callee;

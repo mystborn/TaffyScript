@@ -820,7 +820,7 @@ namespace TaffyScript.Compiler
                             access = new ReadOnlyToken(id.Text, id.Position);
                         }
                         else
-                            Error(_stream.Current, "The right side of an access expression must be a variable");
+                            Error(symbol, "The right side of an access expression must be a variable");
 
                         expr = new MemberAccessNode(expr, access, access.Position);
                         break;

@@ -1038,39 +1038,22 @@ namespace TaffyScript.Compiler.Backend
             else if (!typeof(TsObject).IsAssignableFrom(top))
             {
                 _logger.Error("Encountered invalid syntax", arrayAccess.Position);
+                emit.Pop()
+                    .Call(TsTypes.Empty);
                 return;
             }
 
             LocalBuilder secret = null;
 
-            if (CanBeArrayAccess(arrayAccess))
+            if(CanBeArrayAccess(arrayAccess))
             {
-                var isArray = emit.DefineLabel();
+                var isInstance = emit.DefineLabel();
                 var end = emit.DefineLabel();
 
                 emit.Dup()
                     .Call(typeof(TsObject).GetMethod("get_Type"))
-                    .LdInt((int)VariableType.Instance)
-                    .Bne(isArray)
-                    .Call(typeof(TsObject).GetMethod("GetInstance"))
-                    .LdStr("get")
-                    .LdInt(arrayAccess.Arguments.Count)
-                    .NewArr(typeof(TsObject));
-
-                for (var i = 0; i < arrayAccess.Arguments.Count; i++)
-                {
-                    emit.Dup()
-                        .LdInt(i);
-                    arrayAccess.Arguments[i].Accept(this);
-                    ConvertTopToObject();
-                    emit.StElem(typeof(TsObject));
-                }
-
-                emit.Call(typeof(ITsInstance).GetMethod("Call"))
-                    .Br(end)
-                    .MarkLabel(isArray)
-                    .PopTop() //The stack would get imbalanced here otherwise.
-                    .PushType(typeof(TsObject));
+                    .LdInt((int)VariableType.Array)
+                    .Bne(isInstance);
 
                 Type[] argTypes;
                 var count = arrayAccess.Arguments.Count;
@@ -1098,6 +1081,25 @@ namespace TaffyScript.Compiler.Backend
                 }
 
                 emit.Call(typeof(TsObject).GetMethod("ArrayGet", argTypes))
+                    .Br(end)
+                    .MarkLabel(isInstance)
+                    .PopTop() //The stack would get imbalanced here otherwise.
+                    .PushType(typeof(TsObject))
+                    .Call(typeof(TsObject).GetMethod("GetInstance"))
+                    .LdStr("get")
+                    .LdInt(arrayAccess.Arguments.Count)
+                    .NewArr(typeof(TsObject));
+
+                for (var i = 0; i < arrayAccess.Arguments.Count; i++)
+                {
+                    emit.Dup()
+                        .LdInt(i);
+                    arrayAccess.Arguments[i].Accept(this);
+                    ConvertTopToObject();
+                    emit.StElem(typeof(TsObject));
+                }
+
+                emit.Call(typeof(ITsInstance).GetMethod("Call"))
                     .MarkLabel(end);
             }
             else
@@ -2088,7 +2090,12 @@ namespace TaffyScript.Compiler.Backend
 
             var top = emit.GetTop();
 
-            if (typeof(TsObject).IsAssignableFrom(top))
+            if(top == typeof(string))
+            {
+                ConvertTopToObject();
+                top = typeof(TsObject);
+            }
+            else if (typeof(TsObject).IsAssignableFrom(top))
                 emit.Call(TsTypes.ObjectCasts[typeof(ITsInstance)]);
             else if (!typeof(ITsInstance).IsAssignableFrom(top))
             {
@@ -2414,7 +2421,12 @@ namespace TaffyScript.Compiler.Backend
             {
                 memberAccess.Left.Accept(this);
                 var left = emit.GetTop();
-                if(!typeof(TsObject).IsAssignableFrom(left))
+                if(left == typeof(string))
+                {
+                    ConvertTopToObject();
+                    left = typeof(TsObject);
+                }
+                else if(!typeof(TsObject).IsAssignableFrom(left))
                 {
                     _logger.Error($"Static member access is not yet supported.", memberAccess.Left.Position);
                     emit.Pop()

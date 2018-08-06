@@ -93,6 +93,9 @@ namespace TaffyScript
                 case "digits":
                     del = new TsDelegate(digits, scriptName, this);
                     return true;
+                case "duplicate":
+                    del = new TsDelegate(duplicate, scriptName, this);
+                    return true;
                 case "ends_with":
                     del = new TsDelegate(ends_with, scriptName, this);
                     return true;
@@ -119,9 +122,6 @@ namespace TaffyScript
                     return true;
                 case "ord":
                     del = new TsDelegate(ord, scriptName, this);
-                    return true;
-                case "repeat":
-                    del = new TsDelegate(repeat, scriptName, this);
                     return true;
                 case "replace":
                     del = new TsDelegate(replace, scriptName, this);
@@ -171,6 +171,8 @@ namespace TaffyScript
                     return delete(null, args);
                 case "digits":
                     return digits(null, args);
+                case "duplicate":
+                    return duplicate(null, args);
                 case "ends_with":
                     return ends_with(null, args);
                 case "get":
@@ -189,8 +191,6 @@ namespace TaffyScript
                     return lower(null, args);
                 case "ord":
                     return ord(null, args);
-                case "repeat":
-                    return repeat(null, args);
                 case "replace":
                     return replace(null, args);
                 case "replace_all":
@@ -217,7 +217,18 @@ namespace TaffyScript
 
         public TsObject copy(ITsInstance inst, TsObject[] args)
         {
-            return string.Copy(Value);
+            if (args is null)
+                return string.Copy(Value);
+
+            switch(args.Length)
+            {
+                case 0:
+                    return string.Copy(Value);
+                case 1:
+                    return Value.Substring((int)args[0]);
+                default:
+                    return Value.Substring((int)args[0], (int)args[1]);
+            }
         }
 
         public TsObject count(ITsInstance inst, TsObject[] args)
@@ -248,6 +259,17 @@ namespace TaffyScript
             return sb.ToString();
         }
 
+        public TsObject duplicate(ITsInstance inst, TsObject[] args)
+        {
+            var count = (int)args[0];
+
+            var sb = new StringBuilder();
+            for (var i = 0; i < count; i++)
+                sb.Append(Value);
+
+            return sb.ToString();
+        }
+
         public TsObject ends_with(ITsInstance inst, TsObject[] args)
         {
             return Value.EndsWith((string)args[0]);
@@ -265,7 +287,7 @@ namespace TaffyScript
 
         public TsObject insert(ITsInstance inst, TsObject[] args)
         {
-            return Value.Insert((int)args[1], (string)args[0]);
+            return Value.Insert((int)args[0], (string)args[1]);
         }
 
         public TsObject last_index_of(ITsInstance inst, TsObject[] args)
@@ -307,17 +329,6 @@ namespace TaffyScript
         public TsObject ord(ITsInstance inst, TsObject[] args)
         {
             return (Number)Value[(int)args[0]];
-        }
-
-        public TsObject repeat(ITsInstance inst, TsObject[] args)
-        {
-            var count = (int)args[0];
-
-            var sb = new StringBuilder();
-            for (var i = 0; i < count; i++)
-                sb.Append(Value);
-
-            return sb.ToString();
         }
 
         public TsObject replace(ITsInstance inst, TsObject[] args)

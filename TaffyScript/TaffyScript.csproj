@@ -57,6 +57,7 @@
     <Compile Include="Object\TsNumber.cs" />
     <Compile Include="Object\TsString.cs" />
     <Compile Include="Reflection\ReflectionScripts.cs" />
+    <Compile Include="Strings\StringMethods.cs" />
     <Compile Include="Xml\XmlReader.cs" />
     <Compile Include="Collections\Grid.cs" />
     <Compile Include="Collections\TsGrid.cs" />

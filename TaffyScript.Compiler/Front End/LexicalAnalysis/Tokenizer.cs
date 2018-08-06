@@ -324,16 +324,29 @@ namespace TaffyScript.Compiler.FrontEnd
         {
             while(PeekChar() != start && !InternalFinished)
             {
-                if(PeekChar() == '\n')
+                switch(PeekChar())
                 {
-                    _line++;
-                    _column = 0;
+                    case '\n':
+                        _line++;
+                        _column = 0;
+                        break;
+                    case '\\':
+                        Advance();
+                        if(InternalFinished)
+                        {
+                            _logger.Error("Encountered an unterminated string", new TokenPosition(_start, _line, _column, _fname));
+                            return MakeToken(TokenType.String);
+                        }
+                        break;
                 }
                 Advance();
             }
 
-            if(InternalFinished)
+            if (InternalFinished)
+            {
                 _logger.Error("Encountered an unterminated string", new TokenPosition(_start, _line, _column, _fname));
+                return MakeToken(TokenType.String);
+            }
 
             Advance();
             return MakeToken(TokenType.String);
