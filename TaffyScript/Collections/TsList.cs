@@ -101,34 +101,34 @@ namespace TaffyScript.Collections
         {
             switch(scriptName) {
                 case "add":
-                    del = new TsDelegate(add, "add", this);
+                    del = new TsDelegate(add, "add");
                     return true;
                 case "clear":
-                    del = new TsDelegate(clear, "clear", this);
+                    del = new TsDelegate(clear, "clear");
                     return true;
                 case "copy":
-                    del = new TsDelegate(copy, "copy", this);
+                    del = new TsDelegate(copy, "copy");
                     return true;
                 case "get":
-                    del = new TsDelegate(get, "get", this);
+                    del = new TsDelegate(get, "get");
                     return true;
                 case "insert":
-                    del = new TsDelegate(insert, "insert", this);
+                    del = new TsDelegate(insert, "insert");
                     return true;
                 case "index_of":
-                    del = new TsDelegate(index_of, "index_of", this);
+                    del = new TsDelegate(index_of, "index_of");
                     return true;
                 case "remove":
-                    del = new TsDelegate(remove, "remove", this);
+                    del = new TsDelegate(remove, "remove");
                     return true;
                 case "set":
-                    del = new TsDelegate(set, "set", this);
+                    del = new TsDelegate(set, "set");
                     return true;
                 case "shuffle":
-                    del = new TsDelegate(shuffle, "shuffle", this);
+                    del = new TsDelegate(shuffle, "shuffle");
                     return true;
                 case "sort":
-                    del = new TsDelegate(sort, "sort", this);
+                    del = new TsDelegate(sort, "sort");
                     return true;
                 default:
                     del = null;
@@ -148,46 +148,46 @@ namespace TaffyScript.Collections
 
 #pragma warning disable IDE1006 // Naming Styles
 
-        public TsObject add(ITsInstance inst, TsObject[] args)
+        public TsObject add(TsObject[] args)
         {
             _source.AddRange(args);
             return TsObject.Empty;
         }
 
-        public TsObject clear(ITsInstance inst, TsObject[] args)
+        public TsObject clear(TsObject[] args)
         {
             _source.Clear();
             return TsObject.Empty;
         }
 
-        public TsObject copy(ITsInstance inst, TsObject[] args)
+        public TsObject copy(TsObject[] args)
         {
             return new TsList(_source);
         }
 
-        public TsObject get(ITsInstance inst, TsObject[] args)
+        public TsObject get(TsObject[] args)
         {
             return _source[(int)args[0]];
         }
 
-        public TsObject insert(ITsInstance inst, TsObject[] args)
+        public TsObject insert(TsObject[] args)
         {
             _source.Insert((int)args[0], args[1]);
             return TsObject.Empty;
         }
 
-        public TsObject index_of(ITsInstance inst, TsObject[] args)
+        public TsObject index_of(TsObject[] args)
         {
             return _source.IndexOf(args[0]);
         }
         
-        public TsObject remove(ITsInstance inst, TsObject[] args)
+        public TsObject remove(TsObject[] args)
         {
             _source.RemoveAt((int)args[0]);
             return TsObject.Empty;
         }
 
-        public TsObject set(ITsInstance inst, TsObject[] args)
+        public TsObject set(TsObject[] args)
         {
             var index = (int)args[0];
             while (_source.Count <= index)
@@ -196,13 +196,13 @@ namespace TaffyScript.Collections
             return TsObject.Empty;
         }
 
-        public TsObject shuffle(ITsInstance inst, TsObject[] args)
+        public TsObject shuffle(TsObject[] args)
         {
             _source.Shuffle();
             return TsObject.Empty;
         }
 
-        public TsObject sort(ITsInstance inst, TsObject[] args)
+        public TsObject sort(TsObject[] args)
         {
             _source.Sort();
             return TsObject.Empty;

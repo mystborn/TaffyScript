@@ -17,20 +17,20 @@ namespace TaffyScript
         // in Resources/SpecialImports.resource
 
         [TaffyScriptMethod]
-        public static TsObject ToString(ITsInstance inst, TsObject[] args)
+        public static TsObject ToString(TsObject[] args)
         {
             return args[0].ToString();
         }
 
         [TaffyScriptMethod]
-        public static TsObject array_copy(ITsInstance inst, TsObject[] args)
+        public static TsObject array_copy(TsObject[] args)
         {
             Array.Copy(args[0].GetArray(), (int)args[1], args[2].GetArray(), (int)args[3], (int)args[4]);
             return TsObject.Empty;
         }
 
         [TaffyScriptMethod]
-        public static TsObject array_create(ITsInstance target, TsObject[] args)
+        public static TsObject array_create(TsObject[] args)
         {
             var size = args[0].GetInt();
             var value = TsObject.Empty;
@@ -44,7 +44,7 @@ namespace TaffyScript
         }
 
         [TaffyScriptMethod]
-        public static TsObject array_equals(ITsInstance inst, TsObject[] args)
+        public static TsObject array_equals(TsObject[] args)
         {
             var left = args[0].GetArray();
             var right = args[1].GetArray();
@@ -60,7 +60,7 @@ namespace TaffyScript
         }
 
         [TaffyScriptMethod]
-        public static TsObject array_length(ITsInstance inst, TsObject[] args)
+        public static TsObject array_length(TsObject[] args)
         {
             switch(args.Length)
             {
@@ -80,20 +80,20 @@ namespace TaffyScript
         }
 
         [TaffyScriptMethod]
-        public static TsObject print(ITsInstance inst, TsObject[] args)
+        public static TsObject print(TsObject[] args)
         {
             Console.WriteLine(args[0]);
             return TsObject.Empty;
         }
 
         [TaffyScriptMethod]
-        public static TsObject real(ITsInstance inst, TsObject[] args)
+        public static TsObject real(TsObject[] args)
         {
             return float.Parse((string)args[0]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject show_error(ITsInstance inst, TsObject[] args)
+        public static TsObject show_error(TsObject[] args)
         {
             var error = new UserDefinedException((string)args[0]);
             if ((bool)args[1])
@@ -104,7 +104,7 @@ namespace TaffyScript
         }
 
         [TaffyScriptMethod]
-        public static TsObject Typeof(ITsInstance inst, TsObject[] args)
+        public static TsObject Typeof(TsObject[] args)
         {
             switch (args[0].Type)
             {

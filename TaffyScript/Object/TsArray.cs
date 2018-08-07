@@ -70,7 +70,7 @@ namespace TaffyScript
                 case "get":
                     return Value[(int)args[0]];
                 case "get_length":
-                    return get_length(null, args);
+                    return get_length(args);
                 case "set":
                     Value[(int)args[0]] = args[1];
                     return Empty;
@@ -109,13 +109,13 @@ namespace TaffyScript
             switch (delegateName)
             {
                 case "get":
-                    del = new TsDelegate(get, delegateName, this);
+                    del = new TsDelegate(get, delegateName);
                     return true;
                 case "get_length":
-                    del = new TsDelegate(get, delegateName, this);
+                    del = new TsDelegate(get, delegateName);
                     return true;
                 case "set":
-                    del = new TsDelegate(set, delegateName, this);
+                    del = new TsDelegate(set, delegateName);
                     return true;
                 default:
                     del = null;
@@ -123,12 +123,12 @@ namespace TaffyScript
             }
         }
 
-        public TsObject get(ITsInstance inst, TsObject[] args)
+        public TsObject get(TsObject[] args)
         {
             return Value[(int)args[0]];
         }
 
-        public TsObject get_length(ITsInstance inst, TsObject[] args)
+        public TsObject get_length(TsObject[] args)
         {
             if(args is null)
                 return Value.Length;
@@ -149,7 +149,7 @@ namespace TaffyScript
             }
         }
 
-        public TsObject set(ITsInstance inst, TsObject[] args)
+        public TsObject set(TsObject[] args)
         {
             Value[(int)args[0]] = args[1];
             return Empty;

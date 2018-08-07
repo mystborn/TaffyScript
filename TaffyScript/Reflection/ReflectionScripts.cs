@@ -10,7 +10,7 @@ namespace TaffyScript.Reflection
     public static class ReflectionScripts
     {
         [TaffyScriptMethod]
-        public static TsObject call_global_script(ITsInstance inst, TsObject[] args)
+        public static TsObject call_global_script(TsObject[] args)
         {
             if (args.Length < 1)
                 throw new ArgumentException("You must pass at least a script name to script_execute.");
@@ -20,30 +20,17 @@ namespace TaffyScript.Reflection
             var parameters = new TsObject[args.Length - 1];
             if (parameters.Length != 0)
                 Array.Copy(args, 1, parameters, 0, parameters.Length);
-            return function.Invoke(inst, parameters);
+            return function.Invoke(parameters);
         }
 
         [TaffyScriptMethod]
-        public static TsObject call_instance_script(ITsInstance inst, TsObject[] args)
+        public static TsObject call_instance_script(TsObject[] args)
         {
-            if (TsReflection.TryGetScript((string)args[1], (string)args[2], out var ev))
-            {
-                TsObject[] copy;
-                if (args.Length > 3)
-                {
-                    copy = new TsObject[args.Length - 3];
-                    Array.Copy(args, 3, copy, 0, copy.Length);
-                }
-                else
-                    copy = null;
-
-                return ev.Invoke(args[0].GetInstance(), copy);
-            }
-            return TsObject.Empty;
+            throw new NotImplementedException();
         }
 
         [TaffyScriptMethod]
-        public static TsObject instance_create(ITsInstance inst, TsObject[] args)
+        public static TsObject instance_create(TsObject[] args)
         {
             var type = (string)args[0];
             if (!TsReflection.Constructors.TryGetValue(type, out var ctor))
@@ -59,13 +46,13 @@ namespace TaffyScript.Reflection
         }
 
         [TaffyScriptMethod]
-        public static TsObject instance_get_name(ITsInstance inst, TsObject[] args)
+        public static TsObject instance_get_name(TsObject[] args)
         {
             return args[0].GetInstance().ObjectType;
         }
 
         [TaffyScriptMethod]
-        public static TsObject instance_get_parent(ITsInstance inst, TsObject[] args)
+        public static TsObject instance_get_parent(TsObject[] args)
         {
             if (TsReflection.Inherits.TryGetValue(args[0].GetInstance().ObjectType, out var parent))
                 return parent;
@@ -73,7 +60,7 @@ namespace TaffyScript.Reflection
         }
 
         [TaffyScriptMethod]
-        public static TsObject instance_is(ITsInstance inst, TsObject[] args)
+        public static TsObject instance_is(TsObject[] args)
         {
             var type = args[0].GetInstance().ObjectType;
             var expectedType = (string)args[1];
@@ -87,37 +74,37 @@ namespace TaffyScript.Reflection
             return false;
         }
 
-        public static TsObject is_array(ITsInstance inst, TsObject[] args)
+        public static TsObject is_array(TsObject[] args)
         {
             return args[0].Type == VariableType.Array;
         }
 
-        public static TsObject is_instance(ITsInstance inst, TsObject[] args)
+        public static TsObject is_instance(TsObject[] args)
         {
             return args[0].Type == VariableType.Instance;
         }
 
-        public static TsObject is_null(ITsInstance inst, TsObject[] args)
+        public static TsObject is_null(TsObject[] args)
         {
             return args[0].Type == VariableType.Null;
         }
 
-        public static TsObject is_number(ITsInstance inst, TsObject[] args)
+        public static TsObject is_number(TsObject[] args)
         {
             return args[0].Type == VariableType.Real;
         }
 
-        public static TsObject is_script(ITsInstance inst, TsObject[] args)
+        public static TsObject is_script(TsObject[] args)
         {
             return args[0].Type == VariableType.Delegate;
         }
 
-        public static TsObject is_string(ITsInstance inst, TsObject[] args)
+        public static TsObject is_string(TsObject[] args)
         {
             return args[0].Type == VariableType.String;
         }
 
-        public static TsObject object_is_ancestor(ITsInstance inst, TsObject[] args)
+        public static TsObject object_is_ancestor(TsObject[] args)
         {
             var type = (string)args[1];
             var parent = (string)args[0];
@@ -132,22 +119,22 @@ namespace TaffyScript.Reflection
         }
 
         [TaffyScriptMethod]
-        public static TsObject script_exists(ITsInstance inst, TsObject[] args)
+        public static TsObject script_exists(TsObject[] args)
         {
             return TsReflection.GlobalScripts.ContainsKey((string)args[0]);
         }
 
-        public static TsObject variable_global_exists(ITsInstance inst, TsObject[] args)
+        public static TsObject variable_global_exists(TsObject[] args)
         {
             return TsInstance.Global._members.ContainsKey((string)args[0]);
         }
 
-        public static TsObject variable_global_get(ITsInstance inst, TsObject[] args)
+        public static TsObject variable_global_get(TsObject[] args)
         {
             return TsInstance.Global._members.TryGetValue((string)args[0], out var result) ? result : TsObject.Empty;
         }
 
-        public static TsObject variable_global_get_names(ITsInstance inst, TsObject[] args)
+        public static TsObject variable_global_get_names(TsObject[] args)
         {
             var arr = new TsObject[TsInstance.Global._members.Count];
             int i = 0;
@@ -157,13 +144,13 @@ namespace TaffyScript.Reflection
             return arr;
         }
 
-        public static TsObject variable_global_set(ITsInstance inst, TsObject[] args)
+        public static TsObject variable_global_set(TsObject[] args)
         {
             TsInstance.Global._members[(string)args[0]] = args[1];
             return TsObject.Empty;
         }
 
-        public static TsObject variable_instance_exists(ITsInstance inst, TsObject[] args)
+        public static TsObject variable_instance_exists(TsObject[] args)
         {
             var target = args[0].GetInstance();
             var name = args[1].GetString();
@@ -186,12 +173,12 @@ namespace TaffyScript.Reflection
             }
         }
 
-        public static TsObject variable_instance_get(ITsInstance inst, TsObject[] args)
+        public static TsObject variable_instance_get(TsObject[] args)
         {
             return args[0].GetInstance().GetMember((string)args[1]);
         }
 
-        public static TsObject variable_instance_get_names(ITsInstance inst, TsObject[] args)
+        public static TsObject variable_instance_get_names(TsObject[] args)
         {
             TsObject[] arr;
             int i;
@@ -216,7 +203,7 @@ namespace TaffyScript.Reflection
             }
         }
 
-        public static TsObject variable_instance_set(ITsInstance inst, TsObject[] args)
+        public static TsObject variable_instance_set(TsObject[] args)
         {
             args[0].GetInstance().SetMember((string)args[1], args[2]);
             return TsObject.Empty;

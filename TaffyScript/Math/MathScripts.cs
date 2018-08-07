@@ -21,13 +21,13 @@ namespace TaffyScript.Math
         public static int RandomSeed { get; private set; } = 123456789;
 
         [TaffyScriptMethod]
-        public static TsObject abs(ITsInstance inst, TsObject[] args)
+        public static TsObject abs(TsObject[] args)
         {
             return Maths.Abs((float)args[0]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject ceil(ITsInstance inst, TsObject[] args)
+        public static TsObject ceil(TsObject[] args)
         {
             return Maths.Ceiling((double)args[0]);
         }
@@ -41,38 +41,38 @@ namespace TaffyScript.Math
         }
 
         [TaffyScriptMethod]
-        public static TsObject clamp(ITsInstance inst, TsObject[] args)
+        public static TsObject clamp(TsObject[] args)
         {
             float val = (float)args[0], min = (float)args[1], max = (float)args[2];
             return val < min ? min : (val > max ? max : val);
         }
 
         [TaffyScriptMethod]
-        public static TsObject exp(ITsInstance inst, TsObject[] args)
+        public static TsObject exp(TsObject[] args)
         {
             return Maths.Exp((double)args[0]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject floor(ITsInstance inst, TsObject[] args)
+        public static TsObject floor(TsObject[] args)
         {
             return Maths.Floor((double)args[0]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject ln(ITsInstance inst, TsObject[] args)
+        public static TsObject ln(TsObject[] args)
         {
             return Maths.Log((double)args[0]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject log10(ITsInstance inst, TsObject[] args)
+        public static TsObject log10(TsObject[] args)
         {
             return Maths.Log10((double)args[0]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject logn(ITsInstance inst, TsObject[] args)
+        public static TsObject logn(TsObject[] args)
         {
             return Maths.Log((double)args[0], (double)args[1]);
         }
@@ -108,26 +108,26 @@ namespace TaffyScript.Math
         }
 
         [TaffyScriptMethod]
-        public static TsObject random(ITsInstance inst, TsObject[] args)
+        public static TsObject random(TsObject[] args)
         {
             return (float)Rng.NextDouble() * (float)args[0];
         }
 
         [TaffyScriptMethod]
-        public static TsObject random_get_seed(ITsInstance inst, TsObject[] args)
+        public static TsObject random_get_seed(TsObject[] args)
         {
             return RandomSeed;
         }
 
         [TaffyScriptMethod]
-        public static TsObject random_range(ITsInstance inst, TsObject[] args)
+        public static TsObject random_range(TsObject[] args)
         {
             var min = (float)args[0];
             return (float)Rng.NextDouble() * ((float)args[1] - min) + min;
         }
 
         [TaffyScriptMethod]
-        public static TsObject random_set_seed(ITsInstance inst, TsObject[] args)
+        public static TsObject random_set_seed(TsObject[] args)
         {
             var seed = (int)args[0];
             Rng = new Random(seed);
@@ -136,7 +136,7 @@ namespace TaffyScript.Math
         }
 
         [TaffyScriptMethod]
-        public static TsObject randomise(ITsInstance inst, TsObject[] args)
+        public static TsObject randomise(TsObject[] args)
         {
             int seed;
             unchecked
@@ -149,26 +149,26 @@ namespace TaffyScript.Math
         }
 
         [TaffyScriptMethod]
-        public static TsObject round(ITsInstance inst, TsObject[] args)
+        public static TsObject round(TsObject[] args)
         {
             return Maths.Round((double)args[0]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject sign(ITsInstance inst, TsObject[] args)
+        public static TsObject sign(TsObject[] args)
         {
             return Maths.Sign((float)args[0]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject sqr(ITsInstance inst, TsObject[] args)
+        public static TsObject sqr(TsObject[] args)
         {
             var n = (float)args[0];
             return n * n;
         }
 
         [TaffyScriptMethod]
-        public static TsObject sqrt(ITsInstance inst, TsObject[] args)
+        public static TsObject sqrt(TsObject[] args)
         {
             return Maths.Sqrt((double)args[0]);
         }
