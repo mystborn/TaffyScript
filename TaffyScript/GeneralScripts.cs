@@ -13,19 +13,19 @@ namespace TaffyScript
     public static class GeneralScripts
     {
         [TaffyScriptMethod]
-        public static TsObject base64_decode(ITsInstance inst, TsObject[] args)
+        public static TsObject base64_decode(TsObject[] args)
         {
             return Encoding.Unicode.GetString(Convert.FromBase64String((string)args[0]));
         }
 
         [TaffyScriptMethod]
-        public static TsObject base64_encode(ITsInstance inst, TsObject[] args)
+        public static TsObject base64_encode(TsObject[] args)
         {
             return Convert.ToBase64String(Encoding.Unicode.GetBytes((string)args[0]));
         }
 
         [TaffyScriptMethod]
-        public static TsObject environment_get_variable(ITsInstance inst, TsObject[] args)
+        public static TsObject environment_get_variable(TsObject[] args)
         {
             return Environment.GetEnvironmentVariable((string)args[0]);
         }

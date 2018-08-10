@@ -12,7 +12,7 @@ namespace TaffyScript
     /// <param name="target">The target of the script.</param>
     /// <param name="args">The script arguments.</param>
     /// <returns>The scripts result.</returns>
-    public delegate TsObject TsScript(ITsInstance target, TsObject[] args);
+    public delegate TsObject TsScript(TsObject[] args);
 
     /// <summary>
     /// Language friendly wrapper over a <see cref="TsScript"/>.
@@ -27,7 +27,7 @@ namespace TaffyScript
         /// <summary>
         /// The target of the wrapped script.
         /// </summary>
-        public ITsInstance Target { get; private set; }
+        public ITsInstance Target => Script.Target as ITsInstance;
 
         /// <summary>
         /// The name of the wrapped script.
@@ -38,28 +38,8 @@ namespace TaffyScript
 
         public TsDelegate(TsScript script, string name)
         {
-            Target = null;
             Script = script;
             Name = name;
-        }
-
-        public TsDelegate(TsScript script, string name, ITsInstance target)
-        {
-            Target = target;
-            Script = script;
-            Name = name;
-        }
-
-        /// <summary>
-        /// Creates a copy of a TsDelegate with a new target.
-        /// </summary>
-        /// <param name="original"></param>
-        /// <param name="target"></param>
-        public TsDelegate(TsDelegate original, ITsInstance target)
-        {
-            Script = original.Script;
-            Name = original.Name;
-            Target = target;
         }
 
         /// <summary>
@@ -72,18 +52,7 @@ namespace TaffyScript
             // If the script needs a target, get it from the first index of the args array.
             // This will make it easier to invoke Delegates from TS.
 
-            return Script(Target, args);
-        }
-
-        /// <summary>
-        /// Invokes the wrapped script with the specified target and arguments.
-        /// </summary>
-        /// <param name="target"></param>
-        /// <param name="args"></param>
-        /// <returns></returns>
-        public TsObject Invoke(ITsInstance target, params TsObject[] args)
-        {
-            return Script(target, args);
+            return Script(args);
         }
 
         public override bool Equals(object obj)

@@ -10,7 +10,7 @@ namespace TaffyScript.Strings
     public static class StringMethods
     {
         [TaffyScriptMethod]
-        public static TsObject string_char_at(ITsInstance inst, TsObject[] args)
+        public static TsObject string_char_at(TsObject[] args)
         {
             var str = (string)args[0];
             var index = (int)args[1];
@@ -18,13 +18,13 @@ namespace TaffyScript.Strings
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_copy(ITsInstance inst, TsObject[] args)
+        public static TsObject string_copy(TsObject[] args)
         {
             return args[0].GetString().Substring((int)args[1], (int)args[2]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_count(ITsInstance inst, TsObject[] args)
+        public static TsObject string_count(TsObject[] args)
         {
             var str = (string)args[0];
             var subString = (string)args[1];
@@ -35,13 +35,13 @@ namespace TaffyScript.Strings
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_delete(ITsInstance inst, TsObject[] args)
+        public static TsObject string_delete(TsObject[] args)
         {
             return args[0].GetString().Remove((int)args[1], (int)args[2]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_digits(ITsInstance inst, TsObject[] args)
+        public static TsObject string_digits(TsObject[] args)
         {
             var str = (string)args[0];
 
@@ -58,13 +58,13 @@ namespace TaffyScript.Strings
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_insert(ITsInstance inst, TsObject[] args)
+        public static TsObject string_insert(TsObject[] args)
         {
             return args[0].GetString().Insert((int)args[2], (string)args[1]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_join(ITsInstance inst, TsObject[] args)
+        public static TsObject string_join(TsObject[] args)
         {
             if (args.Length == 1)
                 return "";
@@ -78,13 +78,13 @@ namespace TaffyScript.Strings
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_length(ITsInstance inst, TsObject[] args)
+        public static TsObject string_length(TsObject[] args)
         {
             return args[0].GetString().Length;
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_letters(ITsInstance inst, TsObject[] args)
+        public static TsObject string_letters(TsObject[] args)
         {
             var str = (string)args[0];
 
@@ -100,7 +100,7 @@ namespace TaffyScript.Strings
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_letters_digits(ITsInstance inst, TsObject[] args)
+        public static TsObject string_letters_digits(TsObject[] args)
         {
             var str = (string)args[0];
 
@@ -116,25 +116,25 @@ namespace TaffyScript.Strings
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_lower(ITsInstance inst, TsObject[] args)
+        public static TsObject string_lower(TsObject[] args)
         {
             return args[0].GetString().ToLower();
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_ord_at(ITsInstance inst, TsObject[] args)
+        public static TsObject string_ord_at(TsObject[] args)
         {
             return (float)args[0].GetString()[(int)args[1]];
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_pos(ITsInstance inst, TsObject[] args)
+        public static TsObject string_pos(TsObject[] args)
         {
             return args[0].GetString().IndexOf((string)args[1]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_repeat(ITsInstance inst, TsObject[] args)
+        public static TsObject string_repeat(TsObject[] args)
         {
             var str = (string)args[0];
             var count = (int)args[1];
@@ -147,7 +147,7 @@ namespace TaffyScript.Strings
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_replace(ITsInstance inst, TsObject[] args)
+        public static TsObject string_replace(TsObject[] args)
         {
             var str = (string)args[0];
             var subString = (string)args[1];
@@ -158,13 +158,13 @@ namespace TaffyScript.Strings
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_replace_all(ITsInstance inst, TsObject[] args)
+        public static TsObject string_replace_all(TsObject[] args)
         {
             return args[0].GetString().Replace((string)args[1], (string)args[2]);
         }
 
         [TaffyScriptMethod]
-        public static TsObject string_upper(ITsInstance inst, TsObject[] args)
+        public static TsObject string_upper(TsObject[] args)
         {
             return args[0].GetString().ToUpper();
         }

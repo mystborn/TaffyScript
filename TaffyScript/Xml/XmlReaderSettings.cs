@@ -120,10 +120,10 @@ namespace TaffyScript.Xml
             switch(delegateName)
             {
                 case "clone":
-                    del = new TsDelegate(clone, "clone", this);
+                    del = new TsDelegate(clone, "clone");
                     return true;
                 case "reset":
-                    del = new TsDelegate(reset, "reset", this);
+                    del = new TsDelegate(reset, "reset");
                     return true;
                 default:
                     del = null;
@@ -141,20 +141,20 @@ namespace TaffyScript.Xml
             switch (scriptName)
             {
                 case "clone":
-                    return clone(null, args);
+                    return clone(args);
                 case "reset":
-                    return reset(null, args);
+                    return reset(args);
                 default:
                     throw new MissingMethodException(ObjectType, scriptName);
             }
         }
 
-        public TsObject clone(ITsInstance inst, TsObject[] args)
+        public TsObject clone(TsObject[] args)
         {
             return new XmlReaderSettings(Settings.Clone());
         }
 
-        public TsObject reset(ITsInstance inst, TsObject[] args)
+        public TsObject reset(TsObject[] args)
         {
             Settings.Reset();
             return TsObject.Empty;

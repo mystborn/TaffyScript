@@ -79,70 +79,70 @@ namespace TaffyScript
             switch (scriptName)
             {
                 case "contains":
-                    del = new TsDelegate(contains, scriptName, this);
+                    del = new TsDelegate(contains, scriptName);
                     return true;
                 case "copy":
-                    del = new TsDelegate(copy, scriptName, this);
+                    del = new TsDelegate(copy, scriptName);
                     return true;
                 case "count":
-                    del = new TsDelegate(count, scriptName, this);
+                    del = new TsDelegate(count, scriptName);
                     return true;
                 case "delete":
-                    del = new TsDelegate(delete, scriptName, this);
+                    del = new TsDelegate(delete, scriptName);
                     return true;
                 case "digits":
-                    del = new TsDelegate(digits, scriptName, this);
+                    del = new TsDelegate(digits, scriptName);
                     return true;
                 case "duplicate":
-                    del = new TsDelegate(duplicate, scriptName, this);
+                    del = new TsDelegate(duplicate, scriptName);
                     return true;
                 case "ends_with":
-                    del = new TsDelegate(ends_with, scriptName, this);
+                    del = new TsDelegate(ends_with, scriptName);
                     return true;
                 case "get":
-                    del = new TsDelegate(get, scriptName, null);
+                    del = new TsDelegate(get, scriptName);
                     return true;
                 case "index_of":
-                    del = new TsDelegate(index_of, scriptName, this);
+                    del = new TsDelegate(index_of, scriptName);
                     return true;
                 case "insert":
-                    del = new TsDelegate(insert, scriptName, this);
+                    del = new TsDelegate(insert, scriptName);
                     return true;
                 case "last_index_of":
-                    del = new TsDelegate(last_index_of, scriptName, this);
+                    del = new TsDelegate(last_index_of, scriptName);
                     return true;
                 case "letters":
-                    del = new TsDelegate(letters, scriptName, this);
+                    del = new TsDelegate(letters, scriptName);
                     return true;
                 case "letters_digits":
-                    del = new TsDelegate(letters_digits, scriptName, this);
+                    del = new TsDelegate(letters_digits, scriptName);
                     return true;
                 case "lower":
-                    del = new TsDelegate(lower, scriptName, this);
+                    del = new TsDelegate(lower, scriptName);
                     return true;
                 case "ord":
-                    del = new TsDelegate(ord, scriptName, this);
+                    del = new TsDelegate(ord, scriptName);
                     return true;
                 case "replace":
-                    del = new TsDelegate(replace, scriptName, this);
+                    del = new TsDelegate(replace, scriptName);
                     return true;
                 case "replace_all":
-                    del = new TsDelegate(replace_all, scriptName, this);
+                    del = new TsDelegate(replace_all, scriptName);
                     return true;
                 case "starts_with":
-                    del = new TsDelegate(starts_with, scriptName, this);
+                    del = new TsDelegate(starts_with, scriptName);
                     return true;
                 case "trim":
-                    del = new TsDelegate(trim, scriptName, this);
+                    del = new TsDelegate(trim, scriptName);
                     return true;
                 case "trim_end":
-                    del = new TsDelegate(trim_end, scriptName, this);
+                    del = new TsDelegate(trim_end, scriptName);
                     return true;
                 case "trim_start":
-                    del = new TsDelegate(trim_start, scriptName, this);
+                    del = new TsDelegate(trim_start, scriptName);
                     return true;
                 case "upper":
-                    del = new TsDelegate(upper, scriptName, this);
+                    del = new TsDelegate(upper, scriptName);
                     return true;
                 default:
                     del = null;
@@ -162,60 +162,60 @@ namespace TaffyScript
             switch(scriptName)
             {
                 case "contains":
-                    return contains(null, args);
+                    return contains(args);
                 case "copy":
-                    return copy(null, args);
+                    return copy(args);
                 case "count":
-                    return count(null, args);
+                    return count(args);
                 case "delete":
-                    return delete(null, args);
+                    return delete(args);
                 case "digits":
-                    return digits(null, args);
+                    return digits(args);
                 case "duplicate":
-                    return duplicate(null, args);
+                    return duplicate(args);
                 case "ends_with":
-                    return ends_with(null, args);
+                    return ends_with(args);
                 case "get":
-                    return get(null, args);
+                    return get(args);
                 case "index_of":
-                    return index_of(null, args);
+                    return index_of(args);
                 case "insert":
-                    return insert(null, args);
+                    return insert(args);
                 case "last_index_of":
-                    return last_index_of(null, args);
+                    return last_index_of(args);
                 case "letters":
-                    return letters(null, args);
+                    return letters(args);
                 case "letters_digits":
-                    return letters_digits(null, args);
+                    return letters_digits(args);
                 case "lower":
-                    return lower(null, args);
+                    return lower(args);
                 case "ord":
-                    return ord(null, args);
+                    return ord(args);
                 case "replace":
-                    return replace(null, args);
+                    return replace(args);
                 case "replace_all":
-                    return replace_all(null, args);
+                    return replace_all(args);
                 case "starts_with":
-                    return starts_with(null, args);
+                    return starts_with(args);
                 case "trim":
-                    return trim(null, args);
+                    return trim(args);
                 case "trim_end":
-                    return trim_end(null, args);
+                    return trim_end(args);
                 case "trim_start":
-                    return trim_start(null, args);
+                    return trim_start(args);
                 case "upper":
-                    return upper(null, args);
+                    return upper(args);
                 default:
                     throw new MissingMethodException(ObjectType, scriptName);
             }
         }
 
-        public TsObject contains(ITsInstance inst, TsObject[] args)
+        public TsObject contains(TsObject[] args)
         {
             return Value.Contains((string)args[0]);
         }
 
-        public TsObject copy(ITsInstance inst, TsObject[] args)
+        public TsObject copy(TsObject[] args)
         {
             if (args is null)
                 return string.Copy(Value);
@@ -231,7 +231,7 @@ namespace TaffyScript
             }
         }
 
-        public TsObject count(ITsInstance inst, TsObject[] args)
+        public TsObject count(TsObject[] args)
         {
             var subString = (string)args[0];
 
@@ -240,12 +240,12 @@ namespace TaffyScript
             return (Value.Length - Value.Replace(subString, "").Length) / subString.Length;
         }
 
-        public TsObject delete(ITsInstance isnt, TsObject[] args)
+        public TsObject delete(TsObject[] args)
         {
             return Value.Remove((int)args[0], (int)args[1]);
         }
 
-        public TsObject digits(ITsInstance inst, TsObject[] args)
+        public TsObject digits(TsObject[] args)
         {
             // Test with regex to see if that's faster.
             // return System.Text.RegularExpressions.Regex.Replace(Value, @"[^\d]", "");
@@ -259,7 +259,7 @@ namespace TaffyScript
             return sb.ToString();
         }
 
-        public TsObject duplicate(ITsInstance inst, TsObject[] args)
+        public TsObject duplicate(TsObject[] args)
         {
             var count = (int)args[0];
 
@@ -270,32 +270,32 @@ namespace TaffyScript
             return sb.ToString();
         }
 
-        public TsObject ends_with(ITsInstance inst, TsObject[] args)
+        public TsObject ends_with(TsObject[] args)
         {
             return Value.EndsWith((string)args[0]);
         }
 
-        public TsObject get(ITsInstance inst, TsObject[] args)
+        public TsObject get(TsObject[] args)
         {
             return Value[(int)args[0]];
         }
 
-        public TsObject index_of(ITsInstance inst, TsObject[] args)
+        public TsObject index_of(TsObject[] args)
         {
             return args.Length == 1 ? Value.IndexOf((string)args[0]) : Value.IndexOf((string)args[0], (int)args[1]);
         }
 
-        public TsObject insert(ITsInstance inst, TsObject[] args)
+        public TsObject insert(TsObject[] args)
         {
             return Value.Insert((int)args[0], (string)args[1]);
         }
 
-        public TsObject last_index_of(ITsInstance inst, TsObject[] args)
+        public TsObject last_index_of(TsObject[] args)
         {
             return args.Length == 1 ? Value.LastIndexOf((string)args[0]) : Value.LastIndexOf((string)args[0], (int)args[1]);
         }
 
-        public TsObject letters(ITsInstance inst, TsObject[] args)
+        public TsObject letters(TsObject[] args)
         {
             // Test with regex to see if that's faster.
             // return System.Text.RegularExpressions.Regex.Replace(Value, @"[^a-zA-Z]", "");
@@ -308,7 +308,7 @@ namespace TaffyScript
             return sb.ToString();
         }
 
-        public TsObject letters_digits(ITsInstance inst, TsObject[] args)
+        public TsObject letters_digits(TsObject[] args)
         {
             //Test with regex to see if that's faster.
             //return System.Text.RegularExpressions.Regex.Replace(Value, @"[^a-zA-Z\d]", "");
@@ -321,17 +321,17 @@ namespace TaffyScript
             return sb.ToString();
         }
 
-        public TsObject lower(ITsInstance inst, TsObject[] args)
+        public TsObject lower(TsObject[] args)
         {
             return Value.ToLower();
         }
 
-        public TsObject ord(ITsInstance inst, TsObject[] args)
+        public TsObject ord(TsObject[] args)
         {
             return (Number)Value[(int)args[0]];
         }
 
-        public TsObject replace(ITsInstance inst, TsObject[] args)
+        public TsObject replace(TsObject[] args)
         {
             var subString = (string)args[0];
             var newString = (string)args[1];
@@ -340,17 +340,17 @@ namespace TaffyScript
             return index != -1 ? Value.Substring(0, index) + newString + Value.Substring(index + subString.Length) : Value;
         }
 
-        public TsObject replace_all(ITsInstance inst, TsObject[] args)
+        public TsObject replace_all(TsObject[] args)
         {
             return Value.Replace((string)args[0], (string)args[1]);
         }
 
-        public TsObject starts_with(ITsInstance inst, TsObject[] args)
+        public TsObject starts_with(TsObject[] args)
         {
             return Value.StartsWith((string)args[0]);
         }
 
-        public TsObject trim(ITsInstance inst, TsObject[] args)
+        public TsObject trim(TsObject[] args)
         {
             if (args is null)
                 return Value.Trim();
@@ -361,7 +361,7 @@ namespace TaffyScript
             return Value.Trim(characters);
         }
 
-        public TsObject trim_end(ITsInstance inst, TsObject[] args)
+        public TsObject trim_end(TsObject[] args)
         {
             if (args is null)
                 return Value.TrimEnd();
@@ -372,7 +372,7 @@ namespace TaffyScript
             return Value.TrimEnd(characters);
         }
 
-        public TsObject trim_start(ITsInstance inst, TsObject[] args)
+        public TsObject trim_start(TsObject[] args)
         {
             if (args is null)
                 return Value.TrimStart();
@@ -383,7 +383,7 @@ namespace TaffyScript
             return Value.TrimStart(characters);
         }
 
-        public TsObject upper(ITsInstance inst, TsObject[] args)
+        public TsObject upper(TsObject[] args)
         {
             return Value.ToUpper();
         }

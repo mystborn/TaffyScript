@@ -93,22 +93,22 @@ namespace TaffyScript.Collections
             switch(delegateName)
             {
                 case "get":
-                    del = new TsDelegate(get, "get", this);
+                    del = new TsDelegate(get, "get");
                     return true;
                 case "set":
-                    del = new TsDelegate(set, "set", this);
+                    del = new TsDelegate(set, "set");
                     return true;
                 case "add":
-                    del = new TsDelegate(add, "add", this);
+                    del = new TsDelegate(add, "add");
                     return true;
                 case "clear":
-                    del = new TsDelegate(clear, "clear", this);
+                    del = new TsDelegate(clear, "clear");
                     return true;
                 case "remove":
-                    del = new TsDelegate(remove, "remove", this);
+                    del = new TsDelegate(remove, "remove");
                     return true;
                 case "contains_key":
-                    del = new TsDelegate(contains_key, "contains_key", this);
+                    del = new TsDelegate(contains_key, "contains_key");
                     return true;
                 default:
                     del = null;
@@ -128,18 +128,18 @@ namespace TaffyScript.Collections
 
 #pragma warning disable IDE1006 // Naming Styles
 
-        public TsObject get(ITsInstance inst, params TsObject[] args)
+        public TsObject get(params TsObject[] args)
         {
             return _source[args[0]];
         }
 
-        public TsObject set(ITsInstance inst, params TsObject[] args)
+        public TsObject set(params TsObject[] args)
         {
             _source[args[0]] = args[1];
             return TsObject.Empty;
         }
 
-        public TsObject add(ITsInstance inst, params TsObject[] args)
+        public TsObject add(params TsObject[] args)
         {
             if (_source.ContainsKey(args[0]))
                 return false;
@@ -148,23 +148,23 @@ namespace TaffyScript.Collections
             return true;
         }
 
-        public TsObject clear(ITsInstance inst, params TsObject[] args)
+        public TsObject clear(params TsObject[] args)
         {
             _source.Clear();
             return TsObject.Empty;
         }
 
-        public TsObject remove(ITsInstance inst, params TsObject[] args)
+        public TsObject remove(params TsObject[] args)
         {
             return _source.Remove(args[0]);
         }
 
-        public TsObject contains_key(ITsInstance inst, params TsObject[] args)
+        public TsObject contains_key(params TsObject[] args)
         {
             return _source.ContainsKey(args[0]);
         }
 
-        public TsObject copy(ITsInstance inst, params TsObject[] args)
+        public TsObject copy(params TsObject[] args)
         {
             return new TsMap(_source);
         }

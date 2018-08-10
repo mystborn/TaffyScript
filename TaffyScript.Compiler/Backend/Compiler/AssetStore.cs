@@ -71,7 +71,12 @@ namespace TaffyScript.Compiler.Backend
                     if (obj.Children.ContainsKey(methodName))
                     {
                         var builder = info.Type as TypeBuilder;
-                        method = builder.DefineMethod(methodName, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), TsTypes.ArgumentTypes);
+                        MethodAttributes flags = (GetInstanceMethod(obj.Inherits, methodName) is null ? MethodAttributes.NewSlot : 0) 
+                            | MethodAttributes.Virtual 
+                            | MethodAttributes.Public
+                            | MethodAttributes.HideBySig;
+                    
+                        method = builder.DefineMethod(methodName, flags, typeof(TsObject), TsTypes.ArgumentTypes);
                     }
                     else if (obj.Inherits != null)
                     {
@@ -85,7 +90,7 @@ namespace TaffyScript.Compiler.Backend
                 }
                 else
                 {
-                    method = info.Type.GetMethod(methodName, BindingFlags.FlattenHierarchy | BindingFlags.Public | BindingFlags.Static, null, TsTypes.ArgumentTypes, null);
+                    method = info.Type.GetMethod(methodName, BindingFlags.FlattenHierarchy | BindingFlags.Public | BindingFlags.Instance, null, TsTypes.ArgumentTypes, null);
                     if (method is null)
                     {
                         _logger.Error("Tried to call script that doesn't exist", position);
@@ -95,6 +100,42 @@ namespace TaffyScript.Compiler.Backend
                 info.Methods.Add(methodName, method);
             }
 
+            return method;
+        }
+
+        private MethodInfo GetInstanceMethod(ISymbol typeSymbol, string methodName)
+        {
+            if (typeSymbol is null)
+                return null;
+
+            var info = GetObjectInfo(typeSymbol, null);
+            
+            if(!info.Methods.TryGetValue(methodName, out var method))
+            {
+                if (typeSymbol is ObjectSymbol obj)
+                {
+                    if (obj.Children.ContainsKey(methodName))
+                    {
+                        var builder = info.Type as TypeBuilder;
+
+                        MethodAttributes flags = (GetInstanceMethod(obj.Inherits, methodName) is null ? MethodAttributes.NewSlot : 0)
+                            | MethodAttributes.Virtual
+                            | MethodAttributes.Public
+                            | MethodAttributes.HideBySig;
+
+                        method = builder.DefineMethod(methodName, flags, typeof(TsObject), TsTypes.ArgumentTypes);
+                    }
+                    else if (obj.Inherits != null)
+                        method = GetInstanceMethod(obj.Inherits, methodName);
+                    else
+                        return null;
+                }
+                else
+                    method = info.Type.GetMethod(methodName, BindingFlags.FlattenHierarchy | BindingFlags.Public | BindingFlags.Instance, null, TsTypes.ArgumentTypes, null);
+
+                if(method != null)
+                    info.Methods.Add(methodName, method);
+            }
             return method;
         }
 
@@ -114,6 +155,7 @@ namespace TaffyScript.Compiler.Backend
                 if (symbol is ObjectSymbol os)
                 {
                     info = GenerateType(os, position);
+                    _definedTypes.Add(symbol, info);
                 }
                 else if (symbol is ImportObjectLeaf leaf)
                 {
