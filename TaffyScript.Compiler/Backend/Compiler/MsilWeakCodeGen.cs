@@ -54,6 +54,7 @@ namespace TaffyScript.Compiler.Backend
         private readonly DotNetTypeParser _typeParser;
         private string _entryPoint;
         private string _projectName;
+        private TargetCpu _targetCpu;
 
         private SymbolTable _table;
         private IErrorLogger _logger;
@@ -211,6 +212,7 @@ namespace TaffyScript.Compiler.Backend
             _table = table;
             _resolver = resolver;
             _isDebug = config.Mode == CompileMode.Debug;
+            _targetCpu = config.Target;
             _asmName = new AssemblyName(System.IO.Path.GetFileName(config.Output));
             _asm = AppDomain.CurrentDomain.DefineDynamicAssembly(_asmName, AssemblyBuilderAccess.Save);
             _asm.DefineVersionInfoResource(config.Product, config.Version, config.Company, config.Copyright, config.Trademark);
@@ -343,7 +345,11 @@ namespace TaffyScript.Compiler.Backend
                 _module.DefineManifestResource(SpecialImportsFileName, _stream, ResourceAttributes.Public);
             }
 
-            _asm.Save(_asmName.Name + output);
+            if(_targetCpu == TargetCpu.x86)
+                _asm.Save(_asmName.Name + output, PortableExecutableKinds.ILOnly, ImageFileMachine.I386);
+            else
+                _asm.Save(_asmName.Name + output, PortableExecutableKinds.ILOnly, ImageFileMachine.AMD64);
+
 
             //Dispose any dynamic resources.
             if (_specialImports != null)
@@ -359,7 +365,7 @@ namespace TaffyScript.Compiler.Backend
 
 #endregion
 
-        #region Helpers
+#region Helpers
 
         private void ProcessStrongAssembly(Assembly asm)
         {
@@ -939,9 +945,9 @@ namespace TaffyScript.Compiler.Backend
             }
         }
 
-        #endregion
+#endregion
 
-        #region Visitor
+#region Visitor
 
         public void Visit(AdditiveNode additive)
         {
@@ -3810,7 +3816,7 @@ namespace TaffyScript.Compiler.Backend
                     .New(ctor)
                     .Ret();
 
-                _assets.AddObjectInfo(leaf, new ObjectInfo(importType, null, null, ctor, null, null));
+                _assets.AddObjectInfo(leaf, new ObjectInfo(importType, null, null, ctor, null));
 
                 Initializer.Call(typeof(TsReflection).GetMethod("get_Constructors"))
                            .LdStr(name)
@@ -4288,7 +4294,7 @@ namespace TaffyScript.Compiler.Backend
             type.SetCustomAttribute(defaultMember);
 
             type.CreateType();
-            _assets.AddObjectInfo(leaf, new ObjectInfo(type, null, tryGetDelegateMethod, null, leaf.ImportObject.WeaklyTyped ? members : null, null));
+            _assets.AddObjectInfo(leaf, new ObjectInfo(type, null, tryGetDelegateMethod, null, leaf.ImportObject.WeaklyTyped ? members : null));
         }
 
         private void AddFieldToTypeWrapper(FieldInfo field, TypeBuilder type, string importName, TokenPosition position, FieldInfo source, ILEmitter getm, ILEmitter setm)

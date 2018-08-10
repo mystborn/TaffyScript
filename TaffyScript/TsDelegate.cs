@@ -34,6 +34,8 @@ namespace TaffyScript
         /// </summary>
         public string Name { get; }
 
+        // Todo: Switch these two parameters for more efficient opcodes.
+
         public TsDelegate(TsScript script, string name)
         {
             Target = null;

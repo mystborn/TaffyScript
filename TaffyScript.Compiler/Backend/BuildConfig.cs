@@ -29,6 +29,7 @@ namespace TaffyScript.Compiler.Backend
         public string Trademark { get; set; } = "";
         public string Description { get; set; } = "";
 
+        public TargetCpu Target { get; set; } = TargetCpu.x86;
         public CompileMode Mode { get; set; } = CompileMode.Debug;
 
         public void Save(string path)
@@ -40,5 +41,11 @@ namespace TaffyScript.Compiler.Backend
                 serializer.Serialize(sw, this);
             }
         }
+    }
+
+    public enum TargetCpu
+    {
+        x86,
+        x64
     }
 }

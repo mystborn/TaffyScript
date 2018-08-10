@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
 using System.Reflection.Emit;
+using TaffyScript.Strings;
 
 namespace TaffyScript.Compiler.Backend
 {
@@ -46,7 +47,7 @@ namespace TaffyScript.Compiler.Backend
 
         public void AddExternalType(ISymbol symbol, Type type)
         {
-            _definedTypes.Add(symbol, new ObjectInfo(type, null, null, null, null, null));
+            _definedTypes.Add(symbol, new ObjectInfo(type, null, null, null, null));
         }
 
         public void AddObjectInfo(ISymbol symbol, ObjectInfo info)
@@ -130,40 +131,11 @@ namespace TaffyScript.Compiler.Backend
         {
             var parentConstructor = parent == null ? _baseConstructor : GetConstructor(parent, position);
             var type = (TypeBuilder)info.Type;
-            var staticCtor = type.DefineTypeInitializer();
-            var ctor = new ILEmitter(staticCtor, Type.EmptyTypes);
-            ctor.New(typeof(Dictionary<string, TsDelegate>).GetConstructor(Type.EmptyTypes));
-            var hadCreate = false;
-            for (var i = 0; i < scripts.Count; i++)
-            {
-                var script = scripts[i];
-                var name = script.Name;
 
-                ctor.Dup()
-                    .LdStr(name)
-                    .LdNull()
-                    .LdFtn(script)
-                    .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                    .LdStr(name)
-                    .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                    .Call(typeof(Dictionary<string, TsDelegate>).GetMethod("Add"));
+            GenerateConstructor(info, parentConstructor, scripts.FirstOrDefault(m => m.Name == "create"));
+            GenerateTryGetDelegate(info, scripts);
 
-                if (name == "create")
-                {
-                    GenerateConstructor(info, parentConstructor, script);
-                    hadCreate = true;
-                }
-            }
-
-            if (!hadCreate)
-                GenerateConstructor(info, parentConstructor, null);
-
-            ctor.StFld(info.Scripts)
-                .Ret();
-
-            GenerateInitializeMethod(info);
-
-            var attrib = new CustomAttributeBuilder(typeof(TaffyScriptObjectAttribute).GetConstructor(Type.EmptyTypes), new Type[] { });
+            var attrib = new CustomAttributeBuilder(typeof(TaffyScriptObjectAttribute).GetConstructor(Type.EmptyTypes), Type.EmptyTypes);
             type.SetCustomAttribute(attrib);
         }
 
@@ -206,9 +178,14 @@ namespace TaffyScript.Compiler.Backend
             }
             else
                 members = _baseMemberField;
-
-            var scripts = builder.DefineField("_scripts", typeof(Dictionary<string, TsDelegate>), FieldAttributes.Private | FieldAttributes.Static);
-            var tryGetDelegate = GenerateTryGetDelegate(builder, members, scripts, GetTryGetDelegate(parent));
+            
+            var tryGetDelegate = builder.DefineMethod("TryGetDelegate",
+                                                     MethodAttributes.Public |
+                                                         MethodAttributes.HideBySig |
+                                                         MethodAttributes.Virtual,
+                                                     typeof(bool),
+                                                     new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
+            tryGetDelegate.DefineParameter(2, ParameterAttributes.Out, "del");
             var constructor = builder.DefineConstructor(MethodAttributes.Public |
                                                             MethodAttributes.HideBySig |
                                                             MethodAttributes.SpecialName |
@@ -216,7 +193,7 @@ namespace TaffyScript.Compiler.Backend
                                                         CallingConventions.HasThis,
                                                         new[] { typeof(TsObject[]) });
             GenerateObjectType(builder);
-            var info = new ObjectInfo(builder, parent?.Type ?? _baseType, tryGetDelegate, constructor, members, scripts);
+            var info = new ObjectInfo(builder, parent, tryGetDelegate, constructor, members);
             _definedTypes.Add(os, info);
 
             return info;
@@ -252,35 +229,6 @@ namespace TaffyScript.Compiler.Backend
                 .Ret();
 
             objectType.SetGetMethod(get);
-        }
-
-        private void GenerateInitializeMethod(ObjectInfo info)
-        {
-            var builder = (TypeBuilder)info.Type;
-            var init = builder.DefineMethod("Initialize",
-                                            MethodAttributes.Assembly |
-                                                MethodAttributes.HideBySig |
-                                                MethodAttributes.Static,
-                                            typeof(ObjectDefinition),
-                                            Type.EmptyTypes);
-
-            var emit = new ILEmitter(init, Type.EmptyTypes);
-            emit.LdStr(builder.FullName);
-
-            if (info.Parent == null || info.Parent == _baseType)
-                emit.LdNull();
-            else
-                emit.LdStr(info.Parent.FullName);
-
-            emit.LdFld(info.Scripts)
-                .LdNull()
-                .LdFtn(info.Create)
-                .New(typeof(Func<TsObject[], ITsInstance>).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                .New(_definitionConstructor)
-                .Ret();
-
-            _moduleInitializer.Call(init, 0, typeof(ObjectDefinition))
-                              .Call(_processDefintion);
         }
 
         private void GenerateConstructor(ObjectInfo info, ConstructorInfo parentConstructor, MethodInfo createScript)
@@ -330,48 +278,132 @@ namespace TaffyScript.Compiler.Backend
             info.Create = create;
         }
 
-        private MethodInfo GenerateTryGetDelegate(TypeBuilder type, FieldInfo members, FieldInfo scripts, MethodInfo parentMethod)
+        private void GenerateTryGetDelegate(ObjectInfo info, List<MethodInfo> scripts)
         {
+            var mthd = new ILEmitter((MethodBuilder)info.TryGetDelegate, new[] { info.Type, typeof(string), typeof(TsDelegate).MakeByRefType() });
 
-            MethodBuilder tryGetDelegateMethod;
-            tryGetDelegateMethod = type.DefineMethod("TryGetDelegate",
-                                                     MethodAttributes.Public |
-                                                         MethodAttributes.HideBySig |
-                                                         MethodAttributes.Virtual,
-                                                     typeof(bool),
-                                                     new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
-            tryGetDelegateMethod.DefineParameter(2, ParameterAttributes.Out, "del");
+            if (scripts.Count == 0)
+            {
+                TryGetDelegateDefaultCase(mthd, info.Parent?.TryGetDelegate, info.Members);
+                return;
+            }
 
-            var mthd = new ILEmitter(tryGetDelegateMethod, new[] { type, typeof(string), typeof(TsDelegate).MakeByRefType() });
-            var member = mthd.DeclareLocal(typeof(TsObject), "member");
-            var memberLookupFailed = mthd.DefineLabel();
-            var memberRightType = mthd.DefineLabel();
-            var scriptLookupFailed = mthd.DefineLabel();
-            mthd.LdFld(scripts)
+            // Originally tried to use built-in hash function first,
+            // but the only feasible way for that to work would be
+            // to force a 32bit architecture, because the builtin hash
+            // is platform dependant.
+
+            // If more hash functions are needed, they can always be implemented.
+            // For now, just use the fnv-1a algorithm. That's what .NET uses under the hood
+            // when it switches on a string.
+
+            // The implementation can be found in TaffyScript.Strings in the TaffyScript assembly.
+
+            var hashCodes = new HashSet<int>();
+            var bruteForce = new List<MethodInfo>();
+            var tree = new BinaryTree<int, MethodInfo>();
+            var hashMethod = typeof(Fnv).GetMethod("Fnv32");
+
+            foreach (var script in scripts)
+            {
+                var hash = Fnv.Fnv32(script.Name);
+                if (!hashCodes.Add(Fnv.Fnv32(script.Name)))
+                    bruteForce.Add(script);
+                else
+                    tree.Insert(hash, script);
+            }
+
+            foreach (var method in bruteForce)
+            {
+                var next = mthd.DefineLabel();
+                mthd.LdStr(method.Name)
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("op_Equality"))
+                    .BrFalse(next)
+                    .LdArg(2)
+                    .LdNull()
+                    .LdFtn(method)
+                    .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                    .LdStr(method.Name)
+                    .LdArg(0)
+                    .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string), typeof(ITsInstance) }))
+                    .StIndRef()
+                    .LdBool(true)
+                    .Ret()
+                    .MarkLabel(next);
+            }
+
+            var hashVar = mthd.DeclareLocal(typeof(int), "hashLocal");
+
+            mthd.LdArg(1)
+                .Call(hashMethod)
+                .StLocal(hashVar);
+
+            var end = mthd.DefineLabel();
+
+            TryGetDelegateSwitchNode(tree.Root, mthd, hashVar, end);
+
+            mthd.MarkLabel(end);
+
+            TryGetDelegateDefaultCase(mthd, info.Parent?.TryGetDelegate, info.Members);
+        }
+
+        private void TryGetDelegateSwitchNode(BinaryTree<int, MethodInfo>.BinaryTreeNode node, ILEmitter mthd, LocalBuilder hashVar, Label end)
+        {
+            var greaterEqual = mthd.DefineLabel();
+            var equal = mthd.DefineLabel();
+            mthd.LdLocal(hashVar)
+                .LdInt(node.Key)
+                .Bge(greaterEqual);
+
+            if (node.Left != null)
+                TryGetDelegateSwitchNode(node.Left, mthd, hashVar, end);
+            else
+                mthd.Br(end);
+
+            mthd.MarkLabel(greaterEqual)
+                .LdLocal(hashVar)
+                .LdInt(node.Key)
+                .Beq(equal);
+
+            if (node.Right != null)
+                TryGetDelegateSwitchNode(node.Right, mthd, hashVar, end);
+            else
+                mthd.Br(end);
+
+            mthd.MarkLabel(equal)
                 .LdArg(1)
+                .LdStr(node.Value.Name)
+                .Call(typeof(string).GetMethod("op_Equality", new[] { typeof(string), typeof(string) }))
+                .BrFalse(end)
                 .LdArg(2)
-                .Call(typeof(Dictionary<string, TsDelegate>).GetMethod("TryGetValue"))
-                .BrFalseS(scriptLookupFailed)
-                .LdArg(2)
-                .Dup()
-                .LdIndRef()
+                .LdNull()
+                .LdFtn(node.Value)
+                .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                .LdStr(node.Value.Name)
                 .LdArg(0)
-                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsDelegate), typeof(ITsInstance) }))
+                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string), typeof(ITsInstance) }))
                 .StIndRef()
                 .LdBool(true)
-                .Ret()
-                .MarkLabel(scriptLookupFailed);
+                .Ret();
+        }
 
+        private void TryGetDelegateDefaultCase(ILEmitter mthd, MethodInfo parentMethod, FieldInfo members)
+        {
             if(parentMethod != null)
             {
                 mthd.LdArg(0)
                     .LdArg(1)
                     .LdArg(2)
-                    .CallE(parentMethod, 3, null)
+                    .CallE(parentMethod, 3, typeof(bool))
                     .Ret();
             }
             else
             {
+                var member = mthd.DeclareLocal(typeof(TsObject), "member");
+                var memberLookupFailed = mthd.DefineLabel();
+                var memberRightType = mthd.DefineLabel();
+
                 mthd.LdArg(0)
                     .LdFld(members)
                     .LdArg(1)
@@ -380,7 +412,7 @@ namespace TaffyScript.Compiler.Backend
                     .BrFalseS(memberLookupFailed)
                     .LdLocal(member)
                     .Call(typeof(TsObject).GetMethod("get_Type"))
-                    .LdInt(5)
+                    .LdInt((int)VariableType.Delegate)
                     .BeqS(memberRightType)
                     .LdArg(2)
                     .LdNull()
@@ -390,7 +422,7 @@ namespace TaffyScript.Compiler.Backend
                     .MarkLabel(memberRightType)
                     .LdArg(2)
                     .LdLocal(member)
-                    .Call(typeof(TsObject).GetMethod("GetDelegate"))
+                    .Call(TsTypes.ObjectCasts[typeof(TsDelegate)])
                     .StIndRef()
                     .LdBool(true)
                     .Ret()
@@ -401,8 +433,6 @@ namespace TaffyScript.Compiler.Backend
                     .LdBool(false)
                     .Ret();
             }
-
-            return tryGetDelegateMethod;
         }
 
         #endregion
@@ -410,16 +440,15 @@ namespace TaffyScript.Compiler.Backend
 
     public class ObjectInfo
     {
-        public Type Parent { get; }
+        public ObjectInfo Parent { get; }
         public Type Type { get; }
         public FieldInfo Members { get; set; }
-        public FieldInfo Scripts { get; }
         public MethodInfo TryGetDelegate { get; set; }
         public ConstructorInfo Constructor { get; set; }
         public MethodInfo Create { get; set; }
         public Dictionary<string, MethodInfo> Methods { get; } = new Dictionary<string, MethodInfo>();
 
-        public ObjectInfo(Type type, Type parent, MethodInfo tryGetDelegate, ConstructorInfo constructor, FieldInfo members, FieldInfo scripts)
+        public ObjectInfo(Type type, ObjectInfo parent, MethodInfo tryGetDelegate, ConstructorInfo constructor, FieldInfo members)
         {
             Type = type;
             Parent = parent;
@@ -427,7 +456,6 @@ namespace TaffyScript.Compiler.Backend
             Members = members;
             Constructor = constructor;
             Members = members;
-            Scripts = scripts;
         }
     }
 }
