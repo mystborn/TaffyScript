@@ -474,10 +474,9 @@ namespace TaffyScript.Compiler.FrontEnd
 
             if(_inLambda)
             {
-                if(_environment.Depth(variableToken.Name) != 0)
+                if(_table.Defined(variableToken.Name, out symbol) && symbol is VariableLeaf leaf && _environment.Depth(variableToken.Name) != 0)
                 {
-                    if (_table.Defined(variableToken.Name, out symbol) && symbol is VariableLeaf leaf)
-                        leaf.IsCaptured = true;
+                    leaf.IsCaptured = true;
                 }
             }
         }
