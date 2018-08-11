@@ -33,8 +33,6 @@ namespace LanguageTests {
         run_list_tests();
         print("");
         run_map_tests();
-        /*print("");
-        run_with_tests();*/
         print("");
         run_lambda_tests();
         print("");
