@@ -14,6 +14,7 @@ namespace TaffyScript.Compiler.Backend
         public ConstructorBuilder Constructor { get; set; }
         public Dictionary<string, FieldInfo> Fields { get; set; } = new Dictionary<string, FieldInfo>();
         public LocalBuilder Self { get; set; } = null;
+        public FieldInfo Target { get; set; } = null;
 
         public Closure(TypeBuilder type, ConstructorBuilder ctor)
         {

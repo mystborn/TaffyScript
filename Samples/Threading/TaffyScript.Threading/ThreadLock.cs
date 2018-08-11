@@ -28,11 +28,11 @@ namespace TaffyScript.Threading
             switch(scriptName)
             {
                 case "lock":
-                    return _lock(null, null);
+                    return _lock(null);
                 case "unlock":
-                    return unlock(null, null);
+                    return unlock(null);
                 case "try_lock":
-                    return try_lock(null, args);
+                    return try_lock(args);
                 default:
                     throw new MissingMethodException(ObjectType, scriptName);
             }
@@ -62,13 +62,13 @@ namespace TaffyScript.Threading
             switch (delegateName)
             {
                 case "lock":
-                    del = new TsDelegate(_lock, "lock", this);
+                    del = new TsDelegate(_lock, "lock");
                     return true;
                 case "unlock":
-                    del = new TsDelegate(unlock, "unlock", this);
+                    del = new TsDelegate(unlock, "unlock");
                     return true;
                 case "try_lock":
-                    del = new TsDelegate(try_lock, "try_lock", this);
+                    del = new TsDelegate(try_lock, "try_lock");
                     return true;
                 default:
                     del = null;
@@ -76,19 +76,19 @@ namespace TaffyScript.Threading
             }
         }
 
-        private TsObject _lock(ITsInstance inst, TsObject[] args)
+        private TsObject _lock(TsObject[] args)
         {
             Monitor.Enter(_key);
             return TsObject.Empty;
         }
 
-        private TsObject unlock(ITsInstance inst, TsObject[] args)
+        private TsObject unlock(TsObject[] args)
         {
             Monitor.Exit(_key);
             return TsObject.Empty;
         }
 
-        private TsObject try_lock(ITsInstance inst, TsObject[] args)
+        private TsObject try_lock(TsObject[] args)
         {
             return args != null && args.Length > 0 ? Monitor.TryEnter(_key, (int)args[0]) : Monitor.TryEnter(_key);
         }

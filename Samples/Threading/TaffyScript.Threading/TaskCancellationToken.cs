@@ -31,15 +31,15 @@ namespace TaffyScript.Threading
             switch(scriptName)
             {
                 case "cancel":
-                    return cancel(null, args);
+                    return cancel(args);
                 case "cancel_after":
-                    return cancel_after(null, args);
+                    return cancel_after(args);
                 case "dispose":
-                    return dispose(null, args);
+                    return dispose(args);
                 case "register":
-                    return register(null, args);
+                    return register(args);
                 case "throw_if_cancelled":
-                    return throw_if_cancelled(null, args);
+                    return throw_if_cancelled(args);
                 default:
                     throw new MissingMethodException(ObjectType, scriptName);
             }
@@ -77,19 +77,19 @@ namespace TaffyScript.Threading
             switch (delegateName)
             {
                 case "cancel":
-                    del = new TsDelegate(cancel, "cancel", this);
+                    del = new TsDelegate(cancel, "cancel");
                     return true;
                 case "cancel_after":
-                    del = new TsDelegate(cancel_after, "cancel_after", this);
+                    del = new TsDelegate(cancel_after, "cancel_after");
                     return true;
                 case "dispose":
-                    del = new TsDelegate(dispose, "dispose", this);
+                    del = new TsDelegate(dispose, "dispose");
                     return true;
                 case "register":
-                    del = new TsDelegate(register, "register", this);
+                    del = new TsDelegate(register, "register");
                     return true;
                 case "throw_if_cancelled":
-                    del = new TsDelegate(throw_if_cancelled, "throw_if_cancelled", this);
+                    del = new TsDelegate(throw_if_cancelled, "throw_if_cancelled");
                     return true;
                 default:
                     del = null;
@@ -97,33 +97,33 @@ namespace TaffyScript.Threading
             }
         }
 
-        private TsObject cancel(ITsInstance inst, TsObject[] args)
+        private TsObject cancel(TsObject[] args)
         {
             _source.Cancel();
             return TsObject.Empty;
         }
 
-        private TsObject cancel_after(ITsInstance inst, TsObject[] args)
+        private TsObject cancel_after(TsObject[] args)
         {
             _source.CancelAfter((int)args[0]);
             return TsObject.Empty;
         }
 
-        private TsObject dispose(ITsInstance inst, TsObject[] args)
+        private TsObject dispose(TsObject[] args)
         {
             _source.Dispose();
             return TsObject.Empty;
         }
 
-        private TsObject register(ITsInstance inst, TsObject[] args)
+        private TsObject register(TsObject[] args)
         {
             var register = _source.Token.Register(() => args[0].GetDelegate().Invoke());
             var result = new DynamicInstance("TaffyScript.Threading.TaskCancellationTokenRegistration");
-            result["unregister"] = new TsDelegate((i, a) => { register.Dispose(); return TsObject.Empty; }, "unregister", result);
+            result["unregister"] = new TsDelegate((a) => { register.Dispose(); return TsObject.Empty; }, "unregister");
             return result;
         }
 
-        private TsObject throw_if_cancelled(ITsInstance inst, TsObject[] args)
+        private TsObject throw_if_cancelled(TsObject[] args)
         {
             _source.Token.ThrowIfCancellationRequested();
             return TsObject.Empty;

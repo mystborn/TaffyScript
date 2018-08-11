@@ -1,7 +1,7 @@
 namespace UnitTest {
-    import TestHelper.Try(instance, array) as try;
-    import TestHelper.TryExpect(instance, array) as try_expect;
+    import TestHelper.Try(array) as try;
+    import TestHelper.TryExpect(array) as try_expect;
     import TestHelper.CollectGarbage() as gc_collect;
-    import TestHelper.TimeInvoke(instance, array) as time_invoke;
+    import TestHelper.TimeInvoke(array) as time_invoke;
     import TestHelper.GetUsedMemory() as gc_get_used_memory;
 }

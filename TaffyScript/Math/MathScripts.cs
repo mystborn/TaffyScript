@@ -33,7 +33,7 @@ namespace TaffyScript.Math
         }
 
         [TaffyScriptMethod]
-        public static TsObject choose(ITsInstance target, TsObject[] args)
+        public static TsObject choose(TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentException("There must be at least one argument passed to Choose.");
@@ -78,7 +78,7 @@ namespace TaffyScript.Math
         }
 
         [TaffyScriptMethod]
-        public static TsObject max(ITsInstance target, TsObject[] args)
+        public static TsObject max(TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");
@@ -93,7 +93,7 @@ namespace TaffyScript.Math
         }
 
         [TaffyScriptMethod]
-        public static TsObject min(ITsInstance target, TsObject[] args)
+        public static TsObject min(TsObject[] args)
         {
             if (args.Length == 0)
                 throw new ArgumentOutOfRangeException("args", "You must pass in at least one value to Max");

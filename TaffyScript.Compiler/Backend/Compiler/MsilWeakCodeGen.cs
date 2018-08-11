@@ -29,8 +29,6 @@ namespace TaffyScript.Compiler.Backend
         /// </summary>
         private const float All = -3f;
 
-        private static readonly Type[] ScriptArgs = { typeof(ITsInstance), typeof(TsObject[]) };
-
         #endregion
 
         #region Fields
@@ -141,10 +139,8 @@ namespace TaffyScript.Compiler.Backend
 
         private Closure _closure = null;
         private int _closures = 0;
-        private int _argOffset = 0;
         private ISymbol _parent = null;
-        private int _target = 0;
-        private int _argumentArray = 1;
+        private int _argumentArray = 0;
 
         #endregion
 
@@ -450,7 +446,7 @@ namespace TaffyScript.Compiler.Backend
                                     var owner = external.Remove(external.LastIndexOf('.'));
                                     var methodName = external.Substring(owner.Length + 1);
                                     var type = _typeParser.GetType(owner);
-                                    var method = GetMethodToImport(type, methodName, ScriptArgs);
+                                    var method = GetMethodToImport(type, methodName, TsTypes.ArgumentTypes);
                                     var count = _table.EnterNamespace(input[1]);
                                     _table.AddLeaf(input[2], SymbolType.Script, SymbolScope.Global);
                                     _table.Exit(count);
@@ -483,7 +479,7 @@ namespace TaffyScript.Compiler.Backend
                 return false;
 
             var args = method.GetParameters();
-            if (args.Length != 2 || args[0].ParameterType != typeof(ITsInstance) ||  args[1].ParameterType != typeof(TsObject[]))
+            if (args.Length != 1 || args[0].ParameterType != typeof(TsObject[]))
                 return false;
 
             return true;
@@ -514,9 +510,8 @@ namespace TaffyScript.Compiler.Backend
                 return m;
             }
 
-            var mb = GetBaseType(ns).DefineMethod(name, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), ScriptArgs);
-            mb.DefineParameter(1, ParameterAttributes.None, "__target_");
-            mb.DefineParameter(2, ParameterAttributes.None, "__args_");
+            var mb = GetBaseType(ns).DefineMethod(name, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), TsTypes.ArgumentTypes);
+            mb.DefineParameter(1, ParameterAttributes.None, "__args_");
             _methods.Add(ns, name, mb);
             return mb;
         }
@@ -544,7 +539,7 @@ namespace TaffyScript.Compiler.Backend
         private void GenerateWeakMethodForImport(MethodInfo method, string importName)
         {
             var mb = StartMethod(importName, _namespace);
-            var emit = new ILEmitter(mb, ScriptArgs);
+            var emit = new ILEmitter(mb, TsTypes.ArgumentTypes);
             var paramArray = method.GetParameters();
             var paramTypes = new Type[paramArray.Length];
             for (var i = 0; i < paramArray.Length; ++i)
@@ -640,7 +635,6 @@ namespace TaffyScript.Compiler.Backend
                 .StLocal(i)
                 .Br(start)
                 .MarkLabel(end)
-                .LdNull()
                 .LdLocal(args)
                 .Call(entry, 1, typeof(TsObject))
                 .Pop()
@@ -851,6 +845,7 @@ namespace TaffyScript.Compiler.Backend
                                                           MethodAttributes.RTSpecialName,
                                                       CallingConventions.HasThis,
                                                       Type.EmptyTypes);
+
                 var temp = emit;
 
                 emit = new ILEmitter(constructor, new[] { typeof(object) });
@@ -865,8 +860,22 @@ namespace TaffyScript.Compiler.Backend
                 if (setLocal)
                 {
                     var local = emit.DeclareLocal(type, "__0closure");
-                    emit.New(constructor, 0)
-                        .StLocal(local);
+
+                    if (emit.Method.IsStatic) {
+                        emit.New(constructor, 0)
+                            .StLocal(local);
+                    }
+                    else
+                    {
+                        // Todo: Only do this if instance variable/self is accessed.
+                        // Todo: Test on nested closure.
+                        _closure.Target = type.DefineField("__0Target0__", typeof(ITsInstance), FieldAttributes.Assembly);
+                        emit.New(constructor, 0)
+                            .Dup()
+                            .StLocal(local)
+                            .LdArg(0)
+                            .StFld(_closure.Target);
+                    }
 
                     _closure.Self = local;
                 }
@@ -943,6 +952,19 @@ namespace TaffyScript.Compiler.Backend
                     top = typeof(ITsInstance);
                 emitter.New(TsTypes.Constructors[top]);
             }
+        }
+
+        private ILEmitter LoadTarget()
+        {
+            if (_closures > 0)
+            {
+                emit.LdLocal(_closure.Self)
+                    .LdFld(_closure.Target);
+            }
+            else
+                emit.LdArg(0);
+
+            return emit;
         }
 
 #endregion
@@ -1297,7 +1319,7 @@ namespace TaffyScript.Compiler.Backend
                 }
                 else
                 {
-                    emit.LdArg(_target)
+                    LoadTarget()
                         .LdStr(variable.Name);
                     assign.Right.Accept(this);
                     ConvertTopToObject();
@@ -1316,7 +1338,7 @@ namespace TaffyScript.Compiler.Backend
                                 emit.LdFld(typeof(TsInstance).GetField("Global"));
                                 break;
                             case "self":
-                                emit.LdArg(_target);
+                                LoadTarget();
                                 break;
                             case "other":
                                 emit.Call(typeof(TsInstance).GetMethod("get_Other"));
@@ -1627,9 +1649,9 @@ namespace TaffyScript.Compiler.Backend
 
         private void SelfAccessSet(VariableToken variable)
         {
-            emit.LdArg(_target)
-                .LdStr(variable.Name)
-                .LdArg(_target)
+            LoadTarget()
+                .LdStr(variable.Name);
+            LoadTarget()
                 .LdStr(variable.Name);
         }
 
@@ -1649,7 +1671,7 @@ namespace TaffyScript.Compiler.Backend
             }
 
             MarkSequencePoint(baseNode.Position, baseNode.EndPosition);
-            emit.LdArg(_target);
+            LoadTarget();
             LoadFunctionArguments(baseNode.Arguments);
             emit.Call(script, 2, typeof(TsObject));
         }
@@ -2051,12 +2073,9 @@ namespace TaffyScript.Compiler.Backend
 
             MarkSequencePoint(functionCall.Position, functionCall.EndPosition);
 
-            //Load the target
-            emit.LdArg(_target);
-
             LoadFunctionArguments(functionCall.Arguments);
 
-            emit.Call(method, 2, typeof(TsObject));
+            emit.Call(method, 1, typeof(TsObject));
         }
 
         /// <summary>
@@ -2078,7 +2097,7 @@ namespace TaffyScript.Compiler.Backend
                         .LdInt(i);
 
                     arguments[i].Accept(this);
-                    ConvertTopToObject();
+                    ConvertTopToObject(); 
 
                     emit.StElem(typeof(TsObject));
                 }
@@ -2092,7 +2111,7 @@ namespace TaffyScript.Compiler.Backend
             MarkSequencePoint(start, functionCall.EndPosition);
 
             if (loadId)
-                emit.LdArg(_target);
+                LoadTarget();
 
             var top = emit.GetTop();
 
@@ -2234,7 +2253,7 @@ namespace TaffyScript.Compiler.Backend
             var closure = owner.Type.DefineMethod($"<{emit.Method.Name}>closure_{lambda.Scope.Remove(0, 5)}",
                                                   MethodAttributes.Assembly | MethodAttributes.HideBySig,
                                                   typeof(TsObject),
-                                                  ScriptArgs);
+                                                  TsTypes.ArgumentTypes);
             _table.Enter(lambda.Scope);
             if (_closures == 0 && owner.Self is null && _table.Symbols.Any())
             {
@@ -2244,14 +2263,11 @@ namespace TaffyScript.Compiler.Backend
             }
             var temp = emit;
 
-            emit = new ILEmitter(closure, ScriptArgs);
+            emit = new ILEmitter(closure, TsTypes.ArgumentTypes);
             DeclareLocals(false);
             ++_closures;
-            var target = _target;
             var argumentArray = _argumentArray;
-            _target = 1;
-            _argumentArray = 2;
-            _argOffset = 1;
+            _argumentArray = 1;
 
             ProcessScriptArguments(lambda.Arguments);
 
@@ -2263,7 +2279,6 @@ namespace TaffyScript.Compiler.Backend
             emit.Ret();
 
             --_closures;
-            _target = target;
             _argumentArray = argumentArray;
             _table.Exit();
 
@@ -2281,8 +2296,7 @@ namespace TaffyScript.Compiler.Backend
             emit.LdFtn(closure)
                 .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
                 .LdStr("lambda")
-                .LdArg(_target)
-                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string), typeof(ITsInstance) }));
+                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }));
         }
 
         public void Visit(LocalsNode localsNode)
@@ -2410,7 +2424,7 @@ namespace TaffyScript.Compiler.Backend
                         emit.LdFld(typeof(TsInstance).GetField("Global"));
                         break;
                     case "self":
-                        emit.LdArg(_target);
+                        LoadTarget();
                         break;
                     case "other":
                         emit.Call(typeof(TsInstance).GetMethod("get_Other"));
@@ -2616,19 +2630,14 @@ namespace TaffyScript.Compiler.Backend
 
             var scripts = new List<MethodInfo>();
 
+            _argumentArray = 1;
+
             for (var i = 0; i < objectNode.Scripts.Count; i++)
             {
                 var script = objectNode.Scripts[i];
-                MethodBuilder method;
-                if (!info.Methods.TryGetValue(script.Name, out var tempMethod))
-                {
-                    method = type.DefineMethod(script.Name, MethodAttributes.Public | MethodAttributes.Static, typeof(TsObject), ScriptArgs);
-                    info.Methods.Add(script.Name, method);
-                }
-                else
-                    method = (MethodBuilder)tempMethod;
+                MethodBuilder method = _assets.GetInstanceMethod(_table.Current, script.Name, script.Position) as MethodBuilder;
 
-                ScriptStart(script.Name, method, ScriptArgs);
+                ScriptStart(script.Name, method, TsTypes.ArgumentTypes);
 
                 ProcessScriptArguments(script.Arguments);
                 script.Body.Accept(this);
@@ -2934,7 +2943,7 @@ namespace TaffyScript.Compiler.Backend
             else if (read.Name == "other")
                 return () => emit.Call(typeof(TsInstance).GetMethod("get_Other"));
             else
-                return () => emit.LdArg(_target);
+                return () => LoadTarget();
         }
 
         public void Visit(PrefixNode prefix)
@@ -3217,7 +3226,7 @@ namespace TaffyScript.Compiler.Backend
             switch(readOnlyToken.Name)
             {
                 case "self":
-                    emit.LdArg(_target);
+                    LoadTarget();
                     break;
                 case "other":
                     emit.Call(typeof(TsInstance).GetMethod("get_Other"));
@@ -3386,7 +3395,8 @@ namespace TaffyScript.Compiler.Backend
         {
             var name = script.Name;
             var mb = StartMethod(name, _namespace);
-            ScriptStart(name, mb, ScriptArgs);
+            ScriptStart(name, mb, TsTypes.ArgumentTypes);
+            _argumentArray = 0;
 
             //Process arguments
             ProcessScriptArguments(script.Arguments);
@@ -3648,7 +3658,7 @@ namespace TaffyScript.Compiler.Backend
                 ProcessVariableToken(variableToken, symbol);
             else
             {
-                emit.LdArg(_target)
+                LoadTarget()
                     .LdStr(variableToken.Name)
                     .Call(typeof(ITsInstance).GetMethod("get_Item"));
             }
@@ -3671,7 +3681,7 @@ namespace TaffyScript.Compiler.Backend
                         // Todo: Consider forcing this to load the exact function.
                         //       That would make it so the function couldn't be changed during runtime,
                         //       but of course it makes execution faster.
-                        emit.LdArg(_target)
+                        LoadTarget()
                             .LdStr(name)
                             .Call(typeof(ITsInstance).GetMethod("GetDelegate"))
                             .New(TsTypes.Constructors[typeof(TsDelegate)]);
@@ -3750,6 +3760,9 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(WithNode with)
         {
+            if (_closures > 0)
+                emit.LdLocal(_closure.Self);
+
             with.Target.Accept(this);
             var top = emit.GetTop();
             if (typeof(TsObject).IsAssignableFrom(top))
@@ -3765,16 +3778,27 @@ namespace TaffyScript.Compiler.Backend
             var set = typeof(TsInstance).GetMethod("set_Other");
 
             emit.Call(get)
-                .StLocal(other)
-                .LdArg(_target)
-                .Call(set)
-                .StArg(0);
+                .StLocal(other);
+            LoadTarget()
+                .Call(set);
+
+            if (_closures > 0)
+                emit.StFld(_closure.Target);
+            else
+                emit.StArg(0);
 
             with.Body.Accept(this);
 
-            emit.Call(get)
-                .StArg((short)_target)
-                .LdLocal(other)
+            emit.Call(get);
+            if (_closures > 0)
+            {
+                emit.LdLocal(_closure.Self)
+                    .StFld(_closure.Target);
+            }
+            else
+                emit.StArg(0);
+
+            emit.LdLocal(other)
                 .Call(set);
 
             FreeLocal(other);
@@ -3857,11 +3881,7 @@ namespace TaffyScript.Compiler.Backend
             var methodFlags = MethodAttributes.Public |
                               MethodAttributes.HideBySig |
                               MethodAttributes.NewSlot |
-                              MethodAttributes.Virtual |
-                              MethodAttributes.Final;
-
-            var weakFlags = MethodAttributes.Public |
-                           MethodAttributes.HideBySig;
+                              MethodAttributes.Virtual;
 
             var callMethod = type.DefineMethod("Call", methodFlags, typeof(TsObject), new[] { typeof(string), typeof(TsObject[]) });
             var getMemberMethod = type.DefineMethod("GetMember", methodFlags, typeof(TsObject), new[] { typeof(string) });
@@ -3961,11 +3981,14 @@ namespace TaffyScript.Compiler.Backend
                         if (TsTypes.BasicTypes.TryGetValue(importMethod.Arguments[i], out var argType))
                             args[i] = argType;
                         else
+                        {
                             _logger.Error($"Could not import the method {importMethod.ExternalName} because one of the arguments was invalid {importMethod.Arguments[i]}", importMethod.Position);
+                            args[i] = typeof(TsObject);
+                        }
                     }
 
                     var method = importType.GetMethod(importMethod.ExternalName, BindingFlags.Public | BindingFlags.Instance, null, args, null);
-                    AddMethodToTypeWrapper(method, weakFlags, type, importMethod.ImportName, importMethod.Position, source, call, tryd, readOnly, instanceMethods);
+                    AddMethodToTypeWrapper(method, methodFlags, type, importMethod.ImportName, importMethod.Position, source, call, tryd, readOnly, instanceMethods);
                 }
 
                 var ctorArgNames = importNode.Constructor.Arguments;
@@ -4033,12 +4056,12 @@ namespace TaffyScript.Compiler.Backend
                                     if(pi.CanRead && IsMethodSupported(pi.GetMethod))
                                     {
                                         foundIndexer = true;
-                                        AddMethodToTypeWrapper(pi.GetMethod, weakFlags, type, "get", importNode.Position, source, call, tryd, readOnly, instanceMethods);
+                                        AddMethodToTypeWrapper(pi.GetMethod, methodFlags, type, "get", importNode.Position, source, call, tryd, readOnly, instanceMethods);
                                     }
                                     if(pi.CanWrite && IsMethodSupported(pi.SetMethod))
                                     {
                                         foundIndexer = true;
-                                        AddMethodToTypeWrapper(pi.SetMethod, weakFlags, type, "set", importNode.Position, source, call, tryd, readOnly, instanceMethods);
+                                        AddMethodToTypeWrapper(pi.SetMethod, methodFlags, type, "set", importNode.Position, source, call, tryd, readOnly, instanceMethods);
                                     }
                                 }
                                 else
@@ -4076,7 +4099,7 @@ namespace TaffyScript.Compiler.Backend
                     }
                 }
                 foreach(var mi in validMethods)
-                    AddMethodToTypeWrapper(mi, weakFlags, type, transformName(mi.Name), importNode.Position, source, call, tryd, readOnly, instanceMethods);
+                    AddMethodToTypeWrapper(mi, methodFlags, type, transformName(mi.Name), importNode.Position, source, call, tryd, readOnly, instanceMethods);
 
                 if (!foundConstructor)
                     _logger.Error($"No valid constructor was found for the imported type {importType}", importNode.Position);
@@ -4381,16 +4404,16 @@ namespace TaffyScript.Compiler.Backend
                                             List<string> readOnly,
                                             Dictionary<string, MethodInfo> methods)
         {
-            var weakMethod = type.DefineMethod(importName, weakFlags, typeof(TsObject), ScriptArgs);
+            var weakMethod = type.DefineMethod(importName, weakFlags, typeof(TsObject), TsTypes.ArgumentTypes);
             weakMethod.SetImplementationFlags(MethodImplAttributes.AggressiveInlining);
-            var weak = new ILEmitter(weakMethod, ScriptArgs);
+            var weak = new ILEmitter(weakMethod, TsTypes.ArgumentTypes);
             weak.LdArg(0)
                 .LdFld(source);
 
             var parameters = method.GetParameters();
             for (var i = 0; i < parameters.Length; i++)
             {
-                weak.LdArg(2)
+                weak.LdArg(1)
                     .LdInt(i);
 
                 if (typeof(TsObject).IsAssignableFrom(parameters[i].ParameterType) || parameters[i].ParameterType == typeof(object))
@@ -4417,9 +4440,8 @@ namespace TaffyScript.Compiler.Backend
                 .Call(GetOperator("==", typeof(string), typeof(string), methodPosition))
                 .BrFalse(next)
                 .LdArg(0)
-                .LdArg(0)
                 .LdArg(2)
-                .Call(weakMethod, 3, typeof(TsObject))
+                .Call(weakMethod, 2, typeof(TsObject))
                 .Ret()
                 .MarkLabel(next);
 
@@ -4433,8 +4455,7 @@ namespace TaffyScript.Compiler.Backend
                 .LdFtn(weakMethod)
                 .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
                 .LdStr(importName)
-                .LdArg(0)
-                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string), typeof(ITsInstance) }))
+                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
                 .StIndRef()
                 .LdBool(true)
                 .Ret()

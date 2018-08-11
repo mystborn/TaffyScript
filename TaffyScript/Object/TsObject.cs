@@ -257,11 +257,6 @@ namespace TaffyScript
             return GetDelegate().Invoke(args);
         }
 
-        public TsObject DelegateInvoke(ITsInstance target, params TsObject[] args)
-        {
-            return GetDelegate().Invoke(target, args);
-        }
-
         #endregion
 
         #region Operators

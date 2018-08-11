@@ -11,7 +11,7 @@ namespace TaffyScript.Tests
     public static class TestHelper
     {
         [TaffyScriptMethod]
-        public static TsObject Try(ITsInstance target, TsObject[] args)
+        public static TsObject Try(TsObject[] args)
         {
             var del = (TsDelegate)args[0];
             TsObject[] delArgs = null;
@@ -40,7 +40,7 @@ namespace TaffyScript.Tests
         }
 
         [TaffyScriptMethod]
-        public static TsObject TryExpect(ITsInstance target, TsObject[] args)
+        public static TsObject TryExpect(TsObject[] args)
         {
             var del = (TsDelegate)args[0];
             TsObject[] delArgs = null;
@@ -63,7 +63,7 @@ namespace TaffyScript.Tests
         }
 
         [TaffyScriptMethod]
-        public static TsObject TimeInvoke(ITsInstance target, TsObject[] args)
+        public static TsObject TimeInvoke(TsObject[] args)
         {
             var del = (TsDelegate)args[0];
             TsObject[] delArgs = null;

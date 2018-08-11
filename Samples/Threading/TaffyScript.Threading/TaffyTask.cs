@@ -36,13 +36,13 @@ namespace TaffyScript.Threading
             switch(scriptName)
             {
                 case "continue_with":
-                    return continue_with(null, args);
+                    return continue_with(args);
                 case "dispose":
-                    return dispose(null, null);
+                    return dispose(null);
                 case "start":
-                    return start(null, null);
+                    return start(null);
                 case "wait":
-                    return wait(null, null);
+                    return wait(null);
                 default:
                     throw new MissingMethodException(ObjectType, scriptName);
             }
@@ -95,16 +95,16 @@ namespace TaffyScript.Threading
             switch (delegateName)
             {
                 case "continue_with":
-                    del = new TsDelegate(continue_with, "continue_with", this);
+                    del = new TsDelegate(continue_with, "continue_with");
                     return true;
                 case "dispose":
-                    del = new TsDelegate(dispose, "dispose", this);
+                    del = new TsDelegate(dispose, "dispose");
                     return true;
                 case "start":
-                    del = new TsDelegate(start, "start", this);
+                    del = new TsDelegate(start, "start");
                     return true;
                 case "wait":
-                    del = new TsDelegate(wait, "wait", this);
+                    del = new TsDelegate(wait, "wait");
                     return true;
                 default:
                     del = null;
@@ -112,25 +112,25 @@ namespace TaffyScript.Threading
             }
         }
 
-        private TsObject continue_with(ITsInstance inst, TsObject[] args)
+        private TsObject continue_with(TsObject[] args)
         {
             var del = args[0].GetDelegate();
             return new Task(_task.ContinueWith((result) => del.Invoke(result.Result)));
         }
 
-        private TsObject dispose(ITsInstance inst, TsObject[] args)
+        private TsObject dispose(TsObject[] args)
         {
             _task.Dispose();
             return TsObject.Empty;
         }
 
-        private TsObject start(ITsInstance inst, TsObject[] args)
+        private TsObject start(TsObject[] args)
         {
             _task.Start();
             return this;
         }
 
-        private TsObject wait(ITsInstance inst, TsObject[] args)
+        private TsObject wait(TsObject[] args)
         {
             _task.Wait();
             return this;

@@ -10,14 +10,14 @@ namespace TaffyScript.Threading
     public static class Locks
     {
         [TaffyScriptMethod]
-        public static TsObject moniter_enter(ITsInstance inst, TsObject[] args)
+        public static TsObject moniter_enter(TsObject[] args)
         {
             Monitor.Enter(args[0].WeakValue);
             return TsObject.Empty;
         }
 
         [TaffyScriptMethod]
-        public static TsObject moniter_try_enter(ITsInstance inst, TsObject[] args)
+        public static TsObject moniter_try_enter(TsObject[] args)
         {
             if (args.Length < 1)
                 throw new ArgumentOutOfRangeException("args", "There must be at least one argument to call moniter_try_enter");
@@ -28,7 +28,7 @@ namespace TaffyScript.Threading
         }
 
         [TaffyScriptMethod]
-        public static TsObject moniter_exit(ITsInstance inst, TsObject[] args)
+        public static TsObject moniter_exit(TsObject[] args)
         {
             Monitor.Exit(args[0].WeakValue);
             return TsObject.Empty;

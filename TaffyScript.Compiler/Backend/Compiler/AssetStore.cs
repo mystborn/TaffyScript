@@ -71,7 +71,15 @@ namespace TaffyScript.Compiler.Backend
                     if (obj.Children.ContainsKey(methodName))
                     {
                         var builder = info.Type as TypeBuilder;
-                        MethodAttributes flags = (GetInstanceMethod(obj.Inherits, methodName) is null ? MethodAttributes.NewSlot : 0) 
+                        var parentMethod = GetInstanceMethod(obj.Inherits, methodName);
+
+                        if(parentMethod != null && (parentMethod.IsFinal || !(parentMethod.IsVirtual || parentMethod.IsAbstract)))
+                        {
+                            _logger.Error("Tried to override non-virtual, non-abstract method");
+                            return null;
+                        }
+
+                        MethodAttributes flags = (parentMethod is null ? MethodAttributes.NewSlot : 0) 
                             | MethodAttributes.Virtual 
                             | MethodAttributes.Public
                             | MethodAttributes.HideBySig;
@@ -153,14 +161,9 @@ namespace TaffyScript.Compiler.Backend
             if (!_definedTypes.TryGetValue(symbol, out var info))
             {
                 if (symbol is ObjectSymbol os)
-                {
                     info = GenerateType(os, position);
-                    _definedTypes.Add(symbol, info);
-                }
                 else if (symbol is ImportObjectLeaf leaf)
-                {
                     leaf.ImportObject.Accept(_codeGen);
-                }
             }
 
             if (info is null)
@@ -363,12 +366,11 @@ namespace TaffyScript.Compiler.Backend
                     .Call(typeof(string).GetMethod("op_Equality"))
                     .BrFalse(next)
                     .LdArg(2)
-                    .LdNull()
+                    .LdArg(0)
                     .LdFtn(method)
                     .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
                     .LdStr(method.Name)
-                    .LdArg(0)
-                    .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string), typeof(ITsInstance) }))
+                    .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
                     .StIndRef()
                     .LdBool(true)
                     .Ret()
@@ -419,12 +421,11 @@ namespace TaffyScript.Compiler.Backend
                 .Call(typeof(string).GetMethod("op_Equality", new[] { typeof(string), typeof(string) }))
                 .BrFalse(end)
                 .LdArg(2)
-                .LdNull()
+                .LdArg(0)
                 .LdFtn(node.Value)
                 .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
                 .LdStr(node.Value.Name)
-                .LdArg(0)
-                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string), typeof(ITsInstance) }))
+                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
                 .StIndRef()
                 .LdBool(true)
                 .Ret();

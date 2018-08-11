@@ -12,7 +12,7 @@ namespace TaffyScript.Threading
     public static class Tasks
     {
         [TaffyScriptMethod]
-        public static TsObject task_run(ITsInstance inst, TsObject[] args)
+        public static TsObject task_run(TsObject[] args)
         {
             return args.Length == 1
                 ? new Task(RealTask.Run(() => args[0].GetDelegate().Invoke()))
@@ -20,7 +20,7 @@ namespace TaffyScript.Threading
         }
 
         [TaffyScriptMethod]
-        public static TsObject task_wait_all(ITsInstance inst, TsObject[] args)
+        public static TsObject task_wait_all(TsObject[] args)
         {
             var tasks = new RealTask[args.Length];
             for (var i = 0; i < tasks.Length; i++)
@@ -38,7 +38,7 @@ namespace TaffyScript.Threading
         }
 
         [TaffyScriptMethod]
-        public static TsObject task_wait_any(ITsInstance inst, TsObject[] args)
+        public static TsObject task_wait_any(TsObject[] args)
         {
             var tasks = new RealTask[args.Length];
             for (var i = 0; i < tasks.Length; i++)
@@ -56,20 +56,20 @@ namespace TaffyScript.Threading
         }
 
         [TaffyScriptMethod]
-        public static TsObject thread_pool_queue_item(ITsInstance inst, TsObject[] args)
+        public static TsObject thread_pool_queue_item(TsObject[] args)
         {
             return ThreadPool.QueueUserWorkItem((obj) => args[0].GetDelegate().Invoke());
         }
 
         [TaffyScriptMethod]
-        public static TsObject thread_sleep(ITsInstance inst, TsObject[] args)
+        public static TsObject thread_sleep(TsObject[] args)
         {
             Thread.Sleep((int)args[0]);
             return TsObject.Empty;
         }
 
         [TaffyScriptMethod]
-        public static TsObject thread_get_id(ITsInstance inst, TsObject[] args)
+        public static TsObject thread_get_id(TsObject[] args)
         {
             return Thread.CurrentThread.ManagedThreadId;
         }
