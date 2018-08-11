@@ -3758,52 +3758,6 @@ namespace TaffyScript.Compiler.Backend
             _loopEnd.Pop();
         }
 
-        public void Visit(WithNode with)
-        {
-            if (_closures > 0)
-                emit.LdLocal(_closure.Self);
-
-            with.Target.Accept(this);
-            var top = emit.GetTop();
-            if (typeof(TsObject).IsAssignableFrom(top))
-                emit.Call(TsTypes.ObjectCasts[typeof(ITsInstance)]);
-            else if(!typeof(ITsInstance).IsAssignableFrom(top))
-            {
-                emit.Pop();
-                _logger.Error("Invalid target for with statement", with.Target.Position);
-                return;
-            }
-            var other = GetLocal(typeof(ITsInstance));
-            var get = typeof(TsInstance).GetMethod("get_Other");
-            var set = typeof(TsInstance).GetMethod("set_Other");
-
-            emit.Call(get)
-                .StLocal(other);
-            LoadTarget()
-                .Call(set);
-
-            if (_closures > 0)
-                emit.StFld(_closure.Target);
-            else
-                emit.StArg(0);
-
-            with.Body.Accept(this);
-
-            emit.Call(get);
-            if (_closures > 0)
-            {
-                emit.LdLocal(_closure.Self)
-                    .StFld(_closure.Target);
-            }
-            else
-                emit.StArg(0);
-
-            emit.LdLocal(other)
-                .Call(set);
-
-            FreeLocal(other);
-        }
-
         public void Visit(ImportObjectNode importNode)
         {
             // This method must not use `emit` becuse it might be called

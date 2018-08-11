@@ -492,17 +492,6 @@ namespace TaffyScript.Compiler.FrontEnd
             _currentLoop = loop;
         }
 
-        public void Visit(WithNode withNode)
-        {
-            var inWith = _inWith;
-            _inWith = true;
-            withNode.Target.Parent = withNode;
-            withNode.Target.Accept(this);
-            withNode.Body.Parent = withNode;
-            withNode.Body.Accept(this);
-            _inWith = inWith;
-        }
-
         private enum LoopType
         {
             None,

@@ -166,7 +166,6 @@
     <Compile Include="Syntax\Concrete\UsingsNode.cs" />
     <Compile Include="Syntax\Concrete\VariableToken.cs" />
     <Compile Include="Syntax\Concrete\WhileNode.cs" />
-    <Compile Include="Syntax\Concrete\WithNode.cs" />
     <Compile Include="Syntax\ConstantType.cs" />
     <Compile Include="Syntax\Containers\EnumValue.cs" />
     <Compile Include="Syntax\Containers\SwitchCase.cs" />

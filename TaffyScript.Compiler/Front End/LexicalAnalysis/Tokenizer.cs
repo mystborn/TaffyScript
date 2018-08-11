@@ -53,8 +53,7 @@ namespace TaffyScript.Compiler.FrontEnd
             { "until", TokenType.Until },
             { "using", TokenType.Using },
             { "var", TokenType.Var },
-            { "while", TokenType.While },
-            { "with", TokenType.With },
+            { "while", TokenType.While }
         };
 
         // The Tokenizer needs to determine if the stream is finished

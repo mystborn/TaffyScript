@@ -50,6 +50,5 @@ namespace TaffyScript.Compiler.Syntax
         void Visit(UsingsNode usingsNode);
         void Visit(VariableToken variableToken);
         void Visit(WhileNode @while);
-        void Visit(WithNode withNode);
     }
 }

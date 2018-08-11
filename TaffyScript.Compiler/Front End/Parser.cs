@@ -464,14 +464,6 @@ namespace TaffyScript.Compiler
                         Consume(TokenType.CloseParen, "Expected matching ')' after while condition");
                     body = BodyStatement();
                     return new WhileNode(condition, body, token.Position);
-                case TokenType.With:
-                    token = Consume(TokenType.With, "Expected 'with'");
-                    paren = Match(TokenType.OpenParen);
-                    var target = Expression();
-                    if (paren)
-                        Consume(TokenType.CloseParen, "Expected matching ')' after with target");
-                    body = BodyStatement();
-                    return new WithNode(target, body, token.Position);
                 case TokenType.Do:
                     token = Consume(TokenType.Do, "Expected 'do'");
                     body = BodyStatement();
