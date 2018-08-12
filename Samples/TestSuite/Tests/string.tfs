@@ -78,6 +78,9 @@ namespace LanguageTests {
     script string_empty_equals_empty() {
         test_it('"" == ""');
         assert_equal("", "");
+        var left = "";
+        var right = "";
+        assert_equal(left, right);
     }
 
     script string_base64() {

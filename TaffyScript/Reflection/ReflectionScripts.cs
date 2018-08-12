@@ -26,7 +26,15 @@ namespace TaffyScript.Reflection
         [TaffyScriptMethod]
         public static TsObject call_instance_script(TsObject[] args)
         {
-            throw new NotImplementedException();
+            switch(args.Length)
+            {
+                case 2:
+                    return args[0].GetInstance().Call((string)args[1]);
+                default:
+                    var scriptArgs = new TsObject[args.Length - 2];
+                    Array.Copy(args, 2, scriptArgs, 0, scriptArgs.Length);
+                    return args[0].GetInstance().Call((string)args[1], scriptArgs);
+            }
         }
 
         [TaffyScriptMethod]

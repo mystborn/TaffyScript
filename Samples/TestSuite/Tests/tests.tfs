@@ -42,8 +42,8 @@ namespace LanguageTests {
         print("");
         run_string_tests();
         print("");
-        // run_reflection_tests();
-        // print("");
+        run_reflection_tests();
+        print("");
         run_repeat_tests();
         print("");
         run_logical_and_tests();

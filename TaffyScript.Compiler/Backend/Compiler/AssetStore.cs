@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
 using System.Reflection.Emit;
+using TaffyScript.Reflection;
 using TaffyScript.Strings;
 
 namespace TaffyScript.Compiler.Backend
@@ -16,9 +17,7 @@ namespace TaffyScript.Compiler.Backend
         private static ConstructorInfo _baseConstructor = typeof(TsInstance).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
         private static ConstructorInfo _definitionConstructor = typeof(ObjectDefinition).GetConstructor(new[] { typeof(string),
                                                                                                                 typeof(string),
-                                                                                                                typeof(Dictionary<string, TsDelegate>),
                                                                                                                 typeof(Func<TsObject[], ITsInstance>) });
-        private static MethodInfo _processDefintion = typeof(TsReflection).GetMethod("ProcessObjectDefinition");
 
         private Dictionary<ISymbol, ObjectInfo> _definedTypes = new Dictionary<ISymbol, ObjectInfo>();
 
@@ -180,6 +179,18 @@ namespace TaffyScript.Compiler.Backend
             GenerateConstructor(info, parentConstructor, scripts.FirstOrDefault(m => m.Name == "create"));
             GenerateTryGetDelegate(info, scripts);
 
+            _moduleInitializer.LdStr(info.Type.FullName);
+            if (info.Parent is null)
+                _moduleInitializer.LdNull();
+            else
+                _moduleInitializer.LdStr(info.Parent?.Type.FullName);
+
+            _moduleInitializer.LdNull()
+                              .LdFtn(info.Create)
+                              .New(typeof(Func<TsObject[], ITsInstance>).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                              .New(_definitionConstructor)
+                              .Call(typeof(TsReflection).GetMethod("ProcessObjectDefinition"));
+
             var attrib = new CustomAttributeBuilder(typeof(TaffyScriptObjectAttribute).GetConstructor(Type.EmptyTypes), Type.EmptyTypes);
             type.SetCustomAttribute(attrib);
         }
@@ -310,7 +321,7 @@ namespace TaffyScript.Compiler.Backend
         {
             var builder = (TypeBuilder)info.Type;
             var create = builder.DefineMethod("Create",
-                                        MethodAttributes.Private |
+                                        MethodAttributes.Assembly |
                                             MethodAttributes.Static |
                                             MethodAttributes.HideBySig,
                                         typeof(ITsInstance),

@@ -5,10 +5,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using TaffyScript;
 using TaffyScript.Collections;
 using TaffyScript.Compiler.DotNet;
 using TaffyScript.Compiler.Syntax;
+using TaffyScript.Reflection;
 
 namespace TaffyScript.Compiler.Backend
 {

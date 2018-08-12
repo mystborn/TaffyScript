@@ -26,7 +26,7 @@ namespace LanguageTests {
         test_it("call_instance_script(args..)");
         var result;
         var obj = new obj_mirror();
-        result = call_instance_script(obj, "LanguageTests.obj_mirror", "echo", 7);
+        result = call_instance_script(obj, "echo", 7);
 
         assert_equal(result, 7);
     }
@@ -35,7 +35,7 @@ namespace LanguageTests {
         test_it("call_instance_script()");
         var result;
         var obj = new obj_mirror();
-        result = call_instance_script(obj, obj_mirror, "get10");
+        result = call_instance_script(obj, "get10");
 
         assert_equal(result, 10);
     }
@@ -47,8 +47,9 @@ namespace LanguageTests {
     }
 
     script reflection_object_get_parent() {
-        test_it("instance_get_parent()");
+        test_it("instance_get_parent()")
         var obj = new obj_mirror();
+        print(instance_get_parent(obj) == "");
         assert_equal(instance_get_parent(obj), "");
         obj = new obj_comp3();
         assert_equal(instance_get_parent(obj), "LanguageTests.obj_comp2");

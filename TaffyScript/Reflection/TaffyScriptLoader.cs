@@ -16,6 +16,10 @@ namespace TaffyScript
         public static void Load(string path)
         {
             var asm = Assembly.LoadFile(path);
+
+            if (asm.GetCustomAttribute<TaffyScriptLibraryAttribute>() == null)
+                throw new InvalidOperationException("Tried to load a non TaffyScript library.");
+
             var name = asm.GetName().Name;
             var init = asm.GetType($"{name}.{name}_Initializer");
             init.GetMethod("Initialize", BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
