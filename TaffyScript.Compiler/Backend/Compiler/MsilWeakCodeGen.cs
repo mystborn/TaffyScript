@@ -857,7 +857,7 @@ namespace TaffyScript.Compiler.Backend
 
                 _closure = new Closure(type, constructor);
 
-                if (setLocal)
+                if (setLocal || !emit.Method.IsStatic)
                 {
                     var local = emit.DeclareLocal(type, "__0closure");
 
@@ -958,7 +958,7 @@ namespace TaffyScript.Compiler.Backend
         {
             if (_closures > 0)
             {
-                emit.LdLocal(_closure.Self)
+                emit.LdArg(0)
                     .LdFld(_closure.Target);
             }
             else
@@ -1673,7 +1673,7 @@ namespace TaffyScript.Compiler.Backend
             MarkSequencePoint(baseNode.Position, baseNode.EndPosition);
             LoadTarget();
             LoadFunctionArguments(baseNode.Arguments);
-            emit.Call(script, 2, typeof(TsObject));
+            emit.CallE(script, 2, typeof(TsObject));
         }
 
         public void Visit(BitwiseNode bitwise)

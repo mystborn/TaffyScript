@@ -61,7 +61,7 @@ namespace TaffyScript
             switch(name)
             {
                 case "length":
-                    return name.Length;
+                    return Value.Length;
                 default:
                     if (TryGetDelegate(name, out var del))
                         return del;
