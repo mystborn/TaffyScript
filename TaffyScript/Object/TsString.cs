@@ -132,6 +132,9 @@ namespace TaffyScript
                 case "starts_with":
                     del = new TsDelegate(starts_with, scriptName);
                     return true;
+                case "split":
+                    del = new TsDelegate(split, scriptName);
+                    return true;
                 case "trim":
                     del = new TsDelegate(trim, scriptName);
                     return true;
@@ -197,6 +200,8 @@ namespace TaffyScript
                     return replace_all(args);
                 case "starts_with":
                     return starts_with(args);
+                case "split":
+                    return split(args);
                 case "trim":
                     return trim(args);
                 case "trim_end":
@@ -348,6 +353,32 @@ namespace TaffyScript
         public TsObject starts_with(TsObject[] args)
         {
             return Value.StartsWith((string)args[0]);
+        }
+
+        public TsObject split(TsObject[] args)
+        {
+            string[] parts;
+            if (args[args.Length - 1].Type == VariableType.Real)
+            {
+                var sso = (StringSplitOptions)args[args.Length - 1].GetNumber();
+                var seperators = new string[args.Length - 1];
+                for (var i = 0; i < seperators.Length; i++)
+                    seperators[i] = (string)args[i];
+                parts =  Value.Split(seperators, sso);
+            }
+            else
+            {
+                var seperators = new string[args.Length];
+                for (var i = 0; i < seperators.Length; i++)
+                    seperators[i] = (string)args[i];
+                parts = Value.Split(seperators, StringSplitOptions.None);
+            }
+
+            var result = new TsObject[parts.Length];
+            for (var i = 0; i < parts.Length; i++)
+                result[i] = parts[i];
+
+            return result;
         }
 
         public TsObject trim(TsObject[] args)

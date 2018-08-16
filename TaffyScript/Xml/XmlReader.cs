@@ -274,12 +274,12 @@ namespace TaffyScript.Xml
 
         public TsObject get(TsObject[] args)
         {
-            return args[0].Type == VariableType.Real ? Source.GetAttribute((int)args[0]) : Source.GetAttribute((string)args[0]);
+            return (args[0].Type == VariableType.Real ? Source.GetAttribute((int)args[0]) : Source.GetAttribute((string)args[0])) ?? TsObject.Empty;
         }
 
         public TsObject get_attribute(TsObject[] args)
         {
-            return args[0].Type == VariableType.Real ? Source.GetAttribute((int)args[0]) : Source.GetAttribute((string)args[0]);
+            return (args[0].Type == VariableType.Real ? Source.GetAttribute((int)args[0]) : Source.GetAttribute((string)args[0])) ?? TsObject.Empty;
         }
 
         public TsObject is_start_element(TsObject[] args)

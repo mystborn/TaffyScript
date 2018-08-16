@@ -164,6 +164,32 @@ namespace TaffyScript.Strings
         }
 
         [TaffyScriptMethod]
+        public static TsObject string_split(TsObject[] args)
+        {
+            string[] parts;
+            if(args[args.Length - 1].Type == VariableType.Real)
+            {
+                var sso = (StringSplitOptions)args[args.Length - 1].GetNumber();
+                var seperators = new string[args.Length - 2];
+                for (var i = 1; i < seperators.Length; i++)
+                    seperators[i] = (string)args[i];
+                parts = args[0].GetString().Split(seperators, sso);
+            }
+            else
+            {
+                var seperators = new string[args.Length - 1];
+                for (var i = 1; i < seperators.Length; i++)
+                    seperators[i] = (string)args[i];
+                parts = args[0].GetString().Split(seperators, StringSplitOptions.None);
+            }
+            var result = new TsObject[parts.Length];
+            for (var i = 0; i < parts.Length; i++)
+                result[i] = parts[i];
+
+            return result;
+        }
+
+        [TaffyScriptMethod]
         public static TsObject string_upper(TsObject[] args)
         {
             return args[0].GetString().ToUpper();

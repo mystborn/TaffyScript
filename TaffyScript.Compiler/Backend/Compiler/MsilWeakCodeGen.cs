@@ -64,7 +64,7 @@ namespace TaffyScript.Compiler.Backend
         /// </summary>
         private readonly LookupTable<string, string, MethodInfo> _methods = new LookupTable<string, string, MethodInfo>();
         private readonly LookupTable<string, string, long> _enums = new LookupTable<string, string, long>();
-        private readonly BindingFlags _methodFlags = BindingFlags.Public | BindingFlags.Static;
+        private readonly BindingFlags _methodFlags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
 
         /// <summary>
         /// Maps namespaces to the types that hold the global scripts inside that namespace.
@@ -854,7 +854,7 @@ namespace TaffyScript.Compiler.Backend
                     .Ret();
 
                 emit = temp;
-
+                
                 _closure = new Closure(type, constructor);
 
                 if (setLocal || !emit.Method.IsStatic)
@@ -878,6 +878,7 @@ namespace TaffyScript.Compiler.Backend
                     }
 
                     _closure.Self = local;
+                    _closure.Constructed = true;
                 }
             }
 
@@ -1733,6 +1734,8 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(BlockNode block)
         {
+            bool constructed = _closure?.Constructed ?? false;
+
             for (var i = 0; i < block.Body.Count; ++i)
             {
                 block.Body[i].Accept(this);
@@ -1755,6 +1758,9 @@ namespace TaffyScript.Compiler.Backend
                         break;
                 }
             }
+
+            if (_closure != null)
+                _closure.Constructed = constructed;
         }
 
         public void Visit(BreakToken breakToken)
@@ -2251,7 +2257,7 @@ namespace TaffyScript.Compiler.Backend
             var bt = GetBaseType(_namespace);
             var owner = GetClosure(false);
             var closure = owner.Type.DefineMethod($"<{emit.Method.Name}>closure_{lambda.Scope.Remove(0, 5)}",
-                                                  MethodAttributes.Assembly | MethodAttributes.HideBySig,
+                                                  MethodAttributes.Assembly | MethodAttributes.HideBySig | MethodAttributes.NewSlot,
                                                   typeof(TsObject),
                                                   TsTypes.ArgumentTypes);
             _table.Enter(lambda.Scope);
@@ -2261,7 +2267,26 @@ namespace TaffyScript.Compiler.Backend
                 emit.New(owner.Constructor, 0)
                     .StLocal(owner.Self);
             }
+            else if(_closures == 0 && !_closure.Constructed && owner.Self != null)
+            {
+                if (!emit.Method.IsStatic)
+                {
+                    emit.New(owner.Constructor, 0)
+                        .Dup()
+                        .StLocal(owner.Self)
+                        .LdArg(0)
+                        .StFld(owner.Target);
+                }
+                else
+                {
+                    emit.New(owner.Constructor, 0)
+                        .StLocal(owner.Self);
+                }
+
+                _closure.Constructed = true;
+            }
             var temp = emit;
+
 
             emit = new ILEmitter(closure, TsTypes.ArgumentTypes);
             DeclareLocals(false);

@@ -233,6 +233,12 @@ namespace LanguageTests {
         assert_is_false("oink".starts_with("m"));
     }
 
+    script string_literal_split() {
+        test_it("\"\".split()");
+        assert(array_equals("hello world ".split(" "), ["hello", "world", ""]));
+        assert(array_equals("hello world ".split(" ", true), ["hello", "world"]));
+    }
+
     script string_literal_trim() {
         test_it("\"\".trim()");
         assert_equal("  moo  ".trim(), "moo");
@@ -377,6 +383,13 @@ namespace LanguageTests {
         assert(str.starts_with("o"));
         assert(str.starts_with("oink"));
         assert_is_false(str.starts_with("m"));
+    }
+
+    script string_variable_split() {
+        test_it("string.split()");
+        var str = "hello world ";
+        assert(array_equals(str.split(" "), ["hello", "world", ""]));
+        assert(array_equals(str.split(" ", true), ["hello", "world"]));
     }
 
     script string_variable_trim() {
