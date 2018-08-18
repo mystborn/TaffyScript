@@ -3,6 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
+// This is used to make changing the default data type easy.
+// I'm still not 100% sure if it should be float or double.
+// Currently uses float for better performance,
+// but double allows for more versatile code. In particular,
+// double can represent int.MaxValue without losing any precision.
 using Number = System.Single;
 
 namespace TaffyScript
@@ -11,6 +17,11 @@ namespace TaffyScript
     // Unfortunately, the old way caused a lot of boxing,
     // which makes this version actually faster and
     // it produces less garbage.
+
+    // Update: This was reconverted to a struct that held an
+    // object and a float so that the float wouldn't have to be boxed.
+    // Unfortunately, for various reasons, this still used more memory
+    // and was slower than this version.
 
     public abstract class TsObject
     {

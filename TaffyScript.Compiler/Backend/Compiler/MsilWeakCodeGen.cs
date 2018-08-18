@@ -361,7 +361,7 @@ namespace TaffyScript.Compiler.Backend
 
 #endregion
 
-#region Helpers
+        #region Helpers
 
         private void ProcessStrongAssembly(Assembly asm)
         {
@@ -968,9 +968,9 @@ namespace TaffyScript.Compiler.Backend
             return emit;
         }
 
-#endregion
+        #endregion
 
-#region Visitor
+        #region Visitor
 
         public void Visit(AdditiveNode additive)
         {
@@ -2257,7 +2257,7 @@ namespace TaffyScript.Compiler.Backend
             var bt = GetBaseType(_namespace);
             var owner = GetClosure(false);
             var closure = owner.Type.DefineMethod($"<{emit.Method.Name}>closure_{lambda.Scope.Remove(0, 5)}",
-                                                  MethodAttributes.Assembly | MethodAttributes.HideBySig | MethodAttributes.NewSlot,
+                                                  MethodAttributes.Assembly | MethodAttributes.HideBySig,
                                                   typeof(TsObject),
                                                   TsTypes.ArgumentTypes);
             _table.Enter(lambda.Scope);
@@ -4524,6 +4524,6 @@ namespace TaffyScript.Compiler.Backend
             return true;
         }
 
-#endregion
+        #endregion
     }
 }
