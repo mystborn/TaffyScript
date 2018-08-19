@@ -344,11 +344,6 @@ namespace TaffyScript
             return (TsInstance)right.GetInstance();
         }
 
-        public static explicit operator TsDelegate(TsObject right)
-        {
-            return right.GetDelegate();
-        }
-
         public static explicit operator TsObject[] (TsObject right)
         {
             return right.GetArray();
@@ -422,11 +417,6 @@ namespace TaffyScript
         public static implicit operator TsObject(TsInstance right)
         {
             return new TsInstanceWrapper(right);
-        }
-
-        public static implicit operator TsObject(TsDelegate right)
-        {
-            return new TsDelegateWrapper(right);
         }
 
         public static implicit operator TsObject(TsObject[] right)

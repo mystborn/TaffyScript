@@ -3708,8 +3708,7 @@ namespace TaffyScript.Compiler.Backend
                         //       but of course it makes execution faster.
                         LoadTarget()
                             .LdStr(name)
-                            .Call(typeof(ITsInstance).GetMethod("GetDelegate"))
-                            .New(TsTypes.Constructors[typeof(TsDelegate)]);
+                            .Call(typeof(ITsInstance).GetMethod("GetDelegate"));
                     }
                     else
                     {
@@ -3723,8 +3722,7 @@ namespace TaffyScript.Compiler.Backend
                             .LdFtn(method)
                             .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
                             .LdStr(variableSymbol.Name)
-                            .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                            .New(TsTypes.Constructors[typeof(TsDelegate)]);
+                            .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }));
                     }
                     break;
                 case SymbolType.Variable:
@@ -4131,9 +4129,8 @@ namespace TaffyScript.Compiler.Backend
                     .LdInt((int)VariableType.Delegate)
                     .Bne(callError)
                     .LdLocal(member)
-                    .Call(typeof(TsObject).GetMethod("GetDelegate"))
                     .LdArg(2)
-                    .Call(typeof(TsDelegate).GetMethod("Invoke", new[] { typeof(TsObject[]) }))
+                    .Call(typeof(TsObject).GetMethod("DelegateInvoke", new[] { typeof(TsObject[]) }))
                     .Ret()
                     .MarkLabel(callError)
                     .LdStr($"The type {name} does not define a script called {{0}}")
@@ -4156,7 +4153,7 @@ namespace TaffyScript.Compiler.Backend
                     .Bne(tryFail)
                     .LdArg(2)
                     .LdLocal(member)
-                    .Call(typeof(TsObject).GetMethod("GetDelegate"))
+                    .CastClass(typeof(TsDelegate))
                     .StIndRef()
                     .LdBool(true)
                     .Ret()
@@ -4183,7 +4180,6 @@ namespace TaffyScript.Compiler.Backend
                     .Call(tryGetDelegateMethod, 3, typeof(bool))
                     .BrFalse(getMember)
                     .LdLocal(del)
-                    .New(TsTypes.Constructors[typeof(TsDelegate)])
                     .Ret()
                     .MarkLabel(getMember)
                     .LdArg(0)
@@ -4228,7 +4224,6 @@ namespace TaffyScript.Compiler.Backend
                     .Call(tryGetDelegateMethod, 3, typeof(bool))
                     .BrFalse(getError)
                     .LdLocal(del)
-                    .New(TsTypes.Constructors[typeof(TsDelegate)])
                     .Ret()
                     .MarkLabel(getError)
                     .LdStr($"Couldn't find member with the name {{0}} on the type {name}")

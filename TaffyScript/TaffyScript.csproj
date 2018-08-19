@@ -76,7 +76,6 @@
     <Compile Include="GlobalScripts.cs" />
     <Compile Include="Math\MathScripts.cs" />
     <Compile Include="Object\TsArray.cs" />
-    <Compile Include="Object\TsDelegateWrapper.cs" />
     <Compile Include="Object\TsInstanceWrapper.cs" />
     <Compile Include="Object\TsNull.cs" />
     <Compile Include="Object\TsNumber.cs" />
@@ -97,7 +96,7 @@
     <Compile Include="Reflection\ObjectDefinition.cs" />
     <Compile Include="ObjectWrapper.cs" />
     <Compile Include="Reflection\TaffyScriptLoader.cs" />
-    <Compile Include="TsDelegate.cs" />
+    <Compile Include="Object\TsDelegate.cs" />
     <Compile Include="TsInstance.cs" />
     <Compile Include="Object\TsObject.cs" />
     <Compile Include="Reflection\TsReflection.cs" />

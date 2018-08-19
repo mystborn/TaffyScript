@@ -73,7 +73,6 @@ namespace TaffyScript.Compiler
                 { typeof(char), typeof(TsString).GetConstructor(new[] { typeof(char) }) },
                 { typeof(string), typeof(TsString).GetConstructor(new[] { typeof(string) }) },
                 { typeof(ITsInstance), typeof(TsInstanceWrapper).GetConstructor(new[] { typeof(ITsInstance) }) },
-                { typeof(TsDelegate), typeof(TsDelegateWrapper).GetConstructor(new[] { typeof(TsDelegate) }) },
                 { typeof(TsObject[]), typeof(TsArray).GetConstructor(new[] { typeof(TsObject[]) }) }
             };
 

@@ -17,7 +17,7 @@ namespace TaffyScript
     /// <summary>
     /// Language friendly wrapper over a <see cref="TsScript"/>.
     /// </summary>
-    public class TsDelegate : IEquatable<TsDelegate>
+    public class TsDelegate : TsObject
     {
         /// <summary>
         /// A wrapped TaffyScript script.
@@ -33,6 +33,9 @@ namespace TaffyScript
         /// The name of the wrapped script.
         /// </summary>
         public string Name { get; }
+
+        public override VariableType Type => VariableType.Delegate;
+        public override object WeakValue => Script;
 
         // Todo: Switch these two parameters for more efficient opcodes.
 
@@ -51,22 +54,27 @@ namespace TaffyScript
         {
             // If the script needs a target, get it from the first index of the args array.
             // This will make it easier to invoke Delegates from TS.
-
             return Script(args);
         }
 
-        public override bool Equals(object obj)
+        public override TsDelegate GetDelegate()
         {
-            if (obj is TsDelegate del)
-                return Equals(del);
-            return false;
+            return this;
         }
 
-        public bool Equals(TsDelegate other)
+        public override TsObject[] GetArray() => throw new InvalidTsTypeException($"Variable is supposed to be of type Array, is {Type} instead.");
+        public override float GetNumber() => throw new InvalidTsTypeException($"Variable is supposed to be of type Number, is {Type} instead.");
+        public override ITsInstance GetInstance() => throw new InvalidTsTypeException($"Variable is supposed to be of type Instance, is {Type} instead.");
+        public override string GetString() => throw new InvalidTsTypeException($"Variable is supposed to be of type String, is {Type} instead.");
+
+        public override bool Equals(object obj)
         {
-            if (other is null)
-                return false;
-            return Script == other.Script && Target == other.Target;
+            if (obj is TsDelegate wrapper)
+                return Script == wrapper.Script;
+            else if (obj is TsScript del)
+                return Script == del;
+
+            return false;
         }
 
         public override int GetHashCode()
@@ -77,20 +85,6 @@ namespace TaffyScript
         public override string ToString()
         {
             return Name;
-        }
-
-        public static bool operator ==(TsDelegate left, TsDelegate right)
-        {
-            if (!(left is null))
-                return left.Equals(right);
-            else return right is null;
-        }
-
-        public static bool operator !=(TsDelegate left, TsDelegate right)
-        {
-            if (!(left is null))
-                return !left.Equals(right);
-            else return !(right is null);
         }
     }
 }
