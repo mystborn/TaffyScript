@@ -70,11 +70,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Attributes\TaffyScriptStatic.cs" />
     <Compile Include="Attributes\WeakBaseTypeAttribute.cs" />
     <Compile Include="Collections\EventCache.cs" />
     <Compile Include="GeneralScripts.cs" />
     <Compile Include="GlobalScripts.cs" />
-    <Compile Include="Math\MathScripts.cs" />
+    <Compile Include="Numbers\NumberScripts.cs" />
     <Compile Include="Object\TsArray.cs" />
     <Compile Include="Object\TsInstanceWrapper.cs" />
     <Compile Include="Object\TsNull.cs" />

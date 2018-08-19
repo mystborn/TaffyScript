@@ -8,13 +8,15 @@ namespace TaffyScript.Compiler.Syntax
         public string Name { get; }
         public ISyntaxElement Inherits { get; }
         public List<ScriptNode> Scripts { get; }
+        public List<ScriptNode> StaticScripts { get; }
 
-        public ObjectNode(string name, ISyntaxElement inherits, List<ScriptNode> scripts, TokenPosition position)
+        public ObjectNode(string name, ISyntaxElement inherits, List<ScriptNode> scripts, List<ScriptNode> staticScripts, TokenPosition position)
             : base(position)
         {
             Name = name;
             Inherits = inherits;
             Scripts = scripts;
+            StaticScripts = staticScripts;
         }
 
         public override void Accept(ISyntaxElementVisitor visitor)

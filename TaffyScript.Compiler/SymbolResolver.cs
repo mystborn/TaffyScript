@@ -81,10 +81,11 @@ namespace TaffyScript.Compiler
                     namespaceNode = (SymbolNode)symbol;
                     while(ns.Count > 0)
                     {
-                        if(!namespaceNode.Children.TryGetValue(ns.Pop().Name, out symbol) || symbol.Type != SymbolType.Namespace)
+                        var element = ns.Pop();
+                        if (!namespaceNode.Children.TryGetValue(element.Name, out symbol) || symbol.Type != SymbolType.Namespace)
                         {
-                            namespaceNode = default(SymbolNode);
-                            return false;
+                            resolved = element.Parent;
+                            return true;
                         }
                         namespaceNode = (SymbolNode)symbol;
                     }

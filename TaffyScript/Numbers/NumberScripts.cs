@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Maths = System.Math;
 
-namespace TaffyScript.Math
+namespace TaffyScript.Numbers
 {
     [TaffyScriptBaseType]
-    public class MathScripts
+    public class NumberScripts
     {
         /// <summary>
         /// Gets the random number generator used by TaffyScript.
@@ -20,7 +19,7 @@ namespace TaffyScript.Math
         /// </summary>
         public static int RandomSeed { get; private set; }
 
-        static MathScripts()
+        static NumberScripts()
         {
             RandomSeed = (int)DateTimeOffset.Now.Ticks;
             Rng = new Random(RandomSeed);
@@ -29,13 +28,13 @@ namespace TaffyScript.Math
         [TaffyScriptMethod]
         public static TsObject abs(TsObject[] args)
         {
-            return Maths.Abs((float)args[0]);
+            return Math.Abs((float)args[0]);
         }
 
         [TaffyScriptMethod]
         public static TsObject ceil(TsObject[] args)
         {
-            return Maths.Ceiling((double)args[0]);
+            return Math.Ceiling((double)args[0]);
         }
 
         [TaffyScriptMethod]
@@ -56,31 +55,31 @@ namespace TaffyScript.Math
         [TaffyScriptMethod]
         public static TsObject exp(TsObject[] args)
         {
-            return Maths.Exp((double)args[0]);
+            return Math.Exp((double)args[0]);
         }
 
         [TaffyScriptMethod]
         public static TsObject floor(TsObject[] args)
         {
-            return Maths.Floor((double)args[0]);
+            return Math.Floor((double)args[0]);
         }
 
         [TaffyScriptMethod]
         public static TsObject ln(TsObject[] args)
         {
-            return Maths.Log((double)args[0]);
+            return Math.Log((double)args[0]);
         }
 
         [TaffyScriptMethod]
         public static TsObject log10(TsObject[] args)
         {
-            return Maths.Log10((double)args[0]);
+            return Math.Log10((double)args[0]);
         }
 
         [TaffyScriptMethod]
         public static TsObject logn(TsObject[] args)
         {
-            return Maths.Log((double)args[0], (double)args[1]);
+            return Math.Log((double)args[0], (double)args[1]);
         }
 
         [TaffyScriptMethod]
@@ -157,13 +156,13 @@ namespace TaffyScript.Math
         [TaffyScriptMethod]
         public static TsObject round(TsObject[] args)
         {
-            return Maths.Round((double)args[0]);
+            return Math.Round((double)args[0]);
         }
 
         [TaffyScriptMethod]
         public static TsObject sign(TsObject[] args)
         {
-            return Maths.Sign((float)args[0]);
+            return Math.Sign((float)args[0]);
         }
 
         [TaffyScriptMethod]
@@ -176,7 +175,7 @@ namespace TaffyScript.Math
         [TaffyScriptMethod]
         public static TsObject sqrt(TsObject[] args)
         {
-            return Maths.Sqrt((double)args[0]);
+            return Math.Sqrt((double)args[0]);
         }
     }
 }

@@ -1981,36 +1981,48 @@ namespace TaffyScript.Compiler.Backend
                 name = token.Name;
             else if (functionCall.Callee is MemberAccessNode memberAccess)
             {
-                if (_resolver.TryResolveNamespace(memberAccess, out callSite, out var namespaceNode))
+                if(_resolver.TryResolveNamespace(memberAccess, out var resolvedCallSite, out var namespaceNode))
                 {
-                    //explicit namespace -> function call
-                    //e.g. name.space.func_name();
-                    if(namespaceNode.Children.TryGetValue(((VariableToken)callSite).Name, out var scriptSymbol))
+                    switch(resolvedCallSite)
                     {
-                        CallScript(GetAssetNamespace(scriptSymbol), scriptSymbol, functionCall);
-                        return;
-                    }
-                    else
-                    {
-                        _logger.Error($"Namespace {(GetAssetNamespace(namespaceNode) + "." + namespaceNode.Name).TrimStart('.')} does not define script {((VariableToken)callSite).Name}");
-                        emit.Call(TsTypes.Empty);
-                        return;
+                        case VariableToken scriptName:
+                            if (namespaceNode.Children.TryGetValue(scriptName.Name, out var scriptSymbol))
+                            {
+                                CallScript(_resolver.GetAssetNamespace(scriptSymbol), scriptSymbol, functionCall);
+                                return;
+                            }
+                            break;
+                        case MemberAccessNode typeName:
+                            CallStaticScript(typeName, namespaceNode, functionCall);
+                            return;
+                        default:
+                            _logger.Error($"Namespace {(GetAssetNamespace(namespaceNode) + "." + namespaceNode.Name).TrimStart('.')} does not define script {((VariableToken)callSite).Name}");
+                            emit.Call(TsTypes.Empty);
+                            return;
                     }
                 }
                 else
                 {
-                    //instance script call
-                    //e.g. inst.script_name();
-                    name = (memberAccess.Right as VariableToken)?.Name;
-                    if (name == null)
+                    if(memberAccess.Left is VariableToken left && _table.Defined(left.Name, out var nameSymbol) && nameSymbol.Type == SymbolType.Object)
                     {
-                        _logger.Error("Invalid symbol for instance script", memberAccess.Right.Position);
-                        emit.Call(TsTypes.Empty);
+                        CallStaticScript(memberAccess, null, functionCall);
                         return;
                     }
-                    memberAccess.Left.Accept(this);
-                    CallEvent(name, false, functionCall, memberAccess.Right.Position);
-                    return;
+                    else
+                    {
+                        //instance script call
+                        //e.g. inst.script_name();
+                        name = (memberAccess.Right as VariableToken)?.Name;
+                        if (name == null)
+                        {
+                            _logger.Error("Invalid symbol for instance script", memberAccess.Right.Position);
+                            emit.Call(TsTypes.Empty);
+                            return;
+                        }
+                        memberAccess.Left.Accept(this);
+                        CallEvent(name, false, functionCall, memberAccess.Right.Position);
+                        return;
+                    }
                 }
             }
             else
@@ -2054,6 +2066,80 @@ namespace TaffyScript.Compiler.Backend
             var ns = GetAssetNamespace(symbol);
 
             CallScript(ns, symbol, functionCall);
+        }
+
+        private void CallStaticScript(MemberAccessNode member, SymbolNode ns, FunctionCallNode functionCall)
+        {
+            var stack = new Stack<VariableToken>();
+            VariableToken typeName, scriptName;
+            var current = member;
+            if (member.Parent.Type == SyntaxType.MemberAccess)
+            {
+                current = member;
+                typeName = member.Right as VariableToken;
+                while (current.Parent is MemberAccessNode parent)
+                {
+                    stack.Push(parent.Right as VariableToken);
+                    current = parent;
+                }
+                scriptName = current.Right as VariableToken;
+            }
+            else
+            {
+                typeName = member.Left as VariableToken;
+                scriptName = current.Right as VariableToken;
+            }
+            
+            ISymbol typeSymbol;
+            if(ns != null)
+            {
+                if (!ns.Children.TryGetValue(typeName.Name, out typeSymbol))
+                {
+                    emit.Call(TsTypes.Empty);
+                    _logger.Error($"Tried to call static script from type '{typeName.Name}' that didn't exist in namespace '{($"{GetAssetNamespace(ns)}.{ns.Name}").TrimStart('.')}'",
+                        current.Left.Position);
+                    return;
+                }
+            }
+            else
+            {
+                if(!_table.Defined(typeName.Name, out typeSymbol))
+                {
+                    emit.Call(TsTypes.Empty);
+                    _logger.Error($"Tried to call static script from type '{typeName.Name}' that doesn't exist", current.Left.Position);
+                    return;
+                }
+            }
+            if(stack.Count > 1)
+            {
+                emit.Call(TsTypes.Empty);
+                _logger.Error("Currently cannot access static fields", current.Left.Position);
+                return;
+            }
+
+            var methodInfo = _assets.GetInstanceMethod(typeSymbol, scriptName.Name, member.Position);
+            if(methodInfo is null)
+            {
+                emit.Call(TsTypes.Empty);
+                return;
+            }
+
+            /*if(!info.Methods.TryGetValue(scriptName.Name, out var methodInfo))
+            {
+                emit.Call(TsTypes.Empty);
+                _logger.Error($"Tried to call static script '{scriptName.Name}' that doesn't exist on type '{info.Type.FullName}'", member.Position);
+                return;
+            }*/
+
+            if(!methodInfo.IsStatic)
+            {
+                emit.Call(TsTypes.Empty);
+                _logger.Error($"Tried to call non-static script '{scriptName.Name}' from the type '{methodInfo.DeclaringType.FullName}'", member.Position);
+                return;
+            }
+
+            LoadFunctionArguments(functionCall.Arguments);
+            emit.Call(methodInfo, 1, typeof(TsObject));
         }
 
         private void CallScript(string ns, ISymbol scriptSymbol, FunctionCallNode functionCall)
@@ -2689,6 +2775,28 @@ namespace TaffyScript.Compiler.Backend
 
                 ScriptEnd();
                 scripts.Add(method);
+            }
+
+            _argumentArray = 0;
+
+            for(var i = 0; i < objectNode.StaticScripts.Count; i++)
+            {
+                var script = objectNode.StaticScripts[i];
+                MethodBuilder method = _assets.GetInstanceMethod(_table.Current, script.Name, script.Position) as MethodBuilder;
+
+                ScriptStart(script.Name, method, TsTypes.ArgumentTypes);
+
+                ProcessScriptArguments(script.Arguments);
+                script.Body.Accept(this);
+                BlockNode body = (BlockNode)script.Body;
+                var last = body.Body.Count == 0 ? null : body.Body[body.Body.Count - 1];
+                if (body.Body.Count == 0 || last.Type != SyntaxType.Return)
+                {
+                    emit.Call(TsTypes.Empty)
+                        .Ret();
+                }
+
+                ScriptEnd();
             }
 
             _assets.FinalizeType(info, _parent, scripts, objectNode.Position);

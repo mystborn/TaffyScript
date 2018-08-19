@@ -48,6 +48,7 @@ namespace TaffyScript.Compiler.FrontEnd
             { "return", TokenType.Return },
             { "script", TokenType.Script },
             { "self", TokenType.ReadOnly },
+            { "static", TokenType.Static },
             { "switch", TokenType.Switch },
             { "true", TokenType.Bool },
             { "until", TokenType.Until },

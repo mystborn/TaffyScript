@@ -30,7 +30,7 @@ namespace TaffyScript.CommandLine
                 path = extra[0];
 
 #if DEBUG
-            path = @"C:\Users\Chris\Source\Repos\GmParser\Samples\HelloLanguage";
+            path = @"C:\Users\Chris\Source\Repos\GmParser\Samples\TestSuite\Tests";
 #endif
 
             if (generateBuild)

@@ -67,23 +67,40 @@ namespace TaffyScript.Compiler.Backend
             {
                 if (typeSymbol is ObjectSymbol obj)
                 {
-                    if (obj.Children.ContainsKey(methodName))
+                    if(obj.Children.TryGetValue(methodName, out var methodSymbol))
                     {
-                        var builder = info.Type as TypeBuilder;
-                        var parentMethod = GetInstanceMethod(obj.Inherits, methodName);
-
-                        if(parentMethod != null && (parentMethod.IsFinal || !(parentMethod.IsVirtual || parentMethod.IsAbstract)))
+                        if(methodSymbol.Type != SymbolType.Script)
                         {
-                            _logger.Error("Tried to override non-virtual, non-abstract method");
+                            _logger.Error($"Tried to get member that wasn't a script from type '{info.Type.FullName}'");
                             return null;
                         }
 
-                        MethodAttributes flags = (parentMethod is null ? MethodAttributes.NewSlot : 0) 
-                            | MethodAttributes.Virtual 
-                            | MethodAttributes.Public
-                            | MethodAttributes.HideBySig;
-                    
-                        method = builder.DefineMethod(methodName, flags, typeof(TsObject), TsTypes.ArgumentTypes);
+                        var builder = info.Type as TypeBuilder;
+                        if (methodSymbol.Scope == SymbolScope.Member)
+                        {
+                            var parentMethod = GetInstanceMethod(obj.Inherits, methodName);
+
+                            if (parentMethod != null && (parentMethod.IsFinal || !(parentMethod.IsVirtual || parentMethod.IsAbstract)))
+                            {
+                                _logger.Error("Tried to override non-virtual, non-abstract method");
+                                return null;
+                            }
+
+                            MethodAttributes flags = (parentMethod is null ? MethodAttributes.NewSlot : 0)
+                                | MethodAttributes.Virtual
+                                | MethodAttributes.Public
+                                | MethodAttributes.HideBySig;
+
+                            method = builder.DefineMethod(methodName, flags, typeof(TsObject), TsTypes.ArgumentTypes);
+                        }
+                        else
+                        {
+                            MethodAttributes flags = MethodAttributes.Public | MethodAttributes.Static | MethodAttributes.HideBySig;
+                            var mBuilder = builder.DefineMethod(methodName, flags, typeof(TsObject), TsTypes.ArgumentTypes);
+                            var staticAttribute = new CustomAttributeBuilder(typeof(TaffyScriptStaticAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
+                            mBuilder.SetCustomAttribute(staticAttribute);
+                            method = mBuilder;
+                        }
                     }
                     else if (obj.Inherits != null)
                     {
@@ -121,16 +138,30 @@ namespace TaffyScript.Compiler.Backend
             {
                 if (typeSymbol is ObjectSymbol obj)
                 {
-                    if (obj.Children.ContainsKey(methodName))
+                    if (obj.Children.TryGetValue(methodName, out var methodSymbol))
                     {
+                        if (methodSymbol.Type != SymbolType.Script)
+                            return null;
+
                         var builder = info.Type as TypeBuilder;
+                        if (methodSymbol.Scope == SymbolScope.Member)
+                        {
 
-                        MethodAttributes flags = (GetInstanceMethod(obj.Inherits, methodName) is null ? MethodAttributes.NewSlot : 0)
-                            | MethodAttributes.Virtual
-                            | MethodAttributes.Public
-                            | MethodAttributes.HideBySig;
+                            MethodAttributes flags = (GetInstanceMethod(obj.Inherits, methodName) is null ? MethodAttributes.NewSlot : 0)
+                                | MethodAttributes.Virtual
+                                | MethodAttributes.Public
+                                | MethodAttributes.HideBySig;
 
-                        method = builder.DefineMethod(methodName, flags, typeof(TsObject), TsTypes.ArgumentTypes);
+                            method = builder.DefineMethod(methodName, flags, typeof(TsObject), TsTypes.ArgumentTypes);
+                        }
+                        else
+                        {
+                            MethodAttributes flags = MethodAttributes.Public | MethodAttributes.Static | MethodAttributes.HideBySig;
+                            var mBuilder = builder.DefineMethod(methodName, flags, typeof(TsObject), TsTypes.ArgumentTypes);
+                            var staticAttribute = new CustomAttributeBuilder(typeof(TaffyScriptStaticAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
+                            mBuilder.SetCustomAttribute(staticAttribute);
+                            method = mBuilder;
+                        }
                     }
                     else if (obj.Inherits != null)
                         method = GetInstanceMethod(obj.Inherits, methodName);
@@ -236,11 +267,11 @@ namespace TaffyScript.Compiler.Backend
                 members = _baseMemberField;
             
             var tryGetDelegate = builder.DefineMethod("TryGetDelegate",
-                                                     MethodAttributes.Public |
-                                                         MethodAttributes.HideBySig |
-                                                         MethodAttributes.Virtual,
-                                                     typeof(bool),
-                                                     new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
+                                                      MethodAttributes.Public |
+                                                          MethodAttributes.HideBySig |
+                                                          MethodAttributes.Virtual,
+                                                      typeof(bool),
+                                                      new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
             tryGetDelegate.DefineParameter(2, ParameterAttributes.Out, "del");
             var constructor = builder.DefineConstructor(MethodAttributes.Public |
                                                             MethodAttributes.HideBySig |

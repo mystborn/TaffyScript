@@ -354,22 +354,32 @@ namespace TaffyScript.Compiler
 
             ISyntaxElement parent = null;
             if (Match(TokenType.Colon))
-            {
                 parent = ReadTaffyScriptType("Invalid type name for object parent");
-            }
 
             Consume(TokenType.OpenBrace, "Expected '{' after object declaration", 1);
 
             var scripts = new List<ScriptNode>();
+            var staticScripts = new List<ScriptNode>();
             while(!Check(TokenType.CloseBrace) && !_stream.Finished)
             {
                 //Todo: Synchronize on error
-                var script = ScriptDeclaration(SymbolScope.Member);
-                scripts.Add(script);
+                switch(_stream.Current.Type)
+                {
+                    case TokenType.Script:
+                        scripts.Add(ScriptDeclaration(SymbolScope.Member));
+                        break;
+                    case TokenType.Static:
+                        _stream.Read();
+                        staticScripts.Add(ScriptDeclaration(SymbolScope.Global));
+                        break;
+                    default:
+                        SynchronizeBraces(false, TokenType.Script, TokenType.Static);
+                        break;
+                }
             }
             Consume(TokenType.CloseBrace, "Expected '}' after object members", 1);
             _table.Exit();
-            return new ObjectNode(name.Text, parent, scripts, name.Position);
+            return new ObjectNode(name.Text, parent, scripts, staticScripts, name.Position);
         }
 
         private ScriptNode ScriptDeclaration(SymbolScope scope)
@@ -1318,6 +1328,34 @@ namespace TaffyScript.Compiler
             {
                 if (_stream.Current != null && set.Contains(_stream.Current.Type))
                     return;
+                _stream.Read();
+            }
+        }
+
+        private void SynchronizeBraces(bool startWithOne, params TokenType[] tokens)
+        {
+            _stream.Read();
+            var set = new HashSet<TokenType>(tokens);
+            var braces = startWithOne ? 1 : 0;
+            while(!_stream.Finished)
+            {
+                if (_stream.Current == null)
+                    continue;
+
+                switch(_stream.Current.Type)
+                {
+                    case TokenType.OpenBrace:
+                        braces++;
+                        break;
+                    case TokenType.CloseBrace:
+                        if (--braces <= 0)
+                            return;
+                        break;
+                    default:
+                        if (set.Contains(_stream.Current.Type))
+                            return;
+                        break;
+                }
                 _stream.Read();
             }
         }

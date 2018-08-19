@@ -344,6 +344,11 @@ namespace TaffyScript.Compiler.FrontEnd
                 script.Parent = objectNode;
                 script.Accept(this);
             }
+            foreach(var script in objectNode.StaticScripts)
+            {
+                script.Parent = objectNode;
+                script.Accept(this);
+            }
             _table.Exit();
             _hasParent = false;
         }

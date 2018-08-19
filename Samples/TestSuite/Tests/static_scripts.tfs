@@ -1,0 +1,34 @@
+using UnitTest;
+
+namespace LanguageTests {
+    script run_static_tests() {
+        var tests = new obj_unit_test("Static Tests",
+                                      static_invoke,
+                                      static_namespace_invoke);
+        tests.run_tests();
+    }
+
+    script static_invoke() {
+        test_it("type.static_script()");
+        assert_equal(MathF.add(5, 10), 15);
+    }
+
+    script static_namespace_invoke() {
+        test_it("namespace.type.static_script()");
+        assert_equal(LanguageTests.Inner.Cow.moo(), "moo");
+    }
+
+    object MathF {
+        static script add(left, right) {
+            return left + right;
+        }
+    }
+}
+
+namespace LanguageTests.Inner {
+    object Cow {
+        static script moo() {
+            return "moo";
+        }
+    }
+}
