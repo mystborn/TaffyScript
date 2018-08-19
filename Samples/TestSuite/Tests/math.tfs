@@ -89,7 +89,7 @@ namespace LanguageTests {
     script math_random_seed() {
         test_it("random_seed");
         var seed = random_get_seed();
-        assert_equal(seed, 123456789);
+        assert_equal(typeof(seed), "real");
         random_set_seed(987654321);
         seed = random_get_seed();
         assert_equal(seed, 987654321);

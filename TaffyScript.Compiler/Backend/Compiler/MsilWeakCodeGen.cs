@@ -2121,7 +2121,7 @@ namespace TaffyScript.Compiler.Backend
 
             var top = emit.GetTop();
 
-            if(top == typeof(string))
+            if(top == typeof(string) || top == typeof(TsObject[]))
             {
                 ConvertTopToObject();
                 top = typeof(TsObject);
@@ -2466,7 +2466,7 @@ namespace TaffyScript.Compiler.Backend
             {
                 memberAccess.Left.Accept(this);
                 var left = emit.GetTop();
-                if(left == typeof(string))
+                if(left == typeof(string) || left == typeof(TsObject[]))
                 {
                     ConvertTopToObject();
                     left = typeof(TsObject);
@@ -2597,6 +2597,19 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(NewNode newNode)
         {
+            if(newNode.TypeName is VariableToken token && token.Name == "Array")
+            {
+                if(newNode.Arguments.Count != 1)
+                {
+                    _logger.Error("Cannot create an array with more than one argument", newNode.Position);
+                    emit.Call(TsTypes.Empty);
+                    return;
+                }
+                LoadElementAsInt(newNode.Arguments[0]);
+                emit.NewArr(typeof(TsObject));
+                return;
+            }
+
             if (!_resolver.TryResolveType(newNode.TypeName, out var symbol))
             {
                 _logger.Error("Tried to create type that doesn't exist", newNode.TypeName.Position);

@@ -6,6 +6,7 @@ namespace LanguageTests {
                                       run_array_faulty_tests,
                                       array1_create_literal,
                                       array1_create_script,
+                                      array1_create_type,
                                       array1_set_in_bounds,
                                       array1_get_in_bounds,
                                       array2_create,
@@ -48,6 +49,14 @@ namespace LanguageTests {
         test_it("arr = array_create()");
         var arr = array_create(1);
         assert_equal(typeof(arr), "array");
+    }
+
+    script array1_create_type() {
+        test_it("arr = new Array()");
+        var arr = new Array(5);
+        assert_equal(typeof(arr), "array");
+        assert_equal(new Array(5).length, 5);
+        assert_equal(new Array(5).get_length(), 5);
     }
 
     script array1_set_in_bounds {

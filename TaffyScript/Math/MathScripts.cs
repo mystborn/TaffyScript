@@ -13,12 +13,18 @@ namespace TaffyScript.Math
         /// <summary>
         /// Gets the random number generator used by TaffyScript.
         /// </summary>
-        public static Random Rng { get; private set; } = new Random(123456789);
+        public static Random Rng { get; private set; }
 
         /// <summary>
         /// Gets the seed used by <see cref="Rng"/>.
         /// </summary>
-        public static int RandomSeed { get; private set; } = 123456789;
+        public static int RandomSeed { get; private set; }
+
+        static MathScripts()
+        {
+            RandomSeed = (int)DateTimeOffset.Now.Ticks;
+            Rng = new Random(RandomSeed);
+        }
 
         [TaffyScriptMethod]
         public static TsObject abs(TsObject[] args)
