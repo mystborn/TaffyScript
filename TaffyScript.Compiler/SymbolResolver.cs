@@ -75,29 +75,21 @@ namespace TaffyScript.Compiler
                     namespaceNode = default(SymbolNode);
                     return false;
                 }
-
-                var sb = new System.Text.StringBuilder();
-                var iterations = 0;
-                while (ns.Count > 0)
+                
+                if(_table.Defined(ns.Pop().Name, out symbol) && symbol.Type == SymbolType.Namespace)
                 {
-                    var top = ns.Pop();
-                    sb.Append(top.Name);
-                    sb.Append(".");
-                    if (_table.Defined(top.Name, out symbol) && symbol.Type == SymbolType.Namespace)
+                    namespaceNode = (SymbolNode)symbol;
+                    while(ns.Count > 0)
                     {
-                        _table.Enter(top.Name);
-                        iterations++;
+                        if(!namespaceNode.Children.TryGetValue(ns.Pop().Name, out symbol) || symbol.Type != SymbolType.Namespace)
+                        {
+                            namespaceNode = default(SymbolNode);
+                            return false;
+                        }
+                        namespaceNode = (SymbolNode)symbol;
                     }
-                    else
-                    {
-                        namespaceNode = default(SymbolNode);
-                        _table.Exit(iterations);
-                        return false;
-                    }
+                    return true;
                 }
-                namespaceNode = _table.Current;
-                _table.Exit(iterations);
-                return true;
             }
             resolved = default(ISyntaxElement);
             namespaceNode = default(SymbolNode);

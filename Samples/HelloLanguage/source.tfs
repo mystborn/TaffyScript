@@ -2,24 +2,27 @@ using HelloLanguage;
 
 script main {
     namespace_script();
+
     HelloLanguage.Utils.Console.trace("HelloLanguage");
-    var inst = instance_create(namespace_object);
-    //Different from trace defined in this file.
-    trace(inst.i);
+
+    var inst = new NamespaceObject(Color.Red);
+
+    // HelloLanguage.trace
+    trace(inst.color);
 }
 
 namespace HelloLanguage {
     script namespace_script {
-        show_debug_message("script from ns");
+        print("script from ns");
     }
 
     script test {
-        show_debug_message(argument0);
+        print(argument0);
     }
 
-    object namespace_object {
-        event create {
-            i = 0;
+    object NamespaceObject {
+        script create(color) {
+            self.color = color;
         }
     }
 
@@ -27,19 +30,5 @@ namespace HelloLanguage {
         Red,
         Green,
         Blue
-    }
-}
-
-namespace HelloLanguage.Utils.Console {
-    script trace {
-        if(argument_count == 0) {
-            show_debug_message("");
-            exit;
-        }
-        var output = string(argument0);
-        for(var i = 1; i < argument_count; i++) {
-            output += ", " + string(argument[i]);
-        }
-        show_debug_message(output);
     }
 }

@@ -1,14 +1,28 @@
 //Empty file...
 namespace HelloLanguage {
-    script trace {
+    script trace() {
         if(argument_count == 0) {
-            show_debug_message("");
-            exit;
+            print("");
+            return;
         }
         var output = string(argument[0]);
         for(var i = 1; i < argument_count; i++) {
             output += ", " + string(argument[i]);
         }
-        show_debug_message(output);
+        print(output);
+    }
+}
+
+namespace HelloLanguage.Utils.Console {
+    script trace() {
+        if(argument_count == 0) {
+            print("");
+            return;
+        }
+        var output = string(argument0);
+        for(var i = 1; i < argument_count; i++) {
+            output += ", " + string(argument[i]);
+        }
+        print(output);
     }
 }
