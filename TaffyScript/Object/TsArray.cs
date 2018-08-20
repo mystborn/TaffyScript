@@ -92,6 +92,8 @@ namespace TaffyScript
             {
                 case "length":
                     return Value.Length;
+                case "count":
+                    return Value.Length;
                 default:
                     if (TryGetDelegate(name, out var del))
                         return del;

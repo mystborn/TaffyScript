@@ -17,12 +17,6 @@ namespace TaffyScript
         // in Resources/SpecialImports.resource
 
         [TaffyScriptMethod]
-        public static TsObject ToString(TsObject[] args)
-        {
-            return args[0].ToString();
-        }
-
-        [TaffyScriptMethod]
         public static TsObject array_copy(TsObject[] args)
         {
             Array.Copy(args[0].GetArray(), (int)args[1], args[2].GetArray(), (int)args[3], (int)args[4]);
@@ -33,9 +27,7 @@ namespace TaffyScript
         public static TsObject array_create(TsObject[] args)
         {
             var size = args[0].GetInt();
-            var value = TsObject.Empty;
-            if (args.Length > 1)
-                value = args[1];
+            var value = args.Length > 1 ? args[1] : TsObject.Empty;
             var result = new TsObject[size];
             for (var i = 0; i < size; ++i)
                 result[i] = value;
@@ -99,8 +91,14 @@ namespace TaffyScript
             if ((bool)args[1])
                 throw error;
 
-            Console.WriteLine(error);
+            System.Diagnostics.Debug.WriteLine(error);
             return TsObject.Empty;
+        }
+
+        [TaffyScriptMethod]
+        public static TsObject ToString(TsObject[] args)
+        {
+            return args[0].ToString();
         }
 
         [TaffyScriptMethod]

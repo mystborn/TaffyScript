@@ -2144,22 +2144,39 @@ namespace TaffyScript.Compiler.Backend
 
         private void CallScript(string ns, ISymbol scriptSymbol, FunctionCallNode functionCall)
         {
-            if (!_methods.TryGetValue(ns, scriptSymbol.Name, out var method))
+            MethodInfo method;
+            if (scriptSymbol.Parent.Type != SymbolType.Object)
             {
-                // Special case hack needed for getting the MethodInfo for weak methods before
-                // their ImportNode has been hit.
-                if (scriptSymbol is ImportLeaf leaf)
+                if (!_methods.TryGetValue(ns, scriptSymbol.Name, out method))
                 {
-                    var temp = _namespace;
-                    _namespace = ns;
-                    leaf.Node.Accept(this);
-                    method = _methods[_namespace, leaf.Name];
-                    _namespace = temp;
+                    // Special case hack needed for getting the MethodInfo for weak methods before
+                    // their ImportNode has been hit.
+                    if (scriptSymbol is ImportLeaf leaf)
+                    {
+                        var temp = _namespace;
+                        _namespace = ns;
+                        leaf.Node.Accept(this);
+                        method = _methods[_namespace, leaf.Name];
+                        _namespace = temp;
+                    }
+                    else
+                    {
+                        method = StartMethod(scriptSymbol.Name, ns);
+                        _pendingMethods.Add($"{ns}.{scriptSymbol.Name}".TrimStart('.'), functionCall.Position);
+                    }
                 }
-                else
+            }
+            else
+            {
+                method = _assets.GetInstanceMethod(scriptSymbol.Parent, scriptSymbol.Name, functionCall.Position);
+                if(method is null)
                 {
-                    method = StartMethod(scriptSymbol.Name, ns);
-                    _pendingMethods.Add($"{ns}.{scriptSymbol.Name}".TrimStart('.'), functionCall.Position);
+                    // This should never happen, but it's better to log the error
+                    // in case it does.
+                    emit.Call(TsTypes.Empty);
+                    _logger.Error($"Compiler failed to get static script '{scriptSymbol.Name}' from type '{_resolver.GetAssetFullName(scriptSymbol.Parent)}'",
+                        functionCall.Position);
+                    return;
                 }
             }
 
@@ -2740,6 +2757,12 @@ namespace TaffyScript.Compiler.Backend
             {
                 if(!_resolver.TryResolveType(objectNode.Inherits, out _parent))
                     _logger.Error($"Tried to inherit from non-existant type: {((ISyntaxToken)objectNode.Inherits).Name}", objectNode.Inherits.Position);
+                var obj = (ObjectSymbol)_parent;
+                while(obj != null)
+                {
+                    _table.AddSymbolToDefinitionLookup(obj);
+                    obj = obj.Inherits as ObjectSymbol;
+                }
             }
             else
                 _parent = null;
@@ -2806,6 +2829,16 @@ namespace TaffyScript.Compiler.Backend
             else
                 type.CreateType();
 
+            if (_parent != null)
+            {
+                var obj = (ObjectSymbol)_parent;
+                while(obj != null)
+                {
+                    _table.RemoveSymbolFromDefinitionLookup(obj);
+                    obj = obj.Inherits as ObjectSymbol;
+                }
+
+            }
             _table.Exit();
             _parent = temp;
         }

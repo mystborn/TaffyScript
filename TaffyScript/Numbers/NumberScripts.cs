@@ -113,6 +113,12 @@ namespace TaffyScript.Numbers
         }
 
         [TaffyScriptMethod]
+        public static TsObject pow(TsObject[] args)
+        {
+            return Math.Pow((double)args[0], (double)args[1]);
+        }
+
+        [TaffyScriptMethod]
         public static TsObject random(TsObject[] args)
         {
             return (float)Rng.NextDouble() * (float)args[0];

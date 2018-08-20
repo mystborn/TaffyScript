@@ -10,6 +10,17 @@ namespace TaffyScript.Strings
     public static class StringMethods
     {
         [TaffyScriptMethod]
+        public static TsObject base64_decode(TsObject[] args)
+        {
+            return Encoding.Unicode.GetString(Convert.FromBase64String((string)args[0]));
+        }
+
+        [TaffyScriptMethod]
+        public static TsObject base64_encode(TsObject[] args)
+        {
+            return Convert.ToBase64String(Encoding.Unicode.GetBytes((string)args[0]));
+        }
+        [TaffyScriptMethod]
         public static TsObject string_char_at(TsObject[] args)
         {
             var str = (string)args[0];
