@@ -1,0 +1,10 @@
+- link: /
+  name: Home
+- link: /download/
+  name: Download
+- link: /blog/
+  name: Blog
+- link: /tutorial/
+  name: Tutorial
+- link: /docs/
+  name: Documentation

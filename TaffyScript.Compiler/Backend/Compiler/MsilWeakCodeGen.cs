@@ -382,9 +382,18 @@ namespace TaffyScript.Compiler.Backend
                     //      Just stay in the namespace.
                     var count = _table.EnterNamespace(type.Namespace);
                     if (!_table.TryEnterNew(type.Name, SymbolType.Object))
+                    {
                         _logger.Warning($"Name conflict encountered with object {type.Name} defined in assembly {asm.GetName().Name}");
-                    else
-                        _assets.AddExternalType(_table.Current, type);
+                        continue;
+                    }
+
+                    var info = _assets.AddExternalType(_table.Current, type);
+
+                    foreach(var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance).Where(m => m.IsVirtual && IsMethodValid(m)))
+                    {
+                        _table.AddLeaf(method.Name, SymbolType.Script, SymbolScope.Member);
+                        info.Methods.Add(method.Name, method);
+                    }
 
                     _table.Exit(count + 1);
                 }
@@ -2043,13 +2052,20 @@ namespace TaffyScript.Compiler.Backend
                 return;
             }
 
-            if(!_table.Defined(name, out var symbol) || (symbol.Type == SymbolType.Script && symbol.Scope == SymbolScope.Member))
+            if(!_table.Defined(name, out var symbol))
             {
                 CallEvent(name, true, functionCall, callSite.Position);
                 return;
             }
-
-            if(symbol.Type == SymbolType.Variable)
+            else if(symbol.Type == SymbolType.Script && symbol.Scope == SymbolScope.Member)
+            {
+                var method = _assets.GetInstanceMethod(symbol.Parent, symbol.Name, callSite.Position);
+                LoadTarget();
+                LoadFunctionArguments(functionCall.Arguments);
+                emit.Call(method, 2, typeof(TsObject));
+                return;
+            }
+            else if (symbol.Type == SymbolType.Variable)
             {
                 MarkSequencePoint(functionCall.Position, functionCall.EndPosition);
                 emit.LdLocal(_locals[symbol]);
@@ -3860,9 +3876,12 @@ namespace TaffyScript.Compiler.Backend
                         // Todo: Consider forcing this to load the exact function.
                         //       That would make it so the function couldn't be changed during runtime,
                         //       but of course it makes execution faster.
-                        LoadTarget()
-                            .LdStr(name)
-                            .Call(typeof(ITsInstance).GetMethod("GetDelegate"));
+                        LoadTarget();
+                        var method = _assets.GetInstanceMethod(variableSymbol.Parent, variableSymbol.Name, variableToken.Position);
+                        emit.LdFtn(method)
+                            .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                            .LdStr(variableSymbol.Name)
+                            .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }));
                     }
                     else
                     {

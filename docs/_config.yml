@@ -1,1 +1,42 @@
-theme: jekyll-theme-merlot
+# Permalinks
+permalink: pretty
+
+# Setup
+title: Precisamento
+description: Home page for all things related to Precisamento LLC
+baseurl: ""
+
+# Syntax
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM
+  auto_ids: true
+  entity_output: as_char
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    css_class: 'highlight'
+    span:
+      line_numbers: false
+    block:
+      line_numbers: true
+      start_line: 1
+
+#About
+author:
+  name: Christopher Kramer
+  url: twitter.com/presicamento
+  email: ckramer017@gmail.com
+  
+#Collections
+collections:
+  extensions:
+    output: true
+
+#Links
+discord: https://discord.gg/9Sy9DnD
+youtube: https://www.youtube.com/channel/UC-aQyQkY6q4lPL9Nhp_GbKw
+github: https://github.com/mystborn
+twitch: https://www.twitch.tv/mistborn1
+email: mailto:ckramer017@gmail.com
+twitter: https://twitter.com/precisamento

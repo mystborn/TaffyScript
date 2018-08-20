@@ -1,0 +1,9 @@
+- name: Introduction
+  link: introduction
+  subfolders:
+    - name: What is TaffyScript
+      link: introduction/what-is-taffyscript
+    - name: Hello, World
+      link: introduction/hello-world
+- name: Types
+  link: types

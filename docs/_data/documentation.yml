@@ -1,0 +1,1392 @@
+description: These scripts and objects are available in the global scope. Reserved for the most commonly used functionality.
+assembly: TaffyScript
+namespaces:
+  - name: TaffyScript
+    assembly: TaffyScript
+    description: Container namespace for basic TaffyScript functionality.
+    scripts:
+      - name: environment_get_variable
+        args:
+          - name: str
+            type: string
+            description: The name of the environment variable to get.
+        description: Retrieves the value of an environment variable from the current process.
+        returns: string
+    namespaces:
+      - name: Numbers
+        assembly: TaffyScript
+        description: General math scripts.
+        scripts:
+          - name: abs
+            args:
+              - name: num
+                type: number
+                description: The number to get the absolute value of.
+            description: Returns the absolute value of number.
+            returns: number
+          - name: ceil
+            args:
+              - name: value
+                type: number
+                description: The value to round up.
+            description: Returns value rounded up to the nearest integer.
+            returns: number
+          - name: choose
+            args:
+              - name: ..args
+                type: objects
+                description: Any number of objects.
+            description: Randomly chooses an item from the arguments.
+            returns: object
+          - name: clamp
+            args:
+              - name: value
+                type: number
+                description: The value to clamp.
+              - name: min
+                type: number
+                description: The minumum possible value.
+              - name: max
+                type: number
+                description: The maximum possible value.
+            description: Returns a value clamped in between a min and max number.
+            returns: number
+          - name: exp
+            args:
+              - name: value
+                type: number
+                description: The exponent to raise euler's number by.
+            description: Raises euler's number to the specified power.
+            returns: number
+          - name: floor
+            args:
+              - name: value
+                type: number
+                description: The value to round down.
+            description: Returns value rounded down to the nearest integer.
+            returns: number
+          - name: ln
+            args:
+              - name: value
+                type: number
+                description: The value to get the natural logarithm of.
+            description: Gets the natural logarithm of a value.
+            returns: number
+          - name: log10
+            args:
+              - name: value
+                type: number
+                description: The value to get the base10 logarithm of.
+            description: Gets the number of power of ten needed to get the specified value.
+            returns: number
+          - name: logn
+            args:
+              - name: base
+                type: number
+                description: The log base.
+              - name: value
+                type: number
+                description: The value to get the base logarithm of.
+            description: Gets the exponent needed to get a value from a base number.
+            returns: number
+          - name: max
+            args:
+              - name: ..args
+                type: numbers
+                description: Any amount of numbers.
+            description: Returns the argument with the highest value.
+            returns: number
+          - name: min
+            args:
+              - name: ..args
+                type: numbers
+                description: Any amount of numbers.
+            description: Returns the argument with the lowest value.
+            returns: number
+          - name: pow
+            args:
+              - name: x
+                type: number
+                description: The number to raise to the specified power.
+              - name: "y"
+                type: number
+                description: The power to raise x to.
+            description: Raises a number to the specified power.
+            returns: number
+          - name: random
+            args:
+              - name: max
+                type: number
+                description: The maximum number to return.
+            description: Returns a real number between 0 (inclusive) and a maximum (exclusive).
+            returns: number
+          - name: random_get_seed
+            description: Gets the current seed used by the RNG.
+            returns: number
+          - name: random_range
+            args:
+              - name: min
+                type: number
+                description: The minumum value to get (inclusive)
+              - name: max
+                type: number
+                description: The maximum value to get (exclusive)
+            description: Gets a random real number between two values.
+            returns: number
+          - name: random_set_seed
+            args:
+              - name: seed
+                type: number
+                description: The seed to set the RNG to.
+            description: Sets the seed used by the RNG.
+            returns: "null"
+          - name: randomise
+            description: Sets the RNG to a random seed.
+            returns: number
+          - name: round
+            args:
+              - name: value
+                type: number
+                description: The value to round.
+            description: Rounds value to the nearest integer.
+            returns: number
+          - name: sign
+            args:
+              - name: value
+                type: number
+                description: The value to get the sign of.
+            description: Returns a number that represents the sign of the specified value. -1 for negative numbers, 1 for positive numbers, and 0 for 0.
+            returns: number
+          - name: sqr
+            args:
+              - name: value
+                type: number
+                description: The value to square.
+            description: Returns the square of a value.
+            returns: number
+          - name: sqrt
+            args:
+              - name: value
+                type: number
+                description: The value to get the square root of.
+            description: Gets the square root of a value.
+            returns: number
+      - name: Reflection
+        assembly: TaffyScript
+        description: Provides scripts to dynamically retrieve information about loaded assemblies.
+        scripts:
+          - name: call_global_script
+            args:
+              - name: name
+                type: string
+                description: The name of the global script to call.
+              - name: ..args
+                type: objects
+                description: The arguments to pass to the script.
+            description: Calls the specified global script with the given arguments.
+            returns: object
+          - name: call_instance_script
+            args:
+              - name: target
+                type: instance
+                description: The target of the script. The function will act as if this instance called it, even if this instance doesn't define the script.
+              - name: script_name
+                type: string
+                description: The name of the instance script to call.
+              - name: ..args
+                type: objects
+                description: The arguments to pass to the script.
+            description: Calls the specified script declared by the target with the given arguments.
+            returns: object
+          - name: instance_create
+            args:
+              - name: type
+                type: string
+                description: The name of the type to create.
+              - name: ..args
+                type: objects
+                description: The arguments to pass to the create script.
+            description: Creates a new instance of a specified type.
+            returns: instance
+          - name: instance_get_name
+            args:
+              - name: inst
+                type: instance
+                description: The instance to get the type of.
+            description: Gets the type of the specified instance.
+            returns: string
+          - name: instance_get_parent
+            args:
+              - name: inst
+                type: instance
+                description: The instance to get the parent of.
+            description: Gets the parent type of an instance. Returns an empty string if the instance has no parent.
+            returns: string
+          - name: is_array
+            args:
+              - name: value
+                type: object
+                description: The object to determine is an array or not.
+            description: Determines if a value is an array.
+            returns: bool
+          - name: is_null
+            args:
+              - name: value
+                type: object
+                description: The object to determine is a script or not.
+            description: Determines if a value is a script.
+            returns: bool
+          - name: is_number
+            args:
+              - name: value
+                type: object
+                description: The object to determine is null or not.
+            description: Determines if a value is null.
+            returns: bool
+          - name: is_script
+            args:
+              - name: value
+                type: object
+                description: The object to determine is a script or not.
+            description: Determines if a value is a script.
+            returns: bool
+          - name: is_string
+            args:
+              - name: value
+                type: object
+                description: The object to determine is a string or not.
+            description: Determines if a value is a string.
+            returns: bool
+          - name: object_is_ancestor
+            args:
+              - name: parent
+                type: string
+                description: The name of the parent type.
+              - name: type
+                type: string
+                description: The name of the child type.
+            description: Determines if a type is a parent of another.
+            returns: bool
+          - name: script_exists
+            args:
+              - name: name
+                type: string
+                description: The name of a global script
+            description: Determines if a global script with the given name exists.
+            returns: bool
+          - name: variable_global_exists
+            args:
+              - name: name
+                type: string
+                description: The name of a global variable.
+            description: Determines if a global variable with the given name exists.
+            returns: bool
+          - name: variable_global_get
+            args:
+              - name: name
+                type: string
+                description: The name of a global variable to get.
+            description: Gets the global variable with the given name.
+            returns: object
+          - name: variable_global_get_names
+            description: Gets an array of all of the currently defined global variable names.
+            returns: 1D array
+          - name: variable_global_set
+            args:
+              - name: name
+                type: string
+                description: The name of the global variable to set.
+              - name: value
+                type: object
+                description: The value to set the variable to.
+            description: Sets a global variable with a specified name to the given value.
+            returns: "null"
+          - name: variable_instance_get
+            args:
+              - name: inst
+                type: instance
+                description: The instance to to get a value from.
+              - name: name
+                type: string
+                description: The name of an instance variable to get.
+            description: Gets the variable with the given name from the specified instance.
+            returns: object
+          - name: variable_instance_set
+            args:
+              - name: inst
+                type: instance
+                description: The instance to set the variable on.
+              - name: name
+                type: string
+                description: The name of the variable to set.
+              - name: value
+                type: object
+                description: The value to set the variable to.
+            description: Sets the variable with the given name on the specified instance to the given value.
+            returns: "null"
+      - name: Strings
+        assembly: TaffyScript
+        description: Contains scripts for processing and manipulating strings. Many of the scripts found here are imperative versions of the scripts found on the string object.
+        scripts:
+          - name: base64_decode
+            args:
+              - name: str
+                type: string
+                description: The string to decode.
+            description: Decodes a 64 bit encoded string.
+            returns: string
+          - name: base64_encode
+            args:
+              - name: str
+                type: string
+                description: The string to encode.
+            description: Converts a string into a base64 format encoded string.
+            returns: string
+          - name: string_char_at
+            args:
+              - name: str
+                type: string
+                description: The string to get a character from.
+              - name: index
+                type: number
+                description: The index of the character to get.
+            description: Gets the character at a specific location within a string.
+            returns: string
+          - name: string_copy
+            args:
+              - name: str
+                type: string
+                description: The string to copy.
+              - name: start
+                type: number
+                description: The index of the character to start copying from.
+              - name: count
+                type: number
+                description: The number of characters to copy.
+            description: Returns a copy of a portion of a string.
+            returns: string
+          - name: string_count
+            args:
+              - name: source
+                type: string
+                description: The source string.
+              - name: sub_string
+                type: string
+                description: The sub string to count the number of occurrences of.
+            description: Counts the number of a string within another string.
+            returns: number
+          - name: string_delete
+            args:
+              - name: str
+                type: string
+                description: The string to remove a portion of.
+              - name: start
+                type: number
+                description: The start index of the portion to remove
+              - name: count
+                type: number
+                description: The number of characters to remove.
+            description: Removes a portion of characters from a string.
+            returns: string
+          - name: string_digits
+            args:
+              - name: str
+                type: string
+                description: The string to remove all non-digit characters from.
+            description: Removes all non-digit characters from a string.
+            returns: string
+          - name: string_insert
+            args:
+              - name: source
+                type: string
+                description: The source string.
+              - name: sub_string
+                type: string
+                description: The string to insert.
+              - name: index
+                type: number
+                description: The index of the source to insert the sub_string.
+            description: Inserts a string into another string at the specified location.
+            returns: string
+          - name: string_join
+            args:
+              - name: seperator
+                type: string
+                description: The string to put in between each argument.
+              - name: ..args
+                type: objects
+                description: Any number of arguments to convert into a string.
+            description: Converts each argument into a string and concatenates them together with the specified seperator.
+            returns: string
+          - name: string_length
+            args:
+              - name: str
+                type: string
+                description: The string to get the length of.
+            description: Gets the length of a string.
+            returns: number
+          - name: string_letters
+            args:
+              - name: str
+                type: string
+                description: The string to remove all non-letter characters from.
+            description: Removes all non-letter characters from a string.
+            returns: string
+          - name: string_letters_digits
+            args:
+              - name: str
+                type: string
+                description: The string to remove all non-letter all non-digit characters from.
+            description: Removes all non-letter and non-digit characters from a string.
+            returns: string
+          - name: string_lower
+            args:
+              - name: str
+                type: string
+                description: The string to convert to lower case.
+            description: Converts all letters in a string to lower case.
+            returns: string
+          - name: string_ord_at
+            args:
+              - name: str
+                type: string
+                description: The string to get an ordinal value from.
+              - name: index
+                type: number
+                description: The index of the character to get the ordinal value of.
+            description: Gets the ordinal value of a character within a string.
+            returns: number
+          - name: string_pos
+            args:
+              - name: source
+                type: string
+                description: The source string.
+              - name: sub_string
+                type: string
+                description: The sub string to find within the source.
+              - name: "[start = 0]"
+                type: number
+                description: The position of the string to start searching.
+            description: Searches a string for another string and returns the index of the result, or -1 if it wasn't found.
+            returns: number
+          - name: string_repeat
+            args:
+              - name: str
+                type: string
+                description: The string to repeat.
+              - name: count
+                type: number
+                description: The number of times to repeat the string.
+            description: Repeats a string the specified number of times.
+            returns: string
+          - name: string_replace
+            args:
+              - name: source
+                type: string
+                description: The source string.
+              - name: replace
+                type: string
+                description: The string to find and replace.
+              - name: replacement
+                type: string
+                description: The string to replace the old value with.
+            description: Replaces the first occurrence of one string with another within a source string.
+            returns: string
+          - name: string_replace_all
+            args:
+              - name: source
+                type: string
+                description: The source string.
+              - name: replace
+                type: string
+                description: The string to find and replace.
+              - name: replacement
+                type: string
+                description: The string to replace the old value with.
+            description: Replaces all occurrences of one string with another within a source string.
+            returns: string
+          - name: string_split
+            args:
+              - name: str
+                type: string
+                description: The string to split.
+              - name: ..seperators
+                type: strings
+                description: Any number of strings that will be used to determine split borders.
+              - name: "[remove_empty_entries = false]"
+                type: bool
+                description: Optional value to determine if any empty strings should be removed from the resultant array.
+            description: Based on a set of sub-strings, splits a string into an array.
+            returns: array
+          - name: string_upper
+            args:
+              - name: str
+                type: string
+                description: The string to upper case.
+            description: Converts all letters in a string to upper case.
+            returns: string
+      - name: Xml
+        assembly: TaffyScript
+        description: Provides mechanisms to interact with xml files.
+        objects:
+          - name: XmlReader
+            description: A reader that provides a fast, forward-only access to xml data. Wraps the .NET class `System.Xml.XmlReader`.
+            fields:
+              - name: attribute_count
+                type: number
+                description: Gets the number of attributes on the current node.
+              - name: base_uri
+                type: string
+                description: Gets the base URI of the current node.
+              - name: can_read_binary_content
+                type: bool
+                description: Determines whether the reader implements the binary read scripts.
+              - name: can_read_value_chunk
+                type: bool
+                description: Determines whether the read can read a chunk of data from the node value.
+              - name: can_resolve_entity
+                type: bool
+                description: Determines if the reader can parse and resolve entities.
+              - name: depth
+                type: number
+                description: Gets the depth of the current xml node.
+              - name: eof
+                type: bool
+                description: Determines if the xml reader has hit the end of the file.
+              - name: has_attributes
+                type: bool
+                description: Determines if the current xml node has any attributes.
+              - name: is_default
+                type: bool
+                description: Determines if the current node is an sttribute generated by the schema
+              - name: is_empty_element
+                type: bool
+                description: Determines if the current node is an empty element.
+              - name: local_name
+                type: string
+                description: Gets the local name of the current node.
+              - name: name
+                type: string
+                description: Gets the qualified name of the current node.
+              - name: namespace_uri
+                type: string
+                description: Gets the namespace URI of the current node.
+              - name: node_type
+                type: "<a href=\"https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlnodetype?view=netframework-4.7.2\">XmlNodeType</a> (number)"
+                description: Gets the type of the current node.
+              - name: prefix
+                type: string
+                description: Gets the namespace prefix of the current node.
+              - name: quote_char
+                type: string
+                description: Gets the quotation mark character used to enclose the value of an attribute node.
+              - name: read_state
+                type: "<a href=\"https://docs.microsoft.com/en-us/dotnet/api/system.xml.readstate?view=netframework-4.7.2\">ReadState</a> (number)"
+                description: Gets the read state of the reader.
+              - name: settings
+                type: "<a href=\"{{site.baseurl}}/docs/TaffyScript/Xml/XmlReaderSettings/\">XmlReaderSettings</a>"
+                description: Gets the XmlReaderSettings used to create the reader.
+              - name: value
+                type: string
+                description: Gets the text value of the current node.
+              - name: value_type
+                type: string
+                description: Gets the c# representation of the type of the current value (Todo - Change this to return the TaffyScript type instead).
+              - name: xml_lang
+                type: string
+                description: Gets the xml:lang scope.
+              - name: xml_space
+                type: "<a href=\"https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlspace?view=netframework-4.7.2\">XmlSpace</a> (number)"
+                description: Gets the xml:space scope.
+            constructor:
+              args:
+                - name: xml_file
+                  type: string
+                  description: The path to the xml file to read from.
+                - name: "[settings]"
+                  type: "<a href=\"{{site.baseurl}}/docs/TaffyScript/Xml/XmlReaderSettings/\">XmlReaderSettings</a>"
+                  description: The settings to be used by the XmlReader.
+              description: Initializes a new XmlReader instance from an xml_file, optionally with the specified settings.
+            scripts:
+              - name: close
+                description: Changes the read_state to ReadState.Closed
+                returns: "null"
+              - name: dispose
+                description: Disposes of all resources used by the reader.
+                returns: "null"
+              - name: get
+                args:
+                  - name: attribute
+                    type: string or number
+                    description: The name or index of the attribute.
+                description: Gets the value of the specified attribute. Returns null if the attribute wasn't found.
+                returns: string
+              - name: get_attribute
+                args:
+                  - name: attribute
+                    type: string or number
+                    description: The name or index of the attribute.
+                description: Gets the value of the specified attribute. Returns null if the attribute wasn't found.
+                returns: string
+              - name: is_start_element
+                args:
+                  - name: "[name]"
+                    type: string
+                    description: The desired name of the element.
+                description: Determines if the current node is a start/empty element tag, and optionally if the name value matches the specified name.
+                returns: bool
+              - name: lookup_namespace
+                args:
+                  - name: prefix
+                    type: string
+                    description: The prefix whose namespace URI you want to resolve.
+                description: Resolves a namespace prefix in the current elements scope.
+                returns: string
+              - name: move_to_attribute
+                args:
+                  - name: attribute
+                    type: string or number
+                    description: The name or index of the attribute.
+                description: Moves to the specified attribute.
+                returns: bool
+              - name: move_to_content
+                description: Moves to the next content node.
+                returns: "<a href=\"https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlnodetype?view=netframework-4.7.2\">XmlNodeType</a> (number)"
+              - name: move_to_element
+                description: Moves to the element that contains the current attribute node.
+                returns: bool
+              - name: move_to_first_attribute
+                description: Moves to the first attribute.
+                returns: bool
+              - name: move_to_next_attribute
+                description: Moves to the next attribute
+                returns: bool
+              - name: read
+                description: Reads the next node from the stream.
+                returns: bool
+              - name: read_attribute_value
+                description: Reads the current attribute node.
+                returns: bool
+              - name: read_content_as_bool
+                description: Reads the content at the current position as a bool.
+                returns: bool
+              - name: read_content_as_number
+                description: Reads the content at the current position as a number.
+                returns: number
+              - name: read_content_as_string
+                description: Reads the content at the current position as a string.
+                returns: string
+              - name: read_element_content_as_bool
+                description: Reads the current element and returns the contents as a bool.
+                returns: bool
+              - name: read_element_content_as_number
+                description: Reads the current element and returns the contents as a number.
+                returns: number
+              - name: read_element_content_as_string
+                description: Reads the current element and returns the contents as a string.
+                returns: string
+              - name: read_end_element
+                description: Reads The current end tag.
+                returns: "null"
+              - name: read_inner_xml
+                description: Reads all the content, including markup, as a string.
+                returns: string
+              - name: read_outer_xml
+                description: Reads the content, includng markup, that represents the current node.
+                returns: string
+              - name: read_start_element
+                description: Checks that the current node is an element and advances to the next node.
+                returns: "null"
+              - name: read_subtree
+                description: Returns a new XmlReader that can be used to read the current node, and all its descendants.
+                returns: XmlReader
+              - name: read_to_descendant
+                args:
+                  - name: name
+                    type: string
+                    description: The name of the element.
+                  - name: "[namespace_uri]"
+                    type: string
+                    description: The namespace URI of the element.
+                description: Advances the reader to the next descendant with the specified name.
+                returns: bool
+              - name: read_to_following
+                args:
+                  - name: name
+                    type: string
+                    description: The name of the element.
+                  - name: "[namespace_uri]"
+                    type: string
+                    description: The namespace URI of the element.
+                description: Reads until an element with the specified name is found.
+                returns: bool
+              - name: read_to_next_sibling
+                args:
+                  - name: name
+                    type: string
+                    description: The name of the element.
+                  - name: "[namespace_uri]"
+                    type: string
+                    description: The namespace URI of the element.
+                description: Advances the reader to the next sibling with the specified name.
+                returns: bool
+              - name: resolve_entity
+                description: Resolves the entity reference for EntityReference nodes.
+                returns: "null"
+              - name: skip
+                description: Skips the children of the current node.
+                returns: "null"
+          - name: XmlReaderSettings
+            description: Specifies a set of features to be supported by an XmlReader.
+            fields:
+              - name: check_characters
+                type: bool
+                description: Gets or sets whether to do character checking.
+              - name: close_input
+                type: bool
+                description: Gets or sets whether the underlying stream should be closed when the reader is closed.
+              - name: conformance_level
+                type: "<a href=\"https://docs.microsoft.com/en-us/dotnet/api/system.xml.conformancelevel?view=netframework-4.7.2\">ConformanceLevel</a> (number)"
+                description: Gets or sets the level of conformance which the XmlReader will comply.
+              - name: dtd_processing
+                type: "<a href=\"https://docs.microsoft.com/en-us/dotnet/api/system.xml.dtdprocessing?view=netframework-4.7.2\">DtdProcessing</a> (number)"
+                description: Gets or sets a value that determines the processing of DTDs.
+              - name: ignore_comments
+                type: bool
+                description: Gets or sets whether to ignore comments.
+              - name: ignore_processing_instructions
+                type: bool
+                description: Gets or sets whether to ignore prcoessing instructions.
+              - name: ignore_whitespace
+                type: bool
+                description: Gets or sets whether to ignore whitespace.
+              - name: line_number_offset
+                type: number
+                description: Gets or sets the line number offset of the XmlReader.
+              - name: line_position_offset
+                type: number
+                description: Gets or sets the line position offset of the XmlReader.
+              - name: max_characters_from_entities
+                type: number
+                description: Gets or sets the maximum allowable number of characters in a document that results from expanding entities.
+              - name: max_characters_in_document
+                type: number
+                description: Gets or sets the maximum allowable number of characters in an xml document. A zero means any number of characters.
+              - name: validation_flags
+                type: "<a href=\"https://docs.microsoft.com/en-us/dotnet/api/system.xml.schema.xmlschemavalidationflags?view=netframework-4.7.2\">XmlSchemaValidationFlags</a> (number)"
+                description: Gets or sets the schema validation flags.
+              - name: validation_type
+                type: "<a href=\"https://docs.microsoft.com/en-us/dotnet/api/system.xml.validationtype?view=netframework-4.7.2\">ValidationType</a> (number)"
+                description: Get or sets whether the XmlReader will perform validation or type assignment while reading.
+            scripts:
+              - name: clone
+                description: Creates a copy of the XmlReaderSettings.
+                returns: XmlReaderSettings
+              - name: reset
+                description: Resets the members of the settings class to their default values.
+                returns: "null"
+objects:
+  - name: Array
+    description: The array literal type built in to TaffyScript
+    fields:
+      - name: length
+        type: number
+        description: Gets the number of elements in the array.
+      - name: count
+        type: number
+        description: >-
+          Gets the number of elements in the array. It works exactly the same as length.
+          The typical syntax when using arrays is length, but the count field exists to unify the Array and List API.
+    constructor:
+      args:
+        - name: element_number
+          type: number
+          description: The number of elements in the resultant array.
+      description: Creates a new array with the specified number of elements.
+    scripts:
+      - name: get
+        args:
+          - name: index
+            type: number
+            description: The index of the value to get.
+        description: Gets the value at the specified index.
+        returns: object
+      - name: get_length
+        args:
+          - name: "[..nested_indeces]"
+            type: numbers
+            description: If the target is a jagged array, these should be the indeces of the inner arrays until the desired array to get the length of.
+        description: Gets the number of elements in this array or a nested array.
+        returns: number
+      - name: set
+        args:
+          - name: index
+            type: number
+            description: The index of the value to set.
+          - name: value
+            type: object
+            description: The value to set the index to.
+        description: Sets an index in the array to the specified value.
+        returns: "null"
+  - name: Grid
+    description: Represents a grid of objects that can be accessed by an x and y coordinate.
+    fields:
+      - name: width
+        type: number
+        description: Gets the width of the grid.
+      - name: height
+        type: number
+        description: Gets the height of the grid
+    constructor:
+      args:
+        - name: width
+          type: number
+          description: The width of the grid.
+        - name: height
+          type: number
+          description: The height of the grid
+      description: Creates a new grid with the specified dimensions.
+    scripts:
+      - name: add
+        args:
+          - name: x
+            type: number
+            description: The x position of the value.
+          - name: "y"
+            type: number
+            description: The y position of the value.
+          - name: value
+            type: object
+            description: The value to add to the position
+        description: Adds a given value to the value at the specified position.
+        returns: "null"
+      - name: add_disk
+        args:
+          - name: x_middle
+            type: number
+            description: The x position of the disk center
+          - name: y_middle
+            type: number
+            description: The y position of the disk center
+          - name: radius
+            type: number
+            description: The radius of the disk
+          - name: value
+            type: object
+            description: The value to add.
+        description: Adds a given value to all values inside of a disk.
+        returns: "null"
+      - name: clear
+        args:
+          - name: default_value
+            type: object
+            description: The value to set all the grid cells to.
+        description: Sets all cells in the grid to the specified value.
+        returns: "null"
+      - name: copy
+        description: Creates a shallow copy of the grid.
+        returns: Grid
+      - name: get
+        args:
+          - name: x
+            type: number
+            description: The x position of the value to get.
+          - name: "y"
+            type: number
+            description: The y position of the value to get.
+        description: Gets the value at the specified position within the grid.
+        returns: object
+      - name: resize
+        args:
+          - name: width
+            type: number
+            description: The new width of the grid.
+          - name: height
+            type: number
+            description: The new height of the grid.
+        description: Resizes the grid.
+        returns: "null"
+      - name: set
+        args:
+          - name: x
+            type: number
+            description: The x position of the value to set.
+          - name: "y"
+            type: number
+            description: The y position of the value to set.
+          - name: value
+            type: object
+            description: The value to set the position to.
+        description: Sets a position within the grid to a specified value.
+        returns: "null"
+      - name: shuffle
+        description: Shuffles all of the cells in the grid.
+        returns: "null"
+      - name: sort
+        args:
+          - name: column
+            type: number
+            description: The column to sort.
+          - name: ascending
+            type: bool
+            description: Whether the column gets sorted in ascending order or descending order.
+        description: Sorts a column of the grid.
+        returns: "null"
+      - name: value_exists_in_disk
+        args:
+          - name: x_middle
+            type: number
+            description: The x position of the disk center
+          - name: y_middle
+            type: number
+            description: The y position of the disk center
+          - name: radius
+            type: number
+            description: The radius of the disk
+          - name: value
+            type: object
+            description: The value to find.
+        description: Determines if a value exists within a a disk in the grid.
+        returns: bool
+      - name: value_position_in_disk
+        args:
+          - name: x_middle
+            type: number
+            description: The x position of the disk center
+          - name: y_middle
+            type: number
+            description: The y position of the disk center
+          - name: radius
+            type: number
+            description: The radius of the disk
+          - name: value
+            type: object
+            description: The value to find.
+        description: Gets the x and y values of a value within a disk on the grid.
+        returns: array
+      - name: value_exists_in_region
+        args:
+          - name: x1
+            type: number
+            description: The left side of the region.
+          - name: y1
+            type: number
+            description: The top of the region.
+          - name: x2
+            type: number
+            description: The right side of the region.
+          - name: y2
+            type: number
+            description: The bottom of the region.
+          - name: value
+            type: object
+            description: The value to find.
+        description: Determines if a value exists within a region on the grid.
+        returns: bool
+      - name: value_position_in_region
+        args:
+          - name: x1
+            type: number
+            description: The left side of the region.
+          - name: y1
+            type: number
+            description: The top of the region.
+          - name: x2
+            type: number
+            description: The right side of the region.
+          - name: y2
+            type: number
+            description: The bottom of the region.
+          - name: value
+            type: object
+            description: The value to find.
+        description: Gets the x and y values of a value within a region on the grid.
+        returns: array
+  - name: List
+    description: Represents a list of objects that can be accessed by index.
+    fields:
+      - name: count
+        description: Gets the number of elements in the list.
+        type: number
+    constructor:
+      description: Initializes a new list.
+    scripts:
+      - name: add
+        args:
+          - name: ..values
+            type: objects
+            description: Any number of values to add to the list.
+        description: Adds any number of values to the end of a list.
+        returns: "null"
+      - name: clear
+        description: Removes all values from the list.
+        returns: "null"
+      - name: copy
+        description: Creates a shallow copy of the list.
+        returns: List
+      - name: get
+        args:
+          - name: index
+            type: number
+            description: The index of the value to get.
+        description: Gets the value at the specified index in the list.
+        returns: object
+      - name: insert
+        args:
+          - name: index
+            type: number
+            description: The index to insert the value.
+          - name: value
+            type: object
+            description: The value to insert.
+        description: Inserts a value into the list at the specified index.
+        returns: "null"
+      - name: index_of
+        args:
+          - name: value
+            type: object
+            description: The value to search for.
+        description: Finds the index of the first occurrence of the value in the list. Returns -1 if the value isn't found.
+        returns: number
+      - name: remove
+        args:
+          - name: index
+            type: number
+            description: The index of the value to remove.
+        description: Removes the value at the specified index within the list.
+        returns: "null"
+      - name: set
+        args:
+          - name: index
+            type: number
+            description: The index of the item to set.
+          - name: value
+            type: object
+            description: The value to set the index.
+        description: Sets the value at the specified index within the list. If `index` is greater than the size of the list, null elements will be added until the index can be set.
+        returns: "null"
+      - name: shuffle
+        description: Shuffles the values in the list.
+        returns: "null"
+      - name: sort
+        description: Sorts the values in the list.
+        returns: "null"
+  - name: Map
+    description: Maps a collection of keys to values.
+    fields:
+      - name: count
+        type: number
+        description: Gets the number of items added to the map.
+      - name: keys
+        type: array
+        description: Gets an array of the keys added to the map.
+    constructor:
+      description: Initializes a new map.
+    scripts:
+      - name: add
+        args:
+          - name: key
+            type: object
+            description: The key of the pair to add.
+          - name: value
+            type: object
+            description: The value of the pair to add.
+        description: Tries to add a new key-value pair to the map.
+        returns: bool
+      - name: clear
+        description: Clears all values from the map.
+        returns: "null"
+      - name: contains_key
+        args:
+          - name: key
+            type: object
+            description: The key to check.
+        description: Determines if a key has been added to the map.
+        returns: bool
+      - name: copy
+        description: Returns a shallow copy of the map.
+        returns: Map
+      - name: get
+        args:
+          - name: key
+            type: object
+            description: The key to get the value for.
+        description: Tries to get the value for a specified key.
+        returns: object
+      - name: remove
+        args:
+          - name: key
+            type: object
+            description: The key for the key-value pair to remove.
+        description: Tries to remove a key-value pair from the map.
+        returns: bool
+      - name: set
+        args:
+          - name: key
+            type: object
+            description: The key of the pair to set.
+          - name: value
+            type: object
+            description: The value of the pair to set.
+        description: Sets a key to the specifed value.
+        returns: "null"
+  - name: string
+    description: The string literal built into TaffyScript. This type cannot be constructed using the `new` keyword.
+    fields:
+      - name: length
+        type: number
+        description: Gets the number of characters in the string.
+    scripts:
+      - name: contains
+        args:
+          - name: substring
+            type: string
+            description: The substring to search for.
+        description: Determines if the string contains a substring.
+        returns: bool
+      - name: copy
+        args:
+          - name: "[start_index]"
+            type: number
+            description: The index to start copying characters from.
+          - name: "[count]"
+            type: number
+            description: The number of characters to copy.
+        description: Returns a copy of a portion of the string.
+        returns: string
+      - name: count
+        args:
+          - name: substring
+            type: string
+            description: The substring to count the number of occurrences of.
+        description: Gets the number of occurrences of a substring in the string.
+        returns: number
+      - name: delete
+        args:
+          - name: start_index
+            type: number
+            description: The index to start removing characters.
+          - name: count
+            type: number
+            description: The number of characters to remove.
+        description: Removes a portion of the string and returns the result.
+        returns: string
+      - name: digits
+        description: Returns a copy of this string with all non-digit characters removed.
+        returns: string
+      - name: duplicate
+        args:
+          - name: count
+            type: number
+            description: The number of times to duplicate the string.
+        description: Returns a string with this string repeated the specified number of times.
+        returns: string
+      - name: ends_with
+        args:
+          - name: value
+            type: string
+            description: The string to compare to the end of this string.
+        description: Determines if this string ends with the specified string.
+        returns: bool
+      - name: get
+        args:
+          - name: index
+            type: number
+            description: The index of the character to get.
+        description: Gets the character at the specified index.
+        returns: string
+      - name: index_of
+        args:
+          - name: substring
+            type: string
+            description: The string to search for.
+          - name: "[start_index = 0]"
+            type: number
+            description: The index to start searching from.
+        description: Searches for the index of the first occurrence of a string starting at the specified index. Returns -1 if the substring wasn't found.
+        returns: number
+      - name: insert
+        args:
+          - name: index
+            type: number
+            description: The index to insert the substring.
+          - name: substring
+            type: string
+            description: The string to insert.
+        description: Inserts the specified substring into this string and returns the result.
+        returns: string
+      - name: last_index_of
+        args:
+          - name: substring
+            type: string
+            description: The string to search for.
+          - name: "[start_index]"
+            type: number
+            description: The index to start searching from. Defaults to the last character in this string.
+        description: Searches for the index of the last occurrence of a string starting at the specified index. Returns -1 if the substring wasn't found.
+        returns: number
+      - name: letters
+        description: Returns a copy of this string with all non-letter characters removed.
+        returns: string
+      - name: letters_digits
+        description: Returns a copy of this string with all non-letter and non-digit characters removed.
+        returns: string
+      - name: lower
+        description: Returns a copy of this string with all letters converted to lowercase.
+        returns: string
+      - name: ord
+        args:
+          - name: index
+            type: number
+            description: The index of the character to get the ordinal value of.
+        description: Gets the ordinal value of the character at the specified index.
+        returns: number
+      - name: replace
+        args:
+          - name: substring
+            type: string
+            description: The string to replace.
+          - name: new_string
+            type: string
+            description: The replacement string.
+        description: Replaces the first occurrence of a substring with another string.
+        returns: string
+      - name: repalce_all
+        args:
+          - name: substring
+            type: string
+            description: The string to replace.
+          - name: new_string
+            type: string
+            description: The replacement string.
+        description: Replaces all occurrences of a substring with another string.
+        returns: string
+      - name: starts_with
+        args:
+          - name: value
+            type: string
+            description: The string to compare to the beginning of this string.
+        description: Determines if this string starts with the specified string.
+        returns: bool
+      - name: split
+        args:
+          - name: ..seperators
+            type: strings
+            description: Any number of strings that will be used to determine split borders.
+          - name: "[remove_empty_entries = false]"
+            type: bool
+            description: Optional value to used to determine if any empty strings should be removed from the resultant array.
+        description: Based on a set of substrings, splits this string into an array.
+        returns: array
+      - name: trim
+        args:
+          - name: "[..charcters]"
+            type: strings
+            description: Any number of characters to remove from this strings borders.
+        description: Removes all leading and trailing whitespace characters (or the specified characters, if any) from this string and returns the result.
+        returns: string
+      - name: trim_end
+        args:
+          - name: "[..characters]"
+            type: strings
+            description: Any number of characters to remove from the end of this string
+        description: Removes all trailing whitespace characters (or the specified characters, if any) from this string and returns the result.
+        returns: string
+      - name: trim_start
+        args:
+          - name: "[..characters]"
+            type: strings
+            description: Any number of characters to remove from the start of this string
+        description: Removes all leading whitespace characters (or the specified characters, if any) from this string and returns the result.
+        returns: string
+      - name: upper
+        description: Returns a copy of this string with characters converted to uppercase.
+        returns: string
+scripts:
+  - name: array_copy
+    args:
+      - name: source
+        type: array
+        description: The source array.
+      - name: source_index
+        type: number
+        description: The index of the source to start copying from
+      - name: destination
+        type: array
+        description: The destination array.
+      - name: destination_index
+        type: number
+        description: The index of the destination to start copying to.
+      - name: length
+        type: number
+        description: The number of elements to copy.
+    description: Copies a number of elements from one array to another.
+    returns: "null"
+  - name: array_create
+    args:
+      - name: size
+        type: number
+        description: The size of the array to create.
+      - name: "[default = null]"
+        type: object
+        description: The default value of each item in the array.
+    description: Creates a new array of the specified size and value.
+    returns: array
+  - name: array_equals
+    args:
+      - name: array1
+        type: array
+        description: The first array to compare.
+      - name: array2
+        type: array
+        description: The second array to compare.
+    description: Compares the elements in two arrays to determine equality.
+    returns: bool
+  - name: array_length
+    args:
+      - name: array
+        type: array
+        description: The array to get the length of.
+      - name: "[..indeces]"
+        type: numbers
+        description: If the target is a jagged array, these should be the indeces of the inner arrays until the desired array to get the length of.
+    description: Gets the length of an array or one of its nested arrays.
+    returns: number
+  - name: print
+    args:
+      - name: output
+        type: object
+        description: The value to print to the console.
+    description: Prints a value to the console.
+    returns: "null"
+  - name: real
+    args:
+      - name: str
+        type: string
+        description: The string to parse.
+    description: Converts a string to a number
+    returns: number
+  - name: show_error
+    args:
+      - name: message
+        type: string
+        description: The error message to show.
+      - name: throws
+        type: bool
+        description: Whether the error should be thrown as an exception or logged to the console
+    description: Shows or throws an error message.
+    returns: "null"
+  - name: string
+    args:
+      - name: value
+        type: object
+        description: The value to convert to a string.
+    description: Converts a value to a string.
+    returns: string
+  - name: typeof
+    args:
+      - name: value
+        type: object
+        description: The value to get the type of.
+    description: Gets the type of an object.
+    returns: string

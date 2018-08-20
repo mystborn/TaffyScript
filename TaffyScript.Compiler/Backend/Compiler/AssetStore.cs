@@ -44,9 +44,11 @@ namespace TaffyScript.Compiler.Backend
             _moduleInitializer = moduleInitializer;
         }
 
-        public void AddExternalType(ISymbol symbol, Type type)
+        public ObjectInfo AddExternalType(ISymbol symbol, Type type)
         {
-            _definedTypes.Add(symbol, new ObjectInfo(type, null, null, null, null));
+            var result = new ObjectInfo(type, null, null, null, null);
+            _definedTypes.Add(symbol, result);
+            return result;
         }
 
         public void AddObjectInfo(ISymbol symbol, ObjectInfo info)
@@ -209,6 +211,10 @@ namespace TaffyScript.Compiler.Backend
 
             GenerateConstructor(info, parentConstructor, scripts.FirstOrDefault(m => m.Name == "create"));
             GenerateTryGetDelegate(info, scripts);
+            var toString = scripts.FirstOrDefault(m => m.Name == "to_string");
+
+            if (toString != null)
+                GenerateToStringMethod(type, toString);
 
             _moduleInitializer.LdStr(info.Type.FullName);
             if (info.Parent is null)
@@ -363,6 +369,20 @@ namespace TaffyScript.Compiler.Backend
                 .Ret();
 
             info.Create = create;
+        }
+
+        private void GenerateToStringMethod(TypeBuilder type, MethodInfo toString)
+        {
+            var methodBuilder = type.DefineMethod("ToString",
+                                                  MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.HideBySig,
+                                                  CallingConventions.HasThis,
+                                                  typeof(string),
+                                                  Type.EmptyTypes);
+            var emit = new ILEmitter(methodBuilder, Type.EmptyTypes);
+            emit.LdArg(0)
+                .Call(toString)
+                .Call(TsTypes.ObjectCasts[typeof(string)])
+                .Ret();
         }
 
         private void GenerateTryGetDelegate(ObjectInfo info, List<MethodInfo> scripts)
@@ -538,7 +558,6 @@ namespace TaffyScript.Compiler.Backend
             Type = type;
             Parent = parent;
             TryGetDelegate = tryGetDelegate;
-            Members = members;
             Constructor = constructor;
             Members = members;
         }

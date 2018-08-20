@@ -1,0 +1,25 @@
+<DOCTYPE html>
+<html lang="en-us">
+
+{% include head.html %}
+
+<body class="preload">
+
+
+{% include header.html %}
+
+    <div class="container">
+
+        <main>
+            {{content}}
+        </main>
+
+        {% include footer.html %}
+
+    </div>
+
+<script src="{{site.baseurl}}/assets/js/jquery.js"></script>
+<script src="{{site.baseurl}}/assets/js/myScripts.js"></script>
+
+</body>
+</html>

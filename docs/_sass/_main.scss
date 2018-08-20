@@ -1,0 +1,78 @@
+html, body {
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-family: "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, san-serif;
+    font-size: $normal-font-size;
+    line-height: $normal-line-height;
+
+    @media(min-width: $large-breakpoint) {
+        font-size: $large-font-size;
+    }
+}
+
+body {
+    color: $text-color;
+    background-color: $background-color;
+    word-wrap: break-word;
+}
+
+a {
+    color: $link-color;
+    text-decoration: none;
+
+    &:hover, &:focus {
+        text-decoration: underline;
+    }
+
+    strong {
+        color: inherit;
+    }
+}
+
+img {
+    display: block;
+    max-width: 100%;
+    margin: 0, 0, 1rem;
+    border-radius: 5px;
+}
+
+table {
+    margin-bottom: 1rem;
+    width: 100%;
+    font-size: 90%;
+    border: 1px solid #e5e5e5;
+    border-collapse: collapse;
+    overflow-x: auto;
+}
+
+td, th {
+    padding: .25rem .5rem;
+    border:1px solid #e5e5e5;
+}
+
+th {
+    text-align: left;
+}
+
+tbody tr:nth-child(odd) td, tbody tr:nth-child(odd) th {
+    background-color: #f9f9f9;
+}
+
+h1.blog-title {
+    border-bottom: 0px;
+    margin-bottom: 0px;
+    padding-bottom: 0px;
+}
+
+p.blog-date {
+    border-top: 0;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.underline {
+    border-bottom: 1px solid black;
+}

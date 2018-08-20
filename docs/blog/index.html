@@ -1,0 +1,15 @@
+---
+layout: default
+title: Blog
+---
+<h1>Blog</h1>
+
+<ul>
+{% for blog in site.data.blogs %}
+    <li>
+        <a href="{{site.baseurl}}/blog/{{blog.link}}">{{blog.title}}</a>
+        <p class="excerpt">{{blog.excerpt}}</p>
+        <hr>
+    </li>
+{% endfor %}
+</ul>

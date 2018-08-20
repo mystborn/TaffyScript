@@ -1,0 +1,10 @@
+<nav class="nav-bar">
+        <a href="{{ site.baseurl }}/" class="company-name">TaffyScript</a>
+        <div class="nav-container">
+            {% for item in site.data.navigation %}
+                <a href="{{ item.link }}" class="nav-bar-item">
+                    {{ item.name }}
+                </a>
+            {% endfor %}
+        </div>
+</nav>

@@ -1,0 +1,16 @@
+- version: 1.9.1
+  windows: true
+  unix: false
+- version: 1.6.1
+  windows: true
+  unix: false
+- version: 1.5.1
+  windows: true
+  unix: false
+- version: 1.5.0
+  windows: true
+  unix: false
+- version: 1.9.2
+  beta: true
+  windows: true
+  unix: false

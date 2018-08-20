@@ -1,0 +1,52 @@
+---
+layout: default
+title: Releases
+---
+<h1>Installation</h1>
+<p>Currently the only type of installation is a standalone exe, so just unpack the zip file wherever you'd like the compiler to be installed and it will be ready to use.</p>
+
+<p>Why are all of the releases for Windows? Right now, TaffyScript is windows only. Work is being done to expand it to MacOS, Linux, iOS, and Android, but it isn't ready for the stamp of approval yet. It should be possible to run tsc using Mono, as well as the resulting programs if it's truly needed right now.</p>
+
+<h1 id="latest">Latest Stable &#x2728</h1>
+<p>This is the latest full release of TaffyScript. The compiler is guarunteed to work and the code will most likely run if compiled.</p>
+
+{% assign latest = site.data.releases.first %}
+<h2>Release {{latest.version}}</h2>
+<ul>
+{% if latest.windows %}
+<li><a href="{{site.baseurl}}/download/releases/TaffyScript.{{latest.version}}.zip">Windows</a></li>
+{% endif %}
+{% if latest.unix %}
+<li><a href="{{site.baseurl}}/download/releases/TaffyScript.{{latest.version}}.tar.gz">*nix</a></li>
+{% endif %}
+</ul>
+
+<h1 id="nightly">Nightly &#x1F311</h1>
+<p>This is the bleeding edge release. The compiler or the code may not work as intended. Use at your own risk.</p>
+
+{% assign nightly = site.data.releases.last %}
+<h2>Release {{nightly.version}}-nightly</h2>
+<ul>
+{% if nightly.windows %}
+<li><a href="{{site.baseurl}}/download/releases/TaffyScript.{{nightly.version}}-nightly.zip">Windows</a></li>
+{% endif %}
+{% if nightly.unix %}
+<li><a href="{{site.baseurl}}/download/releases/TaffyScript.{{nightly.version}}-nightly.tar.gz">*nix</a></li>
+{% endif %}
+</ul>
+
+<h1 id="previous">Previous Releases 💀</h2>
+{% for release in site.data.releases offset:1 %}
+{% if release.beta %}
+{% break %}
+{% endif %}
+<h2>Release {{release.version}}</h2>
+<ul>
+{% if release.windows %}
+<li><a href="{{site.baseurl}}/download/releases/TaffyScript.{{release.version}}.zip">Windows</a></li>
+{% endif %}
+{% if release.unix %}
+<li><a href="{{site.baseurl}}/download/releases/TaffyScript.{{release.version}}.tar.gz">*nix</a></li>
+{% endif %}
+</ul>
+{% endfor %}

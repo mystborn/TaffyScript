@@ -2,6 +2,7 @@
 Samples/Moddable/GameBase/References/
 Samples/Moddable/GameMod/References/
 SyntaxGenerator/
+docs/_site/
 *.nuspec
 *.nupkg
 *.bak
