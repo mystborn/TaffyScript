@@ -137,6 +137,7 @@ namespace TaffyScript.Compiler
                     var valueName = Consume(TokenType.Identifier, "Expected name for enum value", 1);
                     if (Match(TokenType.Assign))
                     {
+                        var negate = Match(TokenType.Minus);
                         var valueToken = Consume(TokenType.Number, "Enum value must be a numberic literal", 1);
                         var style = NumberStyles.Integer;
                         var text = valueToken.Text;
@@ -152,6 +153,9 @@ namespace TaffyScript.Compiler
                         }
                         if(!long.TryParse(text, style, CultureInfo.InvariantCulture, out value))
                             Error(valueToken, "Enum value must be an integer constant", 1);
+
+                        if (negate)
+                            value = -value;
                     }
                     if(!_table.AddLeaf(valueName.Text, value))
                     {

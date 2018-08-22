@@ -6,7 +6,9 @@ namespace LanguageTests {
                                       static_invoke,
                                       static_namespace_invoke,
                                       static_through_instance,
-                                      static_through_child_instance);
+                                      static_through_child_instance,
+                                      static_through_del,
+                                      static_through_namespace_del);
         tests.run_tests();
     }
 
@@ -30,6 +32,18 @@ namespace LanguageTests {
         test_it("inst.script_that_calls_parent_static()");
         var calf = new Inner.Calf();
         assert_equal(calf.make_noise(), "moo");
+    }
+
+    script static_through_del() {
+        test_it("del = type.static");
+        var del = MathF.add;
+        assert_equal(del(10, 5), 15);
+    }
+
+    script static_through_namespace_del() {
+        test_it("del = namespace.type.static");
+        var moo = LanguageTests.Inner.Cow.moo;
+        assert_equal(moo(), "moo");
     }
 
     object MathF {

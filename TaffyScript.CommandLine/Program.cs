@@ -12,14 +12,12 @@ namespace TaffyScript.CommandLine
         static void Main(string[] args)
         {
             bool run = false;
-            bool generateBcl = false;
             bool generateBuild = false;
             bool time = false;
 
             var options = new OptionSet()
             {
                 { "r", v => run = v != null },
-                { "bcl", v => generateBcl = v != null },
                 { "build", v => generateBuild = v != null },
                 { "t", v => time = v != null }
             };
@@ -30,7 +28,7 @@ namespace TaffyScript.CommandLine
                 path = extra[0];
 
 #if DEBUG
-            path = @"C:\Users\Chris\Source\TaffyScript\CompileTests";
+            path = @"C:\Users\Chris\Source\Repos\GmParser\Samples\TestSuite\Tests";
 #endif
 
             if (generateBuild)
@@ -52,14 +50,8 @@ namespace TaffyScript.CommandLine
             var logger = new ErrorLogger();
 
             var compiler = new MsilWeakCompiler(logger);
-            CompilerResult result;
 
-            if (!generateBcl)
-            {
-                result = compiler.CompileProject(path);
-            }
-            else
-                result = compiler.CompileCode(BaseClassLibraryGenerator.Generate(), new BuildConfig() { Mode = CompileMode.Release, Output = Path.Combine(Path.GetDirectoryName(typeof(Program).Assembly.Location), "Libraries", "TaffyScript.BCL") });
+            var result = compiler.CompileProject(path);
 
             if (result.Errors.Count == 0)
             {

@@ -273,7 +273,11 @@ namespace TaffyScript.Compiler.FrontEnd
                 else
                     _environment.FastDefine(variable.Name, EncounterType.Local);
 
-                variable.Value?.Accept(this);
+                if(variable.Value != null)
+                {
+                    variable.Value.Parent = locals;
+                    variable.Value.Accept(this);
+                }
             }
         }
 

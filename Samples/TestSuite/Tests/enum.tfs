@@ -1,0 +1,46 @@
+using UnitTest;
+
+namespace LanguageTests {
+    script run_enum_tests() {
+        var tests = new obj_unit_test("Enum Tests");
+        tests.run_tests();
+    }
+
+    script enum_ascending() {
+        test_it("enum Colors");
+        assert_equal(Colors.Red, 0);
+        assert_equal(Colors.Green, 1);
+        assert_equal(Colors.Blue, 2);
+    }
+
+    script enum_specified_values() {
+        test_it("enum SpecifiedValues");
+        assert_equal(SpecifiedValues.One, 1);
+        assert_equal(SpecifiedValues.Two, 2);
+        assert_equal(SpecifiedValues.Ten, 10);
+        assert_equal(SpecifiedValues.NegativeOne, -1);
+        assert_equal(SpecifiedValues.Zero, 0);
+    }
+
+    enum Colors {
+        Red,
+        Green,
+        Blue
+    }
+
+    enum SpecifiedValues {
+        One = 1,
+        Two,
+        Ten = 10,
+        NegativeOne = -1,
+        Zero
+    }
+
+    namespace Inner {
+        enum MoreColors {
+            Yellow,
+            Purple,
+            Orange
+        }
+    }
+}

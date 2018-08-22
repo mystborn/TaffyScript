@@ -94,13 +94,15 @@ namespace TaffyScript.Xml
                 case "skip":
                     return skip(args);
                 default:
-                    throw new MissingMemberException(ObjectType, scriptName);
+                    throw new MissingMethodException(ObjectType, scriptName);
             }
         }
 
-        public TsDelegate GetDelegate(string delegateName)
+        public TsDelegate GetDelegate(string scriptName)
         {
-            throw new NotImplementedException();
+            if (TryGetDelegate(scriptName, out var del))
+                return del;
+            throw new MissingMethodException(ObjectType, scriptName);
         }
 
         public TsObject GetMember(string name)

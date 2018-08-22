@@ -83,7 +83,6 @@
   <ItemGroup>
     <Compile Include="Backend\Compiler\AssetStore.cs" />
     <Compile Include="Backend\Compiler\TypeEqualityComparer.cs" />
-    <Compile Include="BaseClassLibraryGenerator.cs" />
     <Compile Include="Backend\Builder.cs" />
     <Compile Include="Backend\Compiler\Closure.cs" />
     <Compile Include="Backend\CompileMode.cs" />

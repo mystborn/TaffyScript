@@ -389,10 +389,18 @@ namespace TaffyScript.Compiler.Backend
 
                     var info = _assets.AddExternalType(_table.Current, type);
 
-                    foreach(var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance).Where(m => m.IsVirtual && IsMethodValid(m)))
+                    foreach(var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static).Where(m => IsMethodValid(m)))
                     {
-                        _table.AddLeaf(method.Name, SymbolType.Script, SymbolScope.Member);
-                        info.Methods.Add(method.Name, method);
+                        if (method.IsStatic)
+                        {
+                            _table.AddLeaf(method.Name, SymbolType.Script, SymbolScope.Global);
+                            info.Methods.Add(method.Name, method);
+                        }
+                        else if(method.IsVirtual)
+                        {
+                            _table.AddLeaf(method.Name, SymbolType.Script, SymbolScope.Member);
+                            info.Methods.Add(method.Name, method);
+                        }
                     }
 
                     _table.Exit(count + 1);
@@ -2086,6 +2094,17 @@ namespace TaffyScript.Compiler.Backend
 
         private void CallStaticScript(MemberAccessNode member, SymbolNode ns, FunctionCallNode functionCall)
         {
+            var methodInfo = GetStaticScriptFromMemberAccess(member, ns);
+            if (methodInfo is null)
+                return;
+            LoadFunctionArguments(functionCall.Arguments);
+            emit.Call(methodInfo, 1, typeof(TsObject));
+        }
+
+
+
+        private MethodInfo GetStaticScriptFromMemberAccess(MemberAccessNode member, SymbolNode ns)
+        {
             var stack = new Stack<VariableToken>();
             VariableToken typeName, scriptName;
             var current = member;
@@ -2105,57 +2124,49 @@ namespace TaffyScript.Compiler.Backend
                 typeName = member.Left as VariableToken;
                 scriptName = current.Right as VariableToken;
             }
-            
+
             ISymbol typeSymbol;
-            if(ns != null)
+            if (ns != null)
             {
                 if (!ns.Children.TryGetValue(typeName.Name, out typeSymbol))
                 {
                     emit.Call(TsTypes.Empty);
                     _logger.Error($"Tried to call static script from type '{typeName.Name}' that didn't exist in namespace '{($"{GetAssetNamespace(ns)}.{ns.Name}").TrimStart('.')}'",
                         current.Left.Position);
-                    return;
+                    return null;
                 }
             }
             else
             {
-                if(!_table.Defined(typeName.Name, out typeSymbol))
+                if (!_table.Defined(typeName.Name, out typeSymbol))
                 {
                     emit.Call(TsTypes.Empty);
                     _logger.Error($"Tried to call static script from type '{typeName.Name}' that doesn't exist", current.Left.Position);
-                    return;
+                    return null;
                 }
             }
-            if(stack.Count > 1)
+            if (stack.Count > 1)
             {
                 emit.Call(TsTypes.Empty);
                 _logger.Error("Currently cannot access static fields", current.Left.Position);
-                return;
+                return null;
             }
 
             var methodInfo = _assets.GetInstanceMethod(typeSymbol, scriptName.Name, member.Position);
-            if(methodInfo is null)
+            if (methodInfo is null)
             {
                 emit.Call(TsTypes.Empty);
-                return;
+                return null;
             }
 
-            /*if(!info.Methods.TryGetValue(scriptName.Name, out var methodInfo))
-            {
-                emit.Call(TsTypes.Empty);
-                _logger.Error($"Tried to call static script '{scriptName.Name}' that doesn't exist on type '{info.Type.FullName}'", member.Position);
-                return;
-            }*/
-
-            if(!methodInfo.IsStatic)
+            if (!methodInfo.IsStatic)
             {
                 emit.Call(TsTypes.Empty);
                 _logger.Error($"Tried to call non-static script '{scriptName.Name}' from the type '{methodInfo.DeclaringType.FullName}'", member.Position);
-                return;
+                return null;
             }
 
-            LoadFunctionArguments(functionCall.Arguments);
-            emit.Call(methodInfo, 1, typeof(TsObject));
+            return methodInfo;
         }
 
         private void CallScript(string ns, ISymbol scriptSymbol, FunctionCallNode functionCall)
@@ -2519,35 +2530,74 @@ namespace TaffyScript.Compiler.Backend
             ISymbol enumSymbol;
             if(_resolver.TryResolveNamespace(memberAccess, out var resolved, out var namespaceNode))
             {
-                if (resolved is MemberAccessNode member)
+                switch(resolved)
                 {
-                    if (member.Left is VariableToken enumType && namespaceNode.Children.TryGetValue(enumType.Name, out enumSymbol))
-                        ProcessEnumAccess(member, enumType, enumSymbol);
-                    else
-                    {
+                    case MemberAccessNode member:
+                        switch(member.Left)
+                        {
+                            case VariableToken enumType:
+                                if (namespaceNode.Children.TryGetValue(enumType.Name, out enumSymbol))
+                                    ProcessEnumAccess(member, enumType, enumSymbol);
+                                else
+                                {
+                                    emit.Call(TsTypes.Empty);
+                                    _logger.Error("Invalid enum access", member.Position);
+                                }
+                                break;
+                            case MemberAccessNode staticCall:
+                                var methodInfo = GetStaticScriptFromMemberAccess(member, namespaceNode);
+                                if (methodInfo is null)
+                                    break;
+                                emit.LdNull()
+                                    .LdFtn(methodInfo)
+                                    .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                                    .LdStr(methodInfo.Name)
+                                    .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }));
+                                break;
+                            default:
+                                emit.Call(TsTypes.Empty);
+                                _logger.Error("Unknown error related to invalid member access", member.Position);
+                                break;
+                        }
+                        break;
+                    case VariableToken variable:
+                        if (namespaceNode.Children.TryGetValue(variable.Name, out var symbol))
+                            ProcessVariableToken(variable, symbol);
+                        else
+                        {
+                            emit.Call(TsTypes.Empty);
+                            _logger.Error("Invalid token at the end of namespace access", resolved.Position);
+                        }
+                        break;
+                    default:
                         emit.Call(TsTypes.Empty);
-                        _logger.Error("Invalid member access syntax. Expected enum at the end of namespace", member.Position);
-                    }
-                }
-                else if (resolved is VariableToken variable)
-                {
-                    if (namespaceNode.Children.TryGetValue(variable.Name, out var symbol))
-                        ProcessVariableToken(variable, symbol);
-                    else
-                    {
-                        emit.Call(TsTypes.Empty);
-                        _logger.Error("Invalid token at the end of namespace access", resolved.Position);
-                    }
-                }
-                else
-                {
-                    emit.Call(TsTypes.Empty);
-                    _logger.Error("Invalid token at the end of namespace access.");
+                        _logger.Error("Invalid token at the end of namespace access.");
+                        break;
                 }
                 return;
             }
-            //If left is enum name, find it in _enums.
-            //Otherwise, Accept left, and call member access on right.
+
+            if(memberAccess.Left is VariableToken variableToken && _table.Defined(variableToken.Name, out var variableSymbol))
+            {
+                if(variableSymbol.Type == SymbolType.Enum)
+                {
+                    ProcessEnumAccess(memberAccess, variableToken, variableSymbol);
+                    return;
+                }
+                else if(variableSymbol.Type == SymbolType.Object)
+                {
+                    var method = GetStaticScriptFromMemberAccess(memberAccess, null);
+                    if (method is null)
+                        return;
+                    emit.LdNull()
+                        .LdFtn(method)
+                        .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                        .LdStr(method.Name)
+                        .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }));
+                    return;
+                }
+            }
+
             if (memberAccess.Left is VariableToken enumVar && _table.Defined(enumVar.Name, out enumSymbol) && enumSymbol.Type == SymbolType.Enum)
             {
                 ProcessEnumAccess(memberAccess, enumVar, enumSymbol);
