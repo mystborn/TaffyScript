@@ -86,5 +86,20 @@ namespace TaffyScript
         {
             return Name;
         }
+
+        public static bool operator ==(TsDelegate left, TsDelegate right)
+        {
+            if (left is null)
+                return right is null;
+            return left.Script == right?.Script;
+        }
+
+        public static bool operator !=(TsDelegate left, TsDelegate right)
+        {
+            if (left is null)
+                return !(right is null);
+
+            return left.Script != right?.Script;
+        }
     }
 }

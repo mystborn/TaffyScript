@@ -615,6 +615,8 @@ namespace TaffyScript
                     return left.GetNumber() == right.GetNumber();
                 case VariableType.String:
                     return left.GetString() == right.GetString();
+                case VariableType.Delegate:
+                    return left.GetDelegate().Script == right.GetDelegate().Script;
                 default:
                     return left.WeakValue == right.WeakValue;
             }
@@ -652,6 +654,22 @@ namespace TaffyScript
             return right.GetString() == left;
         }
 
+        public static bool operator ==(TsObject left, TsDelegate right)
+        {
+            if (left.Type != VariableType.Delegate)
+                return false;
+
+            return left.GetDelegate().Script == right.Script;
+        }
+
+        public static bool operator ==(TsDelegate left, TsObject right)
+        {
+            if (right.Type != VariableType.Delegate)
+                return false;
+
+            return left.Script == right.GetDelegate().Script;
+        }
+
         public static bool operator !=(TsObject left, TsObject right)
         {
             if (left.Type != right.Type)
@@ -662,6 +680,8 @@ namespace TaffyScript
                     return left.GetNumber() != right.GetNumber();
                 case VariableType.String:
                     return left.GetString() != right.GetString();
+                case VariableType.Delegate:
+                    return left.GetDelegate().Script != right.GetDelegate().Script;
                 default:
                     return left.WeakValue != right.WeakValue;
             }
@@ -697,6 +717,22 @@ namespace TaffyScript
                 return true;
 
             return right.GetString() != left;
+        }
+
+        public static bool operator !=(TsObject left, TsDelegate right)
+        {
+            if (left.Type != VariableType.Delegate)
+                return true;
+
+            return left.GetDelegate().Script != right.Script;
+        }
+
+        public static bool operator !=(TsDelegate left, TsObject right)
+        {
+            if (right.Type != VariableType.Delegate)
+                return true;
+
+            return left.Script != right.GetDelegate().Script;
         }
 
         public static bool operator <(TsObject left, TsObject right)

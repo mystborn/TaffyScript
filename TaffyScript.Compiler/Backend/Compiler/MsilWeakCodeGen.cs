@@ -381,15 +381,18 @@ namespace TaffyScript.Compiler.Backend
                     //      If the namespace of this iteration matches the last one, no need to exit and reenter.
                     //      Just stay in the namespace.
                     var count = _table.EnterNamespace(type.Namespace);
-                    if (!_table.TryEnterNew(type.Name, SymbolType.Object))
+                    var symbol = new ObjectSymbol(_table.Current, type.Name);
+                    if (!_table.TryAdd(symbol))
                     {
                         _logger.Warning($"Name conflict encountered with object {type.Name} defined in assembly {asm.GetName().Name}");
                         continue;
                     }
 
-                    var info = _assets.AddExternalType(_table.Current, type);
+                    var info = _assets.AddExternalType(symbol, type);
 
-                    foreach(var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static).Where(m => IsMethodValid(m)))
+                    _table.Enter(type.Name);
+
+                    foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static).Where(m => IsMethodValid(m)))
                     {
                         if (method.IsStatic)
                         {
@@ -886,7 +889,7 @@ namespace TaffyScript.Compiler.Backend
                     {
                         // Todo: Only do this if instance variable/self is accessed.
                         // Todo: Test on nested closure.
-                        _closure.Target = type.DefineField("__0Target0__", typeof(ITsInstance), FieldAttributes.Assembly);
+                        _closure.Target = type.DefineField("__0Target0__", emit.Method.DeclaringType, FieldAttributes.Assembly);
                         emit.New(constructor, 0)
                             .Dup()
                             .StLocal(local)
