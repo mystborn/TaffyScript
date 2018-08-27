@@ -91,7 +91,6 @@
     <Compile Include="Backend\Compiler\MsilWeakCodeGen.cs" />
     <Compile Include="Backend\ImportType.cs" />
     <Compile Include="Backend\NameConflictException.cs" />
-    <Compile Include="BinaryTree.cs" />
     <Compile Include="DotNet\AssemblyLoader.cs" />
     <Compile Include="Backend\Compiler\ICompiler.cs" />
     <Compile Include="Backend\Compiler\ILEmitter.cs" />

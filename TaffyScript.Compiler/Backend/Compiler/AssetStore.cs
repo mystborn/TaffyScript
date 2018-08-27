@@ -408,7 +408,7 @@ namespace TaffyScript.Compiler.Backend
 
             var hashCodes = new HashSet<int>();
             var bruteForce = new List<MethodInfo>();
-            var tree = new BinaryTree<int, MethodInfo>();
+            var tree = new RedBlackTree<int, MethodInfo>();
             var hashMethod = typeof(Fnv).GetMethod("Fnv32");
 
             foreach (var script in scripts)
@@ -454,7 +454,7 @@ namespace TaffyScript.Compiler.Backend
             TryGetDelegateDefaultCase(mthd, info.Parent?.TryGetDelegate, info.Members);
         }
 
-        private void TryGetDelegateSwitchNode(BinaryTree<int, MethodInfo>.BinaryTreeNode node, ILEmitter mthd, LocalBuilder hashVar, Label end)
+        private void TryGetDelegateSwitchNode(RedBlackTree<int, MethodInfo>.RedBlackNode node, ILEmitter mthd, LocalBuilder hashVar, Label end)
         {
             var greaterEqual = mthd.DefineLabel();
             var equal = mthd.DefineLabel();
@@ -462,7 +462,7 @@ namespace TaffyScript.Compiler.Backend
                 .LdInt(node.Key)
                 .Bge(greaterEqual);
 
-            if (node.Left != null)
+            if (node.Left != RedBlackTree<int, MethodInfo>.Leaf)
                 TryGetDelegateSwitchNode(node.Left, mthd, hashVar, end);
             else
                 mthd.Br(end);
@@ -472,7 +472,7 @@ namespace TaffyScript.Compiler.Backend
                 .LdInt(node.Key)
                 .Beq(equal);
 
-            if (node.Right != null)
+            if (node.Right != RedBlackTree<int, MethodInfo>.Leaf)
                 TryGetDelegateSwitchNode(node.Right, mthd, hashVar, end);
             else
                 mthd.Br(end);
