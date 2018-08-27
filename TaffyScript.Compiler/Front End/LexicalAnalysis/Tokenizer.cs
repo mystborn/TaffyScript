@@ -17,7 +17,6 @@ namespace TaffyScript.Compiler.FrontEnd
 
         private static Dictionary<string, TokenType> _keywords = new Dictionary<string, TokenType>()
         {
-            { "all", TokenType.ReadOnly },
             { "and", TokenType.LogicalAnd },
             { "argument", TokenType.Argument },
             { "argument_count", TokenType.ReadOnly },

@@ -105,6 +105,7 @@
     <Compile Include="Front End\Parser.cs" />
     <Compile Include="Front End\Resolver.cs" />
     <Compile Include="IErrorLogger.cs" />
+    <Compile Include="RedBlackTree.cs" />
     <Compile Include="StringUtils.cs" />
     <Compile Include="SymbolResolver.cs" />
     <Compile Include="Symbols\EnumLeaf.cs" />
