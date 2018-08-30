@@ -41,7 +41,6 @@ namespace TaffyScript.Compiler.FrontEnd
             { "null", TokenType.ReadOnly },
             { "object", TokenType.Object },
             { "or", TokenType.LogicalOr },
-            { "other", TokenType.ReadOnly },
             { "pi", TokenType.ReadOnly },
             { "repeat", TokenType.Repeat },
             { "return", TokenType.Return },

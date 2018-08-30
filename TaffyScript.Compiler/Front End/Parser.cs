@@ -364,11 +364,33 @@ namespace TaffyScript.Compiler
 
             var scripts = new List<ScriptNode>();
             var staticScripts = new List<ScriptNode>();
+            var fields = new List<FieldDeclaration>();
             while(!Check(TokenType.CloseBrace) && !_stream.Finished)
             {
-                //Todo: Synchronize on error
                 switch(_stream.Current.Type)
                 {
+                    case TokenType.SemiColon:
+                        _stream.Read();
+                        continue;
+                    case TokenType.Identifier:
+                        var field = _stream.Read();
+                        ISyntaxElement defaultValue = null;
+                        if (Match(TokenType.Assign))
+                        {
+                            if (IsConstant())
+                                defaultValue = Constant(0);
+                            else if(_stream.Current.Type == TokenType.ReadOnly)
+                            {
+                                var token = _stream.Read();
+                                if (token.Text != "null")
+                                    Error(token, "Invalid default value for field");
+                                defaultValue = new ReadOnlyToken(token.Text, token.Position);
+                            }
+                            else
+                                Error(_stream.Read(), "Invalid default value for field");
+                        }
+                        fields.Add(new FieldDeclaration(field.Text, field.Position, defaultValue));
+                        break;
                     case TokenType.Script:
                         scripts.Add(ScriptDeclaration(SymbolScope.Member));
                         break;
@@ -377,13 +399,14 @@ namespace TaffyScript.Compiler
                         staticScripts.Add(ScriptDeclaration(SymbolScope.Global));
                         break;
                     default:
+                        _logger.Error("Invalid token inside of Object definition", _stream.Current.Position);
                         SynchronizeBraces(false, TokenType.Script, TokenType.Static);
                         break;
                 }
             }
             Consume(TokenType.CloseBrace, "Expected '}' after object members", 1);
             _table.Exit();
-            return new ObjectNode(name.Text, parent, scripts, staticScripts, name.Position);
+            return new ObjectNode(name.Text, parent, fields, scripts, staticScripts, name.Position);
         }
 
         private ScriptNode ScriptDeclaration(SymbolScope scope)
@@ -1095,13 +1118,17 @@ namespace TaffyScript.Compiler
 
         private bool TryGetNumber(out NumberConstant number)
         {
+            bool negate = false;
+            if (Check(TokenType.Minus))
+                negate = true;
+
             if(Check(TokenType.Number))
             {
                 var numberToken = Consume(TokenType.Number, "Expected number");
                 var text = numberToken.Text;
                 if (text.StartsWith("0x"))
                 {
-                    text = text.Substring(2);
+                    text = (negate ? "-" : "") + text.Substring(2);
                     number = new NumberConstant(numberToken.Text,
                                                 long.Parse(text, NumberStyles.HexNumber),
                                                 ConstantType.Real,
@@ -1109,7 +1136,7 @@ namespace TaffyScript.Compiler
                 }
                 else if (text.StartsWith("?"))
                 {
-                    text = text.Substring(1);
+                    text = (negate ? "-" : "") + text.Substring(1);
                     number = new NumberConstant(numberToken.Text,
                                                 long.Parse(text, NumberStyles.HexNumber),
                                                 ConstantType.Real,
@@ -1118,7 +1145,7 @@ namespace TaffyScript.Compiler
                 else
                 {
                     number = new NumberConstant(numberToken.Text,
-                                                float.Parse(text),
+                                                float.Parse((negate ? "-" : "") + text),
                                                 ConstantType.Real,
                                                 numberToken.Position);
                 }
