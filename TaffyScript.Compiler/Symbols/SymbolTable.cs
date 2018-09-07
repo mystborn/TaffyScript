@@ -210,7 +210,7 @@ namespace TaffyScript.Compiler
         /// <returns></returns>
         public bool AddLeaf(string name, SymbolType type, SymbolScope scope)
         {
-            if(!Defined(name, out var overwrite))
+            if(!Current.Children.TryGetValue(name, out var overwrite))
             {
                 if (type == SymbolType.Variable)
                     Current.Children.Add(name, new VariableLeaf(Current, name, scope));
@@ -229,7 +229,7 @@ namespace TaffyScript.Compiler
         /// <returns></returns>
         public bool AddLeaf(string name, long value)
         {
-            if (!Defined(name, out var overwrite))
+            if (!Current.Children.TryGetValue(name, out var overwrite))
             {
                 Current.Children.Add(name, new EnumLeaf(Current, name, SymbolType.Variable, SymbolScope.Member, value));
                 return true;
@@ -240,7 +240,7 @@ namespace TaffyScript.Compiler
 
         public bool AddChild(ISymbol symbol)
         {
-            if (!Defined(symbol.Name, out var overwrite))
+            if (!Current.Children.TryGetValue(symbol.Name, out var overwrite))
             {
                 Current.Children.Add(symbol.Name, symbol);
                 return true;

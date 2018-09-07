@@ -17,12 +17,13 @@ namespace TaffyScript.Compiler.Syntax
         public bool WeaklyTyped { get; private set; } = true;
         public bool IncludeStandard { get; private set; } = false;
 
-        public ImportObjectNode(string dotNetType, string importName, TokenPosition position)
+        public ImportObjectNode(string dotNetType, string importName, IErrorLogger logger, List<ObjectImportArgument> importArguments, TokenPosition position)
             : base(position)
         {
             DotNetType = dotNetType;
             ImportName = importName;
             AutoImplement = true;
+            ParseArguments(importArguments, logger);
         }
 
         public ImportObjectNode(string dotNetType,

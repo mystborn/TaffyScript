@@ -52,11 +52,16 @@ namespace TaffyScript.CommandLine
 
             var result = compiler.CompileProject(path);
 
+            var defaultColor = Console.ForegroundColor;
+
             if (result.Errors.Count == 0)
             {
                 if(result.Warnings.Count > 0)
                 {
-                    Console.WriteLine("Warnings:\n");
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine();
+                    Console.WriteLine("Warnings:");
+                    Console.ForegroundColor = defaultColor;
                     foreach (var warning in result.Warnings)
                         Console.WriteLine(warning);
                     Console.WriteLine('\n');
@@ -78,7 +83,9 @@ namespace TaffyScript.CommandLine
             else
             {
                 Console.WriteLine("Compile failed...");
-                Console.WriteLine("Errors: \n");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("\nErrors:");
+                Console.ForegroundColor = defaultColor;
                 foreach (var error in result.Errors)
                     Console.WriteLine(error);
             }

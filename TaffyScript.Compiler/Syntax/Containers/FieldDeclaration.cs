@@ -6,14 +6,14 @@ using System.Threading.Tasks;
 
 namespace TaffyScript.Compiler.Syntax
 {
-    public struct FieldDeclaration
+    public struct ObjectField
     {
         public string Name { get; }
         public TokenPosition Position { get; }
         public ISyntaxElement DefaultValue { get; }
         public bool HasDefaultValue => DefaultValue != null;
 
-        public FieldDeclaration(string name, TokenPosition position, ISyntaxElement defaultValue)
+        public ObjectField(string name, TokenPosition position, ISyntaxElement defaultValue)
         {
             Name = name;
             Position = position;

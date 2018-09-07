@@ -7,7 +7,7 @@ using TaffyScript.Compiler.Syntax;
 
 namespace TaffyScript.Compiler
 {
-    public class ImportObjectLeaf : SymbolLeaf
+    public class ImportObjectSymbol : SymbolNode
     {
         public ImportObjectNode ImportObject { get; }
         public System.Reflection.ConstructorInfo Constructor { get; set; }
@@ -15,7 +15,7 @@ namespace TaffyScript.Compiler
         public bool HasImportedObject { get; set; } = false;
 
 
-        public ImportObjectLeaf(SymbolNode parent, string name, ImportObjectNode importObject) 
+        public ImportObjectSymbol(SymbolNode parent, string name, ImportObjectNode importObject) 
             : base(parent, name, SymbolType.Object, SymbolScope.Global)
         {
             ImportObject = importObject;

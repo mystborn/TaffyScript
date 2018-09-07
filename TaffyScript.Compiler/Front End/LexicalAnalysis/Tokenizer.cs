@@ -29,7 +29,6 @@ namespace TaffyScript.Compiler.FrontEnd
             { "do", TokenType.Do },
             { "else", TokenType.Else },
             { "enum", TokenType.Enum },
-            { "event", TokenType.Event },
             { "false", TokenType.Bool },
             { "for", TokenType.For },
             { "global", TokenType.ReadOnly },

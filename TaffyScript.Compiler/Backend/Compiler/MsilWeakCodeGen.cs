@@ -394,16 +394,39 @@ namespace TaffyScript.Compiler.Backend
 
                     foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static).Where(m => IsMethodValid(m)))
                     {
-                        if (method.IsStatic)
+                        _table.AddLeaf(method.Name, SymbolType.Script, method.IsStatic ? SymbolScope.Global : SymbolScope.Member);
+                        info.Methods.Add(method.Name, method);
+                    }
+
+                    foreach(var field in type.GetFields().Where(f => f.FieldType == typeof(TsObject) && (f.IsPublic || f.IsFamily)))
+                    {
+                        _table.AddLeaf(field.Name, SymbolType.Field, field.IsStatic ? SymbolScope.Global : SymbolScope.Member);
+                        info.Fields.Add(field.Name, field);
+                    }
+
+                    foreach(var property in type.GetProperties().Where(p => p.PropertyType == typeof(TsObject)))
+                    {
+                        if (property.GetIndexParameters().Length != 0)
+                            continue;
+
+                        bool isStatic = false;
+                        bool canInherit = false;
+                        if(property.GetMethod != null && (property.GetMethod.IsPublic || property.GetMethod.IsFamily))
                         {
-                            _table.AddLeaf(method.Name, SymbolType.Script, SymbolScope.Global);
-                            info.Methods.Add(method.Name, method);
+                            canInherit = true;
+                            isStatic = property.GetMethod.IsStatic;
                         }
-                        else if(method.IsVirtual)
+                        else if(property.SetMethod != null && (property.SetMethod.IsPublic || property.SetMethod.IsFamily))
                         {
-                            _table.AddLeaf(method.Name, SymbolType.Script, SymbolScope.Member);
-                            info.Methods.Add(method.Name, method);
+                            canInherit = true;
+                            isStatic = property.SetMethod.IsStatic;
                         }
+
+                        if (!canInherit)
+                            continue;
+
+                        _table.AddLeaf(property.Name, SymbolType.Property, isStatic ? SymbolScope.Global : SymbolScope.Member);
+                        info.Properties.Add(property.Name, property);
                     }
 
                     _table.Exit(count + 1);
@@ -729,7 +752,6 @@ namespace TaffyScript.Compiler.Backend
                     name = "op_UnaryPlus";
                 else if (!_operators.TryGetValue(op, out name))
                 {
-                    //This doesn't specify a token position, but it also should never be encountered.
                     _logger.Error($"Operator {op} does not exist", pos);
                     return null;
                 }
@@ -1091,8 +1113,6 @@ namespace TaffyScript.Compiler.Backend
                     .Call(TsTypes.Empty);
                 return;
             }
-
-            LocalBuilder secret = null;
 
             if(CanBeArrayAccess(arrayAccess))
             {
@@ -2826,7 +2846,7 @@ namespace TaffyScript.Compiler.Backend
             {
                 if(!_resolver.TryResolveType(objectNode.Inherits, out _parent))
                     _logger.Error($"Tried to inherit from non-existant type: {((ISyntaxToken)objectNode.Inherits).Name}", objectNode.Inherits.Position);
-                var obj = (ObjectSymbol)_parent;
+                var obj = _parent as ObjectSymbol;
                 while(obj != null)
                 {
                     _table.AddSymbolToDefinitionLookup(obj);
@@ -3967,6 +3987,22 @@ namespace TaffyScript.Compiler.Backend
 
                         emit.LdFld(field);
                     }
+                    else if(variableSymbol.Scope == SymbolScope.Member)
+                    {
+                        var field = _assets.GetInstanceField(variableSymbol.Parent, variableSymbol.Name, variableToken.Position);
+                        if(field is null)
+                        {
+                            emit.Call(TsTypes.Empty);
+                            return;
+                        }
+                        LoadTarget()
+                            .LdFld(field);
+                    }
+                    else if(variableSymbol.Scope == SymbolScope.Global)
+                    {
+                        var field = _assets.GetInstanceField(variableSymbol.Parent, variableSymbol.Name, variableToken.Position);
+                        emit.LdFld(field);
+                    }
                     else
                         _logger.Error($"Tried to reference a non-existant variable {variableToken.Name}", variableToken.Position);
                     break;
@@ -4012,18 +4048,18 @@ namespace TaffyScript.Compiler.Backend
             // This method must not use `emit` becuse it might be called
             // in the middle of a methods generation.
 
-            ImportObjectLeaf leaf = (ImportObjectLeaf)_table.Defined(importNode.ImportName);
-            if (leaf.HasImportedObject)
+            ImportObjectSymbol importSymbol = (ImportObjectSymbol)_table.Defined(importNode.ImportName);
+            if (importSymbol.HasImportedObject)
                 return;
 
-            leaf.HasImportedObject = true;
+            importSymbol.HasImportedObject = true;
 
             var importType = _typeParser.GetType(importNode.DotNetType);
 
             if (importType.IsAbstract || importType.IsEnum || !importType.IsClass)
                 _logger.Error($"Could not import the type {importType.FullName}. Imported types must be concrete and currently must be a class.", importNode.Position);
 
-            var ns = GetAssetNamespace(leaf);
+            var ns = GetAssetNamespace(importSymbol);
             var name = $"{ns}.{importNode.ImportName}".TrimStart('.');
 
             if(typeof(ITsInstance).IsAssignableFrom(importType))
@@ -4035,7 +4071,7 @@ namespace TaffyScript.Compiler.Backend
                     return;
                 }
 
-                leaf.Constructor = ctor;
+                importSymbol.Constructor = ctor;
                 var bt = GetBaseType(ns);
                 var wrappedCtor = bt.DefineMethod($"New_0{importNode.ImportName}", MethodAttributes.Public | MethodAttributes.Static, typeof(ITsInstance), new[] { typeof(TsObject[]) });
                 var wctr = new ILEmitter(wrappedCtor, new[] { typeof(TsObject[]) });
@@ -4043,7 +4079,7 @@ namespace TaffyScript.Compiler.Backend
                     .New(ctor)
                     .Ret();
 
-                _assets.AddObjectInfo(leaf, new ObjectInfo(importType, null, null, ctor, null));
+                _assets.AddObjectInfo(importSymbol, new ObjectInfo(importType, null, null, ctor, null));
 
                 Initializer.Call(typeof(TsReflection).GetMethod("get_Constructors"))
                            .LdStr(name)
@@ -4061,7 +4097,8 @@ namespace TaffyScript.Compiler.Backend
                 SpecialImports.WriteLine(importType.Name);
                 return;
             }
-            var parent = importNode.WeaklyTyped ? typeof(ObjectWrapper) : typeof(Object);
+
+            var parent = importNode.WeaklyTyped ? typeof(ObjectWrapper) : typeof(object);
             var type = _module.DefineType(name, TypeAttributes.Public, parent, new[] { typeof(ITsInstance) });
 
             var source = type.DefineField("_source", importType, FieldAttributes.Private);
@@ -4090,7 +4127,7 @@ namespace TaffyScript.Compiler.Backend
             var getMemberMethod = type.DefineMethod("GetMember", methodFlags, typeof(TsObject), new[] { typeof(string) });
             var setMemberMethod = type.DefineMethod("SetMember", methodFlags, typeof(void), new[] { typeof(string), typeof(TsObject) });
             var tryGetDelegateMethod = type.DefineMethod("TryGetDelegate", methodFlags, typeof(bool), new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
-            leaf.TryGetDelegate = tryGetDelegateMethod;
+            importSymbol.TryGetDelegate = tryGetDelegateMethod;
 
             var call = new ILEmitter(callMethod, new[] { typeof(string), typeof(TsObject[]) });
             var getm = new ILEmitter(getMemberMethod, new[] { typeof(string) });
@@ -4147,6 +4184,8 @@ namespace TaffyScript.Compiler.Backend
                 .Ret();
 
             var instanceMethods = new Dictionary<string, MethodInfo>();
+            var instanceProperties = new Dictionary<string, PropertyInfo>();
+
 
             var writeOnly = new List<string>();
             var readOnly = new List<string>();
@@ -4168,10 +4207,10 @@ namespace TaffyScript.Compiler.Backend
                     switch(field)
                     {
                         case FieldInfo fi:
-                            AddFieldToTypeWrapper(fi, type, fld.ImportName, fld.Position, source, getm, setm);
+                            AddFieldToTypeWrapper(importSymbol, fi, type, fld.ImportName, fld.Position, source, getm, setm, instanceProperties);
                             break;
                         case PropertyInfo pi:
-                            AddPropertyToTypeWrapper(pi, type, fld.ImportName, fld.Position, source, getm, setm, writeOnly, readOnly);
+                            AddPropertyToTypeWrapper(importSymbol, pi, type, fld.ImportName, fld.Position, source, getm, setm, writeOnly, readOnly, instanceProperties);
                             break;
                     }
                 }
@@ -4191,7 +4230,7 @@ namespace TaffyScript.Compiler.Backend
                     }
 
                     var method = importType.GetMethod(importMethod.ExternalName, BindingFlags.Public | BindingFlags.Instance, null, args, null);
-                    AddMethodToTypeWrapper(method, methodFlags, type, importMethod.ImportName, importMethod.Position, source, call, tryd, readOnly, instanceMethods);
+                    AddMethodToTypeWrapper(importSymbol, method, methodFlags, type, importMethod.ImportName, importMethod.Position, source, call, tryd, readOnly, instanceMethods);
                 }
 
                 var ctorArgNames = importNode.Constructor.Arguments;
@@ -4208,7 +4247,7 @@ namespace TaffyScript.Compiler.Backend
                 if (ctor is null)
                     _logger.Error($"Could not find ctor on the type {name} with the arguments {string.Join(", ", ctorArgNames)}", importNode.Constructor.Position);
                 else
-                    AddConstructorToTypeWrapper(ctor, type, source, importNode.WeaklyTyped, leaf);
+                    AddConstructorToTypeWrapper(ctor, type, source, importNode.WeaklyTyped, importSymbol);
             }
             else
             {
@@ -4243,7 +4282,7 @@ namespace TaffyScript.Compiler.Backend
                             if (typeof(ITsInstance).IsAssignableFrom(memberType))
                                 memberType = typeof(ITsInstance);
                             if (typeof(TsObject).IsAssignableFrom(memberType) || TsTypes.ObjectCasts.ContainsKey(memberType))
-                                AddFieldToTypeWrapper(fi, type, transformName(fi.Name), importNode.Position, source, getm, setm);
+                                AddFieldToTypeWrapper(importSymbol, fi, type, transformName(fi.Name), importNode.Position, source, getm, setm, instanceProperties);
                             break;
                         case PropertyInfo pi:
                             memberType = pi.PropertyType;
@@ -4259,17 +4298,17 @@ namespace TaffyScript.Compiler.Backend
                                     if(pi.CanRead && IsMethodSupported(pi.GetMethod))
                                     {
                                         foundIndexer = true;
-                                        AddMethodToTypeWrapper(pi.GetMethod, methodFlags, type, "get", importNode.Position, source, call, tryd, readOnly, instanceMethods);
+                                        AddMethodToTypeWrapper(importSymbol, pi.GetMethod, methodFlags, type, "get", importNode.Position, source, call, tryd, readOnly, instanceMethods);
                                     }
                                     if(pi.CanWrite && IsMethodSupported(pi.SetMethod))
                                     {
                                         foundIndexer = true;
-                                        AddMethodToTypeWrapper(pi.SetMethod, methodFlags, type, "set", importNode.Position, source, call, tryd, readOnly, instanceMethods);
+                                        AddMethodToTypeWrapper(importSymbol, pi.SetMethod, methodFlags, type, "set", importNode.Position, source, call, tryd, readOnly, instanceMethods);
                                     }
                                 }
                                 else
                                 {
-                                    AddPropertyToTypeWrapper(pi, type, transformName(pi.Name), importNode.Position, source, getm, setm, writeOnly, readOnly);
+                                    AddPropertyToTypeWrapper(importSymbol, pi, type, transformName(pi.Name), importNode.Position, source, getm, setm, writeOnly, readOnly, instanceProperties);
                                 }
                                 if(pi.CanRead)
                                 {
@@ -4295,14 +4334,14 @@ namespace TaffyScript.Compiler.Backend
                         case ConstructorInfo ci:
                             if(!foundConstructor && AreMethodParametersSupported(ci.GetParameters()))
                             {
-                                AddConstructorToTypeWrapper(ci, type, source, importNode.WeaklyTyped, leaf);
+                                AddConstructorToTypeWrapper(ci, type, source, importNode.WeaklyTyped, importSymbol);
                                 foundConstructor = true;
                             }
                             break;
                     }
                 }
                 foreach(var mi in validMethods)
-                    AddMethodToTypeWrapper(mi, methodFlags, type, transformName(mi.Name), importNode.Position, source, call, tryd, readOnly, instanceMethods);
+                    AddMethodToTypeWrapper(importSymbol, mi, methodFlags, type, transformName(mi.Name), importNode.Position, source, call, tryd, readOnly, instanceMethods);
 
                 if (!foundConstructor)
                     _logger.Error($"No valid constructor was found for the imported type {importType}", importNode.Position);
@@ -4517,10 +4556,28 @@ namespace TaffyScript.Compiler.Backend
             type.SetCustomAttribute(defaultMember);
 
             type.CreateType();
-            _assets.AddObjectInfo(leaf, new ObjectInfo(type, null, tryGetDelegateMethod, null, leaf.ImportObject.WeaklyTyped ? members : null));
+
+            var info = new ObjectInfo(type, 
+                                      null, 
+                                      tryGetDelegateMethod, 
+                                      null, 
+                                      importSymbol.ImportObject.WeaklyTyped ? members : null, 
+                                      instanceMethods, 
+                                      new Dictionary<string, FieldInfo>(), 
+                                      instanceProperties);
+
+            _assets.AddObjectInfo(importSymbol, info);
         }
 
-        private void AddFieldToTypeWrapper(FieldInfo field, TypeBuilder type, string importName, TokenPosition position, FieldInfo source, ILEmitter getm, ILEmitter setm)
+        private void AddFieldToTypeWrapper(ImportObjectSymbol symbol,
+                                           FieldInfo field, 
+                                           TypeBuilder type, 
+                                           string importName, 
+                                           TokenPosition position, 
+                                           FieldInfo source, 
+                                           ILEmitter getm, 
+                                           ILEmitter setm, 
+                                           Dictionary<string, PropertyInfo> properties)
         {
             var next = getm.DefineLabel();
             getm.LdArg(1)
@@ -4546,9 +4603,53 @@ namespace TaffyScript.Compiler.Backend
                 .StFld(field)
                 .Ret()
                 .MarkLabel(next);
+
+            var wrapperProperty = type.DefineProperty(importName, PropertyAttributes.None, typeof(TsObject), Type.EmptyTypes);
+            var wrapperGet = type.DefineMethod($"get_{importName}",
+                                               MethodAttributes.Public |
+                                                   MethodAttributes.HideBySig |
+                                                   MethodAttributes.SpecialName |
+                                                   MethodAttributes.Virtual |
+                                                   MethodAttributes.NewSlot,
+                                               typeof(TsObject),
+                                               Type.EmptyTypes);
+
+            var getP = new ILEmitter(wrapperGet, new[] { type });
+            getP.LdArg(0)
+                .LdFld(source)
+                .LdFld(field);
+            ConvertTopToObject(getP);
+            getP.Ret();
+
+            var wrapperSet = type.DefineMethod($"set_{importName}",
+                                               MethodAttributes.Public |
+                                                   MethodAttributes.HideBySig |
+                                                   MethodAttributes.SpecialName |
+                                                   MethodAttributes.Virtual |
+                                                   MethodAttributes.NewSlot,
+                                               typeof(void),
+                                               new[] { typeof(TsObject) });
+
+            var setP = new ILEmitter(wrapperSet, new[] { type, typeof(TsObject) });
+            setP.LdArg(0)
+                .LdArg(1);
+
+            var top = setP.GetTop();
+            if (top != field.FieldType)
+                setP.Call(TsTypes.ObjectCasts[field.FieldType]);
+
+            setP.StFld(field)
+                .Ret();
+
+            wrapperProperty.SetGetMethod(wrapperGet);
+            wrapperProperty.SetSetMethod(wrapperSet);
+
+            properties.Add(importName, wrapperProperty);
+            symbol.Children.Add(importName, new SymbolLeaf(symbol, importName, SymbolType.Property, SymbolScope.Member));
         }
 
-        private void AddPropertyToTypeWrapper(PropertyInfo property, 
+        private void AddPropertyToTypeWrapper(ImportObjectSymbol importSymbol,
+                                              PropertyInfo property, 
                                               TypeBuilder type, 
                                               string importName, 
                                               TokenPosition position, 
@@ -4556,8 +4657,11 @@ namespace TaffyScript.Compiler.Backend
                                               ILEmitter getm, 
                                               ILEmitter setm, 
                                               List<string> writeOnly,
-                                              List<string> readOnly)
+                                              List<string> readOnly,
+                                              Dictionary<string, PropertyInfo> properties)
         {
+            var wrapperProperty = type.DefineProperty(importName, PropertyAttributes.None, typeof(TsObject), Type.EmptyTypes);
+
             if (!property.CanRead)
                 writeOnly.Add(importName);
             else
@@ -4573,6 +4677,24 @@ namespace TaffyScript.Compiler.Backend
                 ConvertTopToObject(getm);
                 getm.Ret()
                     .MarkLabel(next);
+
+                var wrapperGet = type.DefineMethod($"get_{importName}",
+                                               MethodAttributes.Public |
+                                                   MethodAttributes.HideBySig |
+                                                   MethodAttributes.SpecialName |
+                                                   MethodAttributes.Virtual |
+                                                   MethodAttributes.NewSlot,
+                                               typeof(TsObject),
+                                               Type.EmptyTypes);
+
+                var getP = new ILEmitter(wrapperGet, new[] { type });
+                getP.LdArg(0)
+                    .LdFld(source)
+                    .Call(property.GetMethod);
+                ConvertTopToObject(getP);
+                getP.Ret();
+
+                wrapperProperty.SetGetMethod(wrapperGet);
             }
 
             if (!property.CanWrite)
@@ -4590,18 +4712,43 @@ namespace TaffyScript.Compiler.Backend
                     .Call(property.SetMethod)
                     .Ret()
                     .MarkLabel(next);
+
+                var wrapperSet = type.DefineMethod($"set_{importName}",
+                                                   MethodAttributes.Public |
+                                                       MethodAttributes.HideBySig |
+                                                       MethodAttributes.SpecialName |
+                                                       MethodAttributes.Virtual |
+                                                       MethodAttributes.NewSlot,
+                                                   typeof(void),
+                                                   new[] { typeof(TsObject) });
+
+                var setP = new ILEmitter(wrapperSet, new[] { type, typeof(TsObject) });
+                setP.LdArg(0)
+                    .LdArg(1);
+
+                var top = setP.GetTop();
+                if (top != property.PropertyType)
+                    setP.Call(TsTypes.ObjectCasts[property.PropertyType]);
+
+                setP.Call(property.SetMethod)
+                    .Ret();
+
+                wrapperProperty.SetSetMethod(wrapperSet);
             }
+
+            properties.Add(importName, wrapperProperty);
         }
 
-        private void AddMethodToTypeWrapper(MethodInfo method, 
+        private void AddMethodToTypeWrapper(ImportObjectSymbol importSymbol,
+                                            MethodInfo method, 
                                             MethodAttributes weakFlags, 
                                             TypeBuilder type, 
                                             string importName, 
                                             TokenPosition methodPosition, 
                                             FieldInfo source, 
                                             ILEmitter call, 
-                                            ILEmitter tryd,
-                                            List<string> readOnly,
+                                            ILEmitter tryd, 
+                                            List<string> readOnly, 
                                             Dictionary<string, MethodInfo> methods)
         {
             var weakMethod = type.DefineMethod(importName, weakFlags, typeof(TsObject), TsTypes.ArgumentTypes);
@@ -4663,9 +4810,10 @@ namespace TaffyScript.Compiler.Backend
 
             readOnly.Add(importName);
             methods.Add(importName, weakMethod);
+            importSymbol.Children.Add(importName, new SymbolLeaf(importSymbol, importName, SymbolType.Script, SymbolScope.Member));
         }
 
-        private void AddConstructorToTypeWrapper(ConstructorInfo ctor, TypeBuilder type, FieldInfo source, bool isWeaklyTyped, ImportObjectLeaf leaf)
+        private void AddConstructorToTypeWrapper(ConstructorInfo ctor, TypeBuilder type, FieldInfo source, bool isWeaklyTyped, ImportObjectSymbol symbol)
         {
             var createMethod = type.DefineConstructor(MethodAttributes.Public |
                                                           MethodAttributes.HideBySig |
@@ -4697,11 +4845,11 @@ namespace TaffyScript.Compiler.Backend
             if (isWeaklyTyped)
                 mthd.CallBase(typeof(ObjectWrapper).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null));
             else
-                mthd.CallBase(typeof(Object).GetConstructor(Type.EmptyTypes));
+                mthd.CallBase(typeof(object).GetConstructor(Type.EmptyTypes));
 
             mthd.Ret();
 
-            leaf.Constructor = createMethod;
+            symbol.Constructor = createMethod;
 
             var wrappedCtor = type.DefineMethod("Create", MethodAttributes.Public | MethodAttributes.Static, type, new[] { typeof(TsObject[]) });
             var wctr = new ILEmitter(wrappedCtor, new[] { typeof(TsObject[]) });

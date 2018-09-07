@@ -61,6 +61,53 @@ namespace TaffyScript.Compiler.Backend
             return GetObjectInfo(typeSymbol, position).Type;
         }
 
+        public FieldInfo GetInstanceField(ISymbol typeSymbol, string fieldName, TokenPosition position)
+        {
+            var info = GetObjectInfo(typeSymbol, position);
+
+            if(!info.Fields.TryGetValue(fieldName, out var field))
+            {
+                if (typeSymbol is ObjectSymbol obj)
+                    field = GetInstanceField(typeSymbol, fieldName);
+                else
+                    field = info.Type.GetMember(fieldName, BindingFlags.Public | BindingFlags.Instance).FirstOrDefault() as FieldInfo;
+
+                if (field is null)
+                {
+                    _logger.Error($"Could not find field named {fieldName} on type {info.Type.FullName}", position);
+                    return null;
+                }
+
+                info.Fields.Add(fieldName, field);
+            }
+
+            return field;
+        }
+
+        private FieldInfo GetInstanceField(ISymbol typeSymbol, string fieldName)
+        {
+            if (typeSymbol is null)
+                return null;
+
+            var info = GetObjectInfo(typeSymbol, null);
+
+            if (!info.Fields.TryGetValue(fieldName, out var field))
+            {
+                if (typeSymbol is ObjectSymbol obj)
+                    field = GetInstanceField(typeSymbol, fieldName);
+                else
+                    field = info.Type.GetMember(fieldName, BindingFlags.Public | BindingFlags.Instance).FirstOrDefault() as FieldInfo;
+
+                if (field is null)
+                    return null;
+
+                info.Fields.Add(fieldName, field);
+            }
+
+            return field;
+
+        }
+
         public MethodInfo GetInstanceMethod(ISymbol typeSymbol, string methodName, TokenPosition position)
         {
             var info = GetObjectInfo(typeSymbol, position);
@@ -194,7 +241,7 @@ namespace TaffyScript.Compiler.Backend
             {
                 if (symbol is ObjectSymbol os)
                     info = GenerateType(os, position);
-                else if (symbol is ImportObjectLeaf leaf)
+                else if (symbol is ImportObjectSymbol leaf)
                     leaf.ImportObject.Accept(_codeGen);
             }
 
@@ -288,8 +335,172 @@ namespace TaffyScript.Compiler.Backend
             GenerateObjectType(builder);
             var info = new ObjectInfo(builder, parent, tryGetDelegate, constructor, members);
             _definedTypes.Add(os, info);
+            DefineMembers(builder, os, info);
 
             return info;
+        }
+
+        private void DefineMembers(TypeBuilder builder, ObjectSymbol os, ObjectInfo info)
+        {
+            foreach(var member in os.Children.Values)
+            {
+                switch(member.Type)
+                {
+                    case SymbolType.Script:
+                        MethodBuilder method;
+                        if (member.Scope == SymbolScope.Member)
+                        {
+                            if(!MemberIsValid(info, member, out var parentMember) && parentMember.MemberType != MemberTypes.Method)
+                            {
+                                _logger.Error("Tried to define script that would overwrite parent member");
+                                continue;
+                            }
+
+                            var parentMethod = GetInstanceMethod(os.Inherits, member.Name);
+
+                            if (parentMethod != null && (parentMethod.IsFinal || !(parentMethod.IsVirtual || parentMethod.IsAbstract)))
+                            {
+                                _logger.Error("Tried to override non-virtual, non-abstract method");
+                                continue;
+                            }
+
+                            MethodAttributes flags = (parentMethod is null ? MethodAttributes.NewSlot : 0)
+                                | MethodAttributes.Virtual
+                                | MethodAttributes.Public
+                                | MethodAttributes.HideBySig;
+
+                            method = builder.DefineMethod(member.Name, flags, typeof(TsObject), TsTypes.ArgumentTypes);
+                        }
+                        else
+                        {
+                            MethodAttributes flags = MethodAttributes.Public | MethodAttributes.Static | MethodAttributes.HideBySig;
+                            method = builder.DefineMethod(member.Name, flags, typeof(TsObject), TsTypes.ArgumentTypes);
+                            var staticAttribute = new CustomAttributeBuilder(typeof(TaffyScriptStaticAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
+                            method.SetCustomAttribute(staticAttribute);
+                        }
+                        info.Methods[member.Name] = method;
+                        break;
+                    case SymbolType.Variable:
+                        FieldBuilder field;
+                        if(member.Scope == SymbolScope.Member)
+                        {
+                            if(!MemberIsValid(info, member, out var parentMember))
+                            {
+                                if (parentMember.MemberType == MemberTypes.Field || parentMember.MemberType == MemberTypes.Property)
+                                    _logger.Warning($"'{info.Type.FullName}' defines field '{member.Name}' that shadows field defined by parent '{parentMember.DeclaringType}'");
+                                else
+                                {
+                                    _logger.Error($"'{info.Type.FullName}' defines field '{member.Name}' that overrides '{parentMember.MemberType}' by parent '{parentMember.DeclaringType}'");
+                                    continue;
+                                }
+                            }
+                            field = builder.DefineField(member.Name, typeof(TsObject), FieldAttributes.Public);
+                        }
+                        else
+                        {
+                            field = builder.DefineField(member.Name, typeof(TsObject), FieldAttributes.Public | FieldAttributes.Static);
+                            var staticAttribute = new CustomAttributeBuilder(typeof(TaffyScriptStaticAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
+                            field.SetCustomAttribute(staticAttribute);
+                        }
+                        info.Fields[member.Name] = field;
+                        break;
+                }
+            }
+
+            if (info.Parent != null)
+            {
+                var parentSymbol = os.Inherits as SymbolNode;
+                if(parentSymbol is null)
+                {
+                    _logger.Error("Not sure what to do here yet.");
+                    return;
+                }
+
+                foreach (var kvp in info.Parent.Methods.Where(kvp => !info.Methods.ContainsKey(kvp.Key)))
+                {
+                    info.Methods.Add(kvp.Key, kvp.Value);
+                    var scriptSymbol = parentSymbol.Children[kvp.Key];
+                    os.Children.Add(kvp.Key, scriptSymbol);
+                }
+
+                foreach (var kvp in info.Parent.Fields.Where(kvp => !info.Fields.ContainsKey(kvp.Key)))
+                {
+                    info.Fields.Add(kvp.Key, kvp.Value);
+                    os.Children.Add(kvp.Key, parentSymbol.Children[kvp.Key]);
+                }
+
+                foreach(var kvp in info.Parent.Properties.Where(kvp => !info.Properties.ContainsKey(kvp.Key)))
+                {
+                    info.Properties.Add(kvp.Key, kvp.Value);
+                    os.Children.Add(kvp.Key, parentSymbol.Children[kvp.Key]);
+                }
+            }
+        }
+
+        private bool MemberIsValid(ObjectInfo info, ISymbol member, out MemberInfo parentMember)
+        {
+            parentMember = default;
+            if (info.Parent is null || member.Scope == SymbolScope.Global)
+                return true;
+            var parent = info.Parent;
+            while(parent != null)
+            {
+                if (parent.Type is TypeBuilder builder && !builder.IsCreated())
+                {
+                    if (parent.Methods.TryGetValue(member.Name, out var method))
+                    {
+                        parentMember = method;
+                        return false;
+                    }
+
+                    if (parent.Fields.TryGetValue(member.Name, out var field))
+                    {
+                        parentMember = field;
+                        return false;
+                    }
+
+                    if(parent.Properties.TryGetValue(member.Name, out var property))
+                    {
+                        parentMember = property;
+                        return false;
+                    }
+                }
+                else
+                {
+                    var members = parent.Type.GetMember(member.Name,
+                                                        MemberTypes.Field |
+                                                            MemberTypes.Property |
+                                                            MemberTypes.Method,
+                                                        BindingFlags.Public |
+                                                            BindingFlags.Instance |
+                                                            BindingFlags.NonPublic |
+                                                            BindingFlags.FlattenHierarchy);
+
+                    parentMember = members.FirstOrDefault(InheritedMember);
+
+                    return parentMember is null ? true : false;
+                }
+
+                parent = parent.Parent;
+            }
+
+            return true;
+
+            bool InheritedMember(MemberInfo memberInfo)
+            {
+                switch (memberInfo)
+                {
+                    case MethodInfo method:
+                        return method.IsPublic || method.IsFamily;
+                    case FieldInfo field:
+                        return field.IsPublic || field.IsFamily;
+                    case PropertyInfo property:
+                        return (property.GetMethod != null && (property.GetMethod.IsPublic || property.GetMethod.IsFamily)) ||
+                               (property.SetMethod != null && (property.SetMethod.IsPublic || property.SetMethod.IsFamily));
+                    default:
+                        return false;
+                }
+            }
         }
 
         private MethodInfo GetTryGetDelegate(ObjectInfo info)
@@ -552,6 +763,8 @@ namespace TaffyScript.Compiler.Backend
         public ConstructorInfo Constructor { get; set; }
         public MethodInfo Create { get; set; }
         public Dictionary<string, MethodInfo> Methods { get; } = new Dictionary<string, MethodInfo>();
+        public Dictionary<string, FieldInfo> Fields { get; } = new Dictionary<string, FieldInfo>();
+        public Dictionary<string, PropertyInfo> Properties { get; } = new Dictionary<string, PropertyInfo>();
 
         public ObjectInfo(Type type, ObjectInfo parent, MethodInfo tryGetDelegate, ConstructorInfo constructor, FieldInfo members)
         {
@@ -560,6 +773,25 @@ namespace TaffyScript.Compiler.Backend
             TryGetDelegate = tryGetDelegate;
             Constructor = constructor;
             Members = members;
+        }
+
+        public ObjectInfo(Type type, 
+                          ObjectInfo parent, 
+                          MethodInfo tryGetDelegate, 
+                          ConstructorInfo constructor, 
+                          FieldInfo members, 
+                          Dictionary<string, MethodInfo> methods,
+                          Dictionary<string, FieldInfo> fields,
+                          Dictionary<string, PropertyInfo> properties)
+        {
+            Type = type;
+            Parent = parent;
+            TryGetDelegate = tryGetDelegate;
+            Constructor = constructor;
+            Members = members;
+            Methods = methods;
+            Fields = fields;
+            Properties = properties;
         }
     }
 }

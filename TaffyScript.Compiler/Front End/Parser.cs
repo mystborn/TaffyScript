@@ -190,7 +190,11 @@ namespace TaffyScript.Compiler
                 {
                     var argName = Consume(TokenType.Identifier, "Expected import argument name");
                     Consume(TokenType.Assign, "Expected '=' after import argument");
-                    var value = Consume(TokenType.Identifier, "Expected value for import argument");
+
+                    var value = _stream.Current.Type == TokenType.Bool ? 
+                                Consume(TokenType.Bool, "Expected value for import argument") :
+                                Consume(TokenType.Identifier, "Expected value for import argument");
+
                     importArgs.Add(new ObjectImportArgument(argName.Text, value.Text, argName.Position));
                 }
                 while (Match(TokenType.Comma));
@@ -208,8 +212,8 @@ namespace TaffyScript.Compiler
 
             if(!Check(TokenType.OpenBrace))
             {
-                node = new ImportObjectNode(type, name, start.Position);
-                if(!_table.TryAdd(new ImportObjectLeaf(_table.Current, name, node)))
+                node = new ImportObjectNode(type, name, _logger, importArgs, start.Position);
+                if(!_table.TryAdd(new ImportObjectSymbol(_table.Current, name, node)))
                     Error(start, $"Name conflict with imported object and {_table.Defined(name).Type} {name}");
                 return node;
             }
@@ -275,7 +279,7 @@ namespace TaffyScript.Compiler
                 Error(start, "Imported object with an explicit implementation must declare a constructor");
 
             node = new ImportObjectNode(type, name, _logger, importArgs, fields, ctor, methods, start.Position);
-            if (!_table.TryAdd(new ImportObjectLeaf(_table.Current, name, node)))
+            if (!_table.TryAdd(new ImportObjectSymbol(_table.Current, name, node)))
                 Error(start, $"Name conflict with imported object and {_table.Defined(name).Type} {name}");
 
             return node;
@@ -364,7 +368,8 @@ namespace TaffyScript.Compiler
 
             var scripts = new List<ScriptNode>();
             var staticScripts = new List<ScriptNode>();
-            var fields = new List<FieldDeclaration>();
+            var fields = new List<ObjectField>();
+            var staticFields = new List<ObjectField>();
             while(!Check(TokenType.CloseBrace) && !_stream.Finished)
             {
                 switch(_stream.Current.Type)
@@ -373,30 +378,25 @@ namespace TaffyScript.Compiler
                         _stream.Read();
                         continue;
                     case TokenType.Identifier:
-                        var field = _stream.Read();
-                        ISyntaxElement defaultValue = null;
-                        if (Match(TokenType.Assign))
-                        {
-                            if (IsConstant())
-                                defaultValue = Constant(0);
-                            else if(_stream.Current.Type == TokenType.ReadOnly)
-                            {
-                                var token = _stream.Read();
-                                if (token.Text != "null")
-                                    Error(token, "Invalid default value for field");
-                                defaultValue = new ReadOnlyToken(token.Text, token.Position);
-                            }
-                            else
-                                Error(_stream.Read(), "Invalid default value for field");
-                        }
-                        fields.Add(new FieldDeclaration(field.Text, field.Position, defaultValue));
+                        fields.Add(FieldDeclaration(SymbolScope.Member));
                         break;
                     case TokenType.Script:
                         scripts.Add(ScriptDeclaration(SymbolScope.Member));
                         break;
                     case TokenType.Static:
-                        _stream.Read();
-                        staticScripts.Add(ScriptDeclaration(SymbolScope.Global));
+                        var stat = _stream.Read();
+                        switch(_stream.Current.Type)
+                        {
+                            case TokenType.Script:
+                                staticScripts.Add(ScriptDeclaration(SymbolScope.Global));
+                                break;
+                            case TokenType.Identifier:
+                                staticFields.Add(FieldDeclaration(SymbolScope.Global));
+                                break;
+                            default:
+                                Error(stat, "Expected 'script' or field declaration after 'static'");
+                                break;
+                        }
                         break;
                     default:
                         _logger.Error("Invalid token inside of Object definition", _stream.Current.Position);
@@ -406,19 +406,37 @@ namespace TaffyScript.Compiler
             }
             Consume(TokenType.CloseBrace, "Expected '}' after object members", 1);
             _table.Exit();
-            return new ObjectNode(name.Text, parent, fields, scripts, staticScripts, name.Position);
+            return new ObjectNode(name.Text, parent, fields, staticFields, scripts, staticScripts, name.Position);
+        }
+
+        private ObjectField FieldDeclaration(SymbolScope scope)
+        {
+            var field = Consume(TokenType.Identifier, "Expected field name.");
+            ISyntaxElement defaultValue = null;
+            if (Match(TokenType.Assign))
+            {
+                if (IsConstant())
+                    defaultValue = Constant(0);
+                else if (_stream.Current.Type == TokenType.ReadOnly)
+                {
+                    var token = _stream.Read();
+                    if (token.Text != "null")
+                        Error(token, "Invalid default value for field");
+                    defaultValue = new ReadOnlyToken(token.Text, token.Position);
+                }
+                else
+                    Error(_stream.Read(), "Invalid default value for field");
+            }
+            if (!_table.TryAdd(new SymbolLeaf(_table.Current, field.Text, SymbolType.Field, scope)))
+                Error(field, $"Object {_table.Current.Name} already defines a member with name {field.Text}");
+
+            return new ObjectField(field.Text, field.Position, defaultValue);
         }
 
         private ScriptNode ScriptDeclaration(SymbolScope scope)
         {
             Token start = null;
-            if(Check(TokenType.Event))
-            {
-                start = Consume(TokenType.Event, "Expected 'event'");
-                _logger.Warning("event is an obsolete keyword. It will be deprecated on the next major release. Consider switching to script", start.Position);
-            }
-            else
-                start = Consume(TokenType.Script, "Expected 'script'");
+            start = Consume(TokenType.Script, "Expected 'script'");
 
             var name = Consume(TokenType.Identifier, "Expected name for script");
             if(!_table.TryEnterNew(name.Text, SymbolType.Script, scope))

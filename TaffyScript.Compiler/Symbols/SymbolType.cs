@@ -13,6 +13,8 @@ namespace TaffyScript.Compiler
         Enum,
         Script,
         Namespace,
-        Variable
+        Variable,
+        Property,
+        Field
     }
 }

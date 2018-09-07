@@ -7,11 +7,11 @@ namespace TaffyScript.Compiler.Syntax
         public override SyntaxType Type => SyntaxType.Object;
         public string Name { get; }
         public ISyntaxElement Inherits { get; }
-        public List<FieldDeclaration> Fields { get; }
+        public List<ObjectField> Fields { get; }
         public List<ScriptNode> Scripts { get; }
         public List<ScriptNode> StaticScripts { get; }
 
-        public ObjectNode(string name, ISyntaxElement inherits, List<FieldDeclaration> fields, List<ScriptNode> scripts, List<ScriptNode> staticScripts, TokenPosition position)
+        public ObjectNode(string name, ISyntaxElement inherits, List<ObjectField> fields, List<ObjectField> staticFields, List<ScriptNode> scripts, List<ScriptNode> staticScripts, TokenPosition position)
             : base(position)
         {
             Name = name;
