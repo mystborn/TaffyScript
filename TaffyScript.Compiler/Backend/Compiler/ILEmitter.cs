@@ -734,6 +734,14 @@ namespace TaffyScript.Compiler.Backend
             return this;
         }
 
+        public ILEmitter LdVirtFtn(MethodInfo function)
+        {
+            _types.Pop();
+            _generator.Emit(OpCodes.Ldvirtftn, function);
+            _types.Push(typeof(MethodInfo));
+            return this;
+        }
+
         public ILEmitter Mul()
         {
             //Only pop first type, reload second.

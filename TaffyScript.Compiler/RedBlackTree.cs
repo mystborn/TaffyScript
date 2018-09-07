@@ -8,10 +8,11 @@ namespace TaffyScript.Compiler
 {
     public class RedBlackTree<TKey, TValue>
     {
-        public static RedBlackNode Leaf = new RedBlackNode(default(TKey), default(TValue));
+        public static RedBlackNode Leaf = new RedBlackNode(default, default);
 
         public IComparer<TKey> Comparer { get; }
         public RedBlackNode Root { get; private set; } = Leaf;
+        public int Count { get; private set; }
 
         public RedBlackTree()
         {
@@ -32,6 +33,28 @@ namespace TaffyScript.Compiler
         public void Insert(TKey key, TValue value)
         {
             Insert(new RedBlackNode(key, value));
+            Count++;
+        }
+
+        public IEnumerable<KeyValuePair<TKey, TValue>> InOrder()
+        {
+            var stack = new Stack<RedBlackNode>();
+            var current = Root;
+            while(current != Leaf)
+            {
+                while(current.Left != Leaf)
+                {
+                    stack.Push(current);
+                    current = current.Left;
+                }
+                yield return new KeyValuePair<TKey, TValue>(current.Key, current.Value);
+                while(current.Right == Leaf && stack.Count > 0)
+                {
+                    current = stack.Pop();
+                    yield return new KeyValuePair<TKey, TValue>(current.Key, current.Value);
+                }
+                current = current.Right;
+            }
         }
 
         private void RotateLeft(RedBlackNode node)

@@ -9,6 +9,7 @@ using TaffyScript.Collections;
 using TaffyScript.Compiler.DotNet;
 using TaffyScript.Compiler.Syntax;
 using TaffyScript.Reflection;
+using TaffyScript.Strings;
 
 namespace TaffyScript.Compiler.Backend
 {
@@ -4108,10 +4109,10 @@ namespace TaffyScript.Compiler.Backend
                                                       MethodAttributes.HideBySig |
                                                       MethodAttributes.NewSlot |
                                                       MethodAttributes.SpecialName |
-                                                      MethodAttributes.Virtual |
-                                                      MethodAttributes.Final,
+                                                      MethodAttributes.Virtual,
                                                   typeof(string),
                                                   Type.EmptyTypes);
+
             var gen = getObjectType.GetILGenerator();
             gen.Emit(OpCodes.Ldstr, name);
             gen.Emit(OpCodes.Ret);
@@ -4129,10 +4130,7 @@ namespace TaffyScript.Compiler.Backend
             var tryGetDelegateMethod = type.DefineMethod("TryGetDelegate", methodFlags, typeof(bool), new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
             importSymbol.TryGetDelegate = tryGetDelegateMethod;
 
-            var call = new ILEmitter(callMethod, new[] { typeof(string), typeof(TsObject[]) });
-            var getm = new ILEmitter(getMemberMethod, new[] { typeof(string) });
-            var setm = new ILEmitter(setMemberMethod, new[] { typeof(string), typeof(TsObject) });
-            var tryd = new ILEmitter(tryGetDelegateMethod, new[] { typeof(string), typeof(TsDelegate) });
+
             tryGetDelegateMethod.DefineParameter(2, ParameterAttributes.Out, "del");
             var paramsAttribute = new CustomAttributeBuilder(typeof(ParamArrayAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
             callMethod.DefineParameter(2, ParameterAttributes.None, "args").SetCustomAttribute(paramsAttribute);
@@ -4185,12 +4183,9 @@ namespace TaffyScript.Compiler.Backend
 
             var instanceMethods = new Dictionary<string, MethodInfo>();
             var instanceProperties = new Dictionary<string, PropertyInfo>();
+            var instanceMembers = new List<KeyValuePair<string, MemberInfo>>();
 
-
-            var writeOnly = new List<string>();
-            var readOnly = new List<string>();
             var members = typeof(ObjectWrapper).GetField("_members", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-            var del = getm.DeclareLocal(typeof(TsDelegate), "del");
 
             Label getError;
 
@@ -4207,10 +4202,10 @@ namespace TaffyScript.Compiler.Backend
                     switch(field)
                     {
                         case FieldInfo fi:
-                            AddFieldToTypeWrapper(importSymbol, fi, type, fld.ImportName, fld.Position, source, getm, setm, instanceProperties);
+                            AddFieldToTypeWrapper(importSymbol, fi, type, fld.ImportName, fld.Position, source, instanceMembers, instanceProperties);
                             break;
                         case PropertyInfo pi:
-                            AddPropertyToTypeWrapper(importSymbol, pi, type, fld.ImportName, fld.Position, source, getm, setm, writeOnly, readOnly, instanceProperties);
+                            AddPropertyToTypeWrapper(importSymbol, pi, type, fld.ImportName, fld.Position, source, instanceMembers, instanceProperties);
                             break;
                     }
                 }
@@ -4218,6 +4213,7 @@ namespace TaffyScript.Compiler.Backend
                 foreach(var importMethod in importNode.Methods)
                 {
                     var args = new Type[importMethod.Arguments.Count];
+                    bool argParsingFailed = false;
                     for(var i = 0; i < args.Length; i++)
                     {
                         if (TsTypes.BasicTypes.TryGetValue(importMethod.Arguments[i], out var argType))
@@ -4225,12 +4221,23 @@ namespace TaffyScript.Compiler.Backend
                         else
                         {
                             _logger.Error($"Could not import the method {importMethod.ExternalName} because one of the arguments was invalid {importMethod.Arguments[i]}", importMethod.Position);
+                            argParsingFailed = true;
                             args[i] = typeof(TsObject);
                         }
                     }
 
+                    if (argParsingFailed)
+                        continue;
+
                     var method = importType.GetMethod(importMethod.ExternalName, BindingFlags.Public | BindingFlags.Instance, null, args, null);
-                    AddMethodToTypeWrapper(importSymbol, method, methodFlags, type, importMethod.ImportName, importMethod.Position, source, call, tryd, readOnly, instanceMethods);
+
+                    if(method is null)
+                    {
+                        _logger.Error($"Could not find the Method {importMethod.ExternalName} on the type {importType.FullName}", importMethod.Position);
+                        continue;
+                    }
+
+                    AddMethodToTypeWrapper(importSymbol, method, methodFlags, type, importMethod.ImportName, importMethod.Position, source, instanceMembers, instanceMethods);
                 }
 
                 var ctorArgNames = importNode.Constructor.Arguments;
@@ -4282,7 +4289,7 @@ namespace TaffyScript.Compiler.Backend
                             if (typeof(ITsInstance).IsAssignableFrom(memberType))
                                 memberType = typeof(ITsInstance);
                             if (typeof(TsObject).IsAssignableFrom(memberType) || TsTypes.ObjectCasts.ContainsKey(memberType))
-                                AddFieldToTypeWrapper(importSymbol, fi, type, transformName(fi.Name), importNode.Position, source, getm, setm, instanceProperties);
+                                AddFieldToTypeWrapper(importSymbol, fi, type, transformName(fi.Name), importNode.Position, source, instanceMembers, instanceProperties);
                             break;
                         case PropertyInfo pi:
                             memberType = pi.PropertyType;
@@ -4298,17 +4305,17 @@ namespace TaffyScript.Compiler.Backend
                                     if(pi.CanRead && IsMethodSupported(pi.GetMethod))
                                     {
                                         foundIndexer = true;
-                                        AddMethodToTypeWrapper(importSymbol, pi.GetMethod, methodFlags, type, "get", importNode.Position, source, call, tryd, readOnly, instanceMethods);
+                                        AddMethodToTypeWrapper(importSymbol, pi.GetMethod, methodFlags, type, "get", importNode.Position, source, instanceMembers, instanceMethods);
                                     }
                                     if(pi.CanWrite && IsMethodSupported(pi.SetMethod))
                                     {
                                         foundIndexer = true;
-                                        AddMethodToTypeWrapper(importSymbol, pi.SetMethod, methodFlags, type, "set", importNode.Position, source, call, tryd, readOnly, instanceMethods);
+                                        AddMethodToTypeWrapper(importSymbol, pi.SetMethod, methodFlags, type, "set", importNode.Position, source, instanceMembers, instanceMethods);
                                     }
                                 }
                                 else
                                 {
-                                    AddPropertyToTypeWrapper(importSymbol, pi, type, transformName(pi.Name), importNode.Position, source, getm, setm, writeOnly, readOnly, instanceProperties);
+                                    AddPropertyToTypeWrapper(importSymbol, pi, type, transformName(pi.Name), importNode.Position, source, instanceMembers, instanceProperties);
                                 }
                                 if(pi.CanRead)
                                 {
@@ -4341,166 +4348,52 @@ namespace TaffyScript.Compiler.Backend
                     }
                 }
                 foreach(var mi in validMethods)
-                    AddMethodToTypeWrapper(importSymbol, mi, methodFlags, type, transformName(mi.Name), importNode.Position, source, call, tryd, readOnly, instanceMethods);
+                    AddMethodToTypeWrapper(importSymbol, mi, methodFlags, type, transformName(mi.Name), importNode.Position, source, instanceMembers, instanceMethods);
 
                 if (!foundConstructor)
                     _logger.Error($"No valid constructor was found for the imported type {importType}", importNode.Position);
             }
 
-            if (importNode.WeaklyTyped)
+            var memberTree = new RedBlackTree<int, KeyValuePair<string, MemberInfo>>();
+            var memberBruteForce = new List<KeyValuePair<string, MemberInfo>>();
+            var memberHashes = new HashSet<int>();
+            var methodTree = new RedBlackTree<int, MethodInfo>();
+            var methodBruteForce = new List<MethodInfo>();
+            var methodHashes = new HashSet<int>();
+
+            foreach(var member in instanceMembers)
             {
-                if (readOnly.Count > 0)
-                {
-                    var setError = setm.DefineLabel();
-                    for (var i = 0; i < readOnly.Count; i++)
-                    {
-                        setm.LdArg(1)
-                            .LdStr(readOnly[i])
-                            .Call(GetOperator("==", typeof(string), typeof(string), new TokenPosition(0, 0, 0, null)))
-                            .BrTrue(setError);
-                    }
-                    setm.LdArg(0)
-                        .LdFld(members)
-                        .LdArg(1)
-                        .LdArg(2)
-                        .Call(typeof(Dictionary<string, TsObject>).GetMethod("set_Item"))
-                        .Ret()
-                        .MarkLabel(setError)
-                        .LdStr($"Member {{0}} on type {name} is readonly")
-                        .LdArg(1)
-                        .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
-                        .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
-                        .Throw();
-                }
+                var key = Fnv.Fnv32(member.Key);
+                if (memberHashes.Add(key))
+                    memberTree.Insert(key, member);
                 else
+                    memberBruteForce.Add(member);
+
+                if (member.Value is MethodInfo method)
                 {
-                    setm.LdArg(0)
-                        .LdFld(members)
-                        .LdArg(1)
-                        .LdArg(2)
-                        .Call(typeof(Dictionary<string, TsObject>).GetMethod("set_Item"))
-                        .Ret();
+                    if (methodHashes.Add(key))
+                        methodTree.Insert(key, method);
+                    else
+                        methodBruteForce.Add(method);
                 }
-                var member = call.DeclareLocal(typeof(TsObject), "member");
-                var callError = call.DefineLabel();
-                call.LdArg(0)
-                    .LdFld(members)
-                    .LdArg(1)
-                    .LdLocalA(member)
-                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
-                    .BrFalse(callError)
-                    .LdLocal(member)
-                    .Call(typeof(TsObject).GetMethod("get_Type"))
-                    .LdInt((int)VariableType.Delegate)
-                    .Bne(callError)
-                    .LdLocal(member)
-                    .LdArg(2)
-                    .Call(typeof(TsObject).GetMethod("DelegateInvoke", new[] { typeof(TsObject[]) }))
-                    .Ret()
-                    .MarkLabel(callError)
-                    .LdStr($"The type {name} does not define a script called {{0}}")
-                    .LdArg(1)
-                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
-                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
-                    .Throw();
-
-                member = tryd.DeclareLocal(typeof(TsObject), "member");
-                var tryFail = tryd.DefineLabel();
-                tryd.LdArg(0)
-                    .LdFld(members)
-                    .LdArg(1)
-                    .LdLocalA(member)
-                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
-                    .BrFalse(tryFail)
-                    .LdLocal(member)
-                    .Call(typeof(TsObject).GetMethod("get_Type"))
-                    .LdInt((int)VariableType.Delegate)
-                    .Bne(tryFail)
-                    .LdArg(2)
-                    .LdLocal(member)
-                    .CastClass(typeof(TsDelegate))
-                    .StIndRef()
-                    .LdBool(true)
-                    .Ret()
-                    .MarkLabel(tryFail)
-                    .LdArg(2)
-                    .LdNull()
-                    .StIndRef()
-                    .LdBool(false)
-                    .Ret();
-
-                getError = getm.DefineLabel();
-                var getMember = getm.DefineLabel();
-                member = getm.DeclareLocal(typeof(TsObject), "member");
-                foreach (var wo in writeOnly)
-                {
-                    getm.LdArg(1)
-                        .LdStr(wo)
-                        .Call(GetOperator("==", typeof(string), typeof(string), new TokenPosition(0, 0, 0, null)))
-                        .BrTrue(getError);
-                }
-                getm.LdArg(0)
-                    .LdArg(1)
-                    .LdLocalA(del)
-                    .Call(tryGetDelegateMethod, 3, typeof(bool))
-                    .BrFalse(getMember)
-                    .LdLocal(del)
-                    .Ret()
-                    .MarkLabel(getMember)
-                    .LdArg(0)
-                    .LdFld(members)
-                    .LdArg(1)
-                    .LdLocalA(member)
-                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
-                    .BrFalse(getError)
-                    .LdLocal(member)
-                    .Ret()
-                    .MarkLabel(getError)
-                    .LdStr($"Member with the name {{0}} is readonly or doesn't exist on the type {name}")
-                    .LdArg(1)
-                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
-                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
-                    .Throw();
             }
-            else
-            {
-                setm.LdStr($"Member {{0}} on type {name} is readonly or doesn't exist")
-                    .LdArg(1)
-                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
-                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
-                    .Throw();
 
-                call.LdStr($"The type {name} does not define a script called {{0}}.")
-                    .LdArg(1)
-                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
-                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
-                    .Throw();
-
-                tryd.LdArg(2)
-                    .LdNull()
-                    .StIndRef()
-                    .LdBool(false)
-                    .Ret();
-
-                getError = getm.DefineLabel();
-                getm.LdArg(0)
-                    .LdArg(1)
-                    .LdLocalA(del)
-                    .Call(tryGetDelegateMethod, 3, typeof(bool))
-                    .BrFalse(getError)
-                    .LdLocal(del)
-                    .Ret()
-                    .MarkLabel(getError)
-                    .LdStr($"Couldn't find member with the name {{0}} on the type {name}")
-                    .LdArg(1)
-                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
-                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
-                    .Throw();
-            }
+            GenerateImportObjectInterfaceMethods(memberBruteForce,
+                                                 memberTree,
+                                                 methodBruteForce,
+                                                 methodTree,
+                                                 tryGetDelegateMethod,
+                                                 callMethod,
+                                                 getMemberMethod,
+                                                 setMemberMethod,
+                                                 source,
+                                                 members,
+                                                 importNode.WeaklyTyped,
+                                                 importNode.ImportName);
 
             var getDelegate = type.DefineMethod("GetDelegate", methodFlags, typeof(TsDelegate), new[] { typeof(string) });
             var mthd = new ILEmitter(getDelegate, new[] { typeof(string) });
-            del = mthd.DeclareLocal(typeof(TsDelegate), "del");
+            var del = mthd.DeclareLocal(typeof(TsDelegate), "del");
             getError = mthd.DefineLabel();
 
             mthd.LdArg(0)
@@ -4575,35 +4468,9 @@ namespace TaffyScript.Compiler.Backend
                                            string importName, 
                                            TokenPosition position, 
                                            FieldInfo source, 
-                                           ILEmitter getm, 
-                                           ILEmitter setm, 
+                                           List<KeyValuePair<string, MemberInfo>> members,
                                            Dictionary<string, PropertyInfo> properties)
         {
-            var next = getm.DefineLabel();
-            getm.LdArg(1)
-                .LdStr(importName)
-                .Call(GetOperator("==", typeof(string), typeof(string), position))
-                .BrFalse(next)
-                .LdArg(0)
-                .LdFld(source)
-                .LdFld(field);
-
-            ConvertTopToObject(getm);
-            getm.Ret()
-                .MarkLabel(next);
-
-            next = setm.DefineLabel();
-            setm.LdArg(1)
-                .LdStr(importName)
-                .Call(GetOperator("==", typeof(string), typeof(string), position))
-                .BrFalse(next)
-                .LdArg(0)
-                .LdFld(source)
-                .LdArg(2)
-                .StFld(field)
-                .Ret()
-                .MarkLabel(next);
-
             var wrapperProperty = type.DefineProperty(importName, PropertyAttributes.None, typeof(TsObject), Type.EmptyTypes);
             var wrapperGet = type.DefineMethod($"get_{importName}",
                                                MethodAttributes.Public |
@@ -4614,7 +4481,7 @@ namespace TaffyScript.Compiler.Backend
                                                typeof(TsObject),
                                                Type.EmptyTypes);
 
-            var getP = new ILEmitter(wrapperGet, new[] { type });
+            var getP = new ILEmitter(wrapperGet, Type.EmptyTypes);
             getP.LdArg(0)
                 .LdFld(source)
                 .LdFld(field);
@@ -4630,7 +4497,7 @@ namespace TaffyScript.Compiler.Backend
                                                typeof(void),
                                                new[] { typeof(TsObject) });
 
-            var setP = new ILEmitter(wrapperSet, new[] { type, typeof(TsObject) });
+            var setP = new ILEmitter(wrapperSet, new[] { typeof(TsObject) });
             setP.LdArg(0)
                 .LdArg(1);
 
@@ -4644,6 +4511,7 @@ namespace TaffyScript.Compiler.Backend
             wrapperProperty.SetGetMethod(wrapperGet);
             wrapperProperty.SetSetMethod(wrapperSet);
 
+            members.Add(new KeyValuePair<string, MemberInfo>(importName, field));
             properties.Add(importName, wrapperProperty);
             symbol.Children.Add(importName, new SymbolLeaf(symbol, importName, SymbolType.Property, SymbolScope.Member));
         }
@@ -4653,31 +4521,14 @@ namespace TaffyScript.Compiler.Backend
                                               TypeBuilder type, 
                                               string importName, 
                                               TokenPosition position, 
-                                              FieldInfo source, 
-                                              ILEmitter getm, 
-                                              ILEmitter setm, 
-                                              List<string> writeOnly,
-                                              List<string> readOnly,
+                                              FieldInfo source,
+                                              List<KeyValuePair<string, MemberInfo>> members,
                                               Dictionary<string, PropertyInfo> properties)
         {
             var wrapperProperty = type.DefineProperty(importName, PropertyAttributes.None, typeof(TsObject), Type.EmptyTypes);
 
-            if (!property.CanRead)
-                writeOnly.Add(importName);
-            else
+            if (property.CanRead)
             {
-                var next = getm.DefineLabel();
-                getm.LdArg(1)
-                    .LdStr(importName)
-                    .Call(GetOperator("==", typeof(string), typeof(string), position))
-                    .BrFalse(next)
-                    .LdArg(0)
-                    .LdFld(source)
-                    .Call(property.GetMethod);
-                ConvertTopToObject(getm);
-                getm.Ret()
-                    .MarkLabel(next);
-
                 var wrapperGet = type.DefineMethod($"get_{importName}",
                                                MethodAttributes.Public |
                                                    MethodAttributes.HideBySig |
@@ -4687,7 +4538,7 @@ namespace TaffyScript.Compiler.Backend
                                                typeof(TsObject),
                                                Type.EmptyTypes);
 
-                var getP = new ILEmitter(wrapperGet, new[] { type });
+                var getP = new ILEmitter(wrapperGet, Type.EmptyTypes);
                 getP.LdArg(0)
                     .LdFld(source)
                     .Call(property.GetMethod);
@@ -4697,32 +4548,18 @@ namespace TaffyScript.Compiler.Backend
                 wrapperProperty.SetGetMethod(wrapperGet);
             }
 
-            if (!property.CanWrite)
-                readOnly.Add(importName);
-            else
+            if(property.CanWrite)
             {
-                var next = setm.DefineLabel();
-                setm.LdArg(1)
-                    .LdStr(importName)
-                    .Call(GetOperator("==", typeof(string), typeof(string), position))
-                    .BrFalse(next)
-                    .LdArg(0)
-                    .LdFld(source)
-                    .LdArg(2)
-                    .Call(property.SetMethod)
-                    .Ret()
-                    .MarkLabel(next);
-
                 var wrapperSet = type.DefineMethod($"set_{importName}",
-                                                   MethodAttributes.Public |
-                                                       MethodAttributes.HideBySig |
-                                                       MethodAttributes.SpecialName |
-                                                       MethodAttributes.Virtual |
-                                                       MethodAttributes.NewSlot,
-                                                   typeof(void),
-                                                   new[] { typeof(TsObject) });
+                                                      MethodAttributes.Public |
+                                                          MethodAttributes.HideBySig |
+                                                          MethodAttributes.SpecialName |
+                                                          MethodAttributes.Virtual |
+                                                          MethodAttributes.NewSlot,
+                                                      typeof(void),
+                                                      new[] { typeof(TsObject) });
 
-                var setP = new ILEmitter(wrapperSet, new[] { type, typeof(TsObject) });
+                var setP = new ILEmitter(wrapperSet, new[] { typeof(TsObject) });
                 setP.LdArg(0)
                     .LdArg(1);
 
@@ -4736,6 +4573,7 @@ namespace TaffyScript.Compiler.Backend
                 wrapperProperty.SetSetMethod(wrapperSet);
             }
 
+            members.Add(new KeyValuePair<string, MemberInfo>(importName, property));
             properties.Add(importName, wrapperProperty);
         }
 
@@ -4745,10 +4583,8 @@ namespace TaffyScript.Compiler.Backend
                                             TypeBuilder type, 
                                             string importName, 
                                             TokenPosition methodPosition, 
-                                            FieldInfo source, 
-                                            ILEmitter call, 
-                                            ILEmitter tryd, 
-                                            List<string> readOnly, 
+                                            FieldInfo source,
+                                            List<KeyValuePair<string, MemberInfo>> members,
                                             Dictionary<string, MethodInfo> methods)
         {
             var weakMethod = type.DefineMethod(importName, weakFlags, typeof(TsObject), TsTypes.ArgumentTypes);
@@ -4781,34 +4617,8 @@ namespace TaffyScript.Compiler.Backend
                 _logger.Error($"Imported method { method.Name } had an invalid return type {method.ReturnType}");
             weak.Ret();
 
-            var next = call.DefineLabel();
-            call.LdArg(1)
-                .LdStr(importName)
-                .Call(GetOperator("==", typeof(string), typeof(string), methodPosition))
-                .BrFalse(next)
-                .LdArg(0)
-                .LdArg(2)
-                .Call(weakMethod, 2, typeof(TsObject))
-                .Ret()
-                .MarkLabel(next);
-
-            next = tryd.DefineLabel();
-            tryd.LdArg(1)
-                .LdStr(importName)
-                .Call(GetOperator("==", typeof(string), typeof(string), methodPosition))
-                .BrFalse(next)
-                .LdArg(2)
-                .LdArg(0)
-                .LdFtn(weakMethod)
-                .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                .LdStr(importName)
-                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                .StIndRef()
-                .LdBool(true)
-                .Ret()
-                .MarkLabel(next);
-
-            readOnly.Add(importName);
+            // Unlike properties and fields, this one wants the weak implementation of the method.
+            members.Add(new KeyValuePair<string, MemberInfo>(importName, weakMethod));
             methods.Add(importName, weakMethod);
             importSymbol.Children.Add(importName, new SymbolLeaf(importSymbol, importName, SymbolType.Script, SymbolScope.Member));
         }
@@ -4864,6 +4674,560 @@ namespace TaffyScript.Compiler.Backend
                        .LdFtn(wrappedCtor)
                        .New(typeof(Func<TsObject[], ITsInstance>).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
                        .Call(typeof(Dictionary<string, Func<TsObject[], ITsInstance>>).GetMethod("Add", new[] { typeof(string), typeof(Func<TsObject[], ITsInstance>) }));
+        }
+
+        private void GenerateImportObjectInterfaceMethods(List<KeyValuePair<string, MemberInfo>> memberBruteForce,
+                                                          RedBlackTree<int, KeyValuePair<string, MemberInfo>> memberTree,
+                                                          List<MethodInfo> methodBruteForce,
+                                                          RedBlackTree<int, MethodInfo> methodTree,
+                                                          MethodBuilder tryGetDelegate,
+                                                          MethodBuilder callMethod,
+                                                          MethodBuilder getMember,
+                                                          MethodBuilder setMember,
+                                                          FieldInfo source,
+                                                          FieldInfo members,
+                                                          bool isWeaklyTyped,
+                                                          string typeName)
+        {
+            // Todo: This value is currently an arbitrary value with no testing.
+            //       Test to see when it's optimal to go from brute force to binary search.
+            const int MinimumValuesNeededForBinarySearch = 3;
+
+            var call = new ILEmitter(callMethod, new[] { typeof(string), typeof(TsObject[]) });
+            var getm = new ILEmitter(getMember, new[] { typeof(string) });
+            var setm = new ILEmitter(setMember, new[] { typeof(string), typeof(TsObject) });
+            var tryd = new ILEmitter(tryGetDelegate, new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
+
+            var callError = call.DefineLabel();
+            var getError = getm.DefineLabel();
+            var setError = setm.DefineLabel();
+            var tryError = tryd.DefineLabel();
+            var readError = getm.DefineLabel();
+            var writeError = setm.DefineLabel();
+            var readErrors = false;
+            var writeErrors = false;
+
+            if (memberTree.Count < MinimumValuesNeededForBinarySearch)
+            {
+                memberBruteForce.AddRange(memberTree.InOrder().Select(kvp => kvp.Value));
+                GenerateImportObjectGetAndSetBruteForce(memberBruteForce, source, getm, setm, readError, writeError, ref readErrors, ref writeErrors);
+            }
+            else
+            {
+                GenerateImportObjectGetAndSetBruteForce(memberBruteForce, source, getm, setm, readError, writeError, ref readErrors, ref writeErrors);
+
+                var getHash = getm.DeclareLocal(typeof(int), "hash");
+                var setHash = setm.DeclareLocal(typeof(int), "hash");
+
+                InitializeImportObjectInterfaceMethod(getm, getHash);
+                InitializeImportObjectInterfaceMethod(setm, setHash);
+
+                GenerateImportObjectGetAndSetBinarySearch(memberTree.Root,
+                                                          source,
+                                                          getm,
+                                                          setm,
+                                                          getHash,
+                                                          setHash,
+                                                          getError,
+                                                          setError,
+                                                          readError,
+                                                          writeError,
+                                                          ref readErrors,
+                                                          ref writeErrors);
+            }
+
+            if(methodTree.Count < MinimumValuesNeededForBinarySearch)
+            {
+                methodBruteForce.AddRange(methodTree.InOrder().Select(kvp => kvp.Value));
+                GenerateImportMethodCallBruteForce(methodBruteForce, source, call, tryd);
+            }
+            else
+            {
+                GenerateImportMethodCallBruteForce(methodBruteForce, source, call, tryd);
+
+                var callHash = call.DeclareLocal(typeof(int), "hash");
+                var tryHash = tryd.DeclareLocal(typeof(int), "hash");
+
+                InitializeImportObjectInterfaceMethod(call, callHash);
+                InitializeImportObjectInterfaceMethod(tryd, tryHash);
+
+                GenerateImportMethodCallBinarySearch(methodTree.Root, source, call, tryd, callHash, tryHash, callError, tryError);
+            }
+
+            getm.MarkLabel(getError);
+            setm.MarkLabel(setError);
+            call.MarkLabel(callError);
+            tryd.MarkLabel(tryError);
+            if (isWeaklyTyped)
+            {
+                var getDynamicError = getm.DefineLabel();
+                var callDynamicError = call.DefineLabel();
+                var tryDynamicError = tryd.DefineLabel();
+
+                var getMemberVariable = getm.DeclareLocal(typeof(TsObject), "member");
+                var callMemberVariable = call.DeclareLocal(typeof(TsObject), "member");
+                var tryMemberVariable = tryd.DeclareLocal(typeof(TsObject), "member");
+
+                getm.LdArg(0)
+                    .LdFld(members)
+                    .LdArg(1)
+                    .LdLocalA(getMemberVariable)
+                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
+                    .BrFalse(getDynamicError)
+                    .LdLocal(getMemberVariable)
+                    .Ret()
+                    .MarkLabel(getDynamicError)
+                    .LdStr(typeName)
+                    .LdArg(1)
+                    .New(typeof(MissingMemberException).GetConstructor(new[] { typeof(string), typeof(string) }))
+                    .Throw();
+
+                setm.LdArg(0)
+                    .LdFld(members)
+                    .LdArg(1)
+                    .LdArg(2)
+                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("set_Item"))
+                    .Ret();
+
+                call.LdArg(0)
+                    .LdFld(members)
+                    .LdArg(1)
+                    .LdLocalA(callMemberVariable)
+                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
+                    .BrFalse(callDynamicError)
+                    .LdLocal(callMemberVariable)
+                    .Call(typeof(TsObject).GetMethod("get_Type"))
+                    .LdInt((int)VariableType.Delegate)
+                    .Bne(callDynamicError)
+                    .LdLocal(callMemberVariable)
+                    .LdArg(2)
+                    .Call(typeof(TsObject).GetMethod("DelegateInvoke"))
+                    .Ret()
+                    .MarkLabel(callDynamicError)
+                    .LdStr(typeName)
+                    .LdArg(1)
+                    .New(typeof(MissingMethodException).GetConstructor(new[] { typeof(string), typeof(string) }))
+                    .Throw();
+
+                tryd.LdArg(0)
+                    .LdFld(members)
+                    .LdArg(1)
+                    .LdLocalA(tryMemberVariable)
+                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
+                    .BrFalse(tryDynamicError)
+                    .LdLocal(tryMemberVariable)
+                    .Call(typeof(TsObject).GetMethod("get_Type"))
+                    .LdInt((int)VariableType.Delegate)
+                    .Bne(tryDynamicError)
+                    .LdArg(2)
+                    .LdLocal(tryMemberVariable)
+                    .CastClass(typeof(TsDelegate))
+                    .StIndRef()
+                    .LdBool(true)
+                    .Ret()
+                    .MarkLabel(tryDynamicError)
+                    .LdArg(2)
+                    .LdNull()
+                    .StIndRef()
+                    .LdBool(false)
+                    .Ret();
+            }
+            else
+            {
+                getm.LdStr(typeName)
+                    .LdArg(1)
+                    .New(typeof(MissingMemberException).GetConstructor(new[] { typeof(string), typeof(string) }))
+                    .Throw();
+
+                setm.LdStr(typeName)
+                    .LdArg(1)
+                    .New(typeof(MissingMemberException).GetConstructor(new[] { typeof(string), typeof(string) }))
+                    .Throw();
+
+                call.LdStr(typeName)
+                    .LdArg(1)
+                    .New(typeof(MissingMethodException).GetConstructor(new[] { typeof(string), typeof(string) }))
+                    .Throw();
+
+                tryd.LdArg(2)
+                    .LdNull()
+                    .StIndRef()
+                    .LdBool(false)
+                    .Ret();
+            }
+
+            if(readErrors)
+            {
+                getm.MarkLabel(readError)
+                    .LdStr($"Member '{{0}}' defined by type {typeName} is write-only")
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                    .Throw();
+            }
+
+            if(writeErrors)
+            {
+                setm.MarkLabel(writeError)
+                    .LdStr($"Member '{{0}}' defined by type {typeName} is read-only")
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
+                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
+                    .Throw();
+            }
+        }
+
+        private void GenerateImportObjectGetAndSetBruteForce(List<KeyValuePair<string, MemberInfo>> members,
+                                                             FieldInfo source,
+                                                             ILEmitter getm,
+                                                             ILEmitter setm,
+                                                             Label readError,
+                                                             Label writeError,
+                                                             ref bool readErrors,
+                                                             ref bool writeErrors)
+        {
+            foreach(var kvp in members)
+            {
+                var getNext = getm.DefineLabel();
+                var setNext = setm.DefineLabel();
+                switch (kvp.Value)
+                {
+                    case FieldInfo field:
+                        getm.LdStr(kvp.Key)
+                            .LdArg(1)
+                            .Call(typeof(string).GetMethod("op_Equality"))
+                            .BrFalseS(getNext)
+                            .LdArg(0)
+                            .LdFld(source)
+                            .LdFld(field);
+                        ConvertTopToObject(getm);
+                        getm.Ret()
+                            .MarkLabel(getNext);
+
+                        setm.LdStr(kvp.Key)
+                            .LdArg(1)
+                            .Call(typeof(string).GetMethod("op_Equality"))
+                            .BrFalseS(setNext)
+                            .LdArg(0)
+                            .LdFld(source)
+                            .LdArg(2);
+
+                        if (!field.FieldType.IsAssignableFrom(setm.GetTop()))
+                            setm.Call(TsTypes.ObjectCasts[field.FieldType]);
+
+                        setm.StFld(field)
+                            .Ret()
+                            .MarkLabel(setNext);
+                        break;
+                    case PropertyInfo property:
+                        getm.LdStr(kvp.Key)
+                            .LdArg(1)
+                            .Call(typeof(string).GetMethod("op_Equality"))
+                            .BrFalseS(getNext);
+
+                        if (property.CanRead && property.GetMethod.IsPublic)
+                        {
+                            getm.LdArg(0)
+                                .LdFld(source)
+                                .Call(property.GetMethod);
+                            ConvertTopToObject(getm);
+                            getm.Ret();
+                        }
+                        else
+                        {
+                            getm.Br(readError);
+                            readErrors = true;
+                        }
+
+                        getm.MarkLabel(getNext);
+
+                        setm.LdStr(kvp.Key)
+                            .LdArg(1)
+                            .Call(typeof(string).GetMethod("op_Equality"))
+                            .BrFalseS(setNext);
+
+                        if (property.CanWrite && property.SetMethod.IsPublic)
+                        {
+                            setm.LdArg(0)
+                                .LdFld(source)
+                                .LdArg(2);
+
+                            if (!property.PropertyType.IsAssignableFrom(setm.GetTop()))
+                                setm.Call(TsTypes.ObjectCasts[property.PropertyType]);
+
+                            setm.Call(property.SetMethod)
+                                .Ret();
+                        }
+                        else
+                        {
+                            setm.Br(writeError);
+                            writeErrors = true;
+                        }
+                        setm.MarkLabel(setNext);
+                        break;
+                    case MethodInfo method:
+                        getm.LdStr(kvp.Key)
+                            .LdArg(1)
+                            .Call(typeof(string).GetMethod("op_Equality"))
+                            .BrFalseS(getNext)
+                            .LdArg(0)
+                            .LdFtn(method)
+                            .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                            .LdArg(1)
+                            .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
+                            .Ret()
+                            .MarkLabel(getNext);
+
+                        setm.LdStr(kvp.Key)
+                            .LdArg(1)
+                            .Call(typeof(string).GetMethod("op_Equality"))
+                            .BrFalseS(getNext)
+                            .Br(writeError)
+                            .MarkLabel(setNext);
+
+                        writeErrors = true;
+                        break;
+                }
+            }
+        }
+
+        private void GenerateImportObjectGetAndSetBinarySearch(RedBlackTree<int, KeyValuePair<string, MemberInfo>>.RedBlackNode node,
+                                                               FieldInfo source,
+                                                               ILEmitter getm,
+                                                               ILEmitter setm,
+                                                               LocalBuilder getHash,
+                                                               LocalBuilder setHash,
+                                                               Label getError,
+                                                               Label setError,
+                                                               Label readError,
+                                                               Label writeError,
+                                                               ref bool readErrors,
+                                                               ref bool writeErrors)
+        {
+            var getGreater = getm.DefineLabel();
+            var getEqual = getm.DefineLabel();
+            var setGreater = setm.DefineLabel();
+            var setEqual = setm.DefineLabel();
+
+            getm.LdLocal(getHash)
+                .LdInt(node.Key)
+                .Bge(getGreater);
+
+            setm.LdLocal(setHash)
+                .LdInt(node.Key)
+                .Bge(setGreater);
+
+            if (node.Left != RedBlackTree<int, KeyValuePair<string, MemberInfo>>.Leaf)
+                GenerateImportObjectGetAndSetBinarySearch(node.Left, source, getm, setm, getHash, setHash, getError, setError, readError, writeError, ref readErrors, ref writeErrors);
+            else
+            {
+                getm.Br(getError);
+                setm.Br(setError);
+            }
+
+            getm.MarkLabel(getGreater)
+                .LdLocal(getHash)
+                .LdInt(node.Key)
+                .Beq(getEqual);
+
+            setm.MarkLabel(setGreater)
+                .LdLocal(setHash)
+                .LdInt(node.Key)
+                .Beq(setEqual);
+
+            if (node.Right != RedBlackTree<int, KeyValuePair<string, MemberInfo>>.Leaf)
+                GenerateImportObjectGetAndSetBinarySearch(node.Right, source, getm, setm, getHash, setHash, getError, setError, readError, writeError, ref readErrors, ref writeErrors);
+            else
+            {
+                getm.Br(getError);
+                setm.Br(setError);
+            }
+
+            getm.MarkLabel(getEqual);
+            setm.MarkLabel(setEqual);
+
+            switch(node.Value.Value)
+            {
+                case FieldInfo field:
+                    getm.LdArg(0)
+                        .LdFld(source)
+                        .LdFld(field);
+                    ConvertTopToObject(getm);
+                    getm.Ret();
+
+                    setm.LdArg(0)
+                        .LdFld(source)
+                        .LdArg(2);
+                    if (!field.FieldType.IsAssignableFrom(setm.GetTop()))
+                        setm.Call(TsTypes.ObjectCasts[field.FieldType]);
+
+                    setm.StFld(field)
+                        .Ret();
+                    break;
+                case PropertyInfo property:
+                    if (property.CanRead && property.GetMethod.IsPublic)
+                    {
+                        getm.LdArg(0)
+                            .LdFld(source)
+                            .Call(property.GetMethod);
+                        ConvertTopToObject(getm);
+                        getm.Ret();
+                    }
+                    else
+                    {
+                        getm.Br(readError);
+                        readErrors = true;
+                    }
+
+                    if (property.CanWrite && property.SetMethod.IsPublic)
+                    {
+                        setm.LdArg(0)
+                            .LdFld(source)
+                            .LdArg(2);
+
+                        if (!property.PropertyType.IsAssignableFrom(setm.GetTop()))
+                            setm.Call(TsTypes.ObjectCasts[property.PropertyType]);
+
+                        setm.Call(property.SetMethod)
+                            .Ret();
+                    }
+                    else
+                    {
+                        setm.Br(writeError);
+                        writeErrors = true;
+                    }
+                    break;
+                case MethodInfo method:
+                    getm.LdArg(0)
+                        .LdFtn(method)
+                        .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                        .LdArg(1)
+                        .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
+                        .Ret();
+
+                    setm.Br(writeError);
+                    writeErrors = true;
+                    break;
+            }
+        }
+
+        private void GenerateImportMethodCallBruteForce(List<MethodInfo> methods,
+                                                        FieldInfo source,
+                                                        ILEmitter call,
+                                                        ILEmitter tryd)
+        {
+            foreach(var method in methods)
+            {
+                var callNext = call.DefineLabel();
+                var tryNext = tryd.DefineLabel();
+
+                call.LdStr(method.Name)
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("op_Equality"))
+                    .BrFalseS(callNext)
+                    .LdArg(0)
+                    .LdArg(2)
+                    .Call(method, 1, typeof(TsObject))
+                    .Ret()
+                    .MarkLabel(callNext);
+
+                tryd.LdStr(method.Name)
+                    .LdArg(1)
+                    .Call(typeof(string).GetMethod("op_Equality"))
+                    .BrFalseS(callNext)
+                    .LdArg(2)
+                    .LdArg(0)
+                    .LdFtn(method)
+                    .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                    .LdStr(method.Name)
+                    .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
+                    .StIndRef()
+                    .LdBool(true)
+                    .Ret()
+                    .MarkLabel(tryNext);
+            }
+        }
+
+        private void GenerateImportMethodCallBinarySearch(RedBlackTree<int, MethodInfo>.RedBlackNode node,
+                                                          FieldInfo source,
+                                                          ILEmitter call,
+                                                          ILEmitter tryd,
+                                                          LocalBuilder callHash,
+                                                          LocalBuilder tryHash,
+                                                          Label callError,
+                                                          Label tryError)
+        {
+            var callGreater = call.DefineLabel();
+            var callEqual = call.DefineLabel();
+            var tryGreater = tryd.DefineLabel();
+            var tryEqual = tryd.DefineLabel();
+
+            call.LdLocal(callHash)
+                .LdInt(node.Key)
+                .Bge(callGreater);
+
+            tryd.LdLocal(tryHash)
+                .LdInt(node.Key)
+                .Bge(tryGreater);
+
+            if (node.Left != RedBlackTree<int, MethodInfo>.Leaf)
+                GenerateImportMethodCallBinarySearch(node.Left, source, call, tryd, callHash, tryHash, callError, tryError);
+            else
+            {
+                call.Br(callError);
+                tryd.Br(tryError);
+            }
+
+            call.MarkLabel(callGreater)
+                .LdLocal(callHash)
+                .LdInt(node.Key)
+                .Beq(callEqual);
+
+            tryd.MarkLabel(tryGreater)
+                .LdLocal(tryHash)
+                .LdInt(node.Key)
+                .Beq(tryEqual);
+
+            if(node.Right != RedBlackTree<int, MethodInfo>.Leaf)
+                GenerateImportMethodCallBinarySearch(node.Right, source, call, tryd, callHash, tryHash, callError, tryError);
+            else
+            {
+                call.Br(callError);
+                tryd.Br(tryError);
+            }
+
+            call.MarkLabel(callEqual)
+                .LdArg(1)
+                .LdStr(node.Value.Name)
+                .Call(typeof(string).GetMethod("op_Equality", new[] { typeof(string), typeof(string) }))
+                .BrFalse(callError)
+                .LdArg(0)
+                .LdArg(2)
+                .Call(node.Value, 1, typeof(TsObject))
+                .Ret();
+
+            tryd.MarkLabel(tryEqual)
+                .LdArg(1)
+                .LdStr(node.Value.Name)
+                .Call(typeof(string).GetMethod("op_Equality", new[] { typeof(string), typeof(string) }))
+                .BrFalse(tryError)
+                .LdArg(2)
+                .LdArg(0)
+                .LdFtn(node.Value)
+                .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                .LdStr(node.Value.Name)
+                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
+                .StIndRef()
+                .LdBool(true)
+                .Ret();
+        }
+
+        private void InitializeImportObjectInterfaceMethod(ILEmitter mthd, LocalBuilder hashLocal)
+        {
+            var hashMethod = typeof(Fnv).GetMethod("Fnv32");
+            mthd.LdArg(1)
+                .Call(hashMethod)
+                .StLocal(hashLocal);
         }
 
         private bool IsMethodSupported(MethodInfo method)
