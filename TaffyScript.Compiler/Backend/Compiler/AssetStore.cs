@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using TaffyScript.Reflection;
 using TaffyScript.Strings;
+using TaffyScript.Compiler.Syntax;
 
 namespace TaffyScript.Compiler.Backend
 {
@@ -68,9 +69,9 @@ namespace TaffyScript.Compiler.Backend
             if(!info.Fields.TryGetValue(fieldName, out var field))
             {
                 if (typeSymbol is ObjectSymbol obj)
-                    field = GetInstanceField(typeSymbol, fieldName);
+                    field = GetInstanceField(obj.Inherits, fieldName);
                 else
-                    field = info.Type.GetMember(fieldName, BindingFlags.Public | BindingFlags.Instance).FirstOrDefault() as FieldInfo;
+                    field = info.Type.GetField(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.FlattenHierarchy);
 
                 if (field is null)
                 {
@@ -94,9 +95,9 @@ namespace TaffyScript.Compiler.Backend
             if (!info.Fields.TryGetValue(fieldName, out var field))
             {
                 if (typeSymbol is ObjectSymbol obj)
-                    field = GetInstanceField(typeSymbol, fieldName);
+                    field = GetInstanceField(obj.Inherits, fieldName);
                 else
-                    field = info.Type.GetMember(fieldName, BindingFlags.Public | BindingFlags.Instance).FirstOrDefault() as FieldInfo;
+                    field = info.Type.GetField(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.FlattenHierarchy);
 
                 if (field is null)
                     return null;
@@ -105,7 +106,52 @@ namespace TaffyScript.Compiler.Backend
             }
 
             return field;
+        }
 
+        public PropertyInfo GetProperty(ISymbol typeSymbol, string propertyName, TokenPosition position)
+        {
+            var info = GetObjectInfo(typeSymbol, position);
+
+            if(!info.Properties.TryGetValue(propertyName, out var property))
+            {
+                if (typeSymbol is ObjectSymbol obj)
+                    property = GetProperty(obj.Inherits, propertyName);
+                else
+                    property = info.Type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+
+                if(property is null)
+                {
+                    _logger.Error($"Could not find field named '{propertyName}' on type '{info.Type.FullName}'", position);
+                    return null;
+                }
+
+                info.Properties.Add(propertyName, property);
+            }
+
+            return property;
+        }
+
+        private PropertyInfo GetProperty(ISymbol typeSymbol, string propertyName)
+        {
+            if (typeSymbol is null)
+                return null;
+
+            var info = GetObjectInfo(typeSymbol, null);
+
+            if (!info.Properties.TryGetValue(propertyName, out var property))
+            {
+                if (typeSymbol is ObjectSymbol obj)
+                    property = GetProperty(obj.Inherits, propertyName);
+                else
+                    property = info.Type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+
+                if (property is null)
+                    return null;
+
+                info.Properties.Add(propertyName, property);
+            }
+
+            return property;
         }
 
         public MethodInfo GetInstanceMethod(ISymbol typeSymbol, string methodName, TokenPosition position)
@@ -115,61 +161,16 @@ namespace TaffyScript.Compiler.Backend
             if (!info.Methods.TryGetValue(methodName, out var method))
             {
                 if (typeSymbol is ObjectSymbol obj)
-                {
-                    if(obj.Children.TryGetValue(methodName, out var methodSymbol))
-                    {
-                        if(methodSymbol.Type != SymbolType.Script)
-                        {
-                            _logger.Error($"Tried to get member that wasn't a script from type '{info.Type.FullName}'");
-                            return null;
-                        }
-
-                        var builder = info.Type as TypeBuilder;
-                        if (methodSymbol.Scope == SymbolScope.Member)
-                        {
-                            var parentMethod = GetInstanceMethod(obj.Inherits, methodName);
-
-                            if (parentMethod != null && (parentMethod.IsFinal || !(parentMethod.IsVirtual || parentMethod.IsAbstract)))
-                            {
-                                _logger.Error("Tried to override non-virtual, non-abstract method");
-                                return null;
-                            }
-
-                            MethodAttributes flags = (parentMethod is null ? MethodAttributes.NewSlot : 0)
-                                | MethodAttributes.Virtual
-                                | MethodAttributes.Public
-                                | MethodAttributes.HideBySig;
-
-                            method = builder.DefineMethod(methodName, flags, typeof(TsObject), TsTypes.ArgumentTypes);
-                        }
-                        else
-                        {
-                            MethodAttributes flags = MethodAttributes.Public | MethodAttributes.Static | MethodAttributes.HideBySig;
-                            var mBuilder = builder.DefineMethod(methodName, flags, typeof(TsObject), TsTypes.ArgumentTypes);
-                            var staticAttribute = new CustomAttributeBuilder(typeof(TaffyScriptStaticAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
-                            mBuilder.SetCustomAttribute(staticAttribute);
-                            method = mBuilder;
-                        }
-                    }
-                    else if (obj.Inherits != null)
-                    {
-                        method = GetInstanceMethod(obj.Inherits, methodName, position);
-                    }
-                    else
-                    {
-                        _logger.Error("Tried to call script that does not exist", position);
-                        return null;
-                    }
-                }
+                    method = GetInstanceMethod(obj.Inherits, methodName);
                 else
-                {
                     method = info.Type.GetMethod(methodName, BindingFlags.FlattenHierarchy | BindingFlags.Public | BindingFlags.Instance, null, TsTypes.ArgumentTypes, null);
-                    if (method is null)
-                    {
-                        _logger.Error("Tried to call script that doesn't exist", position);
-                        return null;
-                    }
+
+                if (method is null)
+                {
+                    _logger.Error("Tried to call script that doesn't exist", position);
+                    return null;
                 }
+
                 info.Methods.Add(methodName, method);
             }
 
@@ -182,47 +183,20 @@ namespace TaffyScript.Compiler.Backend
                 return null;
 
             var info = GetObjectInfo(typeSymbol, null);
-            
-            if(!info.Methods.TryGetValue(methodName, out var method))
+
+            if (!info.Methods.TryGetValue(methodName, out var method))
             {
                 if (typeSymbol is ObjectSymbol obj)
-                {
-                    if (obj.Children.TryGetValue(methodName, out var methodSymbol))
-                    {
-                        if (methodSymbol.Type != SymbolType.Script)
-                            return null;
-
-                        var builder = info.Type as TypeBuilder;
-                        if (methodSymbol.Scope == SymbolScope.Member)
-                        {
-
-                            MethodAttributes flags = (GetInstanceMethod(obj.Inherits, methodName) is null ? MethodAttributes.NewSlot : 0)
-                                | MethodAttributes.Virtual
-                                | MethodAttributes.Public
-                                | MethodAttributes.HideBySig;
-
-                            method = builder.DefineMethod(methodName, flags, typeof(TsObject), TsTypes.ArgumentTypes);
-                        }
-                        else
-                        {
-                            MethodAttributes flags = MethodAttributes.Public | MethodAttributes.Static | MethodAttributes.HideBySig;
-                            var mBuilder = builder.DefineMethod(methodName, flags, typeof(TsObject), TsTypes.ArgumentTypes);
-                            var staticAttribute = new CustomAttributeBuilder(typeof(TaffyScriptStaticAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
-                            mBuilder.SetCustomAttribute(staticAttribute);
-                            method = mBuilder;
-                        }
-                    }
-                    else if (obj.Inherits != null)
-                        method = GetInstanceMethod(obj.Inherits, methodName);
-                    else
-                        return null;
-                }
+                    method = GetInstanceMethod(obj.Inherits, methodName);
                 else
                     method = info.Type.GetMethod(methodName, BindingFlags.FlattenHierarchy | BindingFlags.Public | BindingFlags.Instance, null, TsTypes.ArgumentTypes, null);
 
-                if(method != null)
-                    info.Methods.Add(methodName, method);
+                if (method is null)
+                    return null;
+
+                info.Methods.Add(methodName, method);
             }
+
             return method;
         }
 
@@ -251,17 +225,12 @@ namespace TaffyScript.Compiler.Backend
             return info;
         }
 
-        public void FinalizeType(ObjectInfo info, ISymbol parent, List<MethodInfo> scripts, TokenPosition position)
+        public void FinalizeType(ObjectInfo info, ISymbol parent, List<MethodInfo> scripts, List<ObjectField> fields, TokenPosition position)
         {
             var parentConstructor = parent == null ? _baseConstructor : GetConstructor(parent, position);
             var type = (TypeBuilder)info.Type;
 
-            GenerateConstructor(info, parentConstructor, scripts.FirstOrDefault(m => m.Name == "create"));
-            GenerateTryGetDelegate(info, scripts);
-            var toString = scripts.FirstOrDefault(m => m.Name == "to_string");
-
-            if (toString != null)
-                GenerateToStringMethod(type, toString);
+            GenerateConstructor(info, parentConstructor, scripts.FirstOrDefault(m => m.Name == "create"), fields);
 
             _moduleInitializer.LdStr(info.Type.FullName);
             if (info.Parent is null)
@@ -285,16 +254,25 @@ namespace TaffyScript.Compiler.Backend
         {
             var typeName = _resolver.GetAssetFullName(os);
             var builder = _module.DefineType(typeName, TypeAttributes.Public);
+
+            var compilerGenerated = new CustomAttributeBuilder(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
+            builder.SetCustomAttribute(compilerGenerated);
+
+
             builder.AddInterfaceImplementation(typeof(ITsInstance));
             ObjectInfo parent = null;
             FieldInfo members;
             if (os.Inherits != null)
             {
                 parent = GetObjectInfo(os.Inherits, position);
-                builder.SetParent(parent.Type);
-                // Todo: Verify that the parent is valid.
-                //       It shouldn't be possible to inherit from a type that
-                //       has a sealed TryGetDelegate method.
+                if (CanInheritFromType(parent.Type))
+                    builder.SetParent(parent.Type);
+                else
+                {
+                    _logger.Error($"Cannot inherit from type '{parent.Type}': Has non-virtual or sealed ITsInstance method", position);
+                    parent = null;
+                    builder.SetParent(typeof(TsInstance));
+                }
             }
             else
                 builder.SetParent(typeof(TsInstance));
@@ -325,7 +303,9 @@ namespace TaffyScript.Compiler.Backend
                                                           MethodAttributes.Virtual,
                                                       typeof(bool),
                                                       new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
+
             tryGetDelegate.DefineParameter(2, ParameterAttributes.Out, "del");
+
             var constructor = builder.DefineConstructor(MethodAttributes.Public |
                                                             MethodAttributes.HideBySig |
                                                             MethodAttributes.SpecialName |
@@ -335,13 +315,52 @@ namespace TaffyScript.Compiler.Backend
             GenerateObjectType(builder);
             var info = new ObjectInfo(builder, parent, tryGetDelegate, constructor, members);
             _definedTypes.Add(os, info);
-            DefineMembers(builder, os, info);
+            DefineMembers(builder, os, info, tryGetDelegate);
 
             return info;
         }
 
-        private void DefineMembers(TypeBuilder builder, ObjectSymbol os, ObjectInfo info)
+        private bool CanInheritFromType(Type type)
         {
+            if (type is TypeBuilder)
+                return true;
+
+            if (!typeof(ITsInstance).IsAssignableFrom(type))
+                return false;
+
+            var objectType = type.GetProperty("ObjectType");
+            if (objectType is null || !objectType.CanRead || !objectType.GetMethod.IsPublic || !objectType.GetMethod.IsVirtual || objectType.GetMethod.IsFinal)
+                return false;
+
+            var get = type.GetMethod("GetMember", new[] { typeof(string) });
+            if (get is null || !get.IsPublic || !get.IsVirtual || get.IsFinal)
+                return false;
+
+            var set = type.GetMethod("SetMember", new[] { typeof(string), typeof(TsObject) });
+            if (set is null || !set.IsPublic || !set.IsVirtual || set.IsFinal)
+                return false;
+
+            var call = type.GetMethod("Call", new[] { typeof(string), typeof(TsObject[]) });
+            if (call is null || !call.IsPublic || !call.IsVirtual || call.IsFinal)
+                return false;
+
+            var tryGet = type.GetMethod("TryGetDelegate", new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
+            if (tryGet is null || !tryGet.IsPublic || !tryGet.IsVirtual || tryGet.IsFinal)
+                return false;
+
+            return true;
+        }
+
+        private void DefineMembers(TypeBuilder builder, ObjectSymbol os, ObjectInfo info, MethodBuilder tryGetDelegate)
+        {
+            var memberHash = new HashSet<int>();
+            var memberBruteForce = new List<KeyValuePair<string, MemberInfo>>();
+            var memberTree = new RedBlackTree<int, KeyValuePair<string, MemberInfo>>();
+
+            var methodHash = new HashSet<int>();
+            var methodBruteForce = new List<MethodInfo>();
+            var methodTree = new RedBlackTree<int, MethodInfo>();
+
             foreach(var member in os.Children.Values)
             {
                 switch(member.Type)
@@ -370,6 +389,23 @@ namespace TaffyScript.Compiler.Backend
                                 | MethodAttributes.HideBySig;
 
                             method = builder.DefineMethod(member.Name, flags, typeof(TsObject), TsTypes.ArgumentTypes);
+
+                            if(member.Name == "to_string")
+                                GenerateToStringMethod(builder, method);
+
+                            // The create script should not be directly callable.
+                            if(member.Name != "create")
+                            {
+                                var key = Fnv.Fnv32(member.Name);
+                                if (memberHash.Add(key))
+                                    memberTree.Insert(key, new KeyValuePair<string, MemberInfo>(member.Name, method));
+                                else
+                                    memberBruteForce.Add(new KeyValuePair<string, MemberInfo>(member.Name, method));
+                                if (methodHash.Add(key))
+                                    methodTree.Insert(key, method);
+                                else
+                                    methodBruteForce.Add(method);
+                            }
                         }
                         else
                         {
@@ -380,7 +416,7 @@ namespace TaffyScript.Compiler.Backend
                         }
                         info.Methods[member.Name] = method;
                         break;
-                    case SymbolType.Variable:
+                    case SymbolType.Field:
                         FieldBuilder field;
                         if(member.Scope == SymbolScope.Member)
                         {
@@ -395,6 +431,11 @@ namespace TaffyScript.Compiler.Backend
                                 }
                             }
                             field = builder.DefineField(member.Name, typeof(TsObject), FieldAttributes.Public);
+                            var key = Fnv.Fnv32(member.Name);
+                            if (memberHash.Add(key))
+                                memberTree.Insert(key, new KeyValuePair<string, MemberInfo>(member.Name, field));
+                            else
+                                memberBruteForce.Add(new KeyValuePair<string, MemberInfo>(member.Name, field));
                         }
                         else
                         {
@@ -410,31 +451,93 @@ namespace TaffyScript.Compiler.Backend
             if (info.Parent != null)
             {
                 var parentSymbol = os.Inherits as SymbolNode;
-                if(parentSymbol is null)
-                {
-                    _logger.Error("Not sure what to do here yet.");
-                    return;
-                }
 
                 foreach (var kvp in info.Parent.Methods.Where(kvp => !info.Methods.ContainsKey(kvp.Key)))
                 {
                     info.Methods.Add(kvp.Key, kvp.Value);
                     var scriptSymbol = parentSymbol.Children[kvp.Key];
                     os.Children.Add(kvp.Key, scriptSymbol);
+
+                    if (!kvp.Value.IsStatic)
+                    {
+                        var key = Fnv.Fnv32(kvp.Key);
+                        if (memberHash.Add(key))
+                            memberTree.Insert(key, new KeyValuePair<string, MemberInfo>(kvp.Key, kvp.Value));
+                        else
+                            memberBruteForce.Add(new KeyValuePair<string, MemberInfo>(kvp.Key, kvp.Value));
+
+                        if (methodHash.Add(key))
+                            methodTree.Insert(key, kvp.Value);
+                        else
+                            methodBruteForce.Add(kvp.Value);
+                    }
                 }
 
                 foreach (var kvp in info.Parent.Fields.Where(kvp => !info.Fields.ContainsKey(kvp.Key)))
                 {
                     info.Fields.Add(kvp.Key, kvp.Value);
                     os.Children.Add(kvp.Key, parentSymbol.Children[kvp.Key]);
+
+                    if (!kvp.Value.IsStatic)
+                    {
+                        var key = Fnv.Fnv32(kvp.Key);
+                        if (memberHash.Add(key))
+                            memberTree.Insert(key, new KeyValuePair<string, MemberInfo>(kvp.Key, kvp.Value));
+                        else
+                            memberBruteForce.Add(new KeyValuePair<string, MemberInfo>(kvp.Key, kvp.Value));
+                    }
                 }
 
                 foreach(var kvp in info.Parent.Properties.Where(kvp => !info.Properties.ContainsKey(kvp.Key)))
                 {
                     info.Properties.Add(kvp.Key, kvp.Value);
                     os.Children.Add(kvp.Key, parentSymbol.Children[kvp.Key]);
+
+                    if ((kvp.Value.CanRead && !kvp.Value.GetMethod.IsStatic) || (kvp.Value.CanWrite && !kvp.Value.GetMethod.IsStatic))
+                    {
+                        var key = Fnv.Fnv32(kvp.Key);
+                        if (memberHash.Add(key))
+                            memberTree.Insert(key, new KeyValuePair<string, MemberInfo>(kvp.Key, kvp.Value));
+                        else
+                            memberBruteForce.Add(new KeyValuePair<string, MemberInfo>(kvp.Key, kvp.Value));
+                    }
                 }
             }
+
+            var callMethod = builder.DefineMethod("Call",
+                                                  MethodAttributes.Public |
+                                                          MethodAttributes.HideBySig |
+                                                          MethodAttributes.Virtual,
+                                                  typeof(TsObject),
+                                                  new[] { typeof(string), typeof(TsObject[]) });
+
+            var getMember = builder.DefineMethod("GetMember",
+                                                 MethodAttributes.Public |
+                                                          MethodAttributes.HideBySig |
+                                                          MethodAttributes.Virtual,
+                                                 typeof(TsObject),
+                                                 new[] { typeof(string) });
+
+            var setMember = builder.DefineMethod("SetMember",
+                                                 MethodAttributes.Public |
+                                                          MethodAttributes.HideBySig |
+                                                          MethodAttributes.Virtual,
+                                                 typeof(void),
+                                                 new[] { typeof(string), typeof(TsObject) });
+
+            TsInstanceInterfaceMethodGenerator.ImplementInterfaceMethods(memberBruteForce,
+                                                                         memberTree,
+                                                                         methodBruteForce,
+                                                                         methodTree,
+                                                                         tryGetDelegate,
+                                                                         callMethod,
+                                                                         getMember,
+                                                                         setMember,
+                                                                         null,
+                                                                         info.Members,
+                                                                         true,
+                                                                         info.Type.FullName,
+                                                                         info.Parent);
         }
 
         private bool MemberIsValid(ObjectInfo info, ISymbol member, out MemberInfo parentMember)
@@ -503,21 +606,6 @@ namespace TaffyScript.Compiler.Backend
             }
         }
 
-        private MethodInfo GetTryGetDelegate(ObjectInfo info)
-        {
-            if (info == null)
-                return null;
-
-            if (info.TryGetDelegate != null)
-                return info.TryGetDelegate;
-
-            info.TryGetDelegate = info.Type.GetMethod("TryGetDelegate", new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
-            if (!info.TryGetDelegate.IsVirtual)
-                _logger.Error("Tried to inherit from an object with a non-virtual TryGetDelegate method");
-
-            return info.TryGetDelegate;
-        }
-
         private void GenerateObjectType(TypeBuilder type)
         {
             var objectType = type.DefineProperty("ObjectType", PropertyAttributes.None, typeof(string), Type.EmptyTypes);
@@ -535,7 +623,7 @@ namespace TaffyScript.Compiler.Backend
             objectType.SetGetMethod(get);
         }
 
-        private void GenerateConstructor(ObjectInfo info, ConstructorInfo parentConstructor, MethodInfo createScript)
+        private void GenerateConstructor(ObjectInfo info, ConstructorInfo parentConstructor, MethodInfo createScript, List<ObjectField> fields)
         {
             var ctorMethod = (ConstructorBuilder)info.Constructor;
 
@@ -544,7 +632,63 @@ namespace TaffyScript.Compiler.Backend
                 defaultCtor = false;
 
             var ctor = new ILEmitter(ctorMethod, new[] { info.Type, typeof(TsObject[]) });
+            ConstructorBuilder cctor = null;
+            ILEmitter init = null;
+
             ctor.LdArg(0);
+
+            if(info.Members.DeclaringType == info.Type)
+            {
+                ctor.Dup()
+                    .New(typeof(Dictionary<string, TsObject>).GetConstructor(Type.EmptyTypes))
+                    .StFld(info.Members);
+            }
+
+            foreach(var field in fields)
+            {
+                var fieldInfo = info.Fields[field.Name];
+                if (fieldInfo.IsStatic)
+                {
+                    if (cctor is null)
+                    {
+                        cctor = (info.Type as TypeBuilder).DefineTypeInitializer();
+                        init = new ILEmitter(cctor, Type.EmptyTypes);
+                    }
+                    if (field.HasDefaultValue)
+                    {
+                        if (!EmitHelper.EmitConstant(init, field.DefaultValue))
+                        {
+                            _logger.Error("Invalid default field value", field.Position);
+                            continue;
+                        }
+                        if (!typeof(TsObject).IsAssignableFrom(init.GetTop()))
+                            EmitHelper.ConvertTopToObject(init);
+                    }
+                    else
+                        init.Call(TsTypes.Empty);
+
+                    init.StFld(fieldInfo);
+                }
+                else
+                {
+                    ctor.Dup();
+                    if (field.HasDefaultValue)
+                    {
+                        if (!EmitHelper.EmitConstant(ctor, field.DefaultValue))
+                        {
+                            _logger.Error("Invalid default field value", field.Position);
+                            continue;
+                        }
+                        if (!typeof(TsObject).IsAssignableFrom(ctor.GetTop()))
+                            EmitHelper.ConvertTopToObject(ctor);
+                    }
+                    else
+                        ctor.Call(TsTypes.Empty);
+
+                    ctor.StFld(fieldInfo);
+                }
+            }
+            
             if (defaultCtor == false)
                 ctor.LdNull();
             ctor.CallBase(parentConstructor, defaultCtor ? 0 : 1);
@@ -561,6 +705,9 @@ namespace TaffyScript.Compiler.Backend
                     .MarkLabel(notValid);
             }
             ctor.Ret();
+
+            if (init != null)
+                init.Ret();
 
             GenerateCreateMethod(info);
         }
@@ -591,164 +738,10 @@ namespace TaffyScript.Compiler.Backend
                                                   Type.EmptyTypes);
             var emit = new ILEmitter(methodBuilder, Type.EmptyTypes);
             emit.LdArg(0)
-                .Call(toString)
+                .LdNull()
+                .Call(toString, 1, typeof(TsObject))
                 .Call(TsTypes.ObjectCasts[typeof(string)])
                 .Ret();
-        }
-
-        private void GenerateTryGetDelegate(ObjectInfo info, List<MethodInfo> scripts)
-        {
-            var mthd = new ILEmitter((MethodBuilder)info.TryGetDelegate, new[] { info.Type, typeof(string), typeof(TsDelegate).MakeByRefType() });
-
-            if (scripts.Count == 0)
-            {
-                TryGetDelegateDefaultCase(mthd, info.Parent?.TryGetDelegate, info.Members);
-                return;
-            }
-
-            // Originally tried to use built-in hash function first,
-            // but the only feasible way for that to work would be
-            // to force a 32bit architecture, because the builtin hash
-            // is platform dependant.
-
-            // If more hash functions are needed, they can always be implemented.
-            // For now, just use the fnv-1a algorithm. That's what .NET uses under the hood
-            // when it switches on a string.
-
-            // The implementation can be found in TaffyScript.Strings in the TaffyScript assembly.
-
-            var hashCodes = new HashSet<int>();
-            var bruteForce = new List<MethodInfo>();
-            var tree = new RedBlackTree<int, MethodInfo>();
-            var hashMethod = typeof(Fnv).GetMethod("Fnv32");
-
-            foreach (var script in scripts)
-            {
-                var hash = Fnv.Fnv32(script.Name);
-                if (!hashCodes.Add(Fnv.Fnv32(script.Name)))
-                    bruteForce.Add(script);
-                else
-                    tree.Insert(hash, script);
-            }
-
-            foreach (var method in bruteForce)
-            {
-                var next = mthd.DefineLabel();
-                mthd.LdStr(method.Name)
-                    .LdArg(1)
-                    .Call(typeof(string).GetMethod("op_Equality"))
-                    .BrFalse(next)
-                    .LdArg(2)
-                    .LdArg(0)
-                    .LdFtn(method)
-                    .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                    .LdStr(method.Name)
-                    .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                    .StIndRef()
-                    .LdBool(true)
-                    .Ret()
-                    .MarkLabel(next);
-            }
-
-            var hashVar = mthd.DeclareLocal(typeof(int), "hashLocal");
-
-            mthd.LdArg(1)
-                .Call(hashMethod)
-                .StLocal(hashVar);
-
-            var end = mthd.DefineLabel();
-
-            TryGetDelegateSwitchNode(tree.Root, mthd, hashVar, end);
-
-            mthd.MarkLabel(end);
-
-            TryGetDelegateDefaultCase(mthd, info.Parent?.TryGetDelegate, info.Members);
-        }
-
-        private void TryGetDelegateSwitchNode(RedBlackTree<int, MethodInfo>.RedBlackNode node, ILEmitter mthd, LocalBuilder hashVar, Label end)
-        {
-            var greaterEqual = mthd.DefineLabel();
-            var equal = mthd.DefineLabel();
-            mthd.LdLocal(hashVar)
-                .LdInt(node.Key)
-                .Bge(greaterEqual);
-
-            if (node.Left != RedBlackTree<int, MethodInfo>.Leaf)
-                TryGetDelegateSwitchNode(node.Left, mthd, hashVar, end);
-            else
-                mthd.Br(end);
-
-            mthd.MarkLabel(greaterEqual)
-                .LdLocal(hashVar)
-                .LdInt(node.Key)
-                .Beq(equal);
-
-            if (node.Right != RedBlackTree<int, MethodInfo>.Leaf)
-                TryGetDelegateSwitchNode(node.Right, mthd, hashVar, end);
-            else
-                mthd.Br(end);
-
-            mthd.MarkLabel(equal)
-                .LdArg(1)
-                .LdStr(node.Value.Name)
-                .Call(typeof(string).GetMethod("op_Equality", new[] { typeof(string), typeof(string) }))
-                .BrFalse(end)
-                .LdArg(2)
-                .LdArg(0)
-                .LdFtn(node.Value)
-                .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                .LdStr(node.Value.Name)
-                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                .StIndRef()
-                .LdBool(true)
-                .Ret();
-        }
-
-        private void TryGetDelegateDefaultCase(ILEmitter mthd, MethodInfo parentMethod, FieldInfo members)
-        {
-            if(parentMethod != null)
-            {
-                mthd.LdArg(0)
-                    .LdArg(1)
-                    .LdArg(2)
-                    .CallE(parentMethod, 3, typeof(bool))
-                    .Ret();
-            }
-            else
-            {
-                var member = mthd.DeclareLocal(typeof(TsObject), "member");
-                var memberLookupFailed = mthd.DefineLabel();
-                var memberRightType = mthd.DefineLabel();
-
-                mthd.LdArg(0)
-                    .LdFld(members)
-                    .LdArg(1)
-                    .LdLocalA(member)
-                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
-                    .BrFalseS(memberLookupFailed)
-                    .LdLocal(member)
-                    .Call(typeof(TsObject).GetMethod("get_Type"))
-                    .LdInt((int)VariableType.Delegate)
-                    .BeqS(memberRightType)
-                    .LdArg(2)
-                    .LdNull()
-                    .StIndRef()
-                    .LdBool(false)
-                    .Ret()
-                    .MarkLabel(memberRightType)
-                    .LdArg(2)
-                    .LdLocal(member)
-                    .Call(TsTypes.ObjectCasts[typeof(TsDelegate)])
-                    .StIndRef()
-                    .LdBool(true)
-                    .Ret()
-                    .MarkLabel(memberLookupFailed)
-                    .LdArg(2)
-                    .LdNull()
-                    .StIndRef()
-                    .LdBool(false)
-                    .Ret();
-            }
         }
 
         #endregion

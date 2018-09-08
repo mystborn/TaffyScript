@@ -369,7 +369,6 @@ namespace TaffyScript.Compiler
             var scripts = new List<ScriptNode>();
             var staticScripts = new List<ScriptNode>();
             var fields = new List<ObjectField>();
-            var staticFields = new List<ObjectField>();
             while(!Check(TokenType.CloseBrace) && !_stream.Finished)
             {
                 switch(_stream.Current.Type)
@@ -391,7 +390,7 @@ namespace TaffyScript.Compiler
                                 staticScripts.Add(ScriptDeclaration(SymbolScope.Global));
                                 break;
                             case TokenType.Identifier:
-                                staticFields.Add(FieldDeclaration(SymbolScope.Global));
+                                fields.Add(FieldDeclaration(SymbolScope.Global));
                                 break;
                             default:
                                 Error(stat, "Expected 'script' or field declaration after 'static'");
@@ -406,7 +405,7 @@ namespace TaffyScript.Compiler
             }
             Consume(TokenType.CloseBrace, "Expected '}' after object members", 1);
             _table.Exit();
-            return new ObjectNode(name.Text, parent, fields, staticFields, scripts, staticScripts, name.Position);
+            return new ObjectNode(name.Text, parent, fields, scripts, staticScripts, name.Position);
         }
 
         private ObjectField FieldDeclaration(SymbolScope scope)
@@ -868,8 +867,14 @@ namespace TaffyScript.Compiler
                         }
                         else
                             Error(symbol, "The right side of an access expression must be a variable");
-
-                        expr = new MemberAccessNode(expr, access, access.Position);
+                        if(expr is MemberAccessNode memberAccess)
+                        {
+                            while (memberAccess.Right is MemberAccessNode inner)
+                                memberAccess = inner;
+                            memberAccess.Right = new MemberAccessNode(memberAccess.Right, access, access.Position);
+                        }
+                        else 
+                            expr = new MemberAccessNode(expr, access, access.Position);
                         break;
                     case TokenType.OpenBracket:
                         if (expr.Type == SyntaxType.New)

@@ -86,6 +86,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Backend\Compiler\AssetStore.cs" />
+    <Compile Include="Backend\Compiler\EmitHelper.cs" />
+    <Compile Include="Backend\Compiler\TsInstanceInterfaceMethodGenerator.cs" />
     <Compile Include="Backend\Compiler\TypeEqualityComparer.cs" />
     <Compile Include="Backend\Builder.cs" />
     <Compile Include="Backend\Compiler\Closure.cs" />

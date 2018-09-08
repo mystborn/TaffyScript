@@ -11,7 +11,7 @@ namespace TaffyScript.Compiler.Syntax
         public List<ScriptNode> Scripts { get; }
         public List<ScriptNode> StaticScripts { get; }
 
-        public ObjectNode(string name, ISyntaxElement inherits, List<ObjectField> fields, List<ObjectField> staticFields, List<ScriptNode> scripts, List<ScriptNode> staticScripts, TokenPosition position)
+        public ObjectNode(string name, ISyntaxElement inherits, List<ObjectField> fields, List<ScriptNode> scripts, List<ScriptNode> staticScripts, TokenPosition position)
             : base(position)
         {
             Name = name;

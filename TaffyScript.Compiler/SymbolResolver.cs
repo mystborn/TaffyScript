@@ -45,56 +45,20 @@ namespace TaffyScript.Compiler
 
         public bool TryResolveNamespace(MemberAccessNode node, out ISyntaxElement resolved, out SymbolNode namespaceNode)
         {
-            if (node.Left is ISyntaxToken token && _table.Defined(token.Name, out var symbol) && symbol.Type == SymbolType.Namespace)
-            {
-                namespaceNode = (SymbolNode)symbol;
-                resolved = node.Right;
-                return true;
-            }
-            else if (node.Left is MemberAccessNode)
-            {
-                var ns = new Stack<ISyntaxToken>();
-                resolved = node.Right;
-                var start = node;
-                while (node.Left is MemberAccessNode member)
-                {
-                    node = member;
-                    if (node.Right is ISyntaxToken id)
-                        ns.Push(id);
-                    else
-                    {
-                        namespaceNode = default(SymbolNode);
-                        return false;
-                    }
-                }
+            namespaceNode = default;
+            resolved = default;
 
-                if (node.Left is ISyntaxToken left)
-                    ns.Push(left);
+            while(node.Left is ISyntaxToken token && _table.Defined(token.Name, out var symbol) && symbol.Type == SymbolType.Namespace)
+            {
+                namespaceNode = symbol as SymbolNode;
+                resolved = node.Right;
+                if (node.Right.Type == SyntaxType.MemberAccess)
+                    node = (MemberAccessNode)node.Right;
                 else
-                {
-                    namespaceNode = default(SymbolNode);
-                    return false;
-                }
-                
-                if(_table.Defined(ns.Pop().Name, out symbol) && symbol.Type == SymbolType.Namespace)
-                {
-                    namespaceNode = (SymbolNode)symbol;
-                    while(ns.Count > 0)
-                    {
-                        var element = ns.Pop();
-                        if (!namespaceNode.Children.TryGetValue(element.Name, out symbol) || symbol.Type != SymbolType.Namespace)
-                        {
-                            resolved = element.Parent;
-                            return true;
-                        }
-                        namespaceNode = (SymbolNode)symbol;
-                    }
-                    return true;
-                }
+                    break;
             }
-            resolved = default(ISyntaxElement);
-            namespaceNode = default(SymbolNode);
-            return false;
+
+            return namespaceNode != null;
         }
 
         public bool TryResolveType(ISyntaxElement typeElement, out ISymbol typeSymbol)

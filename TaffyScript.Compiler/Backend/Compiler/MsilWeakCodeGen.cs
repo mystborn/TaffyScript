@@ -25,11 +25,6 @@ namespace TaffyScript.Compiler.Backend
         /// </summary>
         private const string SpecialImportsFileName = "SpecialImports.resource";
 
-        /// <summary>
-        /// The value of the keyword all.
-        /// </summary>
-        private const float All = -3f;
-
         #endregion
 
         #region Fields
@@ -360,7 +355,7 @@ namespace TaffyScript.Compiler.Backend
             return new CompilerResult(_asm, System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), _asmName.Name + output), _logger);
         }
 
-#endregion
+        #endregion
 
         #region Helpers
 
@@ -1011,6 +1006,36 @@ namespace TaffyScript.Compiler.Backend
             return emit;
         }
 
+        private ILEmitter GetMember(ILEmitter mthd, string memberName)
+        {
+            if(typeof(ITsInstance).IsAssignableFrom(emit.GetTop()))
+            {
+                mthd.LdStr(memberName)
+                    .Call(typeof(ITsInstance).GetMethod("GetMember"));
+            }
+            else
+            {
+                mthd.LdStr(memberName)
+                    .Call(typeof(TsObject).GetMethod("MemberGet"));
+            }
+            return mthd;
+        }
+
+        private ILEmitter SetMember(ILEmitter mthd, string memberName, ISyntaxElement value)
+        {
+            var isInst = typeof(ITsInstance).IsAssignableFrom(emit.GetTop());
+            mthd.LdStr(memberName);
+            value.Accept(this);
+            ConvertTopToObject();
+
+            if (isInst)
+                emit.Call(typeof(ITsInstance).GetMethod("SetMember"));
+            else
+                emit.Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), typeof(TsObject) }));
+
+            return mthd;
+        }
+
         #endregion
 
         #region Visitor
@@ -1339,25 +1364,65 @@ namespace TaffyScript.Compiler.Backend
                 //If not, then it MUST be a member var.
                 if (_table.Defined(variable.Name, out var symbol))
                 {
-                    var leaf = symbol as VariableLeaf;
-                    if (leaf is null)
-                        _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
-
-                    if (leaf.IsCaptured)
+                    if(symbol is VariableLeaf leaf)
                     {
-                        if (_closures > 0)
-                            emit.LdArg(0);
+                        if (leaf.IsCaptured)
+                        {
+                            if (_closures > 0)
+                                emit.LdArg(0);
+                            else
+                                emit.LdLocal(_closure.Self);
+                        }
+
+                        assign.Right.Accept(this);
+                        ConvertTopToObject();
+
+                        if (leaf.IsCaptured)
+                            emit.StFld(_closure.Fields[leaf.Name]);
                         else
-                            emit.LdLocal(_closure.Self);
+                            emit.StLocal(_locals[symbol]);
                     }
+                    else if(symbol is SymbolLeaf symbolLeaf)
+                    {
+                        switch(symbolLeaf.Type)
+                        {
+                            case SymbolType.Field:
+                                var field = _assets.GetInstanceField(symbolLeaf.Parent, symbolLeaf.Name, variable.Position);
+                                if (field is null)
+                                    return;
 
-                    assign.Right.Accept(this);
-                    ConvertTopToObject();
+                                if (!field.IsStatic)
+                                    LoadTarget();
 
-                    if (leaf.IsCaptured)
-                        emit.StFld(_closure.Fields[leaf.Name]);
+                                assign.Right.Accept(this);
+                                EmitHelper.ConvertTopToObject(emit);
+                                emit.StFld(field);
+                                break;
+                            case SymbolType.Property:
+                                var property = _assets.GetProperty(symbolLeaf.Parent, symbolLeaf.Name, variable.Position);
+                                if (property is null)
+                                    return;
+
+                                if (!property.CanWrite)
+                                {
+                                    _logger.Error($"Cannot set read-only property '{symbolLeaf.Name}' defined by type '{_resolver.GetAssetFullName(symbolLeaf.Parent)}'", variable.Position);
+                                    return;
+                                }
+
+                                if (!property.SetMethod.IsStatic)
+                                    LoadTarget();
+
+                                assign.Right.Accept(this);
+                                EmitHelper.ConvertTopToObject(emit);
+                                emit.Call(property.SetMethod);
+                                break;
+                            default:
+                                _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
+                                return;
+                        }
+                    }
                     else
-                        emit.StLocal(_locals[symbol]);
+                        _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
                 }
                 else
                 {
@@ -1365,50 +1430,98 @@ namespace TaffyScript.Compiler.Backend
                         .LdStr(variable.Name);
                     assign.Right.Accept(this);
                     ConvertTopToObject();
-                    emit.Call(typeof(ITsInstance).GetMethod("set_Item"));
+                    emit.Call(typeof(ITsInstance).GetMethod("SetMember"));
                 }
             }
             else if (assign.Left is MemberAccessNode member)
             {
+                if(_resolver.TryResolveNamespace(member, out var resolved, out var namespaceNode))
+                {
+                    switch(resolved)
+                    {
+                        case MemberAccessNode memberAccess:
+                            MemberStaticAccessAssign(memberAccess, namespaceNode, assign, null);
+                            return;
+                        default:
+                            _logger.Error("Invalid token at the end of namespace access.", resolved.Position);
+                            return;
+                    }
+                }
+
+                if(member.Left is VariableToken variableToken && _table.Defined(variableToken.Name, out var variableSymbol))
+                {
+                    switch(variableSymbol.Type)
+                    {
+                        case SymbolType.Enum:
+                        case SymbolType.Object:
+                            MemberStaticAccessAssign(member, null, assign, null);
+                            return;
+                        case SymbolType.Variable:
+                            MemberAccessAssignVariable(member, variableSymbol as VariableLeaf, assign, null);
+                            return;
+                    }
+                }
+
                 if (member.Left is ReadOnlyToken token)
                 {
-                    if (member.Right is VariableToken right)
+                    switch (token.Name)
                     {
-                        switch (token.Name)
-                        {
-                            case "global":
-                                emit.LdFld(typeof(TsInstance).GetField("Global"));
-                                break;
-                            case "self":
-                                LoadTarget();
-                                break;
-                            case "other":
-                                emit.Call(typeof(TsInstance).GetMethod("get_Other"));
-                                break;
-                            default:
-                                _logger.Error($"Cannot access member on readonly value {token.Name}", token.Position);
-                                return;
-                        }
-                        emit.LdStr(right.Name);
-                        assign.Right.Accept(this);
-                        ConvertTopToObject();
-                        emit.Call(typeof(ITsInstance).GetMethod("set_Item"));
+                        case "global":
+                            emit.LdFld(typeof(TsInstance).GetField("Global"));
+                            break;
+                        case "self":
+                            LoadTarget();
+                            var objectNode = _table.Current;
+                            while (objectNode != null && objectNode.Type != SymbolType.Object)
+                                objectNode = objectNode.Parent;
+
+                            if (member.Right is VariableToken right && objectNode != null && objectNode.Children.TryGetValue(right.Name, out var staticSymbol) && staticSymbol is SymbolLeaf symbolLeaf)
+                            {
+                                switch (symbolLeaf.Type)
+                                {
+                                    case SymbolType.Field:
+                                        var field = _assets.GetInstanceField(symbolLeaf.Parent, symbolLeaf.Name, right.Position);
+                                        if (field is null)
+                                            return;
+
+                                        if (!field.IsStatic)
+                                            LoadTarget();
+
+                                        assign.Right.Accept(this);
+                                        EmitHelper.ConvertTopToObject(emit);
+                                        emit.StFld(field);
+                                        return;
+                                    case SymbolType.Property:
+                                        var property = _assets.GetProperty(symbolLeaf.Parent, symbolLeaf.Name, right.Position);
+                                        if (property is null)
+                                            return;
+
+                                        if (!property.CanWrite)
+                                        {
+                                            _logger.Error($"Cannot set read-only property '{symbolLeaf.Name}' defined by type '{_resolver.GetAssetFullName(symbolLeaf.Parent)}'", right.Position);
+                                            return;
+                                        }
+
+                                        if (!property.SetMethod.IsStatic)
+                                            LoadTarget();
+
+                                        assign.Right.Accept(this);
+                                        EmitHelper.ConvertTopToObject(emit);
+                                        emit.Call(property.SetMethod);
+                                        return;
+                                    default:
+                                        break;
+                                }
+                            }
+                            break;
+                        default:
+                            _logger.Error($"Cannot access member on readonly value {token.Name}", token.Position);
+                            return;
                     }
-                    else
-                        _logger.Error("Cannot access readonly value from global", member.Right.Position);
+                    MemberStaticAccessAssignRemaining(member.Right, assign, null);
                 }
                 else
-                {
-                    member.Left.Accept(this);
-                    var top = emit.GetTop();
-                    if (!typeof(TsObject).IsAssignableFrom(top))
-                        _logger.Error("Invalid syntax detected", member.Left.Position);
-
-                    emit.LdStr(((VariableToken)member.Right).Name);
-                    assign.Right.Accept(this);
-                    ConvertTopToObject();
-                    emit.Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), typeof(TsObject) }));
-                }
+                    MemberAccessAssignVariable(member, null, assign, null);
             }
             else
                 //Todo: This should never be hit. Consider removing it.
@@ -1595,98 +1708,358 @@ namespace TaffyScript.Compiler.Backend
             {
                 if (_table.Defined(variable.Name, out var symbol))
                 {
-                    var leaf = symbol as VariableLeaf;
-                    if (leaf is null)
-                        _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
-
-                    if (leaf.IsCaptured)
+                    if(symbol is VariableLeaf leaf)
                     {
-                        if (_closures > 0)
-                            emit.LdArg(0);
+                        if (leaf.IsCaptured)
+                        {
+                            if (_closures > 0)
+                                emit.LdArg(0);
+                            else
+                                emit.LdLocal(_closure.Self);
+                            emit.LdFldA(_closure.Fields[variable.Name]);
+                        }
                         else
-                            emit.LdLocal(_closure.Self);
-                        emit.LdFldA(_closure.Fields[variable.Name]);
+                            emit.LdLocalA(_locals[symbol]);
+
+                        emit.Dup()
+                            .LdObj(typeof(TsObject));
+                        assign.Right.Accept(this);
+                        emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
+                            .StObj(typeof(TsObject));
+                    }
+                    else if(symbol is SymbolLeaf symbolLeaf)
+                    {
+                        switch(symbolLeaf.Type)
+                        {
+                            case SymbolType.Field:
+                                var field = _assets.GetInstanceField(symbolLeaf.Parent, symbolLeaf.Name, variable.Position);
+                                if (field is null)
+                                    return;
+
+                                if (!field.IsStatic)
+                                    LoadTarget();
+
+                                emit.LdFldA(field)
+                                    .Dup()
+                                    .LdObj(field.FieldType);
+                                assign.Right.Accept(this);
+                                emit.Call(GetOperator(op, field.FieldType, emit.GetTop(), assign.Position));
+                                EmitHelper.ConvertTopToObject(emit);
+                                emit.StObj(field.FieldType);
+                                break;
+                            case SymbolType.Property:
+                                var property = _assets.GetProperty(symbolLeaf.Parent, symbolLeaf.Name, variable.Position);
+                                if (property is null)
+                                    return;
+
+                                if (!property.CanWrite)
+                                {
+                                    _logger.Error($"Cannot set read-only property '{symbolLeaf.Name}' defined by type '{_resolver.GetAssetFullName(symbolLeaf.Parent)}'", variable.Position);
+                                    return;
+                                }
+                                if(!property.CanRead)
+                                {
+                                    _logger.Error($"Cannot get write-only property '{symbolLeaf.Name}' defined by type '{_resolver.GetAssetFullName(symbolLeaf.Parent)}'", variable.Position);
+                                    return;
+                                }
+
+                                if (!property.GetMethod.IsStatic)
+                                    LoadTarget().Dup();
+                                emit.Call(property.GetMethod);
+                                assign.Right.Accept(this);
+                                emit.Call(GetOperator(op, property.PropertyType, emit.GetTop(), assign.Position));
+                                EmitHelper.ConvertTopToObject(emit);
+                                emit.Call(property.SetMethod);
+                                break;
+                            default:
+                                _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
+                                break;
+                        }
                     }
                     else
-                        emit.LdLocalA(_locals[symbol]);
-
-                    emit.Dup()
-                        .LdObj(typeof(TsObject));
-                    assign.Right.Accept(this);
-                    emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position))
-                        .StObj(typeof(TsObject));
+                        _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
                 }
                 else
                 {
                     SelfAccessSet(variable);
-                    emit.Call(typeof(ITsInstance).GetMethod("get_Item"));
+                    emit.Call(typeof(ITsInstance).GetMethod("GetMember"));
                     assign.Right.Accept(this);
                     var result = emit.GetTop();
                     if (result == typeof(int) || result == typeof(bool))
                         emit.ConvertFloat();
                     emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position));
-                    emit.Call(typeof(ITsInstance).GetMethod("set_Item"));
+                    emit.Call(typeof(ITsInstance).GetMethod("SetMember"));
                 }
             }
             else if(assign.Left is MemberAccessNode member)
             {
-                if(!(member.Right is VariableToken value))
+                if (_resolver.TryResolveNamespace(member, out var resolved, out var namespaceNode))
                 {
-                    _logger.Error($"Cannot assign to readonly value {((ReadOnlyToken)member.Right).Name}", member.Right.Position);
-                    return;
-                }
-                if(member.Left is ReadOnlyToken read)
-                {
-                    Func<ILEmitter> loadTarget = GetReadOnlyLoadFunc(read);
-
-                    loadTarget()
-                        .LdStr(value.Name);
-                    loadTarget()
-                        .LdStr(value.Name)
-                        .Call(typeof(ITsInstance).GetMethod("get_Item"));
-
-                    assign.Right.Accept(this);
-                    var top = emit.GetTop();
-                    if (top == typeof(int) || top == typeof(bool))
+                    switch (resolved)
                     {
-                        emit.ConvertFloat();
-                        top = typeof(float);
+                        case MemberAccessNode memberAccess:
+                            MemberStaticAccessAssign(memberAccess, namespaceNode, assign, op);
+                            return;
+                        default:
+                            _logger.Error("Invalid token at the end of namespace access.", resolved.Position);
+                            return;
                     }
+                }
 
-                    emit.Call(GetOperator(op, typeof(TsObject), top, assign.Position))
-                        .Call(typeof(ITsInstance).GetMethod("set_Item"));
+                if (member.Left is VariableToken variableToken && _table.Defined(variableToken.Name, out var variableSymbol))
+                {
+                    switch(variableSymbol.Type)
+                    {
+                        case SymbolType.Enum:
+                        case SymbolType.Object:
+                            MemberStaticAccessAssign(member, null, assign, op);
+                            return;
+                        case SymbolType.Variable:
+                            MemberAccessAssignVariable(member, variableSymbol as VariableLeaf, assign, op);
+                            return;
+                    }
+                }
+
+                if (member.Left is ReadOnlyToken token)
+                {
+                    switch (token.Name)
+                    {
+                        case "global":
+                            emit.LdFld(typeof(TsInstance).GetField("Global"));
+                            break;
+                        case "self":
+                            LoadTarget();
+                            var objectNode = _table.Current;
+                            while (objectNode != null && objectNode.Type != SymbolType.Object)
+                                objectNode = objectNode.Parent;
+
+                            if (member.Right is VariableToken right && objectNode != null && objectNode.Children.TryGetValue(right.Name, out var staticSymbol) && staticSymbol is SymbolLeaf symbolLeaf)
+                            {
+                                switch (symbolLeaf.Type)
+                                {
+                                    case SymbolType.Field:
+                                        var field = _assets.GetInstanceField(symbolLeaf.Parent, symbolLeaf.Name, right.Position);
+                                        if (field is null)
+                                            return;
+
+                                        if (!field.IsStatic)
+                                            LoadTarget();
+
+                                        emit.LdFldA(field)
+                                            .Dup()
+                                            .LdObj(field.FieldType);
+                                        assign.Right.Accept(this);
+                                        emit.Call(GetOperator(op, field.FieldType, emit.GetTop(), assign.Position));
+                                        EmitHelper.ConvertTopToObject(emit);
+                                        emit.StObj(field.FieldType);
+                                        return;
+                                    case SymbolType.Property:
+                                        var property = _assets.GetProperty(symbolLeaf.Parent, symbolLeaf.Name, right.Position);
+                                        if (property is null)
+                                            return;
+
+                                        if (!property.CanWrite)
+                                        {
+                                            _logger.Error($"Cannot set read-only property '{symbolLeaf.Name}' defined by type '{_resolver.GetAssetFullName(symbolLeaf.Parent)}'",
+                                                          right.Position);
+                                            return;
+                                        }
+                                        if (!property.CanRead)
+                                        {
+                                            _logger.Error($"Cannot get write-only property '{symbolLeaf.Name}' defined by type '{_resolver.GetAssetFullName(symbolLeaf.Parent)}'",
+                                                          right.Position);
+                                            return;
+                                        }
+
+                                        if (!property.GetMethod.IsStatic)
+                                            LoadTarget().Dup();
+                                        emit.Call(property.GetMethod);
+                                        assign.Right.Accept(this);
+                                        emit.Call(GetOperator(op, property.PropertyType, emit.GetTop(), assign.Position));
+                                        EmitHelper.ConvertTopToObject(emit);
+                                        emit.Call(property.SetMethod);
+                                        return;
+                                    default:
+                                        break;
+                                }
+                            }
+                            break;
+                        default:
+                            _logger.Error($"Cannot access member on readonly value {token.Name}", token.Position);
+                            return;
+                    }
+                    MemberStaticAccessAssignRemaining(member, assign, op);
                 }
                 else
                 {
-                    member.Left.Accept(this);
-                    var top = emit.GetTop();
-                    if(typeof(TsObject).IsAssignableFrom(top))
-                        emit.Call(TsTypes.ObjectCasts[typeof(ITsInstance)]);
-                    else if (!typeof(ITsInstance).IsAssignableFrom(top))
-                    {
-                        _logger.Error($"Expected an instance, got {top}", member.Left.Position);
-                        emit.Pop()
-                            .Call(TsTypes.Empty);
-                        return;
-                    }
-
-                    var secret = GetLocal(typeof(ITsInstance));
-
-                    emit.StLocal(secret)
-                        .LdLocal(secret)
-                        .LdStr(value.Name)
-                        .LdLocal(secret)
-                        .LdStr(value.Name)
-                        .Call(typeof(ITsInstance).GetMethod("get_Item"));
-
-                    assign.Right.Accept(this);
-                    ConvertTopToObject();
-                    emit.Call(GetOperator(op, typeof(TsObject), top, assign.Position))
-                        .Call(typeof(ITsInstance).GetMethod("set_Item"));
-
-                    FreeLocal(secret);
+                    MemberAccessAssignVariable(member, null, assign, op);
                 }
             }
+        }
+
+        private void MemberStaticAccessAssign(MemberAccessNode member, SymbolNode namespaceNode, AssignNode assign, string op)
+        {
+            var enumType = member.Left as VariableToken;
+
+            if (((namespaceNode != null && namespaceNode.Children.TryGetValue(enumType.Name, out var enumSymbol)) || _table.Defined(enumType.Name, out enumSymbol))
+                && enumSymbol.Type == SymbolType.Enum)
+            {
+                _logger.Error($"Cannot assign enum value at runtime", member.Position);
+                return;
+            }
+            else
+            {
+                var memberInfo = GetStaticMemberFromMemberAccess(member, namespaceNode, out var remaining);
+                if (memberInfo is null)
+                    return;
+                switch (memberInfo)
+                {
+                    case FieldInfo field:
+                        if (remaining is null)
+                        {
+                            if(op != null)
+                            {
+                                emit.LdFldA(field)
+                                    .Dup()
+                                    .LdObj(field.FieldType);
+                            }
+
+                            assign.Right.Accept(this);
+
+                            if (op != null)
+                            {
+                                emit.Call(GetOperator(op, field.FieldType, emit.GetTop(), assign.Position));
+                                EmitHelper.ConvertTopToObject(emit);
+                                emit.StObj(field.FieldType);
+                            }
+                            else
+                                emit.StFld(field);
+                        }
+                        else
+                            emit.LdFld(field);
+                        break;
+                    case PropertyInfo property:
+                        if (op != null && (!property.CanRead || !property.GetMethod.IsStatic))
+                        {
+                            _logger.Error("Tried to statically read from write-only or instance property", member.Position);
+                            return;
+                        }
+
+                        if (remaining is null)
+                        {
+                            if (!property.CanWrite || !property.SetMethod.IsStatic)
+                            {
+                                _logger.Error("Tried to statically write to read-only or instance property", member.Position);
+                                return;
+                            }
+
+                            if (op != null)
+                                emit.Call(property.GetMethod);
+
+                            assign.Right.Accept(this);
+
+                            if (op != null)
+                            {
+                                emit.Call(GetOperator(op, property.PropertyType, emit.GetTop(), assign.Position));
+                                EmitHelper.ConvertTopToObject(emit);
+                            }
+
+                            emit.Call(property.SetMethod);
+                        }
+                        else
+                            emit.Call(property.GetMethod);
+                        break;
+                    case MethodInfo method:
+                        _logger.Error($"Tried to set a static method", member.Position);
+                        return;
+                    default:
+                        _logger.Error($"Tried to set an invalid clr member type: {memberInfo.MemberType}", member.Position);
+                        return;
+                }
+
+                MemberStaticAccessAssignRemaining(remaining, assign, op);
+            }
+        }
+
+        private void MemberStaticAccessAssignRemaining(ISyntaxElement remaining, AssignNode assign, string op)
+        {
+            if (remaining is null)
+                return;
+
+            while (remaining is MemberAccessNode nested)
+            {
+                if (nested.Left.Type != SyntaxType.Variable)
+                {
+                    _logger.Error($"Invalid member access: Expected identifier, not {nested.Left.Type}", nested.Left.Position);
+                    return;
+                }
+
+                GetMember(emit, (nested.Left as VariableToken).Name);
+                remaining = nested.Right;
+            }
+
+            if (remaining.Type != SyntaxType.Variable)
+            {
+                _logger.Error($"Invalid member access: Expected identifier, not {remaining.Type}", remaining.Position);
+                return;
+            }
+
+            var memberName = (remaining as VariableToken).Name;
+
+            if (op != null)
+            {
+                var secret = GetLocal(typeof(ITsInstance));
+                if (!typeof(ITsInstance).IsAssignableFrom(emit.GetTop()))
+                    emit.Call(TsTypes.ObjectCasts[typeof(ITsInstance)]);
+
+                emit.Dup()
+                    .StLocal(secret)
+                    .LdStr(memberName)
+                    .LdLocal(secret)
+                    .LdStr(memberName)
+                    .Call(typeof(ITsInstance).GetMethod("GetMember"));
+
+                assign.Right.Accept(this);
+                emit.Call(GetOperator(op, typeof(TsObject), emit.GetTop(), assign.Position));
+                EmitHelper.ConvertTopToObject(emit);
+                emit.Call(typeof(ITsInstance).GetMethod("SetMember"));
+
+                FreeLocal(secret);
+            }
+            else
+                SetMember(emit, memberName, assign.Right);
+        }
+
+        private void MemberAccessAssignVariable(MemberAccessNode member, VariableLeaf variable, AssignNode assign, string op)
+        {
+            if(variable is null)
+            {
+                member.Left.Accept(this);
+                var top = emit.GetTop();
+                if (top == typeof(string) || top == typeof(TsObject[]))
+                {
+                    EmitHelper.ConvertTopToObject(emit);
+                    top = typeof(TsObject);
+                }
+                else if (!typeof(TsObject).IsAssignableFrom(top))
+                    _logger.Error($"Invalid syntax detected", member.Left.Position);
+            }
+            else
+            {
+                if (variable.IsCaptured)
+                {
+                    if (_closures == 0)
+                        emit.LdLocal(_closure.Self);
+                    else
+                        emit.LdArg(0);
+
+                    emit.LdFld(_closure.Fields[variable.Name]);
+                }
+                else
+                    emit.LdLocal(_locals[variable]);
+            }
+
+            MemberStaticAccessAssignRemaining(member.Right, assign, op);
         }
 
         private void SelfAccessSet(VariableToken variable)
@@ -2118,45 +2491,103 @@ namespace TaffyScript.Compiler.Backend
 
         private void CallStaticScript(MemberAccessNode member, SymbolNode ns, FunctionCallNode functionCall)
         {
-            var methodInfo = GetStaticScriptFromMemberAccess(member, ns);
-            if (methodInfo is null)
-                return;
-            LoadFunctionArguments(functionCall.Arguments);
-            emit.Call(methodInfo, 1, typeof(TsObject));
-        }
-
-
-
-        private MethodInfo GetStaticScriptFromMemberAccess(MemberAccessNode member, SymbolNode ns)
-        {
-            var stack = new Stack<VariableToken>();
-            VariableToken typeName, scriptName;
-            var current = member;
-            if (member.Parent.Type == SyntaxType.MemberAccess)
+            var memberInfo = GetStaticMemberFromMemberAccess(member, ns, out var remaining);
+            if (memberInfo is null)
             {
-                current = member;
-                typeName = member.Right as VariableToken;
-                while (current.Parent is MemberAccessNode parent)
+                emit.Call(TsTypes.Empty);
+                return;
+            }
+            switch (memberInfo)
+            {
+                case FieldInfo field:
+                    emit.LdFld(field);
+                    break;
+                case PropertyInfo property:
+                    if (!property.CanRead)
+                    {
+                        _logger.Error("Tried to read from write-only property", member.Position);
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+                    else if (!property.GetMethod.IsStatic)
+                    {
+                        _logger.Error($"Tried to statically access instance property", member.Position);
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+                    emit.Call(property.GetMethod);
+                    break;
+                case MethodInfo method:
+                    LoadFunctionArguments(functionCall.Arguments);
+                    emit.Call(method, 1, typeof(TsObject));
+                    return;
+                default:
+                    _logger.Error($"Tried to access invalid clr member type: {memberInfo.MemberType}", member.Position);
+                    emit.Call(TsTypes.Empty);
+                    return;
+            }
+
+            if (remaining != null)
+            {
+                while (remaining is MemberAccessNode nested)
                 {
-                    stack.Push(parent.Right as VariableToken);
-                    current = parent;
+                    if (nested.Left.Type != SyntaxType.Variable)
+                    {
+                        _logger.Error($"Invalid member access: Expected identifier, not {nested.Left.Type}", nested.Left.Position);
+                        return;
+                    }
+                    emit.LdStr((nested.Left as VariableToken).Name)
+                        .Call(typeof(TsObject).GetMethod("MemberGet"));
+
+                    remaining = nested.Right;
                 }
-                scriptName = current.Right as VariableToken;
+
+                if (remaining.Type != SyntaxType.Variable)
+                {
+                    _logger.Error($"Invalid member access: Expected identifier, not {remaining.Type}", remaining.Position);
+                    return;
+                }
+
+                emit.Call(TsTypes.ObjectCasts[typeof(ITsInstance)])
+                    .LdStr((remaining as VariableToken).Name);
+
+                LoadFunctionArguments(functionCall.Arguments);
+
+                emit.Call(typeof(ITsInstance).GetMethod("Call"));
             }
             else
             {
-                typeName = member.Left as VariableToken;
-                scriptName = current.Right as VariableToken;
+                LoadFunctionArguments(functionCall.Arguments);
+                emit.Call(typeof(TsObject).GetMethod("DelegateInvoke"));
             }
+        }
+
+        private MemberInfo GetStaticMemberFromMemberAccess(MemberAccessNode member, SymbolNode ns, out ISyntaxElement remaining)
+        {
+            remaining = default;
+            var typeName = member.Left as VariableToken;
+            VariableToken memberName;
+
+            if (member.Right.Type == SyntaxType.Variable)
+                memberName = member.Right as VariableToken;
+            else if (member.Right is MemberAccessNode nested)
+            {
+                memberName = nested.Left as VariableToken;
+                remaining = nested.Right;
+            }
+            else
+            {
+                _logger.Error("Invalid static access syntax", member.Right.Position);
+                return null;
+            }
+
 
             ISymbol typeSymbol;
             if (ns != null)
             {
                 if (!ns.Children.TryGetValue(typeName.Name, out typeSymbol))
                 {
-                    emit.Call(TsTypes.Empty);
-                    _logger.Error($"Tried to call static script from type '{typeName.Name}' that didn't exist in namespace '{($"{GetAssetNamespace(ns)}.{ns.Name}").TrimStart('.')}'",
-                        current.Left.Position);
+                    _logger.Error($"Tried to call static script from non-existant type '{typeName.Name}' in namespace '{_resolver.GetAssetFullName(ns)}'", member.Position);
                     return null;
                 }
             }
@@ -2164,33 +2595,60 @@ namespace TaffyScript.Compiler.Backend
             {
                 if (!_table.Defined(typeName.Name, out typeSymbol))
                 {
-                    emit.Call(TsTypes.Empty);
-                    _logger.Error($"Tried to call static script from type '{typeName.Name}' that doesn't exist", current.Left.Position);
+                    _logger.Error($"Tried to call static script from type '{typeName.Name}' that doesn't exist", member.Position);
                     return null;
                 }
             }
-            if (stack.Count > 1)
+
+            var type = typeSymbol as SymbolNode;
+            if(!type.Children.TryGetValue(memberName.Name, out var memberSymbol))
             {
-                emit.Call(TsTypes.Empty);
-                _logger.Error("Currently cannot access static fields", current.Left.Position);
+                _logger.Error($"Tried to access non-existant static member '{memberName.Name}' on type '{_resolver.GetAssetFullName(type)}'", member.Position);
                 return null;
             }
 
-            var methodInfo = _assets.GetInstanceMethod(typeSymbol, scriptName.Name, member.Position);
-            if (methodInfo is null)
+            switch(memberSymbol.Type)
             {
-                emit.Call(TsTypes.Empty);
-                return null;
-            }
+                case SymbolType.Script:
+                    var method = _assets.GetInstanceMethod(typeSymbol, memberName.Name, member.Position);
+                    if (method is null)
+                        return null;
 
-            if (!methodInfo.IsStatic)
-            {
-                emit.Call(TsTypes.Empty);
-                _logger.Error($"Tried to call non-static script '{scriptName.Name}' from the type '{methodInfo.DeclaringType.FullName}'", member.Position);
-                return null;
-            }
+                    if(!method.IsStatic)
+                    {
+                        _logger.Error($"Tried to access non-static script '{memberName.Name}' from the type '{_resolver.GetAssetFullName(type)}'", member.Position);
+                        return null;
+                    }
 
-            return methodInfo;
+                    return method;
+                case SymbolType.Field:
+                    var field = _assets.GetInstanceField(typeSymbol, memberName.Name, member.Position);
+                    if (field is null)
+                        return null;
+
+                    if(!field.IsStatic)
+                    {
+                        _logger.Error($"Tried to access non-static field '{field.Name}' from the type '{_resolver.GetAssetFullName(type)}'", member.Position);
+                        return null;
+                    }
+
+                    return field;
+                case SymbolType.Property:
+                    var property = _assets.GetProperty(typeSymbol, memberName.Name, member.Position);
+                    if (property is null)
+                        return null;
+
+                    if((property.CanRead && !property.GetMethod.IsStatic) || (property.CanWrite && !property.SetMethod.IsStatic))
+                    {
+                        _logger.Error($"Tried to access non-static property '{property.Name}' from the type '{_resolver.GetAssetFullName(type)}'", member.Position);
+                        return null;
+                    }
+
+                    return property;
+                default:
+                    _logger.Error($"Tried to access non-static member '{memberName.Name} from the type '{_resolver.GetAssetFullName(type)}'", member.Position);
+                    return null;
+            }
         }
 
         private void CallScript(string ns, ISymbol scriptSymbol, FunctionCallNode functionCall)
@@ -2551,39 +3009,13 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(MemberAccessNode memberAccess)
         {
-            ISymbol enumSymbol;
             if(_resolver.TryResolveNamespace(memberAccess, out var resolved, out var namespaceNode))
             {
                 switch(resolved)
                 {
                     case MemberAccessNode member:
-                        switch(member.Left)
-                        {
-                            case VariableToken enumType:
-                                if (namespaceNode.Children.TryGetValue(enumType.Name, out enumSymbol))
-                                    ProcessEnumAccess(member, enumType, enumSymbol);
-                                else
-                                {
-                                    emit.Call(TsTypes.Empty);
-                                    _logger.Error("Invalid enum access", member.Position);
-                                }
-                                break;
-                            case MemberAccessNode staticCall:
-                                var methodInfo = GetStaticScriptFromMemberAccess(member, namespaceNode);
-                                if (methodInfo is null)
-                                    break;
-                                emit.LdNull()
-                                    .LdFtn(methodInfo)
-                                    .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                                    .LdStr(methodInfo.Name)
-                                    .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }));
-                                break;
-                            default:
-                                emit.Call(TsTypes.Empty);
-                                _logger.Error("Unknown error related to invalid member access", member.Position);
-                                break;
-                        }
-                        break;
+                        MemberStaticAccess(member, namespaceNode);
+                        return;
                     case VariableToken variable:
                         if (namespaceNode.Children.TryGetValue(variable.Name, out var symbol))
                             ProcessVariableToken(variable, symbol);
@@ -2595,101 +3027,116 @@ namespace TaffyScript.Compiler.Backend
                         break;
                     default:
                         emit.Call(TsTypes.Empty);
-                        _logger.Error("Invalid token at the end of namespace access.");
+                        _logger.Error("Invalid token at the end of namespace access.", resolved.Position);
                         break;
                 }
                 return;
             }
 
-            if(memberAccess.Left is VariableToken variableToken && _table.Defined(variableToken.Name, out var variableSymbol))
+            if (memberAccess.Left is VariableToken variableToken && _table.Defined(variableToken.Name, out var variableSymbol))
             {
-                if(variableSymbol.Type == SymbolType.Enum)
+                switch(variableSymbol.Type)
                 {
-                    ProcessEnumAccess(memberAccess, variableToken, variableSymbol);
-                    return;
-                }
-                else if(variableSymbol.Type == SymbolType.Object)
-                {
-                    var method = GetStaticScriptFromMemberAccess(memberAccess, null);
-                    if (method is null)
+                    case SymbolType.Object:
+                    case SymbolType.Enum:
+                        MemberStaticAccess(memberAccess, null);
                         return;
-                    emit.LdNull()
-                        .LdFtn(method)
-                        .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                        .LdStr(method.Name)
-                        .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }));
-                    return;
+                    case SymbolType.Variable:
+                        ProcessVariableToken(variableToken, variableSymbol);
+                        MemberAccessRemaining(memberAccess.Right);
+                        return;
                 }
             }
 
-            if (memberAccess.Left is VariableToken enumVar && _table.Defined(enumVar.Name, out enumSymbol) && enumSymbol.Type == SymbolType.Enum)
-            {
-                ProcessEnumAccess(memberAccess, enumVar, enumSymbol);
-                return;
-            }
             if (memberAccess.Left is ReadOnlyToken read)
-            {
-                var right = memberAccess.Right as VariableToken;
-                if(right is null)
-                {
-                    _logger.Error("Could not access readonly variable from readonly variable.");
-                    emit.Call(TsTypes.Empty);
-                    return;
-                }
-                switch(read.Name)
-                {
-                    case "global":
-                        emit.LdFld(typeof(TsInstance).GetField("Global"));
-                        break;
-                    case "self":
-                        LoadTarget();
-                        break;
-                    case "other":
-                        emit.Call(typeof(TsInstance).GetMethod("get_Other"));
-                        break;
-                    default:
-                        _logger.Error("Invalid syntax detected", right.Position);
-                        emit.Call(TsTypes.Empty);
-                        return;
-                }
-                emit.LdStr(right.Name)
-                    .Call(typeof(ITsInstance).GetMethod("get_Item"));
-            }
+                GetReadOnlyLoadFunc(read)();
             else
             {
                 memberAccess.Left.Accept(this);
-                var left = emit.GetTop();
-                if(left == typeof(string) || left == typeof(TsObject[]))
+                EmitHelper.ConvertTopToObject(emit);
+            }
+            MemberAccessRemaining(memberAccess.Right);
+        }
+
+        private void MemberStaticAccess(MemberAccessNode member, SymbolNode namespaceNode)
+        {
+            var enumType = member.Left as VariableToken;
+
+            if (((namespaceNode != null && namespaceNode.Children.TryGetValue(enumType.Name, out var enumSymbol)) || _table.Defined(enumType.Name, out enumSymbol))
+                && enumSymbol.Type == SymbolType.Enum)
+            {
+                ProcessEnumAccess(member, enumType, enumSymbol);
+                return;
+            }
+            else
+            {
+                var memberInfo = GetStaticMemberFromMemberAccess(member, namespaceNode, out var remaining);
+                if (memberInfo is null)
                 {
-                    ConvertTopToObject();
-                    left = typeof(TsObject);
+                    emit.Call(TsTypes.Empty);
+                    return;
                 }
-                else if(!typeof(TsObject).IsAssignableFrom(left))
+                switch (memberInfo)
                 {
-                    _logger.Error($"Static member access is not yet supported.", memberAccess.Left.Position);
-                    emit.Pop()
-                        .Call(TsTypes.Empty);
+                    case FieldInfo field:
+                        emit.LdFld(field);
+                        break;
+                    case PropertyInfo property:
+                        if (!property.CanRead)
+                        {
+                            _logger.Error("Tried to read from write-only property", member.Position);
+                            emit.Call(TsTypes.Empty);
+                            return;
+                        }
+                        else if (!property.GetMethod.IsStatic)
+                        {
+                            _logger.Error($"Tried to statically access instance property", member.Position);
+                            emit.Call(TsTypes.Empty);
+                            return;
+                        }
+                        emit.Call(property.GetMethod);
+                        break;
+                    case MethodInfo method:
+                        emit.LdNull()
+                            .LdFtn(method)
+                            .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                            .LdStr(memberInfo.Name)
+                            .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }));
+                        break;
+                    default:
+                        _logger.Error($"Tried to access invalid clr member type: {memberInfo.MemberType}", member.Position);
+                        emit.Call(TsTypes.Empty);
+                        break;
+                }
+
+                MemberAccessRemaining(remaining);
+            }
+        }
+
+        private void MemberAccessRemaining(ISyntaxElement remaining)
+        {
+            if (remaining is null)
+                return;
+
+            while(remaining is MemberAccessNode nested)
+            {
+                if (nested.Left.Type != SyntaxType.Variable)
+                {
+                    _logger.Error($"Invalid member access: Expected identifier, not {nested.Left.Type}", nested.Left.Position);
                     return;
                 }
 
-                if (memberAccess.Right is VariableToken right)
-                {
-                    emit.LdStr(right.Name)
-                        .Call(typeof(TsObject).GetMethod("MemberGet", new[] { typeof(string) }));
-                }
-                else if (memberAccess.Right is ReadOnlyToken readOnly)
-                {
-                    if (readOnly.Name != "self")
-                    {
-                        _logger.Error("Only the read only variable self can be accessed from an instance currently", readOnly.Position);
-                        emit.Call(TsTypes.Empty);
-                        return;
-                    }
-                    emit.Call(typeof(TsObject).GetMethod("GetInstance"));
-                }
-                else
-                    _logger.Error("Invalid syntax detected", memberAccess.Position);
+                GetMember(emit, (nested.Left as VariableToken).Name);
+                remaining = nested.Right;
             }
+
+            if (remaining.Type != SyntaxType.Variable)
+            {
+                _logger.Error($"Invalid member access: Expected identifier, not {remaining.Type}", remaining.Position);
+                return;
+            }
+
+            GetMember(emit, (remaining as VariableToken).Name);
         }
 
         private void ProcessEnumAccess(MemberAccessNode memberAccess, VariableToken enumType, ISymbol enumSymbol)
@@ -2912,7 +3359,7 @@ namespace TaffyScript.Compiler.Backend
                 ScriptEnd();
             }
 
-            _assets.FinalizeType(info, _parent, scripts, objectNode.Position);
+            _assets.FinalizeType(info, _parent, scripts, objectNode.Fields, objectNode.Position);
 
             if (parent != null && parent is TypeBuilder builder && !builder.IsCreated())
                 _unresolvedTypes.Add(type, builder);
@@ -2921,7 +3368,7 @@ namespace TaffyScript.Compiler.Backend
 
             if (_parent != null)
             {
-                var obj = (ObjectSymbol)_parent;
+                var obj = _parent as ObjectSymbol;
                 while(obj != null)
                 {
                     _table.RemoveSymbolFromDefinitionLookup(obj);
@@ -3121,28 +3568,87 @@ namespace TaffyScript.Compiler.Backend
                 var secret = GetLocal();
                 if (_table.Defined(variable.Name, out var symbol))
                 {
-                    var leaf = symbol as VariableLeaf;
-                    if (leaf is null)
-                        _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
-
-                    if (leaf.IsCaptured)
+                    if(symbol is VariableLeaf leaf)
                     {
-                        if (_closures > 0)
-                            emit.LdArg(0);
+                        if (leaf.IsCaptured)
+                        {
+                            if (_closures > 0)
+                                emit.LdArg(0);
+                            else
+                                emit.LdLocal(_closure.Self);
+                            emit.LdFldA(_closure.Fields[variable.Name]);
+                        }
                         else
-                            emit.LdLocal(_closure.Self);
-                        emit.LdFldA(_closure.Fields[variable.Name]);
+                            emit.LdLocalA(_locals[symbol]);
+
+                        emit.Dup()
+                            .LdObj(typeof(TsObject))
+                            .Dup()
+                            .StLocal(secret)
+                            .Call(GetOperator(postfix.Op, typeof(TsObject), postfix.Position))
+                            .StObj(typeof(TsObject))
+                            .LdLocal(secret);
+                    }
+                    else if(symbol is SymbolLeaf symbolLeaf)
+                    {
+                        switch(symbolLeaf.Type)
+                        {
+                            case SymbolType.Field:
+                                var field = _assets.GetInstanceField(symbolLeaf.Parent, symbolLeaf.Name, variable.Position);
+                                if (field is null)
+                                {
+                                    emit.Call(TsTypes.Empty);
+                                    break;
+                                }
+
+                                if (!field.IsStatic)
+                                    LoadTarget();
+
+                                emit.LdFldA(field)
+                                    .Dup()
+                                    .LdObj(field.FieldType)
+                                    .Dup()
+                                    .StLocal(secret)
+                                    .Call(GetOperator(postfix.Op, field.FieldType, postfix.Position))
+                                    .StObj(field.FieldType)
+                                    .LdLocal(secret);
+                                break;
+                            case SymbolType.Property:
+                                var property = _assets.GetProperty(symbolLeaf.Parent, symbolLeaf.Name, variable.Position);
+                                if (property is null)
+                                {
+                                    emit.Call(TsTypes.Empty);
+                                    return;
+                                }
+
+                                if (!property.CanWrite)
+                                {
+                                    emit.Call(TsTypes.Empty);
+                                    _logger.Error($"Cannot set read-only property '{symbolLeaf.Name}' defined by type '{_resolver.GetAssetFullName(symbolLeaf.Parent)}'", variable.Position);
+                                    break;
+                                }
+                                if (!property.CanRead)
+                                {
+                                    emit.Call(TsTypes.Empty);
+                                    _logger.Error($"Cannot get write-only property '{symbolLeaf.Name}' defined by type '{_resolver.GetAssetFullName(symbolLeaf.Parent)}'", variable.Position);
+                                    break;
+                                }
+
+                                if (!property.GetMethod.IsStatic)
+                                    LoadTarget().Dup();
+
+                                emit.Call(property.GetMethod)
+                                    .Dup()
+                                    .StLocal(secret)
+                                    .Call(GetOperator(postfix.Op, property.PropertyType, postfix.Position))
+                                    .Call(property.SetMethod)
+                                    .LdLocal(secret);
+
+                                break;
+                        }
                     }
                     else
-                        emit.LdLocalA(_locals[symbol]);
-
-                    emit.Dup()
-                        .LdObj(typeof(TsObject))
-                        .Dup()
-                        .StLocal(secret)
-                        .Call(GetOperator(postfix.Op, typeof(TsObject), postfix.Position))
-                        .StObj(typeof(TsObject))
-                        .LdLocal(secret);
+                        _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
                 }
                 else
                 {
@@ -3158,48 +3664,38 @@ namespace TaffyScript.Compiler.Backend
             }
             else if (postfix.Left is MemberAccessNode member)
             {
-                var secret = GetLocal();
-                var value = member.Right as VariableToken;
-                if (value is null)
+                if(_resolver.TryResolveNamespace(member, out var resolved, out var namespaceNode))
                 {
-                    _logger.Error("Invalid member access", member.Position);
-                    emit.Call(TsTypes.Empty);
-                    return;
+                    switch(resolved)
+                    {
+                        case MemberAccessNode memberAccess:
+                            MemberStaticAccessUnary(memberAccess, namespaceNode, postfix, postfix.Op, true);
+                            return;
+                        default:
+                            _logger.Error("Invalid token at the end of namespace access.", resolved.Position);
+                            return;
+                    }
                 }
+                if (member.Left is VariableToken variableToken && _table.Defined(variableToken.Name, out var variableSymbol))
+                {
+                    switch (variableSymbol.Type)
+                    {
+                        case SymbolType.Enum:
+                        case SymbolType.Object:
+                            MemberStaticAccessUnary(member, null, postfix, postfix.Op, true);
+                            return;
+                        case SymbolType.Variable:
+                            MemberStaticAccessUnaryVariable(member, variableSymbol as VariableLeaf, postfix, postfix.Op, true);
+                            return;
+                    }
+                }
+
                 if (member.Left is ReadOnlyToken read)
-                {
-                    Func<ILEmitter> loadTarget = GetReadOnlyLoadFunc(read);
-
-                    loadTarget()
-                        .LdStr(value.Name)
-                        .Call(typeof(ITsInstance).GetMethod("get_Item"))
-                        .StLocal(secret)
-                        .LdLocal(secret);
-                    loadTarget()
-                        .LdStr(value.Name)
-                        .LdLocal(secret)
-                        .Call(GetOperator(postfix.Op, typeof(TsObject), postfix.Position))
-                        .Call(typeof(ITsInstance).GetMethod("set_Item"));
-                }
+                    GetReadOnlyLoadFunc(read)();
                 else
-                {
                     member.Left.Accept(this);
-                    var target = GetLocal();
-                    emit.StLocal(target)
-                        .LdLocal(target)
-                        .LdStr(value.Name)
-                        .Call(typeof(TsObject).GetMethod("MemberGet"))
-                        .StLocal(secret)
-                        .LdLocal(secret)
-                        .LdLocal(target)
-                        .LdStr(value.Name)
-                        .LdLocal(secret)
-                        .Call(GetOperator(postfix.Op, typeof(TsObject), postfix.Position))
-                        .Call(typeof(TsObject).GetMethod("MemberSet", new[] { typeof(string), typeof(TsObject) }));
 
-                    FreeLocal(target);
-                }
-                FreeLocal(secret);
+                MemberStaticAccessUnaryRemaining(member.Right, postfix, postfix.Op, true);
             }
             else
                 _logger.Error("Invalid syntax detected", postfix.Left.Position);
@@ -3209,8 +3705,6 @@ namespace TaffyScript.Compiler.Backend
         {
             if (read.Name == "global")
                 return () => emit.LdFld(typeof(TsInstance).GetField("Global"));
-            else if (read.Name == "other")
-                return () => emit.Call(typeof(TsInstance).GetMethod("get_Other"));
             else
                 return () => LoadTarget();
         }
@@ -3406,88 +3900,337 @@ namespace TaffyScript.Compiler.Backend
             {
                 if (_table.Defined(variable.Name, out var symbol))
                 {
-                    var leaf = symbol as VariableLeaf;
-                    if (leaf is null)
-                        _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
-
-                    if (leaf.IsCaptured)
+                    if(symbol is VariableLeaf leaf)
                     {
-                        if (_closures > 0)
-                            emit.LdArg(0);
+                        if (leaf.IsCaptured)
+                        {
+                            if (_closures > 0)
+                                emit.LdArg(0);
+                            else
+                                emit.LdLocal(_closure.Self);
+                            emit.LdFldA(_closure.Fields[variable.Name]);
+                        }
                         else
-                            emit.LdLocal(_closure.Self);
-                        emit.LdFldA(_closure.Fields[variable.Name]);
+                            emit.LdLocalA(_locals[symbol]);
+
+                        emit.Dup()
+                            .Dup()
+                            .LdObj(typeof(TsObject))
+                            .Call(GetOperator(prefix.Op, typeof(TsObject), prefix.Position))
+                            .StObj(typeof(TsObject))
+                            .LdObj(typeof(TsObject));
+                    }
+                    else if(symbol is SymbolLeaf symbolLeaf)
+                    {
+                        switch(symbolLeaf.Type)
+                        {
+                            case SymbolType.Field:
+                                var field = _assets.GetInstanceField(symbolLeaf.Parent, symbolLeaf.Name, variable.Position);
+                                if (field is null)
+                                {
+                                    emit.Call(TsTypes.Empty);
+                                    return;
+                                }
+
+                                if (!field.IsStatic)
+                                    LoadTarget();
+
+                                emit.LdFldA(field)
+                                    .Dup()
+                                    .Dup()
+                                    .LdObj(field.FieldType)
+                                    .Call(GetOperator(prefix.Op, field.FieldType, prefix.Position))
+                                    .StObj(field.FieldType)
+                                    .LdObj(field.FieldType);
+                                break;
+                            case SymbolType.Property:
+                                var property = _assets.GetProperty(symbolLeaf.Parent, symbolLeaf.Name, variable.Position);
+                                if (property is null)
+                                {
+                                    emit.Call(TsTypes.Empty);
+                                    return;
+                                }
+
+                                if (!property.CanWrite)
+                                {
+                                    emit.Call(TsTypes.Empty);
+                                    _logger.Error($"Cannot set read-only property '{symbolLeaf.Name}' defined by type '{_resolver.GetAssetFullName(symbolLeaf.Parent)}'", variable.Position);
+                                    return;
+                                }
+                                if (!property.CanRead)
+                                {
+                                    emit.Call(TsTypes.Empty);
+                                    _logger.Error($"Cannot get write-only property '{symbolLeaf.Name}' defined by type '{_resolver.GetAssetFullName(symbolLeaf.Parent)}'", variable.Position);
+                                    return;
+                                }
+                                var secret = MakeSecret();
+
+                                if (!property.GetMethod.IsStatic)
+                                    LoadTarget().Dup();
+                                emit.Call(property.GetMethod)
+                                    .Call(GetOperator(prefix.Op, property.PropertyType, prefix.Position))
+                                    .Dup()
+                                    .StLocal(secret)
+                                    .Call(property.SetMethod)
+                                    .LdLocal(secret);
+
+                                FreeLocal(secret);
+                                break;
+                            default:
+                                _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
+                                emit.Call(TsTypes.Empty);
+                                return;
+                        }
                     }
                     else
-                        emit.LdLocalA(_locals[symbol]);
-
-                    emit.Dup()
-                        .Dup()
-                        .LdObj(typeof(TsObject))
-                        .Call(GetOperator(prefix.Op, typeof(TsObject), prefix.Position))
-                        .StObj(typeof(TsObject))
-                        .LdObj(typeof(TsObject));
+                        _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
                 }
                 else
                 {
                     var secret = GetLocal();
                     SelfAccessSet(variable);
-                    emit.Call(typeof(ITsInstance).GetMethod("get_Item"))
+                    emit.Call(typeof(ITsInstance).GetMethod("GetMember"))
                         .Call(GetOperator(prefix.Op, typeof(TsObject), prefix.Position))
                         .StLocal(secret)
                         .LdLocal(secret)
-                        .Call(typeof(ITsInstance).GetMethod("set_Item"))
+                        .Call(typeof(ITsInstance).GetMethod("SetMember"))
                         .LdLocal(secret);
                     FreeLocal(secret);
                 }
             }
             else if (prefix.Right is MemberAccessNode member)
             {
-                if (!(member.Right is VariableToken value))
+                if (_resolver.TryResolveNamespace(member, out var resolved, out var namespaceNode))
                 {
-                    _logger.Error("Cannot assign to readonly value", member.Right.Position);
-                    emit.Call(TsTypes.Empty);
-                    return;
+                    switch (resolved)
+                    {
+                        case MemberAccessNode memberAccess:
+                            MemberStaticAccessUnary(memberAccess, namespaceNode, prefix, prefix.Op, false);
+                            return;
+                        default:
+                            emit.Call(TsTypes.Empty);
+                            _logger.Error("Invalid token at the end of namespace access.", resolved.Position);
+                            return;
+                    }
                 }
-                var secret = GetLocal();
+                if (member.Left is VariableToken variableToken && _table.Defined(variableToken.Name, out var variableSymbol))
+                {
+                    switch (variableSymbol.Type)
+                    {
+                        case SymbolType.Enum:
+                        case SymbolType.Object:
+                            MemberStaticAccessUnary(member, null, prefix, prefix.Op, true);
+                            return;
+                        case SymbolType.Variable:
+                            MemberStaticAccessUnaryVariable(member, variableSymbol as VariableLeaf, prefix, prefix.Op, false);
+                            return;
+                    }
+                }
                 if (member.Left is ReadOnlyToken read)
-                {
-                    Func<ILEmitter> loadTarget = GetReadOnlyLoadFunc(read);
-
-                    loadTarget()
-                        .LdStr(value.Name);
-                    loadTarget()
-                        .LdStr(value.Name)
-                        .Call(typeof(ITsInstance).GetMethod("get_Item"))
-                        .Call(GetOperator(prefix.Op, typeof(TsObject), prefix.Position))
-                        .StLocal(secret)
-                        .LdLocal(secret)
-                        .Call(typeof(ITsInstance).GetMethod("set_Item"))
-                        .LdLocal(secret);
-                }
+                    GetReadOnlyLoadFunc(read)();
                 else
-                {
-                    var target = GetLocal(typeof(ITsInstance));
                     member.Left.Accept(this);
-                    emit.Call(typeof(TsObject).GetMethod("GetInstance"))
-                        .StLocal(target)
-                        .LdLocal(target)
-                        .LdStr(value.Name)
-                        .LdLocal(target)
-                        .LdStr(value.Name)
-                        .Call(typeof(ITsInstance).GetMethod("GetMember"))
-                        .Call(GetOperator(prefix.Op, typeof(TsObject), prefix.Position))
-                        .Dup()
-                        .StLocal(secret)
-                        .Call(typeof(ITsInstance).GetMethod("SetMember"))
-                        .LdLocal(secret);
 
-                    FreeLocal(target);
-                }
-                FreeLocal(secret);
+                MemberStaticAccessUnaryRemaining(member.Right, prefix, prefix.Op, false);
             }
             else
                 _logger.Error("Invalid syntax detected", prefix.Position);
+        }
+
+        private void MemberStaticAccessUnary(MemberAccessNode member, SymbolNode namespaceNode, ISyntaxElement unary, string op, bool postfix)
+        {
+            var enumType = member.Left as VariableToken;
+
+            if (((namespaceNode != null && namespaceNode.Children.TryGetValue(enumType.Name, out var enumSymbol)) || _table.Defined(enumType.Name, out enumSymbol))
+                && enumSymbol.Type == SymbolType.Enum)
+            {
+                _logger.Error($"Cannot assign enum value at runtime", member.Position);
+                emit.Call(TsTypes.Empty);
+                return;
+            }
+            else
+            {
+                var memberInfo = GetStaticMemberFromMemberAccess(member, namespaceNode, out var remaining);
+                if (memberInfo is null)
+                    return;
+
+                var secret = GetLocal();
+                switch (memberInfo)
+                {
+                    case FieldInfo field:
+                        if (remaining is null)
+                        {
+                            emit.LdFldA(field)
+                                .Dup()
+                                .LdObj(typeof(TsObject));
+
+                            if (postfix)
+                                emit.Dup().StLocal(secret);
+
+                            emit.Call(GetOperator(op, field.FieldType, unary.Position));
+
+                            if (!postfix)
+                                emit.Dup().StLocal(secret);
+
+                            emit.StObj(typeof(TsObject))
+                                .LdLocal(secret);
+                        }
+                        else
+                            emit.LdFld(field);
+                        break;
+                    case PropertyInfo property:
+                        if (op != null && (!property.CanRead || !property.GetMethod.IsStatic))
+                        {
+                            _logger.Error("Tried to statically read from write-only or instance property", member.Position);
+                            emit.Call(TsTypes.Empty);
+                            return;
+                        }
+
+                        if (remaining is null)
+                        {
+                            if (!property.CanWrite || !property.SetMethod.IsStatic)
+                            {
+                                _logger.Error("Tried to statically write to read-only or instance property", member.Position);
+                                emit.Call(TsTypes.Empty);
+                                return;
+                            }
+
+                            emit.Call(property.GetMethod);
+
+                            if (postfix)
+                                emit.Dup().StLocal(secret);
+
+                            emit.Call(GetOperator(op, property.PropertyType, unary.Position));
+
+                            if (!postfix)
+                                emit.Dup().StLocal(secret);
+
+                            emit.Call(property.SetMethod)
+                                .LdLocal(secret);
+                        }
+                        else
+                            emit.Call(property.GetMethod);
+                        break;
+                    case MethodInfo method:
+                        emit.Call(TsTypes.Empty);
+                        _logger.Error($"Tried to set a static method", member.Position);
+                        return;
+                    default:
+                        emit.Call(TsTypes.Empty);
+                        _logger.Error($"Tried to set an invalid clr member type: {memberInfo.MemberType}", member.Position);
+                        return;
+                }
+                FreeLocal(secret);
+                MemberStaticAccessUnaryRemaining(remaining, unary, op, postfix);
+            }
+        }
+
+        private void MemberStaticAccessUnaryRemaining(ISyntaxElement remaining, ISyntaxElement unary, string op, bool postfix)
+        {
+            if (remaining is null)
+                return;
+
+            while (remaining is MemberAccessNode nested)
+            {
+                if (nested.Left.Type != SyntaxType.Variable)
+                {
+                    _logger.Error($"Invalid member access: Expected identifier, not {nested.Left.Type}", nested.Left.Position);
+                    return;
+                }
+
+                GetMember(emit, (nested.Left as VariableToken).Name);
+                remaining = nested.Right;
+            }
+
+            if (remaining.Type != SyntaxType.Variable)
+            {
+                _logger.Error($"Invalid member access: Expected identifier, not {remaining.Type}", remaining.Position);
+                return;
+            }
+
+            var memberName = (remaining as VariableToken).Name;
+
+            var secret = GetLocal(typeof(ITsInstance));
+            var result = GetLocal();
+
+            if (!typeof(ITsInstance).IsAssignableFrom(emit.GetTop()))
+                emit.Call(TsTypes.ObjectCasts[typeof(ITsInstance)]);
+
+            emit.Dup()
+                .StLocal(secret)
+                .LdStr(memberName)
+                .LdLocal(secret)
+                .LdStr(memberName)
+                .Call(typeof(ITsInstance).GetMethod("GetMember"));
+
+            if (postfix)
+                emit.Dup().StLocal(result);
+
+            emit.Call(GetOperator(op, typeof(TsObject), unary.Position));
+            EmitHelper.ConvertTopToObject(emit);
+
+            if (!postfix)
+                emit.Dup().StLocal(result);
+
+            emit.Call(typeof(ITsInstance).GetMethod("SetMember"))
+                .LdLocal(result);
+
+            FreeLocal(secret);
+            FreeLocal(result);
+        }
+
+        private void MemberStaticAccessUnaryVariable(MemberAccessNode member, VariableLeaf leaf, ISyntaxElement unary, string op, bool postfix)
+        {
+            if (leaf != null && leaf.IsCaptured)
+            {
+                if (_closures == 0)
+                    emit.LdLocal(_closure.Self);
+                else
+                    emit.LdArg(0);
+            }
+
+            if (member.Right is VariableToken variable)
+            {
+                var secret = GetLocal();
+                var target = GetLocal(typeof(ITsInstance));
+
+                if (leaf != null && leaf.IsCaptured)
+                    emit.LdFld(_closure.Fields[leaf.Name]);
+                else
+                    emit.LdLocal(_locals[leaf]);
+
+                emit.Call(TsTypes.ObjectCasts[typeof(ITsInstance)])
+                    .Dup()
+                    .StLocal(target)
+                    .LdStr(variable.Name)
+                    .LdLocal(target)
+                    .LdStr(variable.Name)
+                    .Call(typeof(ITsInstance).GetMethod("GetMember"));
+
+                if (postfix)
+                    emit.Dup().StLocal(secret);
+
+                emit.Call(GetOperator(op, typeof(TsObject), unary.Position));
+                EmitHelper.ConvertTopToObject(emit);
+
+                if (!postfix)
+                    emit.Dup().StLocal(secret);
+
+                emit.Call(typeof(ITsInstance).GetMethod("SetMember"))
+                    .LdLocal(secret);
+
+                FreeLocal(target);
+                FreeLocal(secret);
+            }
+            else
+            {
+                if (leaf != null && leaf.IsCaptured)
+                    emit.LdFld(_closure.Fields[leaf.Name]);
+                else
+                    emit.LdLocal(_locals[leaf]);
+
+                MemberStaticAccessUnaryRemaining(member.Right, unary, op, postfix);
+            }
         }
 
         public void Visit(ReadOnlyToken readOnlyToken)
@@ -3496,9 +4239,6 @@ namespace TaffyScript.Compiler.Backend
             {
                 case "self":
                     LoadTarget();
-                    break;
-                case "other":
-                    emit.Call(typeof(TsInstance).GetMethod("get_Other"));
                     break;
                 case "argument_count":
                     if(_argumentCount == null)
@@ -3929,7 +4669,7 @@ namespace TaffyScript.Compiler.Backend
             {
                 LoadTarget()
                     .LdStr(variableToken.Name)
-                    .Call(typeof(ITsInstance).GetMethod("get_Item"));
+                    .Call(typeof(ITsInstance).GetMethod("GetMember"));
             }
         }
 
@@ -3979,33 +4719,46 @@ namespace TaffyScript.Compiler.Backend
                     }
                     else if (variableSymbol is VariableLeaf leaf && leaf.IsCaptured)
                     {
-                        var field = _closure.Fields[variableSymbol.Name];
+                        var capturedField = _closure.Fields[variableSymbol.Name];
 
                         if (_closures == 0)
                             emit.LdLocal(_closure.Self);
                         else
                             emit.LdArg(0);
 
-                        emit.LdFld(field);
-                    }
-                    else if(variableSymbol.Scope == SymbolScope.Member)
-                    {
-                        var field = _assets.GetInstanceField(variableSymbol.Parent, variableSymbol.Name, variableToken.Position);
-                        if(field is null)
-                        {
-                            emit.Call(TsTypes.Empty);
-                            return;
-                        }
-                        LoadTarget()
-                            .LdFld(field);
-                    }
-                    else if(variableSymbol.Scope == SymbolScope.Global)
-                    {
-                        var field = _assets.GetInstanceField(variableSymbol.Parent, variableSymbol.Name, variableToken.Position);
-                        emit.LdFld(field);
+                        emit.LdFld(capturedField);
                     }
                     else
                         _logger.Error($"Tried to reference a non-existant variable {variableToken.Name}", variableToken.Position);
+                    break;
+                case SymbolType.Field:
+                    var field = _assets.GetInstanceField(variableSymbol.Parent, variableSymbol.Name, variableToken.Position);
+                    if (field is null)
+                    {
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+                    if (!field.IsStatic)
+                        LoadTarget();
+
+                    emit.LdFld(field);
+                    break;
+                case SymbolType.Property:
+                    var property = _assets.GetProperty(variableSymbol.Parent, variableSymbol.Name, variableToken.Position);
+                    if (property is null)
+                    {
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+                    if (!property.CanRead)
+                    {
+                        _logger.Error($"Property '{variableSymbol.Name}' defined by type '{_resolver.GetAssetFullName(variableSymbol.Parent)}' is write-only");
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+                    if (!property.GetMethod.IsStatic)
+                        LoadTarget();
+                    emit.Call(property.GetMethod);
                     break;
                 default:
                     _logger.Error($"Currently cannot reference indentifier {variableSymbol.Type} by it's raw value.", variableToken.Position);
@@ -4101,6 +4854,8 @@ namespace TaffyScript.Compiler.Backend
 
             var parent = importNode.WeaklyTyped ? typeof(ObjectWrapper) : typeof(object);
             var type = _module.DefineType(name, TypeAttributes.Public, parent, new[] { typeof(ITsInstance) });
+            var compilerGenerated = new CustomAttributeBuilder(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
+            type.SetCustomAttribute(compilerGenerated);
 
             var source = type.DefineField("_source", importType, FieldAttributes.Private);
             var objectType = type.DefineProperty("ObjectType", PropertyAttributes.None, typeof(string), null);
@@ -4378,18 +5133,19 @@ namespace TaffyScript.Compiler.Backend
                 }
             }
 
-            GenerateImportObjectInterfaceMethods(memberBruteForce,
-                                                 memberTree,
-                                                 methodBruteForce,
-                                                 methodTree,
-                                                 tryGetDelegateMethod,
-                                                 callMethod,
-                                                 getMemberMethod,
-                                                 setMemberMethod,
-                                                 source,
-                                                 members,
-                                                 importNode.WeaklyTyped,
-                                                 importNode.ImportName);
+            TsInstanceInterfaceMethodGenerator.ImplementInterfaceMethods(memberBruteForce,
+                                                                         memberTree,
+                                                                         methodBruteForce,
+                                                                         methodTree,
+                                                                         tryGetDelegateMethod,
+                                                                         callMethod,
+                                                                         getMemberMethod,
+                                                                         setMemberMethod,
+                                                                         source,
+                                                                         members,
+                                                                         importNode.WeaklyTyped,
+                                                                         importNode.ImportName,
+                                                                         null);
 
             var getDelegate = type.DefineMethod("GetDelegate", methodFlags, typeof(TsDelegate), new[] { typeof(string) });
             var mthd = new ILEmitter(getDelegate, new[] { typeof(string) });
@@ -4575,6 +5331,7 @@ namespace TaffyScript.Compiler.Backend
 
             members.Add(new KeyValuePair<string, MemberInfo>(importName, property));
             properties.Add(importName, wrapperProperty);
+            importSymbol.Children.Add(importName, new SymbolLeaf(importSymbol, importName, SymbolType.Property, SymbolScope.Member));
         }
 
         private void AddMethodToTypeWrapper(ImportObjectSymbol importSymbol,
@@ -4674,560 +5431,6 @@ namespace TaffyScript.Compiler.Backend
                        .LdFtn(wrappedCtor)
                        .New(typeof(Func<TsObject[], ITsInstance>).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
                        .Call(typeof(Dictionary<string, Func<TsObject[], ITsInstance>>).GetMethod("Add", new[] { typeof(string), typeof(Func<TsObject[], ITsInstance>) }));
-        }
-
-        private void GenerateImportObjectInterfaceMethods(List<KeyValuePair<string, MemberInfo>> memberBruteForce,
-                                                          RedBlackTree<int, KeyValuePair<string, MemberInfo>> memberTree,
-                                                          List<MethodInfo> methodBruteForce,
-                                                          RedBlackTree<int, MethodInfo> methodTree,
-                                                          MethodBuilder tryGetDelegate,
-                                                          MethodBuilder callMethod,
-                                                          MethodBuilder getMember,
-                                                          MethodBuilder setMember,
-                                                          FieldInfo source,
-                                                          FieldInfo members,
-                                                          bool isWeaklyTyped,
-                                                          string typeName)
-        {
-            // Todo: This value is currently an arbitrary value with no testing.
-            //       Test to see when it's optimal to go from brute force to binary search.
-            const int MinimumValuesNeededForBinarySearch = 3;
-
-            var call = new ILEmitter(callMethod, new[] { typeof(string), typeof(TsObject[]) });
-            var getm = new ILEmitter(getMember, new[] { typeof(string) });
-            var setm = new ILEmitter(setMember, new[] { typeof(string), typeof(TsObject) });
-            var tryd = new ILEmitter(tryGetDelegate, new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
-
-            var callError = call.DefineLabel();
-            var getError = getm.DefineLabel();
-            var setError = setm.DefineLabel();
-            var tryError = tryd.DefineLabel();
-            var readError = getm.DefineLabel();
-            var writeError = setm.DefineLabel();
-            var readErrors = false;
-            var writeErrors = false;
-
-            if (memberTree.Count < MinimumValuesNeededForBinarySearch)
-            {
-                memberBruteForce.AddRange(memberTree.InOrder().Select(kvp => kvp.Value));
-                GenerateImportObjectGetAndSetBruteForce(memberBruteForce, source, getm, setm, readError, writeError, ref readErrors, ref writeErrors);
-            }
-            else
-            {
-                GenerateImportObjectGetAndSetBruteForce(memberBruteForce, source, getm, setm, readError, writeError, ref readErrors, ref writeErrors);
-
-                var getHash = getm.DeclareLocal(typeof(int), "hash");
-                var setHash = setm.DeclareLocal(typeof(int), "hash");
-
-                InitializeImportObjectInterfaceMethod(getm, getHash);
-                InitializeImportObjectInterfaceMethod(setm, setHash);
-
-                GenerateImportObjectGetAndSetBinarySearch(memberTree.Root,
-                                                          source,
-                                                          getm,
-                                                          setm,
-                                                          getHash,
-                                                          setHash,
-                                                          getError,
-                                                          setError,
-                                                          readError,
-                                                          writeError,
-                                                          ref readErrors,
-                                                          ref writeErrors);
-            }
-
-            if(methodTree.Count < MinimumValuesNeededForBinarySearch)
-            {
-                methodBruteForce.AddRange(methodTree.InOrder().Select(kvp => kvp.Value));
-                GenerateImportMethodCallBruteForce(methodBruteForce, source, call, tryd);
-            }
-            else
-            {
-                GenerateImportMethodCallBruteForce(methodBruteForce, source, call, tryd);
-
-                var callHash = call.DeclareLocal(typeof(int), "hash");
-                var tryHash = tryd.DeclareLocal(typeof(int), "hash");
-
-                InitializeImportObjectInterfaceMethod(call, callHash);
-                InitializeImportObjectInterfaceMethod(tryd, tryHash);
-
-                GenerateImportMethodCallBinarySearch(methodTree.Root, source, call, tryd, callHash, tryHash, callError, tryError);
-            }
-
-            getm.MarkLabel(getError);
-            setm.MarkLabel(setError);
-            call.MarkLabel(callError);
-            tryd.MarkLabel(tryError);
-            if (isWeaklyTyped)
-            {
-                var getDynamicError = getm.DefineLabel();
-                var callDynamicError = call.DefineLabel();
-                var tryDynamicError = tryd.DefineLabel();
-
-                var getMemberVariable = getm.DeclareLocal(typeof(TsObject), "member");
-                var callMemberVariable = call.DeclareLocal(typeof(TsObject), "member");
-                var tryMemberVariable = tryd.DeclareLocal(typeof(TsObject), "member");
-
-                getm.LdArg(0)
-                    .LdFld(members)
-                    .LdArg(1)
-                    .LdLocalA(getMemberVariable)
-                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
-                    .BrFalse(getDynamicError)
-                    .LdLocal(getMemberVariable)
-                    .Ret()
-                    .MarkLabel(getDynamicError)
-                    .LdStr(typeName)
-                    .LdArg(1)
-                    .New(typeof(MissingMemberException).GetConstructor(new[] { typeof(string), typeof(string) }))
-                    .Throw();
-
-                setm.LdArg(0)
-                    .LdFld(members)
-                    .LdArg(1)
-                    .LdArg(2)
-                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("set_Item"))
-                    .Ret();
-
-                call.LdArg(0)
-                    .LdFld(members)
-                    .LdArg(1)
-                    .LdLocalA(callMemberVariable)
-                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
-                    .BrFalse(callDynamicError)
-                    .LdLocal(callMemberVariable)
-                    .Call(typeof(TsObject).GetMethod("get_Type"))
-                    .LdInt((int)VariableType.Delegate)
-                    .Bne(callDynamicError)
-                    .LdLocal(callMemberVariable)
-                    .LdArg(2)
-                    .Call(typeof(TsObject).GetMethod("DelegateInvoke"))
-                    .Ret()
-                    .MarkLabel(callDynamicError)
-                    .LdStr(typeName)
-                    .LdArg(1)
-                    .New(typeof(MissingMethodException).GetConstructor(new[] { typeof(string), typeof(string) }))
-                    .Throw();
-
-                tryd.LdArg(0)
-                    .LdFld(members)
-                    .LdArg(1)
-                    .LdLocalA(tryMemberVariable)
-                    .Call(typeof(Dictionary<string, TsObject>).GetMethod("TryGetValue"))
-                    .BrFalse(tryDynamicError)
-                    .LdLocal(tryMemberVariable)
-                    .Call(typeof(TsObject).GetMethod("get_Type"))
-                    .LdInt((int)VariableType.Delegate)
-                    .Bne(tryDynamicError)
-                    .LdArg(2)
-                    .LdLocal(tryMemberVariable)
-                    .CastClass(typeof(TsDelegate))
-                    .StIndRef()
-                    .LdBool(true)
-                    .Ret()
-                    .MarkLabel(tryDynamicError)
-                    .LdArg(2)
-                    .LdNull()
-                    .StIndRef()
-                    .LdBool(false)
-                    .Ret();
-            }
-            else
-            {
-                getm.LdStr(typeName)
-                    .LdArg(1)
-                    .New(typeof(MissingMemberException).GetConstructor(new[] { typeof(string), typeof(string) }))
-                    .Throw();
-
-                setm.LdStr(typeName)
-                    .LdArg(1)
-                    .New(typeof(MissingMemberException).GetConstructor(new[] { typeof(string), typeof(string) }))
-                    .Throw();
-
-                call.LdStr(typeName)
-                    .LdArg(1)
-                    .New(typeof(MissingMethodException).GetConstructor(new[] { typeof(string), typeof(string) }))
-                    .Throw();
-
-                tryd.LdArg(2)
-                    .LdNull()
-                    .StIndRef()
-                    .LdBool(false)
-                    .Ret();
-            }
-
-            if(readErrors)
-            {
-                getm.MarkLabel(readError)
-                    .LdStr($"Member '{{0}}' defined by type {typeName} is write-only")
-                    .LdArg(1)
-                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
-                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
-                    .Throw();
-            }
-
-            if(writeErrors)
-            {
-                setm.MarkLabel(writeError)
-                    .LdStr($"Member '{{0}}' defined by type {typeName} is read-only")
-                    .LdArg(1)
-                    .Call(typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) }))
-                    .New(typeof(MemberAccessException).GetConstructor(new[] { typeof(string) }))
-                    .Throw();
-            }
-        }
-
-        private void GenerateImportObjectGetAndSetBruteForce(List<KeyValuePair<string, MemberInfo>> members,
-                                                             FieldInfo source,
-                                                             ILEmitter getm,
-                                                             ILEmitter setm,
-                                                             Label readError,
-                                                             Label writeError,
-                                                             ref bool readErrors,
-                                                             ref bool writeErrors)
-        {
-            foreach(var kvp in members)
-            {
-                var getNext = getm.DefineLabel();
-                var setNext = setm.DefineLabel();
-                switch (kvp.Value)
-                {
-                    case FieldInfo field:
-                        getm.LdStr(kvp.Key)
-                            .LdArg(1)
-                            .Call(typeof(string).GetMethod("op_Equality"))
-                            .BrFalseS(getNext)
-                            .LdArg(0)
-                            .LdFld(source)
-                            .LdFld(field);
-                        ConvertTopToObject(getm);
-                        getm.Ret()
-                            .MarkLabel(getNext);
-
-                        setm.LdStr(kvp.Key)
-                            .LdArg(1)
-                            .Call(typeof(string).GetMethod("op_Equality"))
-                            .BrFalseS(setNext)
-                            .LdArg(0)
-                            .LdFld(source)
-                            .LdArg(2);
-
-                        if (!field.FieldType.IsAssignableFrom(setm.GetTop()))
-                            setm.Call(TsTypes.ObjectCasts[field.FieldType]);
-
-                        setm.StFld(field)
-                            .Ret()
-                            .MarkLabel(setNext);
-                        break;
-                    case PropertyInfo property:
-                        getm.LdStr(kvp.Key)
-                            .LdArg(1)
-                            .Call(typeof(string).GetMethod("op_Equality"))
-                            .BrFalseS(getNext);
-
-                        if (property.CanRead && property.GetMethod.IsPublic)
-                        {
-                            getm.LdArg(0)
-                                .LdFld(source)
-                                .Call(property.GetMethod);
-                            ConvertTopToObject(getm);
-                            getm.Ret();
-                        }
-                        else
-                        {
-                            getm.Br(readError);
-                            readErrors = true;
-                        }
-
-                        getm.MarkLabel(getNext);
-
-                        setm.LdStr(kvp.Key)
-                            .LdArg(1)
-                            .Call(typeof(string).GetMethod("op_Equality"))
-                            .BrFalseS(setNext);
-
-                        if (property.CanWrite && property.SetMethod.IsPublic)
-                        {
-                            setm.LdArg(0)
-                                .LdFld(source)
-                                .LdArg(2);
-
-                            if (!property.PropertyType.IsAssignableFrom(setm.GetTop()))
-                                setm.Call(TsTypes.ObjectCasts[property.PropertyType]);
-
-                            setm.Call(property.SetMethod)
-                                .Ret();
-                        }
-                        else
-                        {
-                            setm.Br(writeError);
-                            writeErrors = true;
-                        }
-                        setm.MarkLabel(setNext);
-                        break;
-                    case MethodInfo method:
-                        getm.LdStr(kvp.Key)
-                            .LdArg(1)
-                            .Call(typeof(string).GetMethod("op_Equality"))
-                            .BrFalseS(getNext)
-                            .LdArg(0)
-                            .LdFtn(method)
-                            .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                            .LdArg(1)
-                            .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                            .Ret()
-                            .MarkLabel(getNext);
-
-                        setm.LdStr(kvp.Key)
-                            .LdArg(1)
-                            .Call(typeof(string).GetMethod("op_Equality"))
-                            .BrFalseS(getNext)
-                            .Br(writeError)
-                            .MarkLabel(setNext);
-
-                        writeErrors = true;
-                        break;
-                }
-            }
-        }
-
-        private void GenerateImportObjectGetAndSetBinarySearch(RedBlackTree<int, KeyValuePair<string, MemberInfo>>.RedBlackNode node,
-                                                               FieldInfo source,
-                                                               ILEmitter getm,
-                                                               ILEmitter setm,
-                                                               LocalBuilder getHash,
-                                                               LocalBuilder setHash,
-                                                               Label getError,
-                                                               Label setError,
-                                                               Label readError,
-                                                               Label writeError,
-                                                               ref bool readErrors,
-                                                               ref bool writeErrors)
-        {
-            var getGreater = getm.DefineLabel();
-            var getEqual = getm.DefineLabel();
-            var setGreater = setm.DefineLabel();
-            var setEqual = setm.DefineLabel();
-
-            getm.LdLocal(getHash)
-                .LdInt(node.Key)
-                .Bge(getGreater);
-
-            setm.LdLocal(setHash)
-                .LdInt(node.Key)
-                .Bge(setGreater);
-
-            if (node.Left != RedBlackTree<int, KeyValuePair<string, MemberInfo>>.Leaf)
-                GenerateImportObjectGetAndSetBinarySearch(node.Left, source, getm, setm, getHash, setHash, getError, setError, readError, writeError, ref readErrors, ref writeErrors);
-            else
-            {
-                getm.Br(getError);
-                setm.Br(setError);
-            }
-
-            getm.MarkLabel(getGreater)
-                .LdLocal(getHash)
-                .LdInt(node.Key)
-                .Beq(getEqual);
-
-            setm.MarkLabel(setGreater)
-                .LdLocal(setHash)
-                .LdInt(node.Key)
-                .Beq(setEqual);
-
-            if (node.Right != RedBlackTree<int, KeyValuePair<string, MemberInfo>>.Leaf)
-                GenerateImportObjectGetAndSetBinarySearch(node.Right, source, getm, setm, getHash, setHash, getError, setError, readError, writeError, ref readErrors, ref writeErrors);
-            else
-            {
-                getm.Br(getError);
-                setm.Br(setError);
-            }
-
-            getm.MarkLabel(getEqual);
-            setm.MarkLabel(setEqual);
-
-            switch(node.Value.Value)
-            {
-                case FieldInfo field:
-                    getm.LdArg(0)
-                        .LdFld(source)
-                        .LdFld(field);
-                    ConvertTopToObject(getm);
-                    getm.Ret();
-
-                    setm.LdArg(0)
-                        .LdFld(source)
-                        .LdArg(2);
-                    if (!field.FieldType.IsAssignableFrom(setm.GetTop()))
-                        setm.Call(TsTypes.ObjectCasts[field.FieldType]);
-
-                    setm.StFld(field)
-                        .Ret();
-                    break;
-                case PropertyInfo property:
-                    if (property.CanRead && property.GetMethod.IsPublic)
-                    {
-                        getm.LdArg(0)
-                            .LdFld(source)
-                            .Call(property.GetMethod);
-                        ConvertTopToObject(getm);
-                        getm.Ret();
-                    }
-                    else
-                    {
-                        getm.Br(readError);
-                        readErrors = true;
-                    }
-
-                    if (property.CanWrite && property.SetMethod.IsPublic)
-                    {
-                        setm.LdArg(0)
-                            .LdFld(source)
-                            .LdArg(2);
-
-                        if (!property.PropertyType.IsAssignableFrom(setm.GetTop()))
-                            setm.Call(TsTypes.ObjectCasts[property.PropertyType]);
-
-                        setm.Call(property.SetMethod)
-                            .Ret();
-                    }
-                    else
-                    {
-                        setm.Br(writeError);
-                        writeErrors = true;
-                    }
-                    break;
-                case MethodInfo method:
-                    getm.LdArg(0)
-                        .LdFtn(method)
-                        .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                        .LdArg(1)
-                        .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                        .Ret();
-
-                    setm.Br(writeError);
-                    writeErrors = true;
-                    break;
-            }
-        }
-
-        private void GenerateImportMethodCallBruteForce(List<MethodInfo> methods,
-                                                        FieldInfo source,
-                                                        ILEmitter call,
-                                                        ILEmitter tryd)
-        {
-            foreach(var method in methods)
-            {
-                var callNext = call.DefineLabel();
-                var tryNext = tryd.DefineLabel();
-
-                call.LdStr(method.Name)
-                    .LdArg(1)
-                    .Call(typeof(string).GetMethod("op_Equality"))
-                    .BrFalseS(callNext)
-                    .LdArg(0)
-                    .LdArg(2)
-                    .Call(method, 1, typeof(TsObject))
-                    .Ret()
-                    .MarkLabel(callNext);
-
-                tryd.LdStr(method.Name)
-                    .LdArg(1)
-                    .Call(typeof(string).GetMethod("op_Equality"))
-                    .BrFalseS(callNext)
-                    .LdArg(2)
-                    .LdArg(0)
-                    .LdFtn(method)
-                    .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                    .LdStr(method.Name)
-                    .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                    .StIndRef()
-                    .LdBool(true)
-                    .Ret()
-                    .MarkLabel(tryNext);
-            }
-        }
-
-        private void GenerateImportMethodCallBinarySearch(RedBlackTree<int, MethodInfo>.RedBlackNode node,
-                                                          FieldInfo source,
-                                                          ILEmitter call,
-                                                          ILEmitter tryd,
-                                                          LocalBuilder callHash,
-                                                          LocalBuilder tryHash,
-                                                          Label callError,
-                                                          Label tryError)
-        {
-            var callGreater = call.DefineLabel();
-            var callEqual = call.DefineLabel();
-            var tryGreater = tryd.DefineLabel();
-            var tryEqual = tryd.DefineLabel();
-
-            call.LdLocal(callHash)
-                .LdInt(node.Key)
-                .Bge(callGreater);
-
-            tryd.LdLocal(tryHash)
-                .LdInt(node.Key)
-                .Bge(tryGreater);
-
-            if (node.Left != RedBlackTree<int, MethodInfo>.Leaf)
-                GenerateImportMethodCallBinarySearch(node.Left, source, call, tryd, callHash, tryHash, callError, tryError);
-            else
-            {
-                call.Br(callError);
-                tryd.Br(tryError);
-            }
-
-            call.MarkLabel(callGreater)
-                .LdLocal(callHash)
-                .LdInt(node.Key)
-                .Beq(callEqual);
-
-            tryd.MarkLabel(tryGreater)
-                .LdLocal(tryHash)
-                .LdInt(node.Key)
-                .Beq(tryEqual);
-
-            if(node.Right != RedBlackTree<int, MethodInfo>.Leaf)
-                GenerateImportMethodCallBinarySearch(node.Right, source, call, tryd, callHash, tryHash, callError, tryError);
-            else
-            {
-                call.Br(callError);
-                tryd.Br(tryError);
-            }
-
-            call.MarkLabel(callEqual)
-                .LdArg(1)
-                .LdStr(node.Value.Name)
-                .Call(typeof(string).GetMethod("op_Equality", new[] { typeof(string), typeof(string) }))
-                .BrFalse(callError)
-                .LdArg(0)
-                .LdArg(2)
-                .Call(node.Value, 1, typeof(TsObject))
-                .Ret();
-
-            tryd.MarkLabel(tryEqual)
-                .LdArg(1)
-                .LdStr(node.Value.Name)
-                .Call(typeof(string).GetMethod("op_Equality", new[] { typeof(string), typeof(string) }))
-                .BrFalse(tryError)
-                .LdArg(2)
-                .LdArg(0)
-                .LdFtn(node.Value)
-                .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                .LdStr(node.Value.Name)
-                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                .StIndRef()
-                .LdBool(true)
-                .Ret();
-        }
-
-        private void InitializeImportObjectInterfaceMethod(ILEmitter mthd, LocalBuilder hashLocal)
-        {
-            var hashMethod = typeof(Fnv).GetMethod("Fnv32");
-            mthd.LdArg(1)
-                .Call(hashMethod)
-                .StLocal(hashLocal);
         }
 
         private bool IsMethodSupported(MethodInfo method)

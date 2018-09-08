@@ -6,7 +6,7 @@ namespace TaffyScript.Compiler.Syntax
     {
         public override SyntaxType Type => SyntaxType.MemberAccess;
         public ISyntaxElement Left { get; }
-        public ISyntaxElement Right { get; }
+        public ISyntaxElement Right { get; set; }
 
         public MemberAccessNode(ISyntaxElement left, ISyntaxElement right, TokenPosition position)
             : base(position)
