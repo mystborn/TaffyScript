@@ -225,12 +225,12 @@ namespace TaffyScript.Compiler.Backend
             return info;
         }
 
-        public void FinalizeType(ObjectInfo info, ISymbol parent, List<MethodInfo> scripts, List<ObjectField> fields, TokenPosition position)
+        public void FinalizeType(ObjectInfo info, ISymbol parent, List<MethodInfo> scripts, TokenPosition position)
         {
             var parentConstructor = parent == null ? _baseConstructor : GetConstructor(parent, position);
             var type = (TypeBuilder)info.Type;
 
-            GenerateConstructor(info, parentConstructor, scripts.FirstOrDefault(m => m.Name == "create"), fields);
+            GenerateConstructor(info, parentConstructor, scripts.FirstOrDefault(m => m.Name == "create"));
 
             _moduleInitializer.LdStr(info.Type.FullName);
             if (info.Parent is null)
@@ -312,6 +312,18 @@ namespace TaffyScript.Compiler.Backend
                                                             MethodAttributes.RTSpecialName,
                                                         CallingConventions.HasThis,
                                                         new[] { typeof(TsObject[]) });
+
+            var ctor = new ILEmitter(constructor, new[] { typeof(TsObject[]) });
+            ctor.LdArg(0);
+
+            if (members.DeclaringType == builder)
+            {
+                ctor.Dup()
+                    .New(typeof(Dictionary<string, TsObject>).GetConstructor(Type.EmptyTypes))
+                    .StFld(members);
+            }
+
+
             GenerateObjectType(builder);
             var info = new ObjectInfo(builder, parent, tryGetDelegate, constructor, members);
             _definedTypes.Add(os, info);
@@ -623,7 +635,7 @@ namespace TaffyScript.Compiler.Backend
             objectType.SetGetMethod(get);
         }
 
-        private void GenerateConstructor(ObjectInfo info, ConstructorInfo parentConstructor, MethodInfo createScript, List<ObjectField> fields)
+        private void GenerateConstructor(ObjectInfo info, ConstructorInfo parentConstructor, MethodInfo createScript)
         {
             var ctorMethod = (ConstructorBuilder)info.Constructor;
 
@@ -632,62 +644,9 @@ namespace TaffyScript.Compiler.Backend
                 defaultCtor = false;
 
             var ctor = new ILEmitter(ctorMethod, new[] { info.Type, typeof(TsObject[]) });
-            ConstructorBuilder cctor = null;
-            ILEmitter init = null;
+            ctor.PushType(info.Type);
 
-            ctor.LdArg(0);
-
-            if(info.Members.DeclaringType == info.Type)
-            {
-                ctor.Dup()
-                    .New(typeof(Dictionary<string, TsObject>).GetConstructor(Type.EmptyTypes))
-                    .StFld(info.Members);
-            }
-
-            foreach(var field in fields)
-            {
-                var fieldInfo = info.Fields[field.Name];
-                if (fieldInfo.IsStatic)
-                {
-                    if (cctor is null)
-                    {
-                        cctor = (info.Type as TypeBuilder).DefineTypeInitializer();
-                        init = new ILEmitter(cctor, Type.EmptyTypes);
-                    }
-                    if (field.HasDefaultValue)
-                    {
-                        if (!EmitHelper.EmitConstant(init, field.DefaultValue))
-                        {
-                            _logger.Error("Invalid default field value", field.Position);
-                            continue;
-                        }
-                        if (!typeof(TsObject).IsAssignableFrom(init.GetTop()))
-                            EmitHelper.ConvertTopToObject(init);
-                    }
-                    else
-                        init.Call(TsTypes.Empty);
-
-                    init.StFld(fieldInfo);
-                }
-                else
-                {
-                    ctor.Dup();
-                    if (field.HasDefaultValue)
-                    {
-                        if (!EmitHelper.EmitConstant(ctor, field.DefaultValue))
-                        {
-                            _logger.Error("Invalid default field value", field.Position);
-                            continue;
-                        }
-                        if (!typeof(TsObject).IsAssignableFrom(ctor.GetTop()))
-                            EmitHelper.ConvertTopToObject(ctor);
-                    }
-                    else
-                        ctor.Call(TsTypes.Empty);
-
-                    ctor.StFld(fieldInfo);
-                }
-            }
+            // At this point, the first argument should have already been loaded.
             
             if (defaultCtor == false)
                 ctor.LdNull();
@@ -705,9 +664,6 @@ namespace TaffyScript.Compiler.Backend
                     .MarkLabel(notValid);
             }
             ctor.Ret();
-
-            if (init != null)
-                init.Ret();
 
             GenerateCreateMethod(info);
         }

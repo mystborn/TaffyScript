@@ -388,42 +388,7 @@ namespace TaffyScript.Compiler.Backend
 
                     _table.Enter(type.Name);
 
-                    foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static).Where(m => IsMethodValid(m)))
-                    {
-                        _table.AddLeaf(method.Name, SymbolType.Script, method.IsStatic ? SymbolScope.Global : SymbolScope.Member);
-                        info.Methods.Add(method.Name, method);
-                    }
-
-                    foreach(var field in type.GetFields().Where(f => f.FieldType == typeof(TsObject) && (f.IsPublic || f.IsFamily)))
-                    {
-                        _table.AddLeaf(field.Name, SymbolType.Field, field.IsStatic ? SymbolScope.Global : SymbolScope.Member);
-                        info.Fields.Add(field.Name, field);
-                    }
-
-                    foreach(var property in type.GetProperties().Where(p => p.PropertyType == typeof(TsObject)))
-                    {
-                        if (property.GetIndexParameters().Length != 0)
-                            continue;
-
-                        bool isStatic = false;
-                        bool canInherit = false;
-                        if(property.GetMethod != null && (property.GetMethod.IsPublic || property.GetMethod.IsFamily))
-                        {
-                            canInherit = true;
-                            isStatic = property.GetMethod.IsStatic;
-                        }
-                        else if(property.SetMethod != null && (property.SetMethod.IsPublic || property.SetMethod.IsFamily))
-                        {
-                            canInherit = true;
-                            isStatic = property.SetMethod.IsStatic;
-                        }
-
-                        if (!canInherit)
-                            continue;
-
-                        _table.AddLeaf(property.Name, SymbolType.Property, isStatic ? SymbolScope.Global : SymbolScope.Member);
-                        info.Properties.Add(property.Name, property);
-                    }
+                    ProcessTypeMembers(type, info);
 
                     _table.Exit(count + 1);
                 }
@@ -495,6 +460,18 @@ namespace TaffyScript.Compiler.Backend
                                     external = input[3];
                                     type = _typeParser.GetType(external);
                                     count = _table.EnterNamespace(input[1]);
+                                    var symbol = new ObjectSymbol(_table.Current, input[2]);
+                                    if(!_table.TryAdd(symbol))
+                                    {
+                                        _logger.Warning($"Name conflict encountered with object {type.Name} defined in assembly {asm.GetName().Name}");
+                                    }
+                                    else
+                                    {
+                                        var info = _assets.AddExternalType(symbol, type);
+                                        _table.Enter(input[2]);
+                                        ProcessTypeMembers(type, info);
+                                        _table.Exit();
+                                    }
                                     var leaf = new SymbolLeaf(_table.Current, input[2], SymbolType.Object, SymbolScope.Global);
                                     _assets.AddExternalType(leaf, type);
                                     _table.AddChild(leaf);
@@ -504,6 +481,49 @@ namespace TaffyScript.Compiler.Backend
                         }
                     }
                 }
+            }
+        }
+
+        private void ProcessTypeMembers(Type type, ObjectInfo info)
+        {
+            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic)
+                .Where(m => (m.IsPublic || m.IsFamily) && IsMethodValid(m)))
+            {
+                _table.AddLeaf(method.Name, SymbolType.Script, method.IsStatic ? SymbolScope.Global : SymbolScope.Member);
+                info.Methods.Add(method.Name, method);
+            }
+
+            foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic)
+                .Where(f => f.FieldType == typeof(TsObject) && (f.IsPublic || f.IsFamily)))
+            {
+                _table.AddLeaf(field.Name, SymbolType.Field, field.IsStatic ? SymbolScope.Global : SymbolScope.Member);
+                info.Fields.Add(field.Name, field);
+            }
+
+            foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic)
+                .Where(p => p.PropertyType == typeof(TsObject)))
+            {
+                if (property.GetIndexParameters().Length != 0)
+                    continue;
+
+                bool isStatic = false;
+                bool canInherit = false;
+                if (property.GetMethod != null && (property.GetMethod.IsPublic || property.GetMethod.IsFamily))
+                {
+                    canInherit = true;
+                    isStatic = property.GetMethod.IsStatic;
+                }
+                else if (property.SetMethod != null && (property.SetMethod.IsPublic || property.SetMethod.IsFamily))
+                {
+                    canInherit = true;
+                    isStatic = property.SetMethod.IsStatic;
+                }
+
+                if (!canInherit)
+                    continue;
+
+                _table.AddLeaf(property.Name, SymbolType.Property, isStatic ? SymbolScope.Global : SymbolScope.Member);
+                info.Properties.Add(property.Name, property);
             }
         }
 
@@ -2426,14 +2446,13 @@ namespace TaffyScript.Compiler.Backend
                     {
                         //instance script call
                         //e.g. inst.script_name();
+                        memberAccess.Left.Accept(this);
                         name = (memberAccess.Right as VariableToken)?.Name;
                         if (name == null)
                         {
-                            _logger.Error("Invalid symbol for instance script", memberAccess.Right.Position);
-                            emit.Call(TsTypes.Empty);
+                            MethodCallRemaining(memberAccess.Right, functionCall);
                             return;
                         }
-                        memberAccess.Left.Accept(this);
                         CallEvent(name, false, functionCall, memberAccess.Right.Position);
                         return;
                     }
@@ -2462,31 +2481,75 @@ namespace TaffyScript.Compiler.Backend
                 CallEvent(name, true, functionCall, callSite.Position);
                 return;
             }
-            else if(symbol.Type == SymbolType.Script && symbol.Scope == SymbolScope.Member)
-            {
-                var method = _assets.GetInstanceMethod(symbol.Parent, symbol.Name, callSite.Position);
-                LoadTarget();
-                LoadFunctionArguments(functionCall.Arguments);
-                emit.Call(method, 2, typeof(TsObject));
-                return;
-            }
-            else if (symbol.Type == SymbolType.Variable)
-            {
-                MarkSequencePoint(functionCall.Position, functionCall.EndPosition);
-                emit.LdLocal(_locals[symbol]);
-                LoadFunctionArguments(functionCall.Arguments);
-                emit.Call(typeof(TsObject).GetMethod("DelegateInvoke", new[] { typeof(TsObject[]) }));
-                return;
-            }
-            else if (symbol.Type != SymbolType.Script)
-            {
-                _logger.Error("Tried to call something that wasn't a script. Check for name conflict", functionCall.Position);
-                emit.Call(TsTypes.Empty);
-                return;
-            }
-            var ns = GetAssetNamespace(symbol);
 
-            CallScript(ns, symbol, functionCall);
+            switch(symbol.Type)
+            {
+                case SymbolType.Script:
+                    if(symbol.Scope == SymbolScope.Member)
+                    {
+                        var method = _assets.GetInstanceMethod(symbol.Parent, symbol.Name, callSite.Position);
+                        LoadTarget();
+                        LoadFunctionArguments(functionCall.Arguments);
+                        emit.Call(method, 2, typeof(TsObject));
+                        return;
+                    }
+                    else
+                    {
+                        var ns = GetAssetNamespace(symbol);
+                        CallScript(ns, symbol, functionCall);
+                    }
+                    break;
+                case SymbolType.Variable:
+                    MarkSequencePoint(functionCall.Position, functionCall.EndPosition);
+                    emit.LdLocal(_locals[symbol]);
+                    LoadFunctionArguments(functionCall.Arguments);
+                    emit.Call(typeof(TsObject).GetMethod("DelegateInvoke", new[] { typeof(TsObject[]) }));
+                    return;
+                case SymbolType.Field:
+                    var field = _assets.GetInstanceField(symbol.Parent, symbol.Name, callSite.Position);
+                    if(field is null)
+                    {
+                        _logger.Error("Tried to access non-existant field", callSite.Position);
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+
+                    MarkSequencePoint(callSite.Position, functionCall.EndPosition);
+                    if (!field.IsStatic)
+                        LoadTarget();
+
+                    emit.LdFld(field);
+                    LoadFunctionArguments(functionCall.Arguments);
+                    emit.Call(typeof(TsObject).GetMethod("DelegateInvoke", new[] { typeof(TsObject[]) }));
+                    return;
+                case SymbolType.Property:
+                    var property = _assets.GetProperty(symbol.Parent, symbol.Name, callSite.Position);
+                    if(property is null)
+                    {
+                        _logger.Error("Tried to access non-existant property", callSite.Position);
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+                    if(!property.CanRead)
+                    {
+                        _logger.Error($"Tried to access write-only property", callSite.Position);
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+
+                    MarkSequencePoint(callSite.Position, functionCall.EndPosition);
+                    if (!property.GetMethod.IsStatic)
+                        LoadTarget();
+
+                    emit.Call(property.GetMethod);
+                    LoadFunctionArguments(functionCall.Arguments);
+                    emit.Call(typeof(TsObject).GetMethod("DelegateInvoke", new[] { typeof(TsObject[]) }));
+                    return;
+                default:
+                    _logger.Error("Tried to call something that wasn't a script. Check for name conflict", functionCall.Position);
+                    emit.Call(TsTypes.Empty);
+                    return;
+            }
         }
 
         private void CallStaticScript(MemberAccessNode member, SymbolNode ns, FunctionCallNode functionCall)
@@ -2527,6 +2590,11 @@ namespace TaffyScript.Compiler.Backend
                     return;
             }
 
+            MethodCallRemaining(remaining, functionCall);
+        }
+
+        private void MethodCallRemaining(ISyntaxElement remaining, FunctionCallNode functionCall)
+        {
             if (remaining != null)
             {
                 while (remaining is MemberAccessNode nested)
@@ -2536,9 +2604,8 @@ namespace TaffyScript.Compiler.Backend
                         _logger.Error($"Invalid member access: Expected identifier, not {nested.Left.Type}", nested.Left.Position);
                         return;
                     }
-                    emit.LdStr((nested.Left as VariableToken).Name)
-                        .Call(typeof(TsObject).GetMethod("MemberGet"));
 
+                    GetMember(emit, (nested.Left as VariableToken).Name);
                     remaining = nested.Right;
                 }
 
@@ -2548,17 +2615,23 @@ namespace TaffyScript.Compiler.Backend
                     return;
                 }
 
-                emit.Call(TsTypes.ObjectCasts[typeof(ITsInstance)])
-                    .LdStr((remaining as VariableToken).Name);
+                if (!typeof(ITsInstance).IsAssignableFrom(emit.GetTop()))
+                    emit.Call(TsTypes.ObjectCasts[typeof(ITsInstance)]);
+
+                emit.LdStr((remaining as VariableToken).Name);
 
                 LoadFunctionArguments(functionCall.Arguments);
-
                 emit.Call(typeof(ITsInstance).GetMethod("Call"));
             }
             else
             {
+                var isDel = typeof(TsDelegate).IsAssignableFrom(emit.GetTop());
                 LoadFunctionArguments(functionCall.Arguments);
-                emit.Call(typeof(TsObject).GetMethod("DelegateInvoke"));
+
+                if (isDel)
+                    emit.Call(typeof(TsDelegate).GetMethod("Invoke"));
+                else
+                    emit.Call(typeof(TsObject).GetMethod("DelegateInvoke"));
             }
         }
 
@@ -3316,6 +3389,53 @@ namespace TaffyScript.Compiler.Backend
 
             _argumentArray = 1;
 
+            ConstructorBuilder cctor = null;
+            ILEmitter init = null;
+            var ctor = new ILEmitter(info.Constructor as ConstructorBuilder, new[] { typeof(TsObject[]) });
+            ctor.PushType(type);
+
+            foreach(var field in objectNode.Fields)
+            {
+                var fieldInfo = info.Fields[field.Name];
+                if(fieldInfo.IsStatic)
+                {
+                    if(cctor is null)
+                    {
+                        cctor = type.DefineTypeInitializer();
+                        init = new ILEmitter(cctor, Type.EmptyTypes);
+                    }
+
+                    if (field.HasDefaultValue)
+                    {
+                        emit = init;
+                        field.DefaultValue.Accept(this);
+                        EmitHelper.ConvertTopToObject(emit);
+                    }
+                    else
+                        init.Call(TsTypes.Empty);
+
+                    init.StFld(fieldInfo);
+                }
+                else
+                {
+                    // The top of the stack will be Arg0 at this point.
+                    ctor.Dup();
+                    if (field.HasDefaultValue)
+                    {
+                        emit = ctor;
+                        field.DefaultValue.Accept(this);
+                        EmitHelper.ConvertTopToObject(emit);
+                    }
+                    else
+                        ctor.Call(TsTypes.Empty);
+
+                    ctor.StFld(fieldInfo);
+                }
+            }
+
+            if (init != null)
+                init.Ret();
+
             for (var i = 0; i < objectNode.Scripts.Count; i++)
             {
                 var script = objectNode.Scripts[i];
@@ -3359,7 +3479,7 @@ namespace TaffyScript.Compiler.Backend
                 ScriptEnd();
             }
 
-            _assets.FinalizeType(info, _parent, scripts, objectNode.Fields, objectNode.Position);
+            _assets.FinalizeType(info, _parent, scripts, objectNode.Position);
 
             if (parent != null && parent is TypeBuilder builder && !builder.IsCreated())
                 _unresolvedTypes.Add(type, builder);
@@ -4685,15 +4805,32 @@ namespace TaffyScript.Compiler.Backend
                     emit.LdStr(name);
                     break;
                 case SymbolType.Script:
-                    if (variableSymbol.Scope == SymbolScope.Member)
+                    if (variableSymbol.Scope == SymbolScope.Member || variableSymbol.Parent.Type == SymbolType.Object)
                     {
-                        // Todo: Consider forcing this to load the exact function.
-                        //       That would make it so the function couldn't be changed during runtime,
-                        //       but of course it makes execution faster.
-                        LoadTarget();
                         var method = _assets.GetInstanceMethod(variableSymbol.Parent, variableSymbol.Name, variableToken.Position);
-                        emit.LdFtn(method)
-                            .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
+                        if(method is null)
+                        {
+                            emit.Call(TsTypes.Empty);
+                            return;
+                        }
+                        if(method.IsStatic)
+                        {
+                            emit.LdNull()
+                                .LdFtn(method);
+                        }
+                        else
+                        {
+                            LoadTarget();
+                            if (method.IsVirtual && !method.IsFinal)
+                            {
+                                emit.Dup()
+                                    .LdVirtFtn(method);
+                            }
+                            else
+                                emit.LdFtn(method);
+                        }
+
+                        emit.New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
                             .LdStr(variableSymbol.Name)
                             .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }));
                     }

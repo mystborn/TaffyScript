@@ -74,7 +74,35 @@ namespace TaffyScript
         [TaffyScriptMethod]
         public static TsObject print(TsObject[] args)
         {
-            Console.WriteLine(args[0]);
+            if(args is null)
+            {
+                Console.WriteLine();
+                return TsObject.Empty;
+            }
+
+            switch(args.Length)
+            {
+                case 0:
+                    Console.WriteLine();
+                    break;
+                case 1:
+                    Console.WriteLine(args[0]);
+                    break;
+                case 2:
+                    Console.WriteLine((string)args[0], args[1]);
+                    break;
+                case 3:
+                    Console.WriteLine((string)args[0], args[1], args[2]);
+                    break;
+                case 4:
+                    Console.WriteLine((string)args[0], args[1], args[2], args[3]);
+                    break;
+                default:
+                    var arr = new object[args.Length - 1];
+                    Array.Copy(args, 1, arr, 0, arr.Length);
+                    Console.WriteLine((string)args[0], arr);
+                    break;
+            }
             return TsObject.Empty;
         }
 

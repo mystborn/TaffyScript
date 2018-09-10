@@ -81,6 +81,7 @@
     <Compile Include="Object\TsNull.cs" />
     <Compile Include="Object\TsNumber.cs" />
     <Compile Include="Object\TsString.cs" />
+    <Compile Include="Object\TsType.cs" />
     <Compile Include="Reflection\ReflectionScripts.cs" />
     <Compile Include="Strings\Fnv.cs" />
     <Compile Include="Strings\StringMethods.cs" />

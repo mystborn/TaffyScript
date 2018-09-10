@@ -413,19 +413,7 @@ namespace TaffyScript.Compiler
             var field = Consume(TokenType.Identifier, "Expected field name.");
             ISyntaxElement defaultValue = null;
             if (Match(TokenType.Assign))
-            {
-                if (IsConstant())
-                    defaultValue = Constant(0);
-                else if (_stream.Current.Type == TokenType.ReadOnly)
-                {
-                    var token = _stream.Read();
-                    if (token.Text != "null")
-                        Error(token, "Invalid default value for field");
-                    defaultValue = new ReadOnlyToken(token.Text, token.Position);
-                }
-                else
-                    Error(_stream.Read(), "Invalid default value for field");
-            }
+                defaultValue = Expression();
             if (!_table.TryAdd(new SymbolLeaf(_table.Current, field.Text, SymbolType.Field, scope)))
                 Error(field, $"Object {_table.Current.Name} already defines a member with name {field.Text}");
 

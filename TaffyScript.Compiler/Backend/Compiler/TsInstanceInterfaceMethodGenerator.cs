@@ -324,7 +324,7 @@ namespace TaffyScript.Compiler.Backend
             parentTry = type.GetMethod("TryGetDelegate", new[] { typeof(string), typeof(TsDelegate).MakeByRefType() });
             parentCall = type.GetMethod("Call", new[] { typeof(string), typeof(TsObject[]) });
             parentGet = type.GetMethod("GetMember", new[] { typeof(string) });
-            parentSet = type.GetMethod("SetMembet", new[] { typeof(string), typeof(TsObject) });
+            parentSet = type.GetMethod("SetMember", new[] { typeof(string), typeof(TsObject) });
             return true;
         }
 
