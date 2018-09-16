@@ -82,13 +82,37 @@ namespace TaffyScript.Compiler.Backend
         {
             for (var i = 0; i < config.References.Count; i++)
             {
+                // Todo: Determine if reference is a full or relative path.
+                //       This currently works because Path.Combine just takes the last parameter if it's a full
+                //       path it seems. This will probably result in an error if ran on Linux.
                 var find = Path.Combine(projectDir, config.References[i]);
                 var output = Path.Combine(outputDir, Path.GetFileName(config.References[i]));
                 if (!File.Exists(find))
                 {
                     find = Path.Combine(Path.GetDirectoryName(GetType().Assembly.Location), "Libraries", config.References[i]);
                     if (!File.Exists(find))
+                    {
+#if WINDOWS
+                        // This searches the Global Assembly Cache for the desired reference.
+                        find = null;
+                        var folderName = Path.GetFileNameWithoutExtension(config.References[i]);
+                        var gacPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.Net", "assembly");
+                        var msilPath = Path.Combine(gacPath, "GAC_MSIL", folderName);
+                        var archPath = Path.Combine(gacPath, $"GAC_{(config.Target == TargetCpu.x64 ? "64" : "32")}", folderName);
+
+                        if (Directory.Exists(msilPath))
+                            find = Path.Combine(msilPath, Directory.EnumerateDirectories(msilPath).First(), config.References[i]);
+                        else if (Directory.Exists(archPath))
+                            find = Path.Combine(archPath, Directory.EnumerateDirectories(archPath).First(), config.References[i]);
+
+                        if (find != null && File.Exists(find))
+                            CopyFileIfNewer(find, output);
+                        else
+                            _logger.Error($"Could not find the specified reference: {config.References[i]}", null);
+#else
                         _logger.Error($"Could not find the specified reference: {config.References[i]}", null);
+#endif
+                    }
                     else
                         CopyFileIfNewer(find, output);
                 }
@@ -97,52 +121,6 @@ namespace TaffyScript.Compiler.Backend
                 config.References[i] = find;
             }
         }
-
-        protected void VerifyReferencesExists(string projectDir, Action<string> onReference, BuildConfig config)
-        {
-            // Todo:     Look for assemblies in the global assembly cache
-            // Update:   After some tinkering, it seems this is not easily achieved.
-            //           The best way to determine if an assembly exists is to use gacutil,
-            //           however, I cannot figure out a way to find a path to the asm.
-            //           You could just force search %windir%\Microsoft.NET\assembly
-            //           but you'd have top at least guess that one folder will be the correct one.
-            //           Still, here is some psuedo code to do so.
-            //           I'm not currently using it becuase it's not stable enough.
-            //           Still, it could be useful. Maybe used when a compile option is specified
-            // Update 2: There might be some helper functions in the Microsoft.Build assembly.
-            //           Further research is needed.
-
-            /*
-            var cpuArchitecture = "64";
-            var folderName = Path.GetFileNameWithoutExtension(config.References[i]);
-            var basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly");
-            var archPath = Path.Combine(basePath, $"GAC_{cpuArchitecture}", folderName);
-            var msilPath = Path.Combine(basePath, "GAC_MSIL", folderName);
-            if (Directory.Exists(archPath))
-            {
-                asmExpectedLocation = Path.Combine(archPath, Directory.EnumerateDirectories(archPath).First(), config.References[i]);
-            }
-            else if(Directory.Exists(msilPath))
-            {
-                asmExpectedLocation = Path.Combine(msilPath, Directory.EnumerateDirectories(msilPath).First(), config.References[i]);
-            }
-            */
-            
-            for(var i = 0; i < config.References.Count; i++)
-            {
-                var asmExpectedLocation = Path.Combine(projectDir, config.References[i]);
-                if (!File.Exists(asmExpectedLocation))
-                {
-                    asmExpectedLocation = Path.Combine(Path.GetDirectoryName(GetType().Assembly.Location), "Libraries", config.References[i]);
-                    if (!File.Exists(asmExpectedLocation))
-                        _logger.Error($"Could not find the specified reference: {config.References[i]}", null);
-                    else
-                        onReference?.Invoke(asmExpectedLocation);
-                }
-                else
-                    onReference?.Invoke(asmExpectedLocation);
-            }
-        } 
 
         protected void MoveFile(string source, string dest)
         {

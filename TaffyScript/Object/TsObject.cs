@@ -164,6 +164,13 @@ namespace TaffyScript
             return arr;
         }
 
+        public string GetStringOrNull()
+        {
+            if (Type == VariableType.Null)
+                return null;
+            return GetString();
+        }
+
         #region Member Access
 
         /// <summary>
@@ -617,8 +624,11 @@ namespace TaffyScript
                     return left.GetString() == right.GetString();
                 case VariableType.Delegate:
                     return left.GetDelegate().Script == right.GetDelegate().Script;
+                case VariableType.Null:
+                    // If both sides have the same type, that means they're both null.
+                    return true;
                 default:
-                    return left.WeakValue == right.WeakValue;
+                    return left.WeakValue.Equals(right.WeakValue);
             }
         }
 
@@ -682,8 +692,10 @@ namespace TaffyScript
                     return left.GetString() != right.GetString();
                 case VariableType.Delegate:
                     return left.GetDelegate().Script != right.GetDelegate().Script;
+                case VariableType.Null:
+                    return false;
                 default:
-                    return left.WeakValue != right.WeakValue;
+                    return !left.WeakValue.Equals(right.WeakValue);
             }
         }
 

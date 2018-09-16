@@ -59,7 +59,6 @@ namespace TaffyScript.Compiler.Backend
         /// Row=Namespace, Col=MethodName, Value=MethodInfo
         /// </summary>
         private readonly LookupTable<string, string, MethodInfo> _methods = new LookupTable<string, string, MethodInfo>();
-        private readonly LookupTable<string, string, long> _enums = new LookupTable<string, string, long>();
         private readonly BindingFlags _methodFlags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
 
         /// <summary>
@@ -327,6 +326,7 @@ namespace TaffyScript.Compiler.Backend
                     var temp = _unresolvedTypes;
                     _unresolvedTypes = swap;
                     swap = temp;
+                    swap.Clear();
                 }
             }
 
@@ -412,13 +412,17 @@ namespace TaffyScript.Compiler.Backend
         private void ProcessEnum(Type enumType)
         {
             var count = _table.EnterNamespace(enumType.Namespace);
-            var name = enumType.Name;
-            if(_table.TryEnterNew(name, SymbolType.Enum))
+            if(_table.TryEnterNew(enumType.Name, SymbolType.Enum))
             {
+                var info = new EnumInfo(enumType);
+
                 var names = Enum.GetNames(enumType);
                 var values = Enum.GetValues(enumType);
                 for (var i = 0; i < names.Length; i++)
-                    _enums.Add(name, names[i], Convert.ToInt64(values.GetValue(i)));
+                    info.Values[names[i]] = Convert.ToInt64(values.GetValue(i));
+
+                _assets.AddEnumInfo(_table.Current, info);
+
                 _table.Exit();
             }
 
@@ -2302,16 +2306,12 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(EnumNode enumNode)
         {
-            var name = $"{_namespace}.{enumNode.Name}".TrimStart('.');
-            var type = _module.DefineEnum(name, TypeAttributes.Public, typeof(long));
-            
-            foreach (var value in enumNode.Values)
+            if (!_table.Defined(enumNode.Name, out var symbol))
             {
-                _enums[name, value.Name] = value.Value;
-                type.DefineLiteral(value.Name, value.Value);
+                _logger.Error("Tried to create non-existant enum");
+                return;
             }
-
-            type.CreateType();
+            _assets.GetEnumInfo(symbol, enumNode.Position);
         }
 
         public void Visit(EqualityNode equality)
@@ -3216,18 +3216,10 @@ namespace TaffyScript.Compiler.Backend
         {
             if (memberAccess.Right is VariableToken enumValue)
             {
-                // Todo: refactor Visit(EnumNode) to match this implementation.
-                if (!_enums.TryGetValue(enumType.Name, enumValue.Name, out var value))
-                {
-                    var node = (SymbolNode)enumSymbol;
-                    if (node.Children.TryGetValue(enumValue.Name, out enumSymbol) && enumSymbol is EnumLeaf leaf)
-                    {
-                        value = leaf.Value;
-                        _enums[enumType.Name, leaf.Name] = value;
-                    }
-                    else
-                        _logger.Error($"The enum {enumType.Name} does not declare value {enumValue.Name}", enumValue.Position);
-                }
+                var info = _assets.GetEnumInfo(enumSymbol, enumType.Position);
+                if(!info.Values.TryGetValue(enumValue.Name, out var value))
+                    _logger.Error($"The enum {enumType.Name} does not declare value {enumValue.Name}", enumValue.Position);
+
                 emit.LdFloat(value);
             }
             else
@@ -4798,11 +4790,37 @@ namespace TaffyScript.Compiler.Backend
             var name = variableToken.Name;
             switch (variableSymbol.Type)
             {
+                case SymbolType.Enum:
+                    var enumInfo = _assets.GetEnumInfo(variableSymbol, variableToken.Position);
+                    if(enumInfo is null)
+                    {
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+                    emit.LdType(enumInfo.Type)
+                        .Call(typeof(Type).GetMethod("GetTypeFromHandle"))
+                        .New(typeof(TsType).GetConstructor(new[] { typeof(Type) }));
+                    EmitHelper.ConvertTopToObject(emit);
+                    break;
                 case SymbolType.Object:
-                    var ns = GetAssetNamespace(variableSymbol);
-                    if (ns != "")
-                        name = $"{ns}.{name}";
-                    emit.LdStr(name);
+                    var obj = _assets.GetObjectInfo(variableSymbol, variableToken.Position);
+                    if(obj is null)
+                    {
+                        emit.Call(TsTypes.Empty);
+                        return;
+                    }
+                    var fullName = _resolver.GetAssetFullName(variableSymbol);
+                    emit.LdType(obj.Type)
+                        .Call(typeof(Type).GetMethod("GetTypeFromHandle"));
+
+                    if (obj.Type.FullName != fullName)
+                    {
+                        emit.LdStr(name)
+                            .New(typeof(TsType).GetConstructor(new[] { typeof(Type), typeof(string) }));
+                    }
+                    else
+                        emit.New(typeof(TsType).GetConstructor(new[] { typeof(Type) }));
+                    EmitHelper.ConvertTopToObject(emit);
                     break;
                 case SymbolType.Script:
                     if (variableSymbol.Scope == SymbolScope.Member || variableSymbol.Parent.Type == SymbolType.Object)
@@ -4836,7 +4854,7 @@ namespace TaffyScript.Compiler.Backend
                     }
                     else
                     {
-                        ns = GetAssetNamespace(variableSymbol);
+                        var ns = GetAssetNamespace(variableSymbol);
                         if (!_methods.TryGetValue(ns, name, out var method))
                         {
                             method = StartMethod(name, ns);
@@ -5249,9 +5267,6 @@ namespace TaffyScript.Compiler.Backend
             var memberTree = new RedBlackTree<int, KeyValuePair<string, MemberInfo>>();
             var memberBruteForce = new List<KeyValuePair<string, MemberInfo>>();
             var memberHashes = new HashSet<int>();
-            var methodTree = new RedBlackTree<int, MethodInfo>();
-            var methodBruteForce = new List<MethodInfo>();
-            var methodHashes = new HashSet<int>();
 
             foreach(var member in instanceMembers)
             {
@@ -5260,20 +5275,10 @@ namespace TaffyScript.Compiler.Backend
                     memberTree.Insert(key, member);
                 else
                     memberBruteForce.Add(member);
-
-                if (member.Value is MethodInfo method)
-                {
-                    if (methodHashes.Add(key))
-                        methodTree.Insert(key, method);
-                    else
-                        methodBruteForce.Add(method);
-                }
             }
 
             TsInstanceInterfaceMethodGenerator.ImplementInterfaceMethods(memberBruteForce,
                                                                          memberTree,
-                                                                         methodBruteForce,
-                                                                         methodTree,
                                                                          tryGetDelegateMethod,
                                                                          callMethod,
                                                                          getMemberMethod,

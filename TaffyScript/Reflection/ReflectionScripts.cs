@@ -3,12 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Reflection;
+using System.Reflection.Emit;
 
 namespace TaffyScript.Reflection
 {
     [TaffyScriptBaseType]
     public static class ReflectionScripts
     {
+        private static Dictionary<Type, Func<TsObject[], ITsInstance>> _constructors = new Dictionary<Type, Func<TsObject[], ITsInstance>>();
+
         [TaffyScriptMethod]
         public static TsObject call_global_script(TsObject[] args)
         {
@@ -40,9 +44,21 @@ namespace TaffyScript.Reflection
         [TaffyScriptMethod]
         public static TsObject instance_create(TsObject[] args)
         {
-            var type = (string)args[0];
-            if (!TsReflection.Constructors.TryGetValue(type, out var ctor))
-                throw new ArgumentException($"Cannot create instance of '{type}': Type doesn't exist", "type");
+            var type = ((TsType)args[0]).Source;
+            if (!typeof(ITsInstance).IsAssignableFrom(type))
+                throw new ArgumentException($"Tried to create an instance of non-TaffyScript type '{type.Name}'");
+
+            if(!_constructors.TryGetValue(type, out var constructor))
+            {
+                var ctor = type.GetConstructor(new[] { typeof(TsObject[]) });
+                var create = new DynamicMethod($"<>create_{type.Name}", typeof(ITsInstance), new[] { typeof(TsObject[]) });
+                var cgen = create.GetILGenerator();
+                cgen.Emit(OpCodes.Ldarg_0);
+                cgen.Emit(OpCodes.Newobj, ctor);
+                cgen.Emit(OpCodes.Ret);
+                constructor = (Func<TsObject[], ITsInstance>)create.CreateDelegate(typeof(Func<TsObject[], ITsInstance>));
+                _constructors.Add(type, constructor);
+            }
 
             TsObject[] ctorArgs = null;
             if (args.Length > 1)
@@ -50,36 +66,13 @@ namespace TaffyScript.Reflection
                 ctorArgs = new TsObject[args.Length - 1];
                 Array.Copy(args, 1, ctorArgs, 0, args.Length - 1);
             }
-            return new TsInstanceWrapper(ctor(ctorArgs));
-        }
-
-        [TaffyScriptMethod]
-        public static TsObject instance_get_name(TsObject[] args)
-        {
-            return args[0].GetInstance().ObjectType;
-        }
-
-        [TaffyScriptMethod]
-        public static TsObject instance_get_parent(TsObject[] args)
-        {
-            if (TsReflection.Inherits.TryGetValue(args[0].GetInstance().ObjectType, out var parent))
-                return parent;
-            return "";
+            return new TsInstanceWrapper(constructor(ctorArgs));
         }
 
         [TaffyScriptMethod]
         public static TsObject instance_is(TsObject[] args)
         {
-            var type = args[0].GetInstance().ObjectType;
-            var expectedType = (string)args[1];
-
-            do
-            {
-                if (type == expectedType)
-                    return true;
-            }
-            while (TsReflection.Inherits.TryGetValue(type, out type));
-            return false;
+            return ((TsType)args[1]).Source.IsAssignableFrom(args[0].WeakValue.GetType());
         }
 
         public static TsObject is_array(TsObject[] args)
@@ -110,20 +103,6 @@ namespace TaffyScript.Reflection
         public static TsObject is_string(TsObject[] args)
         {
             return args[0].Type == VariableType.String;
-        }
-
-        public static TsObject object_is_ancestor(TsObject[] args)
-        {
-            var type = (string)args[1];
-            var parent = (string)args[0];
-
-            while (TsReflection.Inherits.TryGetValue(type, out type))
-            {
-                if (type == parent)
-                    return true;
-            }
-
-            return false;
         }
 
         [TaffyScriptMethod]

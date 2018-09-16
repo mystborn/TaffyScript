@@ -21,6 +21,7 @@ namespace TaffyScript.Compiler.Backend
                                                                                                                 typeof(Func<TsObject[], ITsInstance>) });
 
         private Dictionary<ISymbol, ObjectInfo> _definedTypes = new Dictionary<ISymbol, ObjectInfo>();
+        private Dictionary<ISymbol, EnumInfo> _definedEnums = new Dictionary<ISymbol, EnumInfo>();
 
         private SymbolTable _table;
         private SymbolResolver _resolver;
@@ -57,9 +58,46 @@ namespace TaffyScript.Compiler.Backend
             _definedTypes.Add(symbol, info);
         }
 
+        public void AddEnumInfo(ISymbol symbol, EnumInfo info)
+        {
+            _definedEnums.Add(symbol, info);
+        }
+
         public Type GetDefinedType(ISymbol typeSymbol, TokenPosition position)
         {
             return GetObjectInfo(typeSymbol, position).Type;
+        }
+
+        public EnumInfo GetEnumInfo(ISymbol enumSymbol, TokenPosition position)
+        {
+            if(enumSymbol.Type != SymbolType.Enum)
+            {
+                _logger.Error($"Tried to get enum from symbol '{_resolver.GetAssetFullName(enumSymbol)}' which is '{enumSymbol.Type}'");
+                return null;
+            }
+
+            var node = enumSymbol as SymbolNode;
+            if(!_definedEnums.TryGetValue(enumSymbol, out var info))
+            {
+                var typeName = _resolver.GetAssetFullName(enumSymbol);
+                var type = _module.DefineEnum(typeName, TypeAttributes.Public, typeof(long));
+                info = new EnumInfo(type);
+
+                foreach(var kvp in node.Children)
+                {
+                    var value = kvp.Value as EnumLeaf;
+                    if (value is null)
+                        continue;
+
+                    info.Values[value.Name] = value.Value;
+                    type.DefineLiteral(value.Name, value.Value);
+                }
+
+                type.CreateType();
+                _definedEnums.Add(enumSymbol, info);
+            }
+
+            return info;
         }
 
         public FieldInfo GetInstanceField(ISymbol typeSymbol, string fieldName, TokenPosition position)
@@ -313,8 +351,15 @@ namespace TaffyScript.Compiler.Backend
                                                         CallingConventions.HasThis,
                                                         new[] { typeof(TsObject[]) });
 
+            var parentConstructor = parent is null ? _baseConstructor : GetConstructor(os.Inherits, position);
+
             var ctor = new ILEmitter(constructor, new[] { typeof(TsObject[]) });
-            ctor.LdArg(0);
+            ctor.LdArg(0)
+                .Dup();
+
+            if (parentConstructor != _baseConstructor)
+                ctor.LdNull();
+            ctor.CallBase(parentConstructor, parentConstructor == _baseConstructor ? 0 : 1);
 
             if (members.DeclaringType == builder)
             {
@@ -322,7 +367,6 @@ namespace TaffyScript.Compiler.Backend
                     .New(typeof(Dictionary<string, TsObject>).GetConstructor(Type.EmptyTypes))
                     .StFld(members);
             }
-
 
             GenerateObjectType(builder);
             var info = new ObjectInfo(builder, parent, tryGetDelegate, constructor, members);
@@ -369,10 +413,6 @@ namespace TaffyScript.Compiler.Backend
             var memberBruteForce = new List<KeyValuePair<string, MemberInfo>>();
             var memberTree = new RedBlackTree<int, KeyValuePair<string, MemberInfo>>();
 
-            var methodHash = new HashSet<int>();
-            var methodBruteForce = new List<MethodInfo>();
-            var methodTree = new RedBlackTree<int, MethodInfo>();
-
             foreach(var member in os.Children.Values)
             {
                 switch(member.Type)
@@ -413,10 +453,6 @@ namespace TaffyScript.Compiler.Backend
                                     memberTree.Insert(key, new KeyValuePair<string, MemberInfo>(member.Name, method));
                                 else
                                     memberBruteForce.Add(new KeyValuePair<string, MemberInfo>(member.Name, method));
-                                if (methodHash.Add(key))
-                                    methodTree.Insert(key, method);
-                                else
-                                    methodBruteForce.Add(method);
                             }
                         }
                         else
@@ -477,11 +513,6 @@ namespace TaffyScript.Compiler.Backend
                             memberTree.Insert(key, new KeyValuePair<string, MemberInfo>(kvp.Key, kvp.Value));
                         else
                             memberBruteForce.Add(new KeyValuePair<string, MemberInfo>(kvp.Key, kvp.Value));
-
-                        if (methodHash.Add(key))
-                            methodTree.Insert(key, kvp.Value);
-                        else
-                            methodBruteForce.Add(kvp.Value);
                     }
                 }
 
@@ -539,8 +570,6 @@ namespace TaffyScript.Compiler.Backend
 
             TsInstanceInterfaceMethodGenerator.ImplementInterfaceMethods(memberBruteForce,
                                                                          memberTree,
-                                                                         methodBruteForce,
-                                                                         methodTree,
                                                                          tryGetDelegate,
                                                                          callMethod,
                                                                          getMember,
@@ -639,18 +668,9 @@ namespace TaffyScript.Compiler.Backend
         {
             var ctorMethod = (ConstructorBuilder)info.Constructor;
 
-            bool defaultCtor = true;
-            if (parentConstructor != _baseConstructor)
-                defaultCtor = false;
-
             var ctor = new ILEmitter(ctorMethod, new[] { info.Type, typeof(TsObject[]) });
-            ctor.PushType(info.Type);
+            ctor.PushType(info.Type).Pop();
 
-            // At this point, the first argument should have already been loaded.
-            
-            if (defaultCtor == false)
-                ctor.LdNull();
-            ctor.CallBase(parentConstructor, defaultCtor ? 0 : 1);
             if (createScript != null)
             {
                 var notValid = ctor.DefineLabel();
@@ -741,6 +761,17 @@ namespace TaffyScript.Compiler.Backend
             Methods = methods;
             Fields = fields;
             Properties = properties;
+        }
+    }
+
+    public class EnumInfo
+    {
+        public Type Type { get; }
+        public Dictionary<string, long> Values { get; } = new Dictionary<string, long>();
+
+        public EnumInfo(Type enumType)
+        {
+            Type = enumType;
         }
     }
 }

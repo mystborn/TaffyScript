@@ -109,6 +109,8 @@
     <Compile Include="Attributes\WeakMethodAttribute.cs" />
     <Compile Include="Attributes\WeakObjectAttribute.cs" />
     <Compile Include="Xml\XmlReaderSettings.cs" />
+    <Compile Include="Xml\XmlWriter.cs" />
+    <Compile Include="Xml\XmlWriterSettings.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="SpecialImports.resource" />

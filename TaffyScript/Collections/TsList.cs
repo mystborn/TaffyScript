@@ -20,14 +20,32 @@ namespace TaffyScript.Collections
         public string ObjectType => "List";
         public List<TsObject> Source => _source;
 
-        public TsList(TsObject[] args)
+        public TsList()
         {
             _source = new List<TsObject>();
+        }
+
+        public TsList(TsObject[] args)
+        {
+            if (args is null)
+                _source = new List<TsObject>();
+            else
+                _source = new List<TsObject>(args);
         }
 
         public TsList(IEnumerable<TsObject> source)
         {
             _source = new List<TsObject>(source);
+        }
+
+        private TsList(List<TsObject> source)
+        {
+            _source = source;
+        }
+
+        public static TsList Wrap(List<TsObject> source)
+        {
+            return new TsList(source);
         }
 
         public TsObject Call(string scriptName, params TsObject[] args)
@@ -62,8 +80,7 @@ namespace TaffyScript.Collections
                     _source.Shuffle();
                     break;
                 case "sort":
-                    _source.Sort();
-                    break;
+                    return sort(args);
                 default:
                     throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
             }
@@ -204,7 +221,18 @@ namespace TaffyScript.Collections
 
         public TsObject sort(TsObject[] args)
         {
-            _source.Sort();
+            if(args is null)
+                _source.Sort();
+            switch(args.Length)
+            {
+                case 0:
+                    _source.Sort();
+                    break;
+                case 1:
+                    var script = args[0].GetDelegate();
+                    _source.Sort((x, y) => (int)script.Invoke(x, y));
+                    break;
+            }
             return TsObject.Empty;
         }
     }

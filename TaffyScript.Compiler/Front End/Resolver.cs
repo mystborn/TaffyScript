@@ -14,7 +14,6 @@ namespace TaffyScript.Compiler.FrontEnd
     {
         private bool _inLambda = false;
         private bool _hasParent = false;
-        private bool _inWith = false;
         private LoopType _currentLoop = LoopType.None;
         private MethodType _currentMethod = MethodType.None;
         private Environment _environment = new Environment();
@@ -254,12 +253,9 @@ namespace TaffyScript.Compiler.FrontEnd
 
             var inLambda = _inLambda;
             _inLambda = true;
-            var enclosing = _currentMethod;
-            _currentMethod = MethodType.Lambda;
             lambdaNode.Body.Parent = lambdaNode;
             lambdaNode.Body.Accept(this);
             _inLambda = inLambda;
-            _currentMethod = enclosing;
             _environment = _environment.Enclosing;
             _table.Exit();
         }
@@ -343,6 +339,19 @@ namespace TaffyScript.Compiler.FrontEnd
                 else
                     _logger.Error("Tried to inherit from a non-existant type", objectNode.Position);
             }
+            var enclosing = _currentMethod;
+            foreach(var field in objectNode.Fields)
+            {
+                if(field.HasDefaultValue)
+                {
+                    if (_table.Current.Children[field.Name].Scope == SymbolScope.Global)
+                        _currentMethod = MethodType.Global;
+                    else
+                        _currentMethod = MethodType.Instance;
+
+                    field.DefaultValue.Accept(this);
+                }
+            }
             foreach (var script in objectNode.Scripts)
             {
                 script.Parent = objectNode;
@@ -417,7 +426,7 @@ namespace TaffyScript.Compiler.FrontEnd
         {
             _table.Enter(script.Name);
             var enclosing = _currentMethod;
-            _currentMethod = script.Parent.Type == SyntaxType.Object ? MethodType.Instance : MethodType.Global;
+            _currentMethod = _table.Current.Scope == SymbolScope.Global ? MethodType.Global : MethodType.Instance;
             _environment = new Environment(_environment);
             foreach (var arg in script.Arguments)
                 _environment.Define(arg.Name, EncounterType.Local);
@@ -473,19 +482,42 @@ namespace TaffyScript.Compiler.FrontEnd
 
         public void Visit(VariableToken variableToken)
         {
-            if(!_environment.Encountered(variableToken.Name, out _) && !_table.Defined(variableToken.Name, out var symbol) && !_inWith)
+            if(_table.Defined(variableToken.Name, out var symbol))
+            {
+                switch(symbol.Type)
+                {
+                    case SymbolType.Field:
+                        if (_currentMethod == MethodType.Global && symbol.Scope != SymbolScope.Global)
+                            _logger.Error($"Tried to reference instance field '{variableToken.Name}' in static scope", variableToken.Position);
+                        break;
+                    case SymbolType.Property:
+                        if (_currentMethod == MethodType.Global && symbol.Scope != SymbolScope.Global)
+                            _logger.Error($"Tried to reference instance property '{variableToken.Name}' in static scope", variableToken.Position);
+                        break;
+                    case SymbolType.Script:
+                        if(_currentMethod == MethodType.Global && symbol.Scope != SymbolScope.Global)
+                            _logger.Error($"Tried to reference instance script '{variableToken.Name}' in static scope", variableToken.Position);
+                        break;
+                    case SymbolType.Variable:
+                        if (_inLambda && symbol is VariableLeaf leaf && _environment.Depth(variableToken.Name) != 0)
+                            leaf.IsCaptured = true;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            else if(!_environment.Encountered(variableToken.Name, out _))
             {
                 if (_currentMethod == MethodType.Global)
                     _logger.Error($"Tried to use undefined variable {variableToken.Name}", variableToken.Position);
                 else
-                    _environment.Define(variableToken.Name, EncounterType.Instance);
-            }
-
-            if(_inLambda)
-            {
-                if(_table.Defined(variableToken.Name, out symbol) && symbol is VariableLeaf leaf && _environment.Depth(variableToken.Name) != 0)
                 {
-                    leaf.IsCaptured = true;
+                    // Todo: Log undefined references.
+                    //       The following line was original attempt, but it doesn't account for
+                    //       completely valid inherited vars.
+
+                    //_logger.Warning("Referenced undefined variable", variableToken.Position);
+                    _environment.Define(variableToken.Name, EncounterType.Instance);
                 }
             }
         }
@@ -512,8 +544,7 @@ namespace TaffyScript.Compiler.FrontEnd
         {
             None,
             Global,
-            Instance,
-            Lambda
+            Instance
         }
 
         private enum EncounterType

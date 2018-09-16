@@ -135,19 +135,20 @@ namespace TaffyScript
             switch (args[0].Type)
             {
                 case VariableType.Array:
-                    return "array";
+                    return new TsType(typeof(TsObject[]), "array");
                 case VariableType.Null:
-                    return "null";
+                    return new TsType(typeof(void), "null");
                 case VariableType.Real:
-                    return "real";
+                    return new TsType(typeof(float), "number");
                 case VariableType.String:
-                    return "string";
+                    return new TsType(typeof(string), "string");
                 case VariableType.Delegate:
-                    return "script";
+                    return new TsType(typeof(TsDelegate), "script");
                 case VariableType.Instance:
-                    return args[0].GetInstance().ObjectType;
+                    var inst = args[0].GetInstance();
+                    return new TsType(inst.GetType(), inst.ObjectType);
                 default:
-                    return "unknown";
+                    throw new ArgumentException("Unknown type value");
             }
         }
     }

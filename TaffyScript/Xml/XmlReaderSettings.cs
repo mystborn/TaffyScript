@@ -133,7 +133,9 @@ namespace TaffyScript.Xml
 
         public TsDelegate GetDelegate(string delegateName)
         {
-            throw new NotImplementedException();
+            if (TryGetDelegate(delegateName, out var del))
+                return del;
+            throw new MissingMethodException(ObjectType, delegateName);
         }
 
         public TsObject Call(string scriptName, params TsObject[] args)

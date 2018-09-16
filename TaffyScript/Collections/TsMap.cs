@@ -20,13 +20,28 @@ namespace TaffyScript.Collections
         public string ObjectType => "Map";
         public Dictionary<TsObject, TsObject> Source => _source;
 
+        public TsMap()
+        {
+            _source = new Dictionary<TsObject, TsObject>();
+        }
+
         public TsMap(TsObject[] args)
         {
         }
 
-        public TsMap(Dictionary<TsObject, TsObject> source)
+        public TsMap(IDictionary<TsObject, TsObject> source)
         {
             _source = new Dictionary<TsObject, TsObject>(source);
+        }
+
+        private TsMap(Dictionary<TsObject, TsObject> source)
+        {
+            _source = source;
+        }
+
+        public static TsMap Wrap(Dictionary<TsObject, TsObject> source)
+        {
+            return new TsMap(source);
         }
 
         public TsObject Call(string scriptName, params TsObject[] args)

@@ -8,6 +8,9 @@ namespace TaffyScript
 {
     public class TsType : ITsInstance
     {
+        private string _name;
+        private string _fullName;
+
         public TsObject this[string memberName]
         {
             get => GetMember(memberName);
@@ -16,18 +19,26 @@ namespace TaffyScript
 
         public string ObjectType => "TaffyScript.Type";
 
-        public string Name { get; }
+        public string Name
+        {
+            get
+            {
+                if (_fullName is null)
+                    _fullName = Source.FullName;
+                return _fullName;
+            }
+        }
+
         public Type Source { get; }
 
         public TsType(Type type)
         {
-            Name = type.FullName;
             Source = type;
         }
 
         public TsType(Type type, string name)
         {
-            Name = name;
+            _fullName = name;
             Source = type;
         }
 
@@ -156,7 +167,15 @@ namespace TaffyScript
                 case "member_type":
                     return (float)Source.MemberType;
                 case "name":
-                    return Source.Name;
+                    if(_name is null)
+                    {
+                        var index = Name.LastIndexOf('.') + 1;
+                        if (index != 0)
+                            _name = Name.Substring(index);
+                        else
+                            _name = Name;
+                    }
+                    return _name;
                 case "namespace":
                     return Source.Namespace;
                 default:
@@ -271,6 +290,15 @@ namespace TaffyScript
         public TsObject to_string(TsObject[] args)
         {
             return Name;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is TsType tsType)
+                return Source == tsType.Source;
+            else if (obj is Type type)
+                return Source == type;
+            return false;
         }
 
         public static implicit operator TsObject(TsType type)

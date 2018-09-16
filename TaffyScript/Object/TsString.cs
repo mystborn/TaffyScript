@@ -99,6 +99,9 @@ namespace TaffyScript
                 case "ends_with":
                     del = new TsDelegate(ends_with, scriptName);
                     return true;
+                case "format":
+                    del = new TsDelegate(format, scriptName);
+                    return true;
                 case "get":
                     del = new TsDelegate(get, scriptName);
                     return true;
@@ -178,6 +181,8 @@ namespace TaffyScript
                     return duplicate(args);
                 case "ends_with":
                     return ends_with(args);
+                case "format":
+                    return format(args);
                 case "get":
                     return get(args);
                 case "index_of":
@@ -278,6 +283,11 @@ namespace TaffyScript
         public TsObject ends_with(TsObject[] args)
         {
             return Value.EndsWith((string)args[0]);
+        }
+
+        public TsObject format(TsObject[] args)
+        {
+            return string.Format(Value, args);
         }
 
         public TsObject get(TsObject[] args)
