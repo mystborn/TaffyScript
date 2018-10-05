@@ -484,7 +484,7 @@ namespace TaffyScript.Compiler.Backend
                             if (source != null)
                                 getm.LdFld(source);
 
-                            getm.Call(property.GetMethod);
+                            getm.CallE(property.GetMethod, 0, typeof(TsObject));
                             EmitHelper.ConvertTopToObject(getm);
                             getm.Ret();
                         }
@@ -513,7 +513,7 @@ namespace TaffyScript.Compiler.Backend
                             if (!property.PropertyType.IsAssignableFrom(setm.GetTop()))
                                 setm.Call(TsTypes.ObjectCasts[property.PropertyType]);
 
-                            setm.Call(property.SetMethod)
+                            setm.CallE(property.SetMethod, 1, typeof(void))
                                 .Ret();
                         }
                         else
@@ -536,7 +536,7 @@ namespace TaffyScript.Compiler.Backend
                             if (source != null)
                                 call.LdFld(source);
 
-                            call.Call(property.GetMethod)
+                            call.CallE(property.GetMethod, 0, typeof(TsObject))
                                 .Dup()
                                 .Call(typeof(TsObject).GetMethod("get_Type"))
                                 .LdInt((int)VariableType.Delegate)
@@ -570,7 +570,7 @@ namespace TaffyScript.Compiler.Backend
                             if (source != null)
                                 tryd.LdFld(source);
 
-                            tryd.Call(property.GetMethod)
+                            tryd.CallE(property.GetMethod, 0, typeof(TsObject))
                                 .Dup()
                                 .Call(typeof(TsObject).GetMethod("get_Type"))
                                 .LdInt((int)VariableType.Delegate)
@@ -625,7 +625,7 @@ namespace TaffyScript.Compiler.Backend
                             .BrFalseS(callNext)
                             .LdArg(0)
                             .LdArg(2)
-                            .Call(method, 1, typeof(TsObject))
+                            .CallE(method, 1, typeof(TsObject))
                             .Ret()
                             .MarkLabel(callNext);
 
@@ -880,7 +880,7 @@ namespace TaffyScript.Compiler.Backend
                         if (source != null)
                             getm.LdFld(source);
 
-                        getm.Call(property.GetMethod);
+                        getm.CallE(property.GetMethod, 0, typeof(TsObject));
                         EmitHelper.ConvertTopToObject(getm);
                         getm.Ret();
 
@@ -890,7 +890,7 @@ namespace TaffyScript.Compiler.Backend
                         if (source != null)
                             call.LdFld(source);
 
-                        call.Call(property.GetMethod)
+                        call.CallE(property.GetMethod, 0, typeof(TsObject))
                             .Dup()
                             .Call(typeof(TsObject).GetMethod("get_Type"))
                             .LdInt((int)VariableType.Delegate)
@@ -911,7 +911,7 @@ namespace TaffyScript.Compiler.Backend
                         if (source != null)
                             tryd.LdFld(source);
 
-                        tryd.Call(property.GetMethod)
+                        tryd.CallE(property.GetMethod, 0, typeof(TsObject))
                             .Dup()
                             .Call(typeof(TsObject).GetMethod("get_Type"))
                             .LdInt((int)VariableType.Delegate)
@@ -952,7 +952,7 @@ namespace TaffyScript.Compiler.Backend
                         if (!property.PropertyType.IsAssignableFrom(setm.GetTop()))
                             setm.Call(TsTypes.ObjectCasts[property.PropertyType]);
 
-                        setm.Call(property.SetMethod)
+                        setm.CallE(property.SetMethod, 1, typeof(void))
                             .Ret();
                     }
                     else
@@ -999,382 +999,5 @@ namespace TaffyScript.Compiler.Backend
                 .Call(hashMethod)
                 .StLocal(hashLocal);
         }
-
-        /*private static void GenerateGetAndSetBruteForce(List<KeyValuePair<string, MemberInfo>> members,
-                                                        FieldInfo source,
-                                                        ILEmitter getm,
-                                                        ILEmitter setm,
-                                                        Label readError,
-                                                        Label writeError,
-                                                        ref bool readErrors,
-                                                        ref bool writeErrors)
-        {
-            foreach (var kvp in members)
-            {
-                var getNext = getm.DefineLabel();
-                var setNext = setm.DefineLabel();
-                switch (kvp.Value)
-                {
-                    case FieldInfo field:
-                        getm.LdStr(kvp.Key)
-                            .LdArg(1)
-                            .Call(typeof(string).GetMethod("op_Equality"))
-                            .BrFalseS(getNext)
-                            .LdArg(0);
-
-                        if (source != null)
-                            getm.LdFld(source);
-
-                        getm.LdFld(field);
-                        EmitHelper.ConvertTopToObject(getm);
-                        getm.Ret()
-                            .MarkLabel(getNext);
-
-                        setm.LdStr(kvp.Key)
-                            .LdArg(1)
-                            .Call(typeof(string).GetMethod("op_Equality"))
-                            .BrFalseS(setNext)
-                            .LdArg(0);
-
-                        if (source != null)
-                            setm.LdFld(source);
-
-                        setm.LdArg(2);
-
-                        if (!field.FieldType.IsAssignableFrom(setm.GetTop()))
-                            setm.Call(TsTypes.ObjectCasts[field.FieldType]);
-
-                        setm.StFld(field)
-                            .Ret()
-                            .MarkLabel(setNext);
-                        break;
-                    case PropertyInfo property:
-                        getm.LdStr(kvp.Key)
-                            .LdArg(1)
-                            .Call(typeof(string).GetMethod("op_Equality"))
-                            .BrFalseS(getNext);
-
-                        if (property.CanRead && property.GetMethod.IsPublic)
-                        {
-                            getm.LdArg(0);
-
-                            if (source != null)
-                                getm.LdFld(source);
-                            
-                            getm.Call(property.GetMethod);
-                            EmitHelper.ConvertTopToObject(getm);
-                            getm.Ret();
-                        }
-                        else
-                        {
-                            getm.Br(readError);
-                            readErrors = true;
-                        }
-
-                        getm.MarkLabel(getNext);
-
-                        setm.LdStr(kvp.Key)
-                            .LdArg(1)
-                            .Call(typeof(string).GetMethod("op_Equality"))
-                            .BrFalseS(setNext);
-
-                        if (property.CanWrite && property.SetMethod.IsPublic)
-                        {
-                            setm.LdArg(0);
-
-                            if (source != null)
-                                setm.LdFld(source);
-
-                            setm.LdArg(2);
-
-                            if (!property.PropertyType.IsAssignableFrom(setm.GetTop()))
-                                setm.Call(TsTypes.ObjectCasts[property.PropertyType]);
-
-                            setm.Call(property.SetMethod)
-                                .Ret();
-                        }
-                        else
-                        {
-                            setm.Br(writeError);
-                            writeErrors = true;
-                        }
-                        setm.MarkLabel(setNext);
-                        break;
-                    case MethodInfo method:
-                        getm.LdStr(kvp.Key)
-                            .LdArg(1)
-                            .Call(typeof(string).GetMethod("op_Equality"))
-                            .BrFalseS(getNext)
-                            .LdArg(0)
-                            .LdFtn(method)
-                            .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                            .LdArg(1)
-                            .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                            .Ret()
-                            .MarkLabel(getNext);
-
-                        setm.LdStr(kvp.Key)
-                            .LdArg(1)
-                            .Call(typeof(string).GetMethod("op_Equality"))
-                            .BrFalseS(getNext)
-                            .Br(writeError)
-                            .MarkLabel(setNext);
-
-                        writeErrors = true;
-                        break;
-                }
-            }
-        }
-
-        private static void GenerateGetAndSetBinarySearch(RedBlackTree<int, KeyValuePair<string, MemberInfo>>.RedBlackNode node,
-                                                          FieldInfo source,
-                                                          ILEmitter getm,
-                                                          ILEmitter setm,
-                                                          LocalBuilder getHash,
-                                                          LocalBuilder setHash,
-                                                          Label getError,
-                                                          Label setError,
-                                                          Label readError,
-                                                          Label writeError,
-                                                          ref bool readErrors,
-                                                          ref bool writeErrors)
-        {
-            var getGreater = getm.DefineLabel();
-            var getEqual = getm.DefineLabel();
-            var setGreater = setm.DefineLabel();
-            var setEqual = setm.DefineLabel();
-
-            getm.LdLocal(getHash)
-                .LdInt(node.Key)
-                .Bge(getGreater);
-
-            setm.LdLocal(setHash)
-                .LdInt(node.Key)
-                .Bge(setGreater);
-
-            if (node.Left != RedBlackTree<int, KeyValuePair<string, MemberInfo>>.Leaf)
-                GenerateGetAndSetBinarySearch(node.Left, source, getm, setm, getHash, setHash, getError, setError, readError, writeError, ref readErrors, ref writeErrors);
-            else
-            {
-                getm.Br(getError);
-                setm.Br(setError);
-            }
-
-            getm.MarkLabel(getGreater)
-                .LdLocal(getHash)
-                .LdInt(node.Key)
-                .Beq(getEqual);
-
-            setm.MarkLabel(setGreater)
-                .LdLocal(setHash)
-                .LdInt(node.Key)
-                .Beq(setEqual);
-
-            if (node.Right != RedBlackTree<int, KeyValuePair<string, MemberInfo>>.Leaf)
-                GenerateGetAndSetBinarySearch(node.Right, source, getm, setm, getHash, setHash, getError, setError, readError, writeError, ref readErrors, ref writeErrors);
-            else
-            {
-                getm.Br(getError);
-                setm.Br(setError);
-            }
-
-            getm.MarkLabel(getEqual);
-            setm.MarkLabel(setEqual);
-
-            getm.LdArg(1)
-                .LdStr(node.Value.Key)
-                .Call(typeof(string).GetMethod("op_Equality", new[] { typeof(string), typeof(string) }))
-                .BrFalse(getError);
-
-            setm.LdArg(1)
-                .LdStr(node.Value.Key)
-                .Call(typeof(string).GetMethod("op_Equality", new[] { typeof(string), typeof(string) }))
-                .BrFalse(setError);
-
-            switch (node.Value.Value)
-            {
-                case FieldInfo field:
-                    getm.LdArg(0);
-
-                    if (source != null)
-                        getm.LdFld(source);
-
-                    getm.LdFld(field);
-                    EmitHelper.ConvertTopToObject(getm);
-                    getm.Ret();
-
-                    setm.LdArg(0);
-
-                    if (source != null)
-                        setm.LdFld(source);
-
-                    setm.LdArg(2);
-                    if (!field.FieldType.IsAssignableFrom(setm.GetTop()))
-                        setm.Call(TsTypes.ObjectCasts[field.FieldType]);
-
-                    setm.StFld(field)
-                        .Ret();
-                    break;
-                case PropertyInfo property:
-                    if (property.CanRead && property.GetMethod.IsPublic)
-                    {
-                        getm.LdArg(0);
-
-                        if (source != null)
-                            getm.LdFld(source);
-
-                        getm.Call(property.GetMethod);
-                        EmitHelper.ConvertTopToObject(getm);
-                        getm.Ret();
-                    }
-                    else
-                    {
-                        getm.Br(readError);
-                        readErrors = true;
-                    }
-
-                    if (property.CanWrite && property.SetMethod.IsPublic)
-                    {
-                        setm.LdArg(0);
-
-                        if (source != null)
-                            setm.LdFld(source);
-
-                        setm.LdArg(2);
-
-                        if (!property.PropertyType.IsAssignableFrom(setm.GetTop()))
-                            setm.Call(TsTypes.ObjectCasts[property.PropertyType]);
-
-                        setm.Call(property.SetMethod)
-                            .Ret();
-                    }
-                    else
-                    {
-                        setm.Br(writeError);
-                        writeErrors = true;
-                    }
-                    break;
-                case MethodInfo method:
-                    getm.LdArg(0)
-                        .LdFtn(method)
-                        .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                        .LdArg(1)
-                        .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                        .Ret();
-
-                    setm.Br(writeError);
-                    writeErrors = true;
-                    break;
-            }
-        }
-
-        private static void GenerateCallBruteForce(List<MethodInfo> methods,
-                                                   ILEmitter call,
-                                                   ILEmitter tryd)
-        {
-            foreach (var method in methods)
-            {
-                var callNext = call.DefineLabel();
-                var tryNext = tryd.DefineLabel();
-
-                call.LdStr(method.Name)
-                    .LdArg(1)
-                    .Call(typeof(string).GetMethod("op_Equality"))
-                    .BrFalseS(callNext)
-                    .LdArg(0)
-                    .LdArg(2)
-                    .Call(method, 1, typeof(TsObject))
-                    .Ret()
-                    .MarkLabel(callNext);
-
-                tryd.LdStr(method.Name)
-                    .LdArg(1)
-                    .Call(typeof(string).GetMethod("op_Equality"))
-                    .BrFalseS(callNext)
-                    .LdArg(2)
-                    .LdArg(0)
-                    .LdFtn(method)
-                    .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                    .LdStr(method.Name)
-                    .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                    .StIndRef()
-                    .LdBool(true)
-                    .Ret()
-                    .MarkLabel(tryNext);
-            }
-        }
-
-        private static void GenerateCallBinarySearch(RedBlackTree<int, MethodInfo>.RedBlackNode node,
-                                                          ILEmitter call,
-                                                          ILEmitter tryd,
-                                                          LocalBuilder callHash,
-                                                          LocalBuilder tryHash,
-                                                          Label callError,
-                                                          Label tryError)
-        {
-            var callGreater = call.DefineLabel();
-            var callEqual = call.DefineLabel();
-            var tryGreater = tryd.DefineLabel();
-            var tryEqual = tryd.DefineLabel();
-
-            call.LdLocal(callHash)
-                .LdInt(node.Key)
-                .Bge(callGreater);
-
-            tryd.LdLocal(tryHash)
-                .LdInt(node.Key)
-                .Bge(tryGreater);
-
-            if (node.Left != RedBlackTree<int, MethodInfo>.Leaf)
-                GenerateCallBinarySearch(node.Left, call, tryd, callHash, tryHash, callError, tryError);
-            else
-            {
-                call.Br(callError);
-                tryd.Br(tryError);
-            }
-
-            call.MarkLabel(callGreater)
-                .LdLocal(callHash)
-                .LdInt(node.Key)
-                .Beq(callEqual);
-
-            tryd.MarkLabel(tryGreater)
-                .LdLocal(tryHash)
-                .LdInt(node.Key)
-                .Beq(tryEqual);
-
-            if (node.Right != RedBlackTree<int, MethodInfo>.Leaf)
-                GenerateCallBinarySearch(node.Right, call, tryd, callHash, tryHash, callError, tryError);
-            else
-            {
-                call.Br(callError);
-                tryd.Br(tryError);
-            }
-
-            call.MarkLabel(callEqual)
-                .LdArg(1)
-                .LdStr(node.Value.Name)
-                .Call(typeof(string).GetMethod("op_Equality", new[] { typeof(string), typeof(string) }))
-                .BrFalse(callError)
-                .LdArg(0)
-                .LdArg(2)
-                .Call(node.Value, 1, typeof(TsObject))
-                .Ret();
-
-            tryd.MarkLabel(tryEqual)
-                .LdArg(1)
-                .LdStr(node.Value.Name)
-                .Call(typeof(string).GetMethod("op_Equality", new[] { typeof(string), typeof(string) }))
-                .BrFalse(tryError)
-                .LdArg(2)
-                .LdArg(0)
-                .LdFtn(node.Value)
-                .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
-                .LdStr(node.Value.Name)
-                .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }))
-                .StIndRef()
-                .LdBool(true)
-                .Ret();
-        }*/
     }
 }

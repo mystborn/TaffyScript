@@ -23,6 +23,7 @@ namespace TaffyScript.Compiler
         private SymbolTable _table;
         private int _lambdaId = 0;
         private bool _canAssign = false;
+        private bool _inPropertySet = false;
         private RootNode _root;
 
         public Parser(IErrorLogger logger, SymbolTable table, RootNode root)
@@ -104,7 +105,7 @@ namespace TaffyScript.Compiler
                     case TokenType.Import: return ImportDeclaration();
                     case TokenType.Namespace: return NamespaceDeclaration();
                     case TokenType.Object: return ObjectDeclaration();
-                    case TokenType.Script: return ScriptDeclaration(SymbolScope.Global);
+                    case TokenType.Script: return ScriptDeclaration(SymbolScope.Global, AccessModifiers.Global | AccessModifiers.Public);
                     case TokenType.SemiColon:
                         _stream.Read();
                         return null;
@@ -213,7 +214,7 @@ namespace TaffyScript.Compiler
             if(!Check(TokenType.OpenBrace))
             {
                 node = new ImportObjectNode(type, name, _logger, importArgs, start.Position);
-                if(!_table.TryAdd(new ImportObjectSymbol(_table.Current, name, node)))
+                if(!_table.AddChild(new ImportObjectSymbol(_table.Current, name, node)))
                     Error(start, $"Name conflict with imported object and {_table.Defined(name).Type} {name}");
                 return node;
             }
@@ -279,7 +280,7 @@ namespace TaffyScript.Compiler
                 Error(start, "Imported object with an explicit implementation must declare a constructor");
 
             node = new ImportObjectNode(type, name, _logger, importArgs, fields, ctor, methods, start.Position);
-            if (!_table.TryAdd(new ImportObjectSymbol(_table.Current, name, node)))
+            if (!_table.AddChild(new ImportObjectSymbol(_table.Current, name, node)))
                 Error(start, $"Name conflict with imported object and {_table.Defined(name).Type} {name}");
 
             return node;
@@ -324,7 +325,7 @@ namespace TaffyScript.Compiler
 
             var result = new ImportScriptNode(type, method, importName, arguments, importToken.Position);
 
-            if (!_table.TryAdd(new ImportLeaf(_table.Current, importName, SymbolScope.Global, result)))
+            if (!_table.AddChild(new ImportLeaf(_table.Current, importName, SymbolScope.Global, result)))
                 Error(importToken, $"Name conflict between imported c# method and {_table.Defined(importName).Type} {importName}");
 
             return result;
@@ -356,7 +357,7 @@ namespace TaffyScript.Compiler
         {
             Consume(TokenType.Object, "Expected 'object'");
             var name = Consume(TokenType.Identifier, "Expected name for object");
-            if(!_table.TryAdd(new ObjectSymbol(_table.Current, name.Text)))
+            if(!_table.AddChild(new ObjectSymbol(_table.Current, name.Text)))
                 Error(name, $"Name conflict between object and {_table.Defined(name.Text).Type} {name.Text}");
             _table.Enter(name.Text);
 
@@ -367,35 +368,29 @@ namespace TaffyScript.Compiler
             Consume(TokenType.OpenBrace, "Expected '{' after object declaration", 1);
 
             var scripts = new List<ScriptNode>();
-            var staticScripts = new List<ScriptNode>();
             var fields = new List<ObjectField>();
+            var properties = new List<ObjectProperty>();
             while(!Check(TokenType.CloseBrace) && !_stream.Finished)
             {
+                var anyAccessModifiers = _stream.Current.Type == TokenType.AccessModifier;
+                var accessModifiers = ReadAccessModifiers();
+                var scope = ((accessModifiers & AccessModifiers.Static) != 0) ? SymbolScope.Global : SymbolScope.Member;
                 switch(_stream.Current.Type)
                 {
                     case TokenType.SemiColon:
+                        if (anyAccessModifiers)
+                            Error(_stream.Read(), "Expected member name after access modifiers");
                         _stream.Read();
                         continue;
                     case TokenType.Identifier:
-                        fields.Add(FieldDeclaration(SymbolScope.Member));
+                        var nameToken = _stream.Read();
+                        if (_stream.Current.Type == TokenType.OpenBrace)
+                            properties.Add(PropertyDeclaration(nameToken, scope, accessModifiers));
+                        else
+                            fields.Add(FieldDeclaration(nameToken, scope, accessModifiers));
                         break;
                     case TokenType.Script:
-                        scripts.Add(ScriptDeclaration(SymbolScope.Member));
-                        break;
-                    case TokenType.Static:
-                        var stat = _stream.Read();
-                        switch(_stream.Current.Type)
-                        {
-                            case TokenType.Script:
-                                staticScripts.Add(ScriptDeclaration(SymbolScope.Global));
-                                break;
-                            case TokenType.Identifier:
-                                fields.Add(FieldDeclaration(SymbolScope.Global));
-                                break;
-                            default:
-                                Error(stat, "Expected 'script' or field declaration after 'static'");
-                                break;
-                        }
+                        scripts.Add(ScriptDeclaration(scope, accessModifiers));
                         break;
                     default:
                         _logger.Error("Invalid token inside of Object definition", _stream.Current.Position);
@@ -405,30 +400,122 @@ namespace TaffyScript.Compiler
             }
             Consume(TokenType.CloseBrace, "Expected '}' after object members", 1);
             _table.Exit();
-            return new ObjectNode(name.Text, parent, fields, scripts, staticScripts, name.Position);
+            return new ObjectNode(name.Text, parent, fields, properties, scripts, name.Position);
         }
 
-        private ObjectField FieldDeclaration(SymbolScope scope)
+        private AccessModifiers ReadAccessModifiers()
         {
-            var field = Consume(TokenType.Identifier, "Expected field name.");
+            var accessModifiers = AccessModifiers.None;
+            while(_stream.Current.Type == TokenType.AccessModifier)
+            {
+                var token = _stream.Read();
+                switch(token.Text)
+                {
+                    case "public":
+                        if ((accessModifiers & (AccessModifiers.Public | AccessModifiers.Protected | AccessModifiers.Private)) != 0)
+                            Error(token, "Cannot have more than one scope access modifier");
+                        accessModifiers |= AccessModifiers.Public;
+                        break;
+                    case "private":
+                        if ((accessModifiers & (AccessModifiers.Public | AccessModifiers.Protected | AccessModifiers.Private)) != 0)
+                            Error(token, "Cannot have more than one scope access modifier");
+                        accessModifiers |= AccessModifiers.Private;
+                        break;
+                    case "protected":
+                        if ((accessModifiers & (AccessModifiers.Public | AccessModifiers.Protected | AccessModifiers.Private)) != 0)
+                            Error(token, "Cannot have more than one scope access modifier");
+                        accessModifiers |= AccessModifiers.Private;
+                        break;
+                    case "static":
+                        if ((accessModifiers & (AccessModifiers.Static | AccessModifiers.Sealed)) != 0)
+                            Error(token, "Invalid 'static' access modifier");
+                        accessModifiers |= AccessModifiers.Static;
+                        break;
+                    case "sealed":
+                        if ((accessModifiers & (AccessModifiers.Static | AccessModifiers.Sealed)) != 0)
+                            Error(token, "Invalid 'sealed' access modifier");
+                        accessModifiers |= AccessModifiers.Sealed;
+                        break;
+                    default:
+                        Error(token, "Invalid access modifier: Not yet implemented");
+                        break;
+                }
+            }
+            if ((accessModifiers & (AccessModifiers.Public | AccessModifiers.Protected | AccessModifiers.Private)) == 0)
+                accessModifiers |= AccessModifiers.Public;
+
+            if ((accessModifiers & AccessModifiers.Static) == 0)
+                accessModifiers |= AccessModifiers.Instance;
+
+            if ((accessModifiers & AccessModifiers.Sealed) == 0)
+                accessModifiers |= AccessModifiers.Virtual;
+
+            return accessModifiers;
+        }
+
+        private ObjectProperty PropertyDeclaration(Token property, SymbolScope scope, AccessModifiers accessModifiers)
+        {
+            Consume(TokenType.OpenBrace, "Expected '{' after property name");
+            var propertySymbol = new PropertySymbol(_table.Current, property.Text, scope, accessModifiers);
+            if (!_table.AddChild(propertySymbol))
+                Error(property, $"Name conflict between property and {_table.Defined(property.Text).Type} {property.Text}");
+
+            _table.Enter(property.Text);
+
+            ScriptNode get = null;
+            ScriptNode set = null;
+            while (!Check(TokenType.CloseBrace))
+            {
+                switch (_stream.Current.Text)
+                {
+                    case "get":
+                        var getToken = _stream.Read();
+                        get = new ScriptNode(getToken.Text, new List<VariableDeclaration>(), BlockStatement(), getToken.Position);
+                        if (!_table.AddChild(new ScriptSymbol(propertySymbol, getToken.Text, scope, accessModifiers)))
+                            Error(getToken, $"Property '{property.Text}' defines two get scripts.");
+                        break;
+                    case "set":
+                        _inPropertySet = true;
+                        var setToken = _stream.Read();
+                        set = new ScriptNode(setToken.Text,
+                                             new List<VariableDeclaration>() { new VariableDeclaration("value", null, setToken.Position) },
+                                             BlockStatement(),
+                                             setToken.Position);
+                        _inPropertySet = false;
+                        if (!_table.AddChild(new ScriptSymbol(_table.Current, setToken.Text, scope, accessModifiers)))
+                            Error(setToken, $"Property '{property.Text}' defineds two set scripts");
+                        break;
+                    default:
+                        Error(_stream.Current, "Invalid property script name.");
+                        break;
+                }
+            }
+            _table.Exit();
+            Consume(TokenType.CloseBrace, "Expected '}' after property declaration");
+            if (set is null && get is null)
+                Error(property, $"Property '{property.Text}' must define at least one get or set script");
+            return new ObjectProperty(property.Text, accessModifiers.HasFlag(AccessModifiers.Static), property.Position, get, set);
+        }
+
+        private ObjectField FieldDeclaration(Token field, SymbolScope scope, AccessModifiers accessModifiers)
+        {
             ISyntaxElement defaultValue = null;
             if (Match(TokenType.Assign))
                 defaultValue = Expression();
-            if (!_table.TryAdd(new SymbolLeaf(_table.Current, field.Text, SymbolType.Field, scope)))
+            if (!_table.AddChild(new FieldLeaf(_table.Current, field.Text, scope, accessModifiers)))
                 Error(field, $"Object {_table.Current.Name} already defines a member with name {field.Text}");
 
             return new ObjectField(field.Text, field.Position, defaultValue);
         }
 
-        private ScriptNode ScriptDeclaration(SymbolScope scope)
+        private ScriptNode ScriptDeclaration(SymbolScope scope, AccessModifiers accessModifiers)
         {
             Token start = null;
             start = Consume(TokenType.Script, "Expected 'script'");
-
             var name = Consume(TokenType.Identifier, "Expected name for script");
-            if(!_table.TryEnterNew(name.Text, SymbolType.Script, scope))
+            if(!_table.AddChild(new ScriptSymbol(_table.Current, name.Text, scope, accessModifiers)))
                 Error(name, $"Name conflict between script and {_table.Defined(name.Text).Type} {name.Text}");
-
+            _table.Enter(name.Text);
             var arguments = ReadScriptArguments();
             var body = BlockStatement();
             _table.Exit();
@@ -921,7 +1008,10 @@ namespace TaffyScript.Compiler
             if(Check(TokenType.Identifier))
             {
                 symbol = _stream.Read();
-                return new VariableToken(symbol.Text, symbol.Position);
+                if (_inPropertySet && symbol.Text == "value")
+                    return new ReadOnlyToken("value", symbol.Position);
+                else
+                    return new VariableToken(symbol.Text, symbol.Position);
             }
 
             if(Check(TokenType.OpenParen))

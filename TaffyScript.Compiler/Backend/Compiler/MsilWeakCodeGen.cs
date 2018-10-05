@@ -378,7 +378,7 @@ namespace TaffyScript.Compiler.Backend
                     //      Just stay in the namespace.
                     var count = _table.EnterNamespace(type.Namespace);
                     var symbol = new ObjectSymbol(_table.Current, type.Name);
-                    if (!_table.TryAdd(symbol))
+                    if (!_table.AddChild(symbol))
                     {
                         _logger.Warning($"Name conflict encountered with object {type.Name} defined in assembly {asm.GetName().Name}");
                         continue;
@@ -465,7 +465,7 @@ namespace TaffyScript.Compiler.Backend
                                     type = _typeParser.GetType(external);
                                     count = _table.EnterNamespace(input[1]);
                                     var symbol = new ObjectSymbol(_table.Current, input[2]);
-                                    if(!_table.TryAdd(symbol))
+                                    if(!_table.AddChild(symbol))
                                     {
                                         _logger.Warning($"Name conflict encountered with object {type.Name} defined in assembly {asm.GetName().Name}");
                                     }
@@ -1030,6 +1030,19 @@ namespace TaffyScript.Compiler.Backend
             return emit;
         }
 
+        private ILEmitter LoadPropertySetValue()
+        {
+            if (_closures > 0)
+            {
+                emit.LdArg(0)
+                    .LdFld(_closure.Fields["value"]);
+            }
+            else
+                emit.LdArg(_argumentArray);
+
+            return emit;
+        }
+
         private ILEmitter GetMember(ILEmitter mthd, string memberName)
         {
             if(typeof(ITsInstance).IsAssignableFrom(emit.GetTop()))
@@ -1490,6 +1503,9 @@ namespace TaffyScript.Compiler.Backend
                 {
                     switch (token.Name)
                     {
+                        case "value":
+                            LoadPropertySetValue();
+                            break;
                         case "global":
                             emit.LdFld(typeof(TsInstance).GetField("Global"));
                             break;
@@ -1848,6 +1864,9 @@ namespace TaffyScript.Compiler.Backend
                 {
                     switch (token.Name)
                     {
+                        case "value":
+                            LoadPropertySetValue();
+                            break;
                         case "global":
                             emit.LdFld(typeof(TsInstance).GetField("Global"));
                             break;
@@ -1949,6 +1968,7 @@ namespace TaffyScript.Compiler.Backend
                             }
 
                             assign.Right.Accept(this);
+                            EmitHelper.ConvertTopToObject(emit);
 
                             if (op != null)
                             {
@@ -1981,6 +2001,7 @@ namespace TaffyScript.Compiler.Backend
                                 emit.Call(property.GetMethod);
 
                             assign.Right.Accept(this);
+                            EmitHelper.ConvertTopToObject(emit);
 
                             if (op != null)
                             {
@@ -3389,7 +3410,13 @@ namespace TaffyScript.Compiler.Backend
             foreach(var field in objectNode.Fields)
             {
                 var fieldInfo = info.Fields[field.Name];
-                if(fieldInfo.IsStatic)
+
+                // This prevents the compiler from completely crashing when
+                // an object tries to override a sealed script.
+                if (fieldInfo.DeclaringType != type)
+                    continue;
+
+                if (fieldInfo.IsStatic)
                 {
                     if(cctor is null)
                     {
@@ -3428,36 +3455,61 @@ namespace TaffyScript.Compiler.Backend
             if (init != null)
                 init.Ret();
 
-            for (var i = 0; i < objectNode.Scripts.Count; i++)
+            foreach(var objectProperty in objectNode.Properties)
             {
-                var script = objectNode.Scripts[i];
-                MethodBuilder method = _assets.GetInstanceMethod(_table.Current, script.Name, script.Position) as MethodBuilder;
+                var property = info.Properties[objectProperty.Name];
 
-                ScriptStart(script.Name, method, TsTypes.ArgumentTypes);
+                // This prevents the compiler from completely crashing when
+                // an object tries to override a sealed script.
+                if (property is null || property.DeclaringType != type)
+                    continue;
 
-                ProcessScriptArguments(script.Arguments);
-                script.Body.Accept(this);
-                BlockNode body = (BlockNode)script.Body;
-                var last = body.Body.Count == 0 ? null : body.Body[body.Body.Count - 1];
-                if (body.Body.Count == 0 || last.Type != SyntaxType.Return)
+                _table.Enter(property.Name);
+                _argumentArray = objectProperty.IsStatic ? 0 : 1;
+                if(property.CanRead)
                 {
-                    emit.Call(TsTypes.Empty)
-                        .Ret();
-                }
+                    var getMethod = property.GetGetMethod() as MethodBuilder;
+                    ScriptStart("get", getMethod, Type.EmptyTypes);
+                    var body = (BlockNode)objectProperty.GetScript.Body;
+                    body.Accept(this);
+                    if(body.Body[body.Body.Count - 1].Type != SyntaxType.Return)
+                    {
+                        emit.Call(TsTypes.Empty)
+                            .Ret();
+                    }
 
-                ScriptEnd();
-                scripts.Add(method);
+                    ScriptEnd();
+                }
+                if(property.CanWrite)
+                {
+                    var setMethod = property.GetSetMethod() as MethodBuilder;
+                    ScriptStart("set", setMethod, new[] { typeof(TsObject) });
+                    var body = (BlockNode)objectProperty.SetScript.Body;
+                    body.Accept(this);
+                    if(body.Body[body.Body.Count - 1].Type != SyntaxType.Return)
+                    {
+                        if (emit.Types.Count > 0)
+                            emit.Pop();
+                        emit.Ret();
+                    }
+
+                    ScriptEnd();
+                }
+                _table.Exit();
             }
 
-            _argumentArray = 0;
-
-            for(var i = 0; i < objectNode.StaticScripts.Count; i++)
+            foreach(var script in objectNode.Scripts)
             {
-                var script = objectNode.StaticScripts[i];
-                MethodBuilder method = _assets.GetInstanceMethod(_table.Current, script.Name, script.Position) as MethodBuilder;
+                var method = info.Methods[script.Name] as MethodBuilder;
+
+                // This prevents the compiler from completely crashing when
+                // an object tries to override a sealed script.
+                if (method is null || method.DeclaringType != type)
+                    continue;
+
+                _argumentArray = method.IsStatic ? 0 : 1;
 
                 ScriptStart(script.Name, method, TsTypes.ArgumentTypes);
-
                 ProcessScriptArguments(script.Arguments);
                 script.Body.Accept(this);
                 BlockNode body = (BlockNode)script.Body;
@@ -3469,6 +3521,9 @@ namespace TaffyScript.Compiler.Backend
                 }
 
                 ScriptEnd();
+
+                if (!method.IsStatic)
+                    scripts.Add(method);
             }
 
             _assets.FinalizeType(info, _parent, scripts, objectNode.Position);
@@ -3815,10 +3870,15 @@ namespace TaffyScript.Compiler.Backend
 
         private Func<ILEmitter> GetReadOnlyLoadFunc(ReadOnlyToken read)
         {
-            if (read.Name == "global")
-                return () => emit.LdFld(typeof(TsInstance).GetField("Global"));
-            else
-                return () => LoadTarget();
+            switch(read.Name)
+            {
+                case "global":
+                    return () => emit.LdFld(typeof(TsInstance).GetField("Global"));
+                case "value":
+                    return () => LoadPropertySetValue();
+                default:
+                    return () => LoadTarget();
+            }
         }
 
         public void Visit(PrefixNode prefix)
@@ -4131,7 +4191,7 @@ namespace TaffyScript.Compiler.Backend
                     {
                         case SymbolType.Enum:
                         case SymbolType.Object:
-                            MemberStaticAccessUnary(member, null, prefix, prefix.Op, true);
+                            MemberStaticAccessUnary(member, null, prefix, prefix.Op, false);
                             return;
                         case SymbolType.Variable:
                             MemberStaticAccessUnaryVariable(member, variableSymbol as VariableLeaf, prefix, prefix.Op, false);
@@ -4375,15 +4435,11 @@ namespace TaffyScript.Compiler.Backend
                 case "global":
                     emit.LdFld(typeof(TsInstance).GetField("Global"));
                     break;
-                case "pi":
-                    emit.LdFloat((float)System.Math.PI);
-                    break;
-                case "noone":
-                    _logger.Warning("The keyword noone is obsolete and will be deprecated next major release. Consider removing it", readOnlyToken.Position);
-                    emit.LdFloat(-4f);
-                    break;
                 case "null":
                     emit.Call(TsTypes.Empty);
+                    break;
+                case "value":
+                    LoadPropertySetValue();
                     break;
                 default:
                     _logger.Error($"Currently the readonly value {readOnlyToken.Name} is not implemented", readOnlyToken.Position);

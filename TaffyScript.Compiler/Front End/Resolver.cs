@@ -16,6 +16,7 @@ namespace TaffyScript.Compiler.FrontEnd
         private bool _hasParent = false;
         private LoopType _currentLoop = LoopType.None;
         private MethodType _currentMethod = MethodType.None;
+        private PropertyType _currentProperty = PropertyType.None;
         private Environment _environment = new Environment();
         private IErrorLogger _logger;
         private SymbolTable _table;
@@ -61,6 +62,11 @@ namespace TaffyScript.Compiler.FrontEnd
 
         public void Visit(ArgumentAccessNode argumentAccess)
         {
+            if(_currentProperty != PropertyType.None)
+            {
+                _logger.Error("Cannot access argument array inside of property.", argumentAccess.Position);
+                return;
+            }
             argumentAccess.Index.Parent = argumentAccess;
             argumentAccess.Index.Accept(this);
         }
@@ -352,12 +358,26 @@ namespace TaffyScript.Compiler.FrontEnd
                     field.DefaultValue.Accept(this);
                 }
             }
-            foreach (var script in objectNode.Scripts)
+
+            foreach (var property in objectNode.Properties)
             {
-                script.Parent = objectNode;
-                script.Accept(this);
+                _table.Enter(property.Name);
+                if (property.CanRead)
+                {
+                    _currentProperty = PropertyType.Get;
+                    property.GetScript.Accept(this);
+                }
+
+                if (property.CanWrite)
+                {
+                    _currentProperty = PropertyType.Set;
+                    property.SetScript.Accept(this);
+                }
+                _table.Exit();
             }
-            foreach(var script in objectNode.StaticScripts)
+
+            _currentProperty = PropertyType.None;
+            foreach (var script in objectNode.Scripts)
             {
                 script.Parent = objectNode;
                 script.Accept(this);
@@ -407,9 +427,15 @@ namespace TaffyScript.Compiler.FrontEnd
             {
                 if (_table.Current.Name == "create" && _currentMethod == MethodType.Instance)
                     _logger.Error("Cannot return a value from an instances create script", returnNode.Result.Position);
+                else if (_currentProperty == PropertyType.Set)
+                    _logger.Error("Cannot return a value from a properties setter.");
 
                 returnNode.Result.Parent = returnNode;
                 returnNode.Result.Accept(this);
+            }
+            else if(_currentProperty == PropertyType.Get)
+            {
+                _logger.Error("Must return a value from a properties getter.");
             }
         }
 
@@ -552,6 +578,13 @@ namespace TaffyScript.Compiler.FrontEnd
             None,
             Local,
             Instance
+        }
+
+        private enum PropertyType
+        {
+            None,
+            Get,
+            Set
         }
 
         private class Environment

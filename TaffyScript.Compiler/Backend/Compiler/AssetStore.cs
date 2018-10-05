@@ -415,38 +415,37 @@ namespace TaffyScript.Compiler.Backend
 
             foreach(var member in os.Children.Values)
             {
-                switch(member.Type)
+                switch(member)
                 {
-                    case SymbolType.Script:
+                    case ScriptSymbol scriptSymbol:
                         MethodBuilder method;
-                        if (member.Scope == SymbolScope.Member)
+                        var scriptAttributes = MethodAttributesFromAccessModifiers(scriptSymbol.AccessModifiers);
+                        if(scriptSymbol.AccessModifiers.HasFlag(AccessModifiers.Instance))
                         {
-                            if(!MemberIsValid(info, member, out var parentMember) && parentMember.MemberType != MemberTypes.Method)
+                            if(!CanImplementMember(info, member, out var parentMember) && parentMember.MemberType != MemberTypes.Method)
                             {
-                                _logger.Error("Tried to define script that would overwrite parent member");
+                                // Todo: See if this is even necessary.
+                                //       Potentially just log warning.
+                                _logger.Error($"'{builder.FullName}' tried to define script '{member.Name}' that would overwrite parent member");
                                 continue;
                             }
 
-                            var parentMethod = GetInstanceMethod(os.Inherits, member.Name);
-
-                            if (parentMethod != null && (parentMethod.IsFinal || !(parentMethod.IsVirtual || parentMethod.IsAbstract)))
+                            if (parentMember is MethodInfo parentMethod)
                             {
-                                _logger.Error("Tried to override non-virtual, non-abstract method");
-                                continue;
+                                if (parentMethod.IsFinal || !(parentMethod.IsVirtual || parentMethod.IsAbstract))
+                                {
+                                    _logger.Error($"'{builder.FullName}' tried to override non-virtual, non-abstract script '{member.Name}'");
+                                    continue;
+                                }
                             }
+                            else
+                                scriptAttributes |= MethodAttributes.NewSlot;
 
-                            MethodAttributes flags = (parentMethod is null ? MethodAttributes.NewSlot : 0)
-                                | MethodAttributes.Virtual
-                                | MethodAttributes.Public
-                                | MethodAttributes.HideBySig;
-
-                            method = builder.DefineMethod(member.Name, flags, typeof(TsObject), TsTypes.ArgumentTypes);
-
-                            if(member.Name == "to_string")
+                            method = builder.DefineMethod(member.Name, scriptAttributes, typeof(TsObject), TsTypes.ArgumentTypes);
+                            if (method.Name == "to_string")
                                 GenerateToStringMethod(builder, method);
 
-                            // The create script should not be directly callable.
-                            if(member.Name != "create")
+                            if(method.Name != "create" && scriptSymbol.AccessModifiers.HasFlag(AccessModifiers.Public))
                             {
                                 var key = Fnv.Fnv32(member.Name);
                                 if (memberHash.Add(key))
@@ -457,37 +456,98 @@ namespace TaffyScript.Compiler.Backend
                         }
                         else
                         {
-                            MethodAttributes flags = MethodAttributes.Public | MethodAttributes.Static | MethodAttributes.HideBySig;
-                            method = builder.DefineMethod(member.Name, flags, typeof(TsObject), TsTypes.ArgumentTypes);
+                            method = builder.DefineMethod(member.Name, scriptAttributes, typeof(TsObject), TsTypes.ArgumentTypes);
                             var staticAttribute = new CustomAttributeBuilder(typeof(TaffyScriptStaticAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
                             method.SetCustomAttribute(staticAttribute);
                         }
-                        info.Methods[member.Name] = method;
+                        info.Methods[method.Name] = method;
                         break;
-                    case SymbolType.Field:
-                        FieldBuilder field;
-                        if(member.Scope == SymbolScope.Member)
+                    case PropertySymbol propertySymbol:
+                        PropertyBuilder property;
+                        bool canRead, canWrite;
+                        ScriptSymbol getScript = null, setScript = null;
+                        if ((canRead = propertySymbol.Children.TryGetValue("get", out var getSymbol)))
+                            getScript = getSymbol as ScriptSymbol;
+                        if (canWrite = propertySymbol.Children.TryGetValue("set", out var setSymbol))
+                            setScript = setSymbol as ScriptSymbol;
+
+                        if(propertySymbol.AccessModifiers.HasFlag(AccessModifiers.Instance))
                         {
-                            if(!MemberIsValid(info, member, out var parentMember))
+                            if(!CanImplementMember(info, member, out var parentMember))
                             {
-                                if (parentMember.MemberType == MemberTypes.Field || parentMember.MemberType == MemberTypes.Property)
-                                    _logger.Warning($"'{info.Type.FullName}' defines field '{member.Name}' that shadows field defined by parent '{parentMember.DeclaringType}'");
-                                else
-                                {
-                                    _logger.Error($"'{info.Type.FullName}' defines field '{member.Name}' that overrides '{parentMember.MemberType}' by parent '{parentMember.DeclaringType}'");
-                                    continue;
-                                }
+                                _logger.Error($"'{builder.FullName}' tried to define property '{member.Name}' that would overwrite parent member");
+                                continue;
                             }
-                            field = builder.DefineField(member.Name, typeof(TsObject), FieldAttributes.Public);
-                            var key = Fnv.Fnv32(member.Name);
-                            if (memberHash.Add(key))
-                                memberTree.Insert(key, new KeyValuePair<string, MemberInfo>(member.Name, field));
-                            else
-                                memberBruteForce.Add(new KeyValuePair<string, MemberInfo>(member.Name, field));
+
+                            property = builder.DefineProperty(member.Name, PropertyAttributes.None, typeof(TsObject), Type.EmptyTypes);
+                            var virtualAccessModifier = parentMember != null ? AccessModifiers.Virtual : AccessModifiers.None;
+                            var newSlotAttribute = parentMember != null ? 0 : MethodAttributes.NewSlot;
+                            if (canRead)
+                            {
+                                var getAttributes = MethodAttributesFromAccessModifiers(getScript.AccessModifiers | virtualAccessModifier) | newSlotAttribute;
+                                var getMethod = builder.DefineMethod($"get_{member.Name}", getAttributes, typeof(TsObject), Type.EmptyTypes);
+                                property.SetGetMethod(getMethod);
+                            }
+                            if (canWrite)
+                            {
+                                var setAttributes = MethodAttributesFromAccessModifiers(setScript.AccessModifiers | virtualAccessModifier) | newSlotAttribute;
+                                var setMethod = builder.DefineMethod($"set_{member.Name}", setAttributes, typeof(void), new[] { typeof(TsObject) });
+                                property.SetSetMethod(setMethod);
+                            }
+
+                            if(propertySymbol.AccessModifiers.HasFlag(AccessModifiers.Public))
+                            {
+                                var key = Fnv.Fnv32(member.Name);
+                                if (memberHash.Add(key))
+                                    memberTree.Insert(key, new KeyValuePair<string, MemberInfo>(member.Name, property));
+                                else
+                                    memberBruteForce.Add(new KeyValuePair<string, MemberInfo>(member.Name, property));
+                            }
                         }
                         else
                         {
-                            field = builder.DefineField(member.Name, typeof(TsObject), FieldAttributes.Public | FieldAttributes.Static);
+                            property = builder.DefineProperty(member.Name, PropertyAttributes.None, typeof(TsObject), Type.EmptyTypes);
+                            var staticAttribute = new CustomAttributeBuilder(typeof(TaffyScriptStaticAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
+                            property.SetCustomAttribute(staticAttribute);
+                            if(canRead)
+                            {
+                                var getAttributes = MethodAttributesFromAccessModifiers(getScript.AccessModifiers);
+                                var getMethod = builder.DefineMethod($"get_{member.Name}", getAttributes, typeof(TsObject), Type.EmptyTypes);
+                                property.SetGetMethod(getMethod);
+                            }
+                            if(canWrite)
+                            {
+                                var setAttributes = MethodAttributesFromAccessModifiers(setScript.AccessModifiers);
+                                var setMethod = builder.DefineMethod($"get_{member.Name}", setAttributes, typeof(TsObject), new[] { typeof(TsObject) });
+                                property.SetSetMethod(setMethod);
+                            }
+                        }
+                        info.Properties[member.Name] = property;
+                        break;
+                    case FieldLeaf fieldLeaf:
+                        FieldBuilder field;
+                        var fieldAttributes = FieldAttributesFromAccessModifiers(fieldLeaf.AccessModifiers);
+                        if (fieldLeaf.AccessModifiers.HasFlag(AccessModifiers.Instance))
+                        {
+                            if(!CanImplementMember(info, member, out var parentMember))
+                            {
+                                _logger.Error($"'{builder.FullName}' tried to define field '{member.Name}' that would overwrite parent member");
+                                continue;
+                            }
+
+                            field = builder.DefineField(member.Name, typeof(TsObject), fieldAttributes);
+                            if(fieldLeaf.AccessModifiers.HasFlag(AccessModifiers.Public))
+                            {
+                                var key = Fnv.Fnv32(member.Name);
+                                if (memberHash.Add(key))
+                                    memberTree.Insert(key, new KeyValuePair<string, MemberInfo>(member.Name, field));
+                                else
+                                    memberBruteForce.Add(new KeyValuePair<string, MemberInfo>(member.Name, field));
+                            }
+                        }
+                        else
+                        {
+                            field = builder.DefineField(member.Name, typeof(TsObject), fieldAttributes);
                             var staticAttribute = new CustomAttributeBuilder(typeof(TaffyScriptStaticAttribute).GetConstructor(Type.EmptyTypes), new object[] { });
                             field.SetCustomAttribute(staticAttribute);
                         }
@@ -500,11 +560,11 @@ namespace TaffyScript.Compiler.Backend
             {
                 var parentSymbol = os.Inherits as SymbolNode;
 
-                foreach (var kvp in info.Parent.Methods.Where(kvp => !info.Methods.ContainsKey(kvp.Key)))
+                foreach (var kvp in info.Parent.Methods.Where(kvp => InheritedMethod(kvp.Value) && !info.Methods.ContainsKey(kvp.Key)))
                 {
                     info.Methods.Add(kvp.Key, kvp.Value);
                     var scriptSymbol = parentSymbol.Children[kvp.Key];
-                    os.Children.Add(kvp.Key, scriptSymbol);
+                    os.Children[kvp.Key] = scriptSymbol;
 
                     if (!kvp.Value.IsStatic)
                     {
@@ -516,10 +576,10 @@ namespace TaffyScript.Compiler.Backend
                     }
                 }
 
-                foreach (var kvp in info.Parent.Fields.Where(kvp => !info.Fields.ContainsKey(kvp.Key)))
+                foreach (var kvp in info.Parent.Fields.Where(kvp => InheritedField(kvp.Value) && !info.Fields.ContainsKey(kvp.Key)))
                 {
                     info.Fields.Add(kvp.Key, kvp.Value);
-                    os.Children.Add(kvp.Key, parentSymbol.Children[kvp.Key]);
+                    os.Children[kvp.Key] = parentSymbol.Children[kvp.Key];
 
                     if (!kvp.Value.IsStatic)
                     {
@@ -531,10 +591,10 @@ namespace TaffyScript.Compiler.Backend
                     }
                 }
 
-                foreach(var kvp in info.Parent.Properties.Where(kvp => !info.Properties.ContainsKey(kvp.Key)))
+                foreach(var kvp in info.Parent.Properties.Where(kvp => InheritedProperty(kvp.Value) && !info.Properties.ContainsKey(kvp.Key)))
                 {
                     info.Properties.Add(kvp.Key, kvp.Value);
-                    os.Children.Add(kvp.Key, parentSymbol.Children[kvp.Key]);
+                    os.Children[kvp.Key] = parentSymbol.Children[kvp.Key];
 
                     if ((kvp.Value.CanRead && !kvp.Value.GetMethod.IsStatic) || (kvp.Value.CanWrite && !kvp.Value.GetMethod.IsStatic))
                     {
@@ -581,70 +641,141 @@ namespace TaffyScript.Compiler.Backend
                                                                          info.Parent);
         }
 
+        private bool CanImplementMember(ObjectInfo info, ISymbol member, out MemberInfo parentMember)
+        {
+            parentMember = default;
+            if (info.Parent is null)
+                return true;
+
+            var parent = info.Parent;
+            if (parent.Methods.TryGetValue(member.Name, out var methodInfo) && !methodInfo.IsPrivate)
+            {
+                parentMember = methodInfo;
+                if (member.Type == SymbolType.Script)
+                    return (methodInfo.IsVirtual || methodInfo.IsAbstract) && !methodInfo.IsFinal;
+                else
+                    return false;
+            }
+
+            if(parent.Fields.TryGetValue(member.Name, out var field) && !field.IsPrivate)
+            {
+                parentMember = field;
+                return false;
+            }
+
+            if(parent.Properties.TryGetValue(member.Name, out var property))
+            {
+                parentMember = property;
+                if (member is PropertySymbol propertySymbol)
+                {
+                    if (propertySymbol.Children.ContainsKey("get"))
+                    {
+                        if (!property.CanRead ||
+                            ((property.GetMethod.IsPublic || property.GetMethod.IsFamily) &&
+                                property.GetMethod.IsFinal || !(property.GetMethod.IsVirtual || property.GetMethod.IsAbstract)))
+                        {
+                            return false;
+                        }
+                    }
+                    if (propertySymbol.Children.ContainsKey("set"))
+                    {
+                        if (!property.CanWrite ||
+                            ((property.SetMethod.IsPublic || property.SetMethod.IsFamily) &&
+                                property.SetMethod.IsFinal || !(property.SetMethod.IsVirtual || property.SetMethod.IsAbstract)))
+                        {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                else
+                    return false;
+            }
+
+            return true;
+        }
+
         private bool MemberIsValid(ObjectInfo info, ISymbol member, out MemberInfo parentMember)
         {
             parentMember = default;
             if (info.Parent is null || member.Scope == SymbolScope.Global)
                 return true;
+
             var parent = info.Parent;
-            while(parent != null)
+            if(parent.Methods.TryGetValue(member.Name, out var methodInfo))
             {
-                if (parent.Type is TypeBuilder builder && !builder.IsCreated())
-                {
-                    if (parent.Methods.TryGetValue(member.Name, out var method))
-                    {
-                        parentMember = method;
-                        return false;
-                    }
+                parentMember = methodInfo;
+                return InheritedMethod(methodInfo);
+            }
 
-                    if (parent.Fields.TryGetValue(member.Name, out var field))
-                    {
-                        parentMember = field;
-                        return false;
-                    }
+            if (parent.Fields.TryGetValue(member.Name, out var fieldInfo))
+            {
+                parentMember = fieldInfo;
+                return InheritedField(fieldInfo);
+            }
 
-                    if(parent.Properties.TryGetValue(member.Name, out var property))
-                    {
-                        parentMember = property;
-                        return false;
-                    }
-                }
-                else
-                {
-                    var members = parent.Type.GetMember(member.Name,
-                                                        MemberTypes.Field |
-                                                            MemberTypes.Property |
-                                                            MemberTypes.Method,
-                                                        BindingFlags.Public |
-                                                            BindingFlags.Instance |
-                                                            BindingFlags.NonPublic |
-                                                            BindingFlags.FlattenHierarchy);
-
-                    parentMember = members.FirstOrDefault(InheritedMember);
-
-                    return parentMember is null ? true : false;
-                }
-
-                parent = parent.Parent;
+            if (parent.Properties.TryGetValue(member.Name, out var propertyInfo))
+            {
+                parentMember = propertyInfo;
+                return InheritedProperty(propertyInfo);
             }
 
             return true;
+        }
 
-            bool InheritedMember(MemberInfo memberInfo)
+        private bool InheritedMethod(MethodInfo method)
+        {
+            return !method.IsStatic && (method.IsPublic || method.IsFamily);
+        }
+
+        private bool InheritedField(FieldInfo field)
+        {
+            return !field.IsStatic && (field.IsPublic || field.IsFamily);
+        }
+
+        private bool InheritedProperty(PropertyInfo property)
+        {
+            return (property.CanRead && !property.GetMethod.IsStatic && (property.GetMethod.IsPublic || property.GetMethod.IsFamily)) ||
+                   (property.CanWrite && !property.SetMethod.IsStatic && (property.SetMethod.IsPublic || property.GetMethod.IsFamily));
+        }
+
+        private MethodAttributes MethodAttributesFromAccessModifiers(AccessModifiers accessModifiers)
+        {
+            MethodAttributes attributes = MethodAttributes.HideBySig;
+            if (accessModifiers.HasFlag(AccessModifiers.Public))
+                attributes |= MethodAttributes.Public;
+            else if (accessModifiers.HasFlag(AccessModifiers.Protected))
+                attributes |= MethodAttributes.Family;
+            else
+                attributes |= MethodAttributes.Static;
+
+            if (accessModifiers.HasFlag(AccessModifiers.Instance))
             {
-                switch (memberInfo)
-                {
-                    case MethodInfo method:
-                        return method.IsPublic || method.IsFamily;
-                    case FieldInfo field:
-                        return field.IsPublic || field.IsFamily;
-                    case PropertyInfo property:
-                        return (property.GetMethod != null && (property.GetMethod.IsPublic || property.GetMethod.IsFamily)) ||
-                               (property.SetMethod != null && (property.SetMethod.IsPublic || property.SetMethod.IsFamily));
-                    default:
-                        return false;
-                }
+                if (accessModifiers.HasFlag(AccessModifiers.Virtual))
+                    attributes |= MethodAttributes.Virtual;
+                else if (accessModifiers.HasFlag(AccessModifiers.Sealed))
+                    attributes |= MethodAttributes.Final;
             }
+            else
+                attributes |= MethodAttributes.Static;
+
+            return attributes;
+        }
+
+        private FieldAttributes FieldAttributesFromAccessModifiers(AccessModifiers accessModifiers)
+        {
+            FieldAttributes attributes = 0;
+            if (accessModifiers.HasFlag(AccessModifiers.Public))
+                attributes |= FieldAttributes.Public;
+            else if (accessModifiers.HasFlag(AccessModifiers.Protected))
+                attributes |= FieldAttributes.Family;
+            else
+                attributes |= FieldAttributes.Private;
+
+            if (accessModifiers.HasFlag(AccessModifiers.Static))
+                attributes |= FieldAttributes.Static;
+
+            return attributes;
         }
 
         private void GenerateObjectType(TypeBuilder type)

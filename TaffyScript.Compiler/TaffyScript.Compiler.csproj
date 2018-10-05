@@ -37,7 +37,7 @@
     <DefineConstants>TRACE;DEBUG;WINDOWS</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <LangVersion>7.1</LangVersion>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -48,7 +48,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <LangVersion>7.1</LangVersion>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject />
@@ -61,7 +61,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <LangVersion>7.1</LangVersion>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release64|AnyCPU'">
     <OutputPath>bin\Release64\</OutputPath>
@@ -71,7 +71,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <LangVersion>7.1</LangVersion>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Build" />
@@ -85,6 +85,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AccessModifiers.cs" />
     <Compile Include="Backend\Compiler\AssetStore.cs" />
     <Compile Include="Backend\Compiler\EmitHelper.cs" />
     <Compile Include="Backend\Compiler\TsInstanceInterfaceMethodGenerator.cs" />
@@ -102,6 +103,7 @@
     <Compile Include="Backend\Compiler\ILEmitter.cs" />
     <Compile Include="Backend\Compiler\MsilWeakCompiler.cs" />
     <Compile Include="Backend\TsTypes.cs" />
+    <Compile Include="EnumExtensions.cs" />
     <Compile Include="Front End\LexicalAnalysis\Token.cs" />
     <Compile Include="Front End\LexicalAnalysis\Tokenizer.cs" />
     <Compile Include="Front End\LexicalAnalysis\TokenPosition.cs" />
@@ -110,15 +112,20 @@
     <Compile Include="Front End\Parser.cs" />
     <Compile Include="Front End\Resolver.cs" />
     <Compile Include="IErrorLogger.cs" />
+    <Compile Include="MemberUtils.cs" />
     <Compile Include="RedBlackTree.cs" />
     <Compile Include="StringUtils.cs" />
     <Compile Include="SymbolResolver.cs" />
     <Compile Include="Symbols\EnumLeaf.cs" />
+    <Compile Include="Symbols\FieldLeaf.cs" />
     <Compile Include="Symbols\ImportLeaf.cs" />
     <Compile Include="Symbols\ImportObjectSymbol.cs" />
     <Compile Include="Symbols\InvalidSymbolException.cs" />
     <Compile Include="Symbols\ISymbol.cs" />
+    <Compile Include="Symbols\MemberSymbol.cs" />
     <Compile Include="Symbols\ObjectSymbol.cs" />
+    <Compile Include="Symbols\PropertySymbol.cs" />
+    <Compile Include="Symbols\ScriptSymbol.cs" />
     <Compile Include="Symbols\SymbolLeaf.cs" />
     <Compile Include="Symbols\SymbolNode.cs" />
     <Compile Include="Symbols\SymbolScope.cs" />
@@ -174,6 +181,7 @@
     <Compile Include="Syntax\ConstantType.cs" />
     <Compile Include="Syntax\Containers\EnumValue.cs" />
     <Compile Include="Syntax\Containers\FieldDeclaration.cs" />
+    <Compile Include="Syntax\Containers\PropertyDeclaration.cs" />
     <Compile Include="Syntax\Containers\SwitchCase.cs" />
     <Compile Include="Syntax\Containers\VariableDeclaration.cs" />
     <Compile Include="Syntax\Containers\UsingDeclaration.cs" />

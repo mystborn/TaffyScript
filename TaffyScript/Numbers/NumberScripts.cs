@@ -65,6 +65,23 @@ namespace TaffyScript.Numbers
         }
 
         [TaffyScriptMethod]
+        public static TsObject irandom(TsObject[] args)
+        {
+            if (args is null)
+                return Rng.Next();
+
+            switch (args.Length)
+            {
+                case 0:
+                    return Rng.Next();
+                case 1:
+                    return Rng.Next((int)args[0]);
+                default:
+                    return Rng.Next((int)args[0], (int)args[1]);
+            }
+        }
+
+        [TaffyScriptMethod]
         public static TsObject ln(TsObject[] args)
         {
             return Math.Log((double)args[0]);
@@ -121,7 +138,20 @@ namespace TaffyScript.Numbers
         [TaffyScriptMethod]
         public static TsObject random(TsObject[] args)
         {
-            return (float)Rng.NextDouble() * (float)args[0];
+            if (args is null)
+                return (float)Rng.NextDouble();
+
+            switch(args.Length)
+            {
+                case 0:
+                    return (float)Rng.NextDouble();
+                case 1:
+                    return (float)Rng.NextDouble() * (float)args[0];
+                default:
+                    var min = (float)args[0];
+                    return (float)Rng.NextDouble() * ((float)args[1] - min) + min;
+            }
+            
         }
 
         [TaffyScriptMethod]

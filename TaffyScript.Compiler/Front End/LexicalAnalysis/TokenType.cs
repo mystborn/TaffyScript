@@ -8,6 +8,7 @@ namespace TaffyScript.Compiler.FrontEnd
 {
     public enum TokenType
     {
+        AccessModifier,
         AndEquals,
         Argument,
         As,
