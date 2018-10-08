@@ -1,8 +1,8 @@
-using UnitTest;
+using UnitTests;
 
 namespace LanguageTests {
     script run_logical_or_tests() {
-        var tests = new obj_unit_test("And Tests",
+        var tests = new UnitTest("And Tests",
                                       logical_or_symbol_short_curcuit,
                                       logical_or_keyword_short_circuit,
                                       logical_or_symbol_full,

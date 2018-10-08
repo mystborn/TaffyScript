@@ -1,7 +1,40 @@
 using TaffyScript.Threading;
 
 namespace TaffyScript.Threading.Tests {
-    script main {
+    script main() {
+        print("Main Thread: {0}", thread_get_id());
+        var key = new ThreadLock();
+        var token = new TaskCancellationToken();
+        var task = script {
+            key.lock();
+            thread_sleep(1000);
+            key.unlock();
+            token.throw_if_cancelled();
+            print(thread_get_id());
+        }
+        token.cancel_after(1500);
+        token.register(script { print("cancelled")});
+        var t1 = task_run(task, token);
+        var t2 = task_run(task, token);
+        var result = task_wait_all(t1, t2);
+        if(result != "")
+            print(result);
+        t1.dispose();
+        t2.dispose();
+
+
+        task = script {
+            print(thread_get_id());
+        }
+
+        t1 = task_run(task);
+        t2 = task_run(task);
+        var result = task_wait_all(t1, t2);
+        t1.dispose();
+        t2.dispose();
+    }
+
+    /*script main {
         print("Threading without locks")
         task_run(print_thread_id);
         task_run(print_thread_id);
@@ -25,7 +58,7 @@ namespace TaffyScript.Threading.Tests {
         task = thread_start(script_with_exception);
         result = task.result;
         print_thread_result(result);
-    }
+    }*/
 
     script print_thread_id() {
         for(var i = 0; i < 10; i++) {

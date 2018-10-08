@@ -1,8 +1,8 @@
-using UnitTest;
+using UnitTests;
 
 namespace LanguageTests {
     script run_ternary_tests() {
-        var tests = new obj_unit_test("Ternary Tests", 
+        var tests = new UnitTest("Ternary Tests", 
                                       ternary_var_assign,
                                       ternary_argument_assign);
 

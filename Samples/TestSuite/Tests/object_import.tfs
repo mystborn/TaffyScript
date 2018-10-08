@@ -1,10 +1,10 @@
-using UnitTest;
+using UnitTests;
 using TaffyScript.Collections;
 
 namespace LanguageTests {
 
     script run_import_tests() {
-        var tests = new obj_unit_test("Import Tests", import_create_ds_list);
+        var tests = new UnitTest("Import Tests", import_create_ds_list);
         tests.run_tests();
     }
 

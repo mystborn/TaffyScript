@@ -1,8 +1,8 @@
-using UnitTest;
+using UnitTests;
 
 namespace LanguageTests {
     script run_static_tests() {
-        var tests = new obj_unit_test("Static Tests",
+        var tests = new UnitTest("Static Tests",
                                       static_invoke,
                                       static_namespace_invoke,
                                       static_through_instance,

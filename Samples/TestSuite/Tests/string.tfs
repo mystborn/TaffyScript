@@ -1,10 +1,10 @@
-using UnitTest;
+using UnitTests;
 using TaffyScript;
 using TaffyScript.Strings;
 
 namespace LanguageTests {
     script run_string_tests() {
-        var tests = new obj_unit_test("String Tests",
+        var tests = new UnitTest("String Tests",
                                       string_empty_equals_empty,
                                       string_base64,
                                       string_from_num,
@@ -170,7 +170,7 @@ namespace LanguageTests {
         test_it("\"\".ends_with()");
         assert("oink".ends_with("k"));
         assert("oink".ends_with("oink"));
-        assert_is_false("oink".ends_with("m"));
+        assert_false("oink".ends_with("m"));
     }
 
     script string_literal_get() {
@@ -230,7 +230,7 @@ namespace LanguageTests {
         test_it("\"\".starts_with()");
         assert("oink".starts_with("o"));
         assert("oink".starts_with("oink"));
-        assert_is_false("oink".starts_with("m"));
+        assert_false("oink".starts_with("m"));
     }
 
     script string_literal_split() {
@@ -311,7 +311,7 @@ namespace LanguageTests {
         var str = "oink";
         assert(str.ends_with("k"));
         assert(str.ends_with("oink"));
-        assert_is_false(str.ends_with("m"));
+        assert_false(str.ends_with("m"));
     }
 
     script string_variable_get() {
@@ -382,7 +382,7 @@ namespace LanguageTests {
         var str = "oink";
         assert(str.starts_with("o"));
         assert(str.starts_with("oink"));
-        assert_is_false(str.starts_with("m"));
+        assert_false(str.starts_with("m"));
     }
 
     script string_variable_split() {

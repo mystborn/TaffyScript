@@ -2,12 +2,12 @@
 // This file shows a potential implementation.
 // Currently it's excluded from the build.
 
-using UnitTest;
+using UnitTests;
 using TaffyScript.Reflection;
 
 namespace LanguageTests {
     script run_lambda_tests() {
-        var tests = new obj_unit_test("Lambda Tests",
+        var tests = new UnitTest("Lambda Tests",
                                       lambda_no_capture,
                                       lambda_capture_local,
                                       lambda_capture_argument,

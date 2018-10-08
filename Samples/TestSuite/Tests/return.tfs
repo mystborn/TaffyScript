@@ -1,8 +1,8 @@
-using UnitTest;
+using UnitTests;
 
 namespace LanguageTests {
     script run_return_tests() {
-        var tests = new obj_unit_test("Return Tests",
+        var tests = new UnitTest("Return Tests",
                                       return_something_works,
                                       return_nothing_works);
         tests.run_tests();
@@ -17,9 +17,9 @@ namespace LanguageTests {
     script return_nothing_works() {
         test_it("script { return }");
         var result = return_nothing_semicolon();
-        assert_is_null(result);
+        assert_null(result);
         result = return_nothing_end_brace();
-        assert_is_null(result);
+        assert_null(result);
     }
 
     script return_something() {

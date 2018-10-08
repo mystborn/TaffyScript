@@ -3347,6 +3347,12 @@ namespace TaffyScript.Compiler.Backend
             {
                 MarkSequencePoint(newNode.Position, newNode.EndPosition);
                 var ctor = _assets.GetConstructor(symbol, newNode.Position);
+                if(ctor is null)
+                {
+                    _logger.Error($"Type {_resolver.GetAssetFullName(symbol)} does not have a public constructor", newNode.Position);
+                    emit.Call(TsTypes.Empty);
+                    return;
+                }
                 emit.LdInt(newNode.Arguments.Count)
                         .NewArr(typeof(TsObject));
 

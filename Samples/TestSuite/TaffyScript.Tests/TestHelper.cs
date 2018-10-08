@@ -8,10 +8,10 @@ using TaffyScript;
 
 namespace TaffyScript.Tests
 {
+    [TaffyScriptBaseType]
     public static class TestHelper
     {
-        [TaffyScriptMethod]
-        public static TsObject Try(TsObject[] args)
+        public static TsObject @try(TsObject[] args)
         {
             var del = (TsDelegate)args[0];
             TsObject[] delArgs = null;
@@ -38,9 +38,8 @@ namespace TaffyScript.Tests
 
             return result;
         }
-
-        [TaffyScriptMethod]
-        public static TsObject TryExpect(TsObject[] args)
+        
+        public static TsObject try_expect(TsObject[] args)
         {
             var del = (TsDelegate)args[0];
             TsObject[] delArgs = null;
@@ -61,9 +60,8 @@ namespace TaffyScript.Tests
 
             return false;
         }
-
-        [TaffyScriptMethod]
-        public static TsObject TimeInvoke(TsObject[] args)
+        
+        public static TsObject time_invoke(TsObject[] args)
         {
             var del = (TsDelegate)args[0];
             TsObject[] delArgs = null;
@@ -83,12 +81,12 @@ namespace TaffyScript.Tests
             return result;
         }
 
-        public static void CollectGarbage()
+        public static void gc_collect()
         {
             GC.Collect();
         }
 
-        public static long GetUsedMemory()
+        public static long gc_get_used_memory()
         {
             //return GC.GetTotalMemory(false);
             return Environment.WorkingSet;

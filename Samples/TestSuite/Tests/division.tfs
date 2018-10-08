@@ -1,8 +1,9 @@
-using UnitTest;
+using UnitTests;
+using TaffyScript.Tests;
 
 namespace LanguageTests {
     script run_division_tests() {
-        var tests = new obj_unit_test("Division Tests",
+        var tests = new UnitTest("Division Tests",
                                        number_var_divide_number_var,
                                        number_var_divide_number_literal,
                                        number_literal_divide_number_var,

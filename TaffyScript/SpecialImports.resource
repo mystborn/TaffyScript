@@ -1,6 +1,7 @@
 ﻿1::Grid:TaffyScript.Collections.TsGrid
 1::List:TaffyScript.Collections.TsList
 1::Map:TaffyScript.Collections.TsMap
+1:TaffyScript:DateTime:TaffyScript.TsDateTime
 0::array_copy:GlobalScripts.array_copy
 0::array_create:GlobalScripts.array_create
 0::array_equals:GlobalScripts.array_equals

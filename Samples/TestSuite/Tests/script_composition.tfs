@@ -1,6 +1,6 @@
 //This file makes sure weird scripts and object inheritance compiles properly.
 
-using UnitTest;
+using UnitTests;
 
 namespace LanguageTests {
 

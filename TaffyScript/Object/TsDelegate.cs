@@ -52,7 +52,7 @@ namespace TaffyScript
         /// <returns></returns>
         public TsObject Invoke(params TsObject[] args)
         {
-            // If the script needs a target, get it from the first index of the args array.
+            // If the script needs a target, get it from the last index of the args array.
             // This will make it easier to invoke Delegates from TS.
             return Script(args);
         }

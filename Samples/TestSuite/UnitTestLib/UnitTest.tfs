@@ -1,0 +1,136 @@
+//This project is based off of the GaMaTas project for GameMaker Studio.
+//To find more information, you can view the project here:
+//https://github.com/gm-core/gamatas
+
+using TaffyScript.Reflection;
+using TaffyScript.Tests;
+
+namespace UnitTests {
+    object UnitTest {
+        test_numer = 0;
+        tests_failed = false;
+        test_description = "";
+        tests = new List();
+        expected_error = null;
+        test_suite;
+
+        static unit_test;
+
+        script create(test_suite_name) {
+            if(argument_count < 2)
+                show_error("You must provide at least the test suite name and one test.", true);
+
+            test_suite = test_suite_name;
+            for(var i = 1; i < argument_count; i++) {
+                tests.add(argument[i]);
+            }
+        }
+
+        script run_tests() {
+            unit_test = self;
+            var count = tests.count;
+            var failed_count = 0;
+            for(var i = 0; i < count; i++) {
+                test_description = "";
+                tests_failed = false;
+                expected_error = null;
+
+                var result = try(tests[i]);
+                if(result.has_error && result.error_type != expected_error) {
+                    test_fail("Unexpected Exception: {0}: {1}".format(result.error_type, result.error_msg));
+                } else if(expected_error != null && !result.has_error) {
+                    test_fail("Expected {0} to be thrown".format(expected_error));
+                }
+
+                if(tests_failed)
+                    failed_count += 1;
+                else
+                    print(string(test_description) + " tests have passed.");
+            }
+
+            if(failed_count > 0)
+                show_error("{0} tests have failed. See output for more info.".format(tests_failed), true);
+            else
+                print("All tests have passed - " + test_suite);
+        }
+    }
+
+    script test_it {
+        UnitTest.unit_test.test_description = argument0;
+    }
+
+    script assert {
+        if(argument_count == 1)
+            assert_true(argument0);
+        else
+            assert_true(argument0, argument1);
+    }
+
+    script assert_equal {
+        UnitTest.unit_test.test_number++;
+        if(argument0 != argument1) {
+            var msg;
+            if(argument_count > 2)
+                msg = argument2;
+            else {
+                msg = ut_create_assert_error(string(argument0) + " is not " + string(argument1));
+            }
+
+            test_fail(msg);
+        }
+    }
+
+    script assert_not_equal {
+        UnitTest.unit_test.test_number++;
+        if(argument0 == argument1) {
+            var msg;
+            if(argument_count > 2)
+                msg = argument2;
+            else
+                msg = scr_ut_create_assert_error(string(argument0) + " is " + string(argument1));
+
+            test_fail(msg);
+        }
+    }
+
+    script assert_true {
+        if(argument_count > 1)
+            assert_equal(argument0, true, argument1);
+        else
+            assert_equal(argument0, true);
+    }
+
+    script assert_false {
+        if(argument_count > 1)
+            assert_equal(argument0, false, argument1);
+        else
+            assert_equal(argument0, false);
+    }
+
+    script assert_null {
+        UnitTest.unit_test.test_number++;
+        if(!is_null(argument0)) {
+            var msg;
+            if(argument_count > 1)
+                msg = argument1;
+            else
+                msg = scr_ut_create_assert_error(string(argument0) + " is not undefined");
+        }
+    }
+
+    script expect_error(error_type) {
+        UnitTest.unit_test.expected_error = error_type;
+    }
+
+    script ut_create_assert_error {
+        return "ASSERT ERROR - " + string(argument0) + " - ASSERT #" + string(UnitTest.unit_test.test_number);
+    }
+
+    script test_fail(msg) {
+        print("Error:    {0}".format(msg));
+        print("Test:     {0}".format(UnitTest.unit_test.test_description));
+        print("Suite: {0}".format(UnitTest.unit_test.test_suite));
+
+        UnitTest.unit_test.tests_failed = true;
+    }
+}

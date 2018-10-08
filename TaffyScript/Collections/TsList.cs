@@ -7,17 +7,18 @@ using System.Threading.Tasks;
 namespace TaffyScript.Collections
 {
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-    public class TsList : ITsInstance
+
+    /// <summary>
+    /// Represents a list of objects that can be access by index.
+    /// </summary>
+    /// <property name="count" type="number" access="get">
+    ///     <summary>Gets the number of items in the list.</summary>
+    /// </property>
+    public class TsList : TsEnumerable
     {
         private List<TsObject> _source;
 
-        public TsObject this[string memberName]
-        {
-            get => GetMember(memberName);
-            set => SetMember(memberName, value);
-        }
-
-        public string ObjectType => "List";
+        public override string ObjectType => "List";
         public List<TsObject> Source => _source;
 
         public TsList()
@@ -25,6 +26,10 @@ namespace TaffyScript.Collections
             _source = new List<TsObject>();
         }
 
+        /// <summary>
+        /// Creates a new list composed of the arguments.
+        /// </summary>
+        /// <arg name="[..args]" type="objects">The objects to initialize the list with.</arg>
         public TsList(TsObject[] args)
         {
             if (args is null)
@@ -48,7 +53,12 @@ namespace TaffyScript.Collections
             return new TsList(source);
         }
 
-        public TsObject Call(string scriptName, params TsObject[] args)
+        public override IEnumerator<TsObject> GetEnumerator()
+        {
+            return _source.GetEnumerator();
+        }
+
+        public override TsObject Call(string scriptName, params TsObject[] args)
         {
             switch(scriptName)
             {
@@ -87,15 +97,7 @@ namespace TaffyScript.Collections
             return TsObject.Empty;
         }
 
-        public TsDelegate GetDelegate(string scriptName)
-        {
-            if (TryGetDelegate(scriptName, out var del))
-                return del;
-
-            throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
-        }
-
-        public TsObject GetMember(string name)
+        public override TsObject GetMember(string name)
         {
             switch(name)
             {
@@ -109,12 +111,7 @@ namespace TaffyScript.Collections
             }
         }
 
-        public void SetMember(string name, TsObject value)
-        {
-            throw new MemberAccessException($"Member {name} on type {ObjectType} is readonly");
-        }
-
-        public bool TryGetDelegate(string scriptName, out TsDelegate del)
+        public override bool TryGetDelegate(string scriptName, out TsDelegate del)
         {
             switch(scriptName) {
                 case "add":
@@ -165,45 +162,94 @@ namespace TaffyScript.Collections
 
 #pragma warning disable IDE1006 // Naming Styles
 
+        /// <summary>
+        /// Adds the arguments to the list.
+        /// </summary>
+        /// <arg name="..elements" type="objects">The elements to add to the list.</arg>
+        /// <returns>null</returns>
         public TsObject add(TsObject[] args)
         {
             _source.AddRange(args);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Removes all elements from this list.
+        /// </summary>
+        /// <returns>null</returns>
         public TsObject clear(TsObject[] args)
         {
             _source.Clear();
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Creates a copy of the list.
+        /// </summary>
+        /// <returns>[List]({{site.baseurl}}/docs/List)</returns>
         public TsObject copy(TsObject[] args)
         {
             return new TsList(_source);
         }
 
+        /// <summary>
+        /// Gets the element at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index of the element to get.</arg>
+        /// <returns>object</returns>
         public TsObject get(TsObject[] args)
         {
             return _source[(int)args[0]];
         }
 
+        /// <summary>
+        /// Gets an enumerator used to iterate over the elements in the list.
+        /// </summary>
+        /// <returns>[TsEnumerator]({{site.baseurl}}/docs/TaffyScript/Collections/TsEnumerator)</returns>
+        public override TsObject get_enumerator(TsObject[] args)
+        {
+            return new TsEnumerator(_source.GetEnumerator());
+        }
+
+        /// <summary>
+        /// Inserts a value into the list at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="item" type="object">The value to insert.</arg>
+        /// <returns>null</returns>
         public TsObject insert(TsObject[] args)
         {
             _source.Insert((int)args[0], args[1]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Finds the index of the first occurrence of the value in the list. Returns -1 if the value isn't found.
+        /// </summary>
+        /// <arg name="item" type="object">The item to search for.</arg>
+        /// <returns></returns>
         public TsObject index_of(TsObject[] args)
         {
             return _source.IndexOf(args[0]);
         }
-        
+
+        /// <summary>
+        /// Removes the value at the specified index within the list.
+        /// </summary>
+        /// <arg name="index" type="number">The index of the value to remove.</arg>
+        /// <returns>null</returns>
         public TsObject remove(TsObject[] args)
         {
             _source.RemoveAt((int)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Sets the value at the specified index within the list. If `index` is greater than the size of the list, null elements will be added until the index can be set.
+        /// </summary>
+        /// <arg name="index" type="number">The index of the item to set.</arg>
+        /// <arg name="value" type="object">The value to set the index.</arg>
+        /// <returns>null</returns>
         public TsObject set(TsObject[] args)
         {
             var index = (int)args[0];
@@ -213,12 +259,21 @@ namespace TaffyScript.Collections
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Shiffles the values in the list.
+        /// </summary>
+        /// <returns>null</returns>
         public TsObject shuffle(TsObject[] args)
         {
             _source.Shuffle();
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Sorts the elements in the list.
+        /// </summary>
+        /// <arg name="[comparer]" type="script">A script used to compare elements against each other.</arg>
+        /// <returns>null</returns>
         public TsObject sort(TsObject[] args)
         {
             if(args is null)

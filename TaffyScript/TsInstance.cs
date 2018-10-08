@@ -17,7 +17,6 @@ namespace TaffyScript
 
         public abstract string ObjectType { get; }
 
-
         public TsDelegate GetDelegate(string scriptName)
         {
             if (TryGetDelegate(scriptName, out var del))

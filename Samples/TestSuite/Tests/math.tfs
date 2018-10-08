@@ -7,12 +7,12 @@
 // * logn
 // * exp
 
-using UnitTest;
+using UnitTests;
 using TaffyScript.Numbers;
 
 namespace LanguageTests {
     script run_math_tests() {
-        var tests = new obj_unit_test("Math Tests",
+        var tests = new UnitTest("Math Tests",
                                       math_abs,
                                       math_ceil,
                                       math_choose,

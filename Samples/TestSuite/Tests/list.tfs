@@ -1,8 +1,9 @@
-using UnitTest;
+using UnitTests;
+using TaffyScript.Tests;
 
 namespace LanguageTests {
     script run_list_tests() {
-        var tests = new obj_unit_test("List Tests",
+        var tests = new UnitTest("List Tests",
                                       list_create,
                                       list_add_one,
                                       list_add_many,

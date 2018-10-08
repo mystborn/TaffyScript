@@ -53,8 +53,8 @@ namespace TaffyScript.Xml
                     return move_to_content(args);
                 case "move_to_element":
                     return move_to_element(args);
-                case "move_to_first_attribute":
-                    return move_to_first_attribute(args);
+                case "move_to_last_attribute":
+                    return move_to_last_attribute(args);
                 case "move_to_next_attribute":
                     return move_to_next_attribute(args);
                 case "read":
@@ -196,8 +196,8 @@ namespace TaffyScript.Xml
                 case "move_to_element":
                     del = new TsDelegate(move_to_element, "move_to_element");
                     return true;
-                case "move_to_first_attribute":
-                    del = new TsDelegate(move_to_first_attribute, "move_to_first_attribute");
+                case "move_to_last_attribute":
+                    del = new TsDelegate(move_to_last_attribute, "move_to_last_attribute");
                     return true;
                 case "move_to_next_attribute":
                     del = new TsDelegate(move_to_next_attribute, "move_to_next_attribute");
@@ -314,7 +314,7 @@ namespace TaffyScript.Xml
             return Source.MoveToElement();
         }
 
-        public TsObject move_to_first_attribute(TsObject[] args)
+        public TsObject move_to_last_attribute(TsObject[] args)
         {
             return Source.MoveToFirstAttribute();
         }

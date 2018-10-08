@@ -1,9 +1,9 @@
-using UnitTest;
+using UnitTests;
 using TaffyScript.Reflection;
 
 namespace LanguageTests {
     script run_reflection_tests() {
-        var tests = new obj_unit_test("Reflection Tests",
+        var tests = new UnitTest("Reflection Tests",
                                       event_perform_object_with_args,
                                       event_perform_object_without_args,
                                       reflection_object_get_name,
@@ -69,7 +69,7 @@ namespace LanguageTests {
     script reflection_script_exists() {
         test_it("script_exists()");
         assert(script_exists("LanguageTests.reflection_echo"));
-        assert_is_false(script_exists("reflection_moo"));
+        assert_false(script_exists("reflection_moo"));
     }
 
     script reflection_global_exists() {
@@ -109,7 +109,7 @@ namespace LanguageTests {
         test_it("variable_instance_exists()");
         var obj = new obj_mirror();
         assert(variable_instance_exists(obj, "value"));
-        assert_is_false(variable_instance_exists(obj, "moo"));
+        assert_false(variable_instance_exists(obj, "moo"));
     }
 
     script reflection_instance_get() {

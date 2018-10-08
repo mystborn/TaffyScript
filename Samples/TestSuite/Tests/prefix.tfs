@@ -1,10 +1,10 @@
-using UnitTest;
+using UnitTests;
 using TaffyScript.Collections;
 
 namespace LanguageTests {
     script run_prefix_tests() {
         var obj = new obj_prefix();
-        var tests = new obj_unit_test("Prefix Tests",
+        var tests = new UnitTest("Prefix Tests",
                                       prefix_negate,
                                       prefix_positive,
                                       prefix_not,

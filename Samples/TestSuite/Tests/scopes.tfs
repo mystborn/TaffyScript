@@ -1,9 +1,9 @@
-using UnitTest;
+using UnitTests;
 using TaffyScript.Reflection;
 
 namespace LanguageTests {
     script run_scope_tests() {
-        var tests = new obj_unit_test("Scope Tests",
+        var tests = new UnitTest("Scope Tests",
                                       scope_double_variable);
 
         tests.run_tests();
