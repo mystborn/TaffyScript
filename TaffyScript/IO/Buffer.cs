@@ -6,6 +6,18 @@ using System.Threading.Tasks;
 
 namespace TaffyScript.IO
 {
+    /// <summary>
+    /// Represents an array of bytes that can be used to efficiently encode data.
+    /// </summary>
+    /// <property name="length" type="number" access="get">
+    ///     <summary>Gets the number of bytes in the buffer.</summary>
+    /// </property>
+    /// <property name="count" type="number" access="get">
+    ///     <summary>Gets the number of bytes in the buffer.</summary>
+    /// </property>
+    /// <property name="position" type="number" access="both">
+    ///     <summary>Gets or sets the read and write position in the buffer.</summary>
+    /// </property>
     [TaffyScriptObject]
     public class Buffer : ITsInstance
     {
@@ -23,7 +35,7 @@ namespace TaffyScript.IO
             set => Memory[position] = value;
         }
 
-        public string ObjectType => "TaffyScript.IO.ByteArray";
+        public string ObjectType => "TaffyScript.IO.Buffer";
 
         public byte[] Memory => _memory;
         public int Position { get; set; }
@@ -39,6 +51,10 @@ namespace TaffyScript.IO
             _memory = new byte[size];
         }
 
+        /// <summary>
+        /// Initializes a new buffer with the specified number of bytes.
+        /// </summary>
+        /// <arg name="size" type="number">The number of bytes to create the buffer with.</arg>
         public Buffer(TsObject[] args)
         {
             _memory = new byte[(int)args[0]];
@@ -114,16 +130,14 @@ namespace TaffyScript.IO
         public unsafe void Write(float value)
         {
             // Reinterprets the float as an int while preserving the bit pattern.
-            float* fRef = &value;
-            int i = *((int*)fRef);
+            int i = *((int*)&value);
             Write(i);
         }
 
         public unsafe void Write(double value)
         {
             // Reinterprets the double as a long while preserving the bit pattern.
-            double* dRef = &value;
-            long l = *((long*)dRef);
+            long l = *((long*)&value);
             Write(l);
         }
 
@@ -427,12 +441,21 @@ namespace TaffyScript.IO
             return true;
         }
 
+        /// <summary>
+        /// Sets all bytes in the buffer to zero and sets the position to 0.
+        /// </summary>
+        /// <returns>null</returns>
         public TsObject clear(TsObject[] args)
         {
             Array.Clear(Memory, 0, Length);
+            Position = 0;
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Creates a copy of the buffer.
+        /// </summary>
+        /// <returns>[Buffer]({{site.baseurl}}/docs/TaffyScript/IO/Buffer)</returns>
         public TsObject clone(TsObject[] args)
         {
             var copy = new Buffer(Length);
@@ -441,6 +464,14 @@ namespace TaffyScript.IO
             return copy;
         }
 
+        /// <summary>
+        /// Copies the data from this buffer to another.
+        /// </summary>
+        /// <arg name="dest" type="[Buffer]({{site.baseurl}}/docs/TaffyScript/IO/Buffer)">The buffer to copy to.</arg>
+        /// <arg name="length" type="number">The number of bytes to copy.</arg>
+        /// <arg name="[source_index=0]" type="number">The position to start copying from.</arg>
+        /// <arg name="[destination_index=0]" type="number">The position to start copying to.</arg>
+        /// <returns>null</returns>
         public TsObject copy_to(TsObject[] args)
         {
             var dest = (Buffer)args[0];
@@ -459,102 +490,239 @@ namespace TaffyScript.IO
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Gets the byte at the specified position.
+        /// </summary>
+        /// <arg name="index" type="number">The index of the byte to get.</arg>
+        /// <returns>number</returns>
         public TsObject get(TsObject[] args)
         {
             return Memory[(int)args[0]];
         }
 
+        /// <summary>
+        /// Reads a bool from the buffer and increments the position.
+        /// </summary>
+        /// <returns>bool</returns>
         public TsObject read_bool(TsObject[] args) => ReadBool();
+
+        /// <summary>
+        /// Reads a byte from the buffer and increments the position.
+        /// </summary>
+        /// <returns>number</returns>
         public TsObject read_byte(TsObject[] args) => ReadByte();
+
+        /// <summary>
+        /// Reads an sbyte from the buffer and increments the position.
+        /// </summary>
+        /// <returns>number</returns>
         public TsObject read_sbyte(TsObject[] args) => ReadSByte();
+
+        /// <summary>
+        /// Reads a ushort from the buffer and increments the position.
+        /// </summary>
+        /// <returns>number</returns>
         public TsObject read_ushort(TsObject[] args) => ReadUShort();
+
+        /// <summary>
+        /// Reads a short from the buffer and increments the position.
+        /// </summary>
+        /// <returns>number</returns>
         public TsObject read_short(TsObject[] args) => ReadShort();
+
+        /// <summary>
+        /// Reads a uint from the buffer and increments the position.
+        /// </summary>
+        /// <returns>number</returns>
         public TsObject read_uint(TsObject[] args) => ReadUInt();
+
+        /// <summary>
+        /// Reads an int from the buffer and increments the position.
+        /// </summary>
+        /// <returns>number</returns>
         public TsObject read_int(TsObject[] args) => ReadInt();
+
+        /// <summary>
+        /// Reads a ulong from the buffer and increments the position.
+        /// </summary>
+        /// <returns>number</returns>
         public TsObject read_ulong(TsObject[] args) => ReadULong();
+
+        /// <summary>
+        /// Reads a long from the buffer and increments the position.
+        /// </summary>
+        /// <returns>number</returns>
         public TsObject read_long(TsObject[] args) => ReadLong();
+
+        /// <summary>
+        /// Reads a float from the buffer and increments the position.
+        /// </summary>
+        /// <returns>number</returns>
         public TsObject read_float(TsObject[] args) => ReadFloat();
+
+        /// <summary>
+        /// Reads a double from the buffer and increments the position.
+        /// </summary>
+        /// <returns>number</returns>
         public TsObject read_double(TsObject[] args) => ReadDouble();
+
+        /// <summary>
+        /// Reads a null-terminated unicode string from the buffer and increments the position.
+        /// </summary>
+        /// <returns>number</returns>
         public TsObject read_string(TsObject[] args) => ReadString();
 
+        /// <summary>
+        /// Resizes the buffer.
+        /// </summary>
+        /// <arg name="new_size" type="number">The new size for the buffer.</arg>
+        /// <returns>null</returns>
         public TsObject resize(TsObject[] args)
         {
             Array.Resize(ref _memory, (int)args[0]);
+            if (Position >= _memory.Length)
+                Position = _memory.Length - 1;
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Sets the byte at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index of the byte to set.</arg>
+        /// <arg name="byte" type="number">The value of the byte to set.</arg>
+        /// <returns>null</returns>
         public TsObject set(TsObject[] args)
         {
             Memory[(int)args[0]] = (byte)args[1];
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes a bool to the buffer then increments and returns the position.
+        /// </summary>
+        /// <arg name="value" type="bool">The value to write to the buffer.</arg>
+        /// <returns>number</returns>
         public TsObject write_bool(TsObject[] args)
         {
             Write((bool)args[0]);
             return Position;
         }
 
+        /// <summary>
+        /// Writes a byte to the buffer then increments and returns the position.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write to the buffer.</arg>
+        /// <returns>number</returns>
         public TsObject write_byte(TsObject[] args)
         {
             Write((byte)args[0]);
             return Position;
         }
 
+        /// <summary>
+        /// Writes an sbyte to the buffer then increments and returns the position.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write to the buffer.</arg>
+        /// <returns>number</returns>
         public TsObject write_sbyte(TsObject[] args)
         {
             Write((sbyte)args[0]);
             return Position;
         }
 
+        /// <summary>
+        /// Writes a ushort to the buffer then increments and returns the position.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write to the buffer.</arg>
+        /// <returns>number</returns>
         public TsObject write_ushort(TsObject[] args)
         {
             Write((ushort)args[0]);
             return Position;
         }
 
+        /// <summary>
+        /// Writes a short to the buffer then increments and returns the position.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write to the buffer.</arg>
+        /// <returns>number</returns>
         public TsObject write_short(TsObject[] args)
         {
             Write((short)args[0]);
             return Position;
         }
 
+        /// <summary>
+        /// Writes a uint to the buffer then increments and returns the position.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write to the buffer.</arg>
+        /// <returns>number</returns>
         public TsObject write_uint(TsObject[] args)
         {
             Write((uint)args[0]);
             return Position;
         }
 
+        /// <summary>
+        /// Writes an int to the buffer then increments and returns the position.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write to the buffer.</arg>
+        /// <returns>number</returns>
         public TsObject write_int(TsObject[] args)
         {
             Write((int)args[0]);
             return Position;
         }
 
+        /// <summary>
+        /// Writes a ulong to the buffer then increments and returns the position.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write to the buffer.</arg>
+        /// <returns>number</returns>
         public TsObject write_ulong(TsObject[] args)
         {
             Write((ulong)args[0]);
             return Position;
         }
 
+        /// <summary>
+        /// Writes a long to the buffer then increments and returns the position.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write to the buffer.</arg>
+        /// <returns>number</returns>
         public TsObject write_long(TsObject[] args)
         {
             Write((long)args[0]);
             return Position;
         }
 
+        /// <summary>
+        /// Writes a float to the buffer then increments and returns the position.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write to the buffer.</arg>
+        /// <returns>number</returns>
         public TsObject write_float(TsObject[] args)
         {
             Write((float)args[0]);
             return Position;
         }
 
+        /// <summary>
+        /// Writes a double to the buffer then increments and returns the position.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write to the buffer.</arg>
+        /// <returns>number</returns>
         public TsObject write_double(TsObject[] args)
         {
             Write((double)args[0]);
             return Position;
         }
 
+        /// <summary>
+        /// Writes a null-terminated unicode string to the buffer then increments and returns the position.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write to the buffer.</arg>
+        /// <returns>number</returns>
         public TsObject write_string(TsObject[] args)
         {
             Write((string)args[0]);

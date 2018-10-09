@@ -371,22 +371,45 @@ namespace TaffyScript.Compiler.Backend
         {
             foreach(var type in asm.ExportedTypes)
             {
-                if (type.GetCustomAttribute<TaffyScriptObjectAttribute>() != null)
+                //Todo: Optimize this
+                //      If the namespace of this iteration matches the last one, no need to exit and reenter.
+                //      Just stay in the namespace.
+                var objAttrib = type.GetCustomAttribute<TaffyScriptObjectAttribute>();
+                if (objAttrib != null)
                 {
-                    //Todo: Optimize this
-                    //      If the namespace of this iteration matches the last one, no need to exit and reenter.
-                    //      Just stay in the namespace.
-                    var count = _table.EnterNamespace(type.Namespace);
-                    var symbol = new ObjectSymbol(_table.Current, type.Name);
+                    string name;
+                    int count;
+                    if(objAttrib.Name != null)
+                    {
+                        var index = objAttrib.Name.LastIndexOf('.');
+                        if (index != -1)
+                        {
+                            var ns = objAttrib.Name.Substring(0, index);
+                            name = objAttrib.Name.Substring(++index, objAttrib.Name.Length - index);
+                            count = _table.EnterNamespace(ns);
+                        }
+                        else
+                        {
+                            name = objAttrib.Name;
+                            count = 0;
+                        }
+                    }
+                    else
+                    {
+                        count = _table.EnterNamespace(type.Namespace);
+                        name = type.Name;
+                    }
+                    var symbol = new ObjectSymbol(_table.Current, name);
                     if (!_table.AddChild(symbol))
                     {
-                        _logger.Warning($"Name conflict encountered with object {type.Name} defined in assembly {asm.GetName().Name}");
+                        _logger.Warning($"Name conflict encountered with object {_resolver.GetAssetFullName(symbol)} defined in assembly {asm.GetName().Name}");
+                        _table.Exit(count);
                         continue;
                     }
 
                     var info = _assets.AddExternalType(symbol, type);
 
-                    _table.Enter(type.Name);
+                    _table.Enter(name);
 
                     ProcessTypeMembers(type, info);
 

@@ -8,6 +8,14 @@ using InternalWriter = System.IO.StreamWriter;
 
 namespace TaffyScript.IO
 {
+    /// <summary>
+    /// Implements a TextWriter for writing characters to a stream in a particular encoding.
+    /// </summary>
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.streamwriter?view=netframework-4.7</source>
+    /// <property name="auto_flush" type="bool" access="both">
+    ///     <summary>Determines if the StreamWriter will flush its buffer to the underlying stream after every call to write.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.streamwriter.autoflush?view=netframework-4.7</source>
+    /// </property>
     [TaffyScriptObject]
     public class StreamWriter : TextWriter
     {
@@ -38,6 +46,15 @@ namespace TaffyScript.IO
             Source = writer;
         }
 
+        /// <summary>
+        /// Initializes a new StreamWriter from a Stream or a path to a file.
+        /// </summary>
+        /// <arg name="source" type="string or [Stream]({{site.baseurl}}/docs/TaffyScript/IO/Stream)">A path to a file or a stream to write to.</arg>
+        /// <arg name="[append]" type="bool">Determines whether to append data to a file or overwrite it. Ignored if initialized from a stream.</arg>
+        /// <arg name="[encoding=*utf-8*]" type="string">The name of the character encoding to use.</arg>
+        /// <arg name="[buffer_size]" type="number">The buffer size, in bytes.</arg>
+        /// <arg name="[leave_open]" type="bool">Determines whether to leave the underlying stream open after the StreamWriter is disposed. Ignored it initialized from a path.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.streamwriter.-ctor?view=netframework-4.7</source>
         public StreamWriter(TsObject[] args)
         {
             if (args[0].Type == VariableType.String)
@@ -84,7 +101,7 @@ namespace TaffyScript.IO
             }
         }
 
-        public TsObject GetMember(string name)
+        public override TsObject GetMember(string name)
         {
             switch (name)
             {
@@ -103,7 +120,7 @@ namespace TaffyScript.IO
             }
         }
 
-        public void SetMember(string name, TsObject value)
+        public override void SetMember(string name, TsObject value)
         {
             switch (name)
             {

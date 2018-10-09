@@ -7,6 +7,21 @@ using InternalBuilder = System.Text.StringBuilder;
 
 namespace TaffyScript.Strings
 {
+    /// <summary>
+    /// Represents a mutable string of characters.
+    /// </summary>
+    /// <property name="capacity" type="number" access="both">
+    ///     <summary>Gets or sets the maximum number of characters that can be contained in the allocated memory of this StringBuilder.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.capacity?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="length" type="number" access="both">
+    ///     <summary>Gets or sets the length of this StringBuilder.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.length?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="max_capacity" type="number" access="get">
+    ///     <summary>Gets the maximum capacity of this instance.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.maxcapacity?view=netframework-4.7</source>
+    /// </property>
     [TaffyScriptObject]
     public class StringBuilder : ITsInstance
     {
@@ -126,7 +141,6 @@ namespace TaffyScript.Strings
                 case "capacity":
                     return Source.Capacity;
                 case "length":
-                case "count":
                     return Source.Length;
                 case "max_capacity":
                     return Source.MaxCapacity;
@@ -143,6 +157,9 @@ namespace TaffyScript.Strings
             {
                 case "capacity":
                     Source.Capacity = (int)value;
+                    break;
+                case "length":
+                    Source.Length = (int)value;
                     break;
                 default:
                     throw new MissingMemberException(ObjectType, name);
@@ -253,6 +270,14 @@ namespace TaffyScript.Strings
             return true;
         }
 
+        /// <summary>
+        /// Appends a string or substring to this instance.
+        /// </summary>
+        /// <arg name="value" type="string">The string to append.</arg>
+        /// <arg name="[start_index=0]" type="number">The index to start copying characters from the string to this instance. If given, count must also be supplied.</arg>
+        /// <arg name="[count]" type="number">The number of characters to copy from the string to this instance. If absent, copies the full string.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.append?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append(TsObject[] args)
         {
             switch(args.Length)
@@ -270,72 +295,144 @@ namespace TaffyScript.Strings
             return this;
         }
 
+        /// <summary>
+        /// Appends the text representation of a bool to this instance.
+        /// </summary>
+        /// <arg name="value" type="bool">The value to append.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.append?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append_bool(TsObject[] args)
         {
             Source.Append((bool)args[0]);
             return this;
         }
 
+        /// <summary>
+        /// Appends the text representation of an sbyte to this instance.
+        /// </summary>
+        /// <arg name="value" type="number">The value to append.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.append?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append_sbyte(TsObject[] args)
         {
             Source.Append((sbyte)args[0]);
             return this;
         }
 
+        /// <summary>
+        /// Appends the text representation of a byte to this instance.
+        /// </summary>
+        /// <arg name="value" type="number">The value to append.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.append?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append_byte(TsObject[] args)
         {
             Source.Append((byte)args[0]);
             return this;
         }
 
+        /// <summary>
+        /// Appends the text representation of a ushort to this instance.
+        /// </summary>
+        /// <arg name="value" type="number">The value to append.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.append?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append_ushort(TsObject[] args)
         {
             Source.Append((ushort)args[0]);
             return this;
         }
 
+        /// <summary>
+        /// Appends the text representation of a short to this instance.
+        /// </summary>
+        /// <arg name="value" type="number">The value to append.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.append?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append_short(TsObject[] args)
         {
             Source.Append((short)args[0]);
             return this;
         }
 
+        /// <summary>
+        /// Appends the text representation of a uint to this instance.
+        /// </summary>
+        /// <arg name="value" type="number">The value to append.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.append?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append_uint(TsObject[] args)
         {
             Source.Append((uint)args[0]);
             return this;
         }
 
+        /// <summary>
+        /// Appends the text representation of an int to this instance.
+        /// </summary>
+        /// <arg name="value" type="number">The value to append.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.append?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append_int(TsObject[] args)
         {
             Source.Append((int)args[0]);
             return this;
         }
 
+        /// <summary>
+        /// Appends the text representation of a ulong to this instance.
+        /// </summary>
+        /// <arg name="value" type="number">The value to append.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.append?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append_ulong(TsObject[] args)
         {
             Source.Append((ulong)args[0]);
             return this;
         }
 
+        /// <summary>
+        /// Appends the text representation of a long to this instance.
+        /// </summary>
+        /// <arg name="value" type="number">The value to append.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.append?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append_long(TsObject[] args)
         {
             Source.Append((long)args[0]);
             return this;
         }
 
+        /// <summary>
+        /// Appends the text representation of a float to this instance.
+        /// </summary>
+        /// <arg name="value" type="number">The value to append.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.append?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append_float(TsObject[] args)
         {
             Source.Append((float)args[0]);
             return this;
         }
 
+        /// <summary>
+        /// Appends the text representation of a double to this instance.
+        /// </summary>
+        /// <arg name="value" type="number">The value to append.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.append?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append_double(TsObject[] args)
         {
             Source.Append((double)args[0]);
             return this;
         }
 
+        /// <summary>
+        /// Appends a line terminator to this instance.
+        /// </summary>
+        /// <arg name="[str]" type="string">An optional string to append before the line terminator.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.appendline?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject append_line(TsObject[] args)
         {
             if (args is null)
@@ -355,17 +452,36 @@ namespace TaffyScript.Strings
             return this;
         }
 
+        /// <summary>
+        /// Clears all characters from the current StringBuilder.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.clear?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject clear(TsObject[] args)
         {
             Source.Clear();
             return this;
         }
 
+        /// <summary>
+        /// Gets the character at the specified position.
+        /// </summary>
+        /// <arg name="index" type="number">The index of the character to get.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.chars?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject get(TsObject[] args)
         {
             return Source[(int)args[0]];
         }
 
+        /// <summary>
+        /// Inserts a string into this instance at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="value" type="string">The value to insert.</arg>
+        /// <arg name="[count=1]" type="number">The optional number of copies of the string to insert.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.insert?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject insert(TsObject[] args)
         {
             switch(args.Length)
@@ -380,90 +496,195 @@ namespace TaffyScript.Strings
             return this;
         }
 
+        /// <summary>
+        /// Inserts a bool into this instance at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="value" type="bool">The value to insert.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.insert?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject insert_bool(TsObject[] args)
         {
             Source.Insert((int)args[0], (bool)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Inserts a byte into this instance at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="value" type="number">The value to insert.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.insert?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject insert_byte(TsObject[] args)
         {
             Source.Insert((int)args[0], (byte)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Inserts an sbyte into this instance at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="value" type="number">The value to insert.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.insert?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject insert_sbyte(TsObject[] args)
         {
             Source.Insert((int)args[0], (sbyte)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Inserts a ushort into this instance at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="value" type="number">The value to insert.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.insert?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject insert_ushort(TsObject[] args)
         {
             Source.Insert((int)args[0], (ushort)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Inserts a short into this instance at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="value" type="number">The value to insert.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.insert?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject insert_short(TsObject[] args)
         {
             Source.Insert((int)args[0], (short)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Inserts a uint into this instance at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="value" type="number">The value to insert.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.insert?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject insert_uint(TsObject[] args)
         {
             Source.Insert((int)args[0], (uint)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Inserts an int into this instance at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="value" type="number">The value to insert.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.insert?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject insert_int(TsObject[] args)
         {
             Source.Insert((int)args[0], (int)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Inserts a ulong into this instance at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="value" type="number">The value to insert.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.insert?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject insert_ulong(TsObject[] args)
         {
             Source.Insert((int)args[0], (ulong)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Inserts a long into this instance at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="value" type="number">The value to insert.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.insert?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject insert_long(TsObject[] args)
         {
             Source.Insert((int)args[0], (long)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Inserts a float into this instance at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="value" type="number">The value to insert.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.insert?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject insert_float(TsObject[] args)
         {
             Source.Insert((int)args[0], (float)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Inserts a double into this instance at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index to insert the value.</arg>
+        /// <arg name="value" type="number">The value to insert.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.insert?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject insert_double(TsObject[] args)
         {
             Source.Insert((int)args[0], (double)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Removes the specified range of characters from this instance.
+        /// </summary>
+        /// <arg name="start_index" type="number">The index to start removing characters from.</arg>
+        /// <arg name="count" type="number">The number of characters to remove.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.remove?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject remove(TsObject[] args)
         {
             Source.Remove((int)args[0], (int)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Replaces all occurrences of the specified string with a replacement string.
+        /// </summary>
+        /// <arg name="substring" type="string">The string to replace.</arg>
+        /// <arg name="replacement" type="string">The string to replace the substring with.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.replace?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject replace(TsObject[] args)
         {
             Source.Replace((string)args[0], (string)args[1]);
             return this;
         }
 
+        /// <summary>
+        /// Sets the character at the specified position.
+        /// </summary>
+        /// <arg name="index" type="number">The index of the character to set.</arg>
+        /// <arg name="char" type="string">The value to set the character to.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.chars?view=netframework-4.7</source>
+        /// <returns>[StringBuilder]({{site.baseurl}}/docs/TaffyScript/Strings/StringBuilder)</returns>
         public TsObject set(TsObject[] args)
         {
             Source[(int)args[0]] = (char)args[1];
             return this;
         }
 
+        /// <summary>
+        /// Converts this instance or a portion of it to a string.
+        /// </summary>
+        /// <arg name="[start_index]" type="number">The starting index to convert to a string. If this is given, count must also be supplied.</arg>
+        /// <arg name="[count]" type="number">The number of characters to convert to a string.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.stringbuilder.tostring?view=netframework-4.7</source>
+        /// <returns>string</returns>
         public TsObject to_string(TsObject[] args)
         {
             if (args is null)

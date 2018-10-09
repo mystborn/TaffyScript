@@ -8,6 +8,11 @@ using InternalReader = System.IO.TextReader;
 
 namespace TaffyScript.IO
 {
+    /// <summary>
+    /// Represents a reader that can read a sequential series of characters.
+    /// </summary>
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textreader?view=netframework-4.7</source>
+    [TaffyScriptObject("System.IO.TextReader")]
     public abstract class TextReader : ITsInstance
     {
         public TsObject this[string memberName]
@@ -23,8 +28,6 @@ namespace TaffyScript.IO
         {
             switch(scriptName)
             {
-                case "close":
-                    return close(args);
                 case "dispose":
                     return dispose(args);
                 case "peek":
@@ -63,9 +66,6 @@ namespace TaffyScript.IO
         {
             switch (scriptName)
             {
-                case "close":
-                    del = new TsDelegate(close, scriptName);
-                    break;
                 case "dispose":
                     del = new TsDelegate(dispose, scriptName);
                     break;
@@ -88,33 +88,52 @@ namespace TaffyScript.IO
             return true;
         }
 
-        public TsObject close(TsObject[] args)
-        {
-            Reader.Close();
-            return TsObject.Empty;
-        }
-
+        /// <summary>
+        /// Releases all resource used by this TextReader.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textreader.dispose?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject dispose(TsObject[] args)
         {
             Reader.Dispose();
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Gets the next character as a number without actually reading it.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textreader.peek?view=netframework-4.7</source>
+        /// <returns>number</returns>
         public TsObject peek(TsObject[] args)
         {
             return Reader.Peek();
         }
 
+        /// <summary>
+        /// Reads the next character as a number.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textreader.read?view=netframework-4.7</source>
+        /// <returns>number</returns>
         public TsObject read(TsObject[] args)
         {
             return Reader.Read();
         }
 
+        /// <summary>
+        /// Reads a line of characters and returns the data as a string.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textreader.readline?view=netframework-4.7</source>
+        /// <returns>string</returns>
         public TsObject read_line(TsObject[] args)
         {
             return Reader.ReadLine();
         }
 
+        /// <summary>
+        /// Reads all characters from the current position to the end of the TextReader and returns them as one string.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textreader.readtoend?view=netframework-4.7</source>
+        /// <returns>string</returns>
         public TsObject read_to_end(TsObject[] args)
         {
             return Reader.ReadToEnd();

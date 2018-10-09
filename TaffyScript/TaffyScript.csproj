@@ -77,6 +77,7 @@
     <Compile Include="Collections\TsEnumerable.cs" />
     <Compile Include="Collections\TsEnumerator.cs" />
     <Compile Include="Collections\TsEqualityComparer.cs" />
+    <Compile Include="Collections\TsKeyValuePair.cs" />
     <Compile Include="GeneralScripts.cs" />
     <Compile Include="GlobalScripts.cs" />
     <Compile Include="IO\Buffer.cs" />
@@ -99,7 +100,7 @@
     <Compile Include="Object\TsNull.cs" />
     <Compile Include="Object\TsNumber.cs" />
     <Compile Include="Object\TsString.cs" />
-    <Compile Include="Object\TsType.cs" />
+    <Compile Include="TsType.cs" />
     <Compile Include="ParseResult.cs" />
     <Compile Include="Reflection\ReflectionScripts.cs" />
     <Compile Include="Strings\Fnv.cs" />

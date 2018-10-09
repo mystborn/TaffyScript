@@ -45,6 +45,7 @@ namespace TaffyScript.Strings.RegularExpressions
         /// Gets or sets the maximum number of entries in the static cache of compiled regular expressions.
         /// </summary>
         /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex.cachesize</source>
+        /// <type>number</type>
         public static TsObject cache_size
         {
             get => InternalSource.CacheSize;

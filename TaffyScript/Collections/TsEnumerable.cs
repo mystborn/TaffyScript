@@ -5,11 +5,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+// This represents the largest number that can be represented by a
+// TaffyScript object.
+using Number = System.Single;
+
 namespace TaffyScript.Collections
 {
     /// <summary>
     /// Exposes an enumerator, which supports iteration over a collection.
     /// </summary>
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.ienumerable-1?view=netframework-4.7</source>
+    [TaffyScriptObject("TaffyScript.Collections.Enumerable")]
     public abstract class TsEnumerable : IEnumerable<TsObject>, ITsInstance
     {
         public TsObject this[string memberName]
@@ -20,9 +26,12 @@ namespace TaffyScript.Collections
 
         public abstract string ObjectType { get; }
 
+        public TsEnumerable() { }
+        public TsEnumerable(TsObject[] args) { }
+
         public virtual IEnumerator<TsObject> GetEnumerator()
         {
-            return (IEnumerator<TsObject>)get_enumerator(null);
+            return (IEnumerator<TsObject>)get_enumerator(null).WeakValue;
         }
 
         /// <summary>
@@ -38,10 +47,82 @@ namespace TaffyScript.Collections
 
         public virtual TsObject Call(string scriptName, params TsObject[] args)
         {
-            switch(scriptName)
+            switch (scriptName)
             {
+                case "any":
+                    return any(args);
+                case "average":
+                    return average(args);
+                case "concat":
+                    return concat(args);
+                case "contains":
+                    return contains(args);
+                case "distinct":
+                    return distinct(args);
+                case "element_at":
+                    return element_at(args);
+                case "element_at_or_default":
+                    return element_at_or_default(args);
+                case "except":
+                    return except(args);
+                case "first":
+                    return first(args);
+                case "first_or_default":
+                    return first_or_default(args);
                 case "get_enumerator":
-                    return new TsEnumerator(GetEnumerator());
+                    return get_enumerator(args);
+                case "intersect":
+                    return intersect(args);
+                case "iterate":
+                    return iterate(args);
+                case "join":
+                    return join(args);
+                case "last":
+                    return last(args);
+                case "last_or_default":
+                    return last_or_default(args);
+                case "max":
+                    return max(args);
+                case "min":
+                    return min(args);
+                case "order_by":
+                    return order_by(args);
+                case "reverse":
+                    return reverse(args);
+                case "select":
+                    return select(args);
+                case "select_many":
+                    return select_many(args);
+                case "sequence_equal":
+                    return sequence_equal(args);
+                case "single":
+                    return single(args);
+                case "single_or_default":
+                    return single_or_default(args);
+                case "skip":
+                    return skip(args);
+                case "skip_while":
+                    return skip_while(args);
+                case "sum":
+                    return sum(args);
+                case "take":
+                    return take(args);
+                case "take_while":
+                    return take_while(args);
+                case "to_array":
+                    return to_array(args);
+                case "to_list":
+                    return to_list(args);
+                case "to_map":
+                    return to_map(args);
+                case "total":
+                    return total(args);
+                case "union":
+                    return union(args);
+                case "where":
+                    return where(args);
+                case "zip":
+                    return zip(args);
                 default:
                     throw new MissingMethodException(ObjectType, scriptName);
             }
@@ -68,15 +149,124 @@ namespace TaffyScript.Collections
 
         public virtual bool TryGetDelegate(string scriptName, out TsDelegate del)
         {
-            switch(scriptName)
+            switch (scriptName)
             {
+                case "any":
+                    del = new TsDelegate(any, scriptName);
+                    break;
+                case "average":
+                    del = new TsDelegate(average, scriptName);
+                    break;
+                case "concat":
+                    del = new TsDelegate(concat, scriptName);
+                    break;
+                case "contains":
+                    del = new TsDelegate(contains, scriptName);
+                    break;
+                case "distinct":
+                    del = new TsDelegate(distinct, scriptName);
+                    break;
+                case "element_at":
+                    del = new TsDelegate(element_at, scriptName);
+                    break;
+                case "element_at_or_default":
+                    del = new TsDelegate(element_at_or_default, scriptName);
+                    break;
+                case "except":
+                    del = new TsDelegate(except, scriptName);
+                    break;
+                case "first":
+                    del = new TsDelegate(first, scriptName);
+                    break;
+                case "first_or_default":
+                    del = new TsDelegate(first_or_default, scriptName);
+                    break;
                 case "get_enumerator":
                     del = new TsDelegate(get_enumerator, scriptName);
-                    return true;
+                    break;
+                case "intersect":
+                    del = new TsDelegate(intersect, scriptName);
+                    break;
+                case "iterate":
+                    del = new TsDelegate(iterate, scriptName);
+                    break;
+                case "join":
+                    del = new TsDelegate(join, scriptName);
+                    break;
+                case "last":
+                    del = new TsDelegate(last, scriptName);
+                    break;
+                case "last_or_default":
+                    del = new TsDelegate(last_or_default, scriptName);
+                    break;
+                case "max":
+                    del = new TsDelegate(max, scriptName);
+                    break;
+                case "min":
+                    del = new TsDelegate(min, scriptName);
+                    break;
+                case "order_by":
+                    del = new TsDelegate(order_by, scriptName);
+                    break;
+                case "reverse":
+                    del = new TsDelegate(reverse, scriptName);
+                    break;
+                case "select":
+                    del = new TsDelegate(select, scriptName);
+                    break;
+                case "select_many":
+                    del = new TsDelegate(select_many, scriptName);
+                    break;
+                case "sequence_equal":
+                    del = new TsDelegate(sequence_equal, scriptName);
+                    break;
+                case "single":
+                    del = new TsDelegate(single, scriptName);
+                    break;
+                case "single_or_default":
+                    del = new TsDelegate(single_or_default, scriptName);
+                    break;
+                case "skip":
+                    del = new TsDelegate(skip, scriptName);
+                    break;
+                case "skip_while":
+                    del = new TsDelegate(skip_while, scriptName);
+                    break;
+                case "sum":
+                    del = new TsDelegate(sum, scriptName);
+                    break;
+                case "take":
+                    del = new TsDelegate(take, scriptName);
+                    break;
+                case "take_while":
+                    del = new TsDelegate(take_while, scriptName);
+                    break;
+                case "to_array":
+                    del = new TsDelegate(to_array, scriptName);
+                    break;
+                case "to_list":
+                    del = new TsDelegate(to_list, scriptName);
+                    break;
+                case "to_map":
+                    del = new TsDelegate(to_map, scriptName);
+                    break;
+                case "total":
+                    del = new TsDelegate(total, scriptName);
+                    break;
+                case "union":
+                    del = new TsDelegate(union, scriptName);
+                    break;
+                case "where":
+                    del = new TsDelegate(where, scriptName);
+                    break;
+                case "zip":
+                    del = new TsDelegate(zip, scriptName);
+                    break;
                 default:
                     del = null;
                     return false;
             }
+            return true;
         }
 
         /// <summary>
@@ -87,7 +277,7 @@ namespace TaffyScript.Collections
         /// <returns>bool</returns>
         public TsObject any(TsObject[] args)
         {
-            switch(args?.Length)
+            switch (args?.Length)
             {
                 case null:
                 case 0:
@@ -108,8 +298,17 @@ namespace TaffyScript.Collections
         /// <returns>number</returns>
         public TsObject average(TsObject[] args)
         {
-            var script = args[0].GetDelegate();
-            return this.Average((o) => (double)script.Invoke(o));
+            switch (args?.Length)
+            {
+                case null:
+                case 0:
+                    return this.Average(o => (Number)o);
+                case 1:
+                    var script = args[0].GetDelegate();
+                    return this.Average((o) => (Number)script.Invoke(o));
+                default:
+                    throw new ArgumentException($"Invalid number of arguments passed to {ObjectType}.{nameof(average)}");
+            }
         }
 
         /// <summary>
@@ -132,7 +331,7 @@ namespace TaffyScript.Collections
         /// <returns>bool</returns>
         public TsObject contains(TsObject[] args)
         {
-            switch(args.Length)
+            switch (args.Length)
             {
                 case 1:
                     return this.Contains(args[0]);
@@ -151,7 +350,7 @@ namespace TaffyScript.Collections
         /// <returns>Enumerable</returns>
         public TsObject distinct(TsObject[] args)
         {
-            switch(args?.Length)
+            switch (args?.Length)
             {
                 case null:
                 case 0:
@@ -194,7 +393,7 @@ namespace TaffyScript.Collections
         /// <returns>Enumerable</returns>
         public TsObject except(TsObject[] args)
         {
-            switch(args.Length)
+            switch (args.Length)
             {
                 case 1:
                     return new WrappedEnumerable(this.Except((IEnumerable<TsObject>)args[0].WeakValue));
@@ -213,7 +412,7 @@ namespace TaffyScript.Collections
         /// <returns>object</returns>
         public TsObject first(TsObject[] args)
         {
-            switch(args?.Length)
+            switch (args?.Length)
             {
                 case null:
                 case 0:
@@ -234,7 +433,7 @@ namespace TaffyScript.Collections
         /// <returns>object</returns>
         public TsObject first_or_default(TsObject[] args)
         {
-            switch(args?.Length)
+            switch (args?.Length)
             {
                 case null:
                 case 0:
@@ -256,7 +455,7 @@ namespace TaffyScript.Collections
         /// <returns>Enumerable</returns>
         public TsObject intersect(TsObject[] args)
         {
-            switch(args.Length)
+            switch (args.Length)
             {
                 case 1:
                     return new WrappedEnumerable(this.Intersect((IEnumerable<TsObject>)args[0]));
@@ -265,6 +464,20 @@ namespace TaffyScript.Collections
                 default:
                     throw new ArgumentException($"Invalid number of arguments passed to {ObjectType}.{nameof(intersect)}");
             }
+        }
+
+        /// <summary>
+        /// Invokes a script over each element in the sequence.
+        /// </summary>
+        /// <arg name="function" type="script">The script to run over each element.</arg>
+        /// <returns>null</returns>
+        public TsObject iterate(TsObject[] args)
+        {
+            var script = (TsDelegate)args[0];
+            foreach (var element in this)
+                script.Invoke(element);
+
+            return TsObject.Empty;
         }
 
         /// <summary>
@@ -287,7 +500,7 @@ namespace TaffyScript.Collections
             var del3 = args[3].GetDelegate();
             Func<TsObject, TsObject, TsObject> resultSelector = (o1, o2) => del3.Invoke(o1, o2);
 
-            switch(args.Length)
+            switch (args.Length)
             {
                 case 4:
                     return new WrappedEnumerable(this.Join(other, outerKeySelector, innerKeySelector, resultSelector));
@@ -348,14 +561,14 @@ namespace TaffyScript.Collections
         /// <returns>object</returns>
         public TsObject max(TsObject[] args)
         {
-            switch(args?.Length)
+            switch (args?.Length)
             {
                 case null:
                 case 0:
                     return this.Max();
                 case 1:
                     var script = args[0].GetDelegate();
-                    return this.Max(o => (double)script.Invoke(o));
+                    return this.Max(o => (Number)script.Invoke(o));
                 default:
                     throw new ArgumentException($"Invalid number of arguments passed to {ObjectType}.{nameof(max)}");
             }
@@ -376,7 +589,7 @@ namespace TaffyScript.Collections
                     return this.Min();
                 case 1:
                     var script = args[0].GetDelegate();
-                    return this.Min(o => (double)script.Invoke(o));
+                    return this.Min(o => (Number)script.Invoke(o));
                 default:
                     throw new ArgumentException($"Invalid number of arguments passed to {ObjectType}.{nameof(min)}");
             }
@@ -392,7 +605,7 @@ namespace TaffyScript.Collections
         public TsObject order_by(TsObject[] args)
         {
             var script = args[0].GetDelegate();
-            switch(args.Length)
+            switch (args.Length)
             {
                 case 1:
                     return new WrappedEnumerable(this.OrderBy(o => script.Invoke(o)));
@@ -435,7 +648,7 @@ namespace TaffyScript.Collections
         public TsObject select_many(TsObject[] args)
         {
             var script = args[0].GetDelegate();
-            switch(args.Length)
+            switch (args.Length)
             {
                 case 1:
                     return new WrappedEnumerable(this.SelectMany(o => (IEnumerable<TsObject>)script.Invoke(o).WeakValue));
@@ -457,7 +670,7 @@ namespace TaffyScript.Collections
         /// <returns>bool</returns>
         public TsObject sequence_equal(TsObject[] args)
         {
-            switch(args.Length)
+            switch (args.Length)
             {
                 case 1:
                     return this.SequenceEqual((IEnumerable<TsObject>)args[0].WeakValue);
@@ -476,7 +689,7 @@ namespace TaffyScript.Collections
         /// <returns>object</returns>
         public TsObject single(TsObject[] args)
         {
-            switch(args?.Length)
+            switch (args?.Length)
             {
                 case null:
                 case 0:
@@ -541,14 +754,14 @@ namespace TaffyScript.Collections
         /// <returns>number</returns>
         public TsObject sum(TsObject[] args)
         {
-            switch(args?.Length)
+            switch (args?.Length)
             {
                 case null:
                 case 0:
-                    return this.Sum(o => (double)o);
+                    return this.Sum(o => (Number)o);
                 case 1:
                     var script = (TsDelegate)args[0];
-                    return this.Sum(o => (double)script.Invoke(o));
+                    return this.Sum(o => (Number)script.Invoke(o));
                 default:
                     throw new ArgumentException($"Invalid number of arguments passed to {ObjectType}.{nameof(sum)}");
             }
@@ -597,7 +810,7 @@ namespace TaffyScript.Collections
         /// <returns>[Map]({{site.baseurl}}/docs/Map)</returns>
         public TsObject to_map(TsObject[] args)
         {
-            switch(args.Length)
+            switch (args.Length)
             {
                 case 1:
                     var keySelector = (TsDelegate)args[0];
@@ -655,7 +868,7 @@ namespace TaffyScript.Collections
         /// <returns>Enumerable</returns>
         public TsObject union(TsObject[] args)
         {
-            switch(args.Length)
+            switch (args.Length)
             {
                 case 1:
                     return new WrappedEnumerable(this.Union((IEnumerable<TsObject>)args[0].WeakValue));
@@ -713,7 +926,7 @@ namespace TaffyScript.Collections
 
         public override TsObject get_enumerator(TsObject[] args)
         {
-            return new TsEnumerator(this);
+            return new WrappedEnumerator(_enumerable.GetEnumerator());
         }
     }
 }

@@ -7,36 +7,47 @@ using System.Threading.Tasks;
 namespace TaffyScript.Collections
 {
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-    public class TsMap : ITsInstance
+    /// <summary>
+    /// Maps a collection of keys to values.
+    /// </summary>
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2</source>
+    /// <property name="count" type="number" access="get">
+    ///     <summary>Gets the number of items added to the map.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.count</source>
+    /// </property>
+    /// <property name="keys" type="Enumerable" access="get">
+    ///     <summary>Gets a collection of the keys added to the map.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.keys</source>
+    /// </property>
+    /// <property name="values" type="Enumerable" access="get">
+    ///     <summary>Gets a collection of the values added to the map.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.values</source>
+    /// </property>
+    [TaffyScriptObject("Map")]
+    public class TsMap : TsEnumerable
     {
-        private Dictionary<TsObject, TsObject> _source = new Dictionary<TsObject, TsObject>();
+        public override string ObjectType => "Map";
 
-        public TsObject this[string memberName]
-        {
-            get => GetMember(memberName);
-            set => SetMember(memberName, value);
-        }
-
-        public string ObjectType => "Map";
-        public Dictionary<TsObject, TsObject> Source => _source;
+        public Dictionary<TsObject, TsObject> Source { get; }
 
         public TsMap()
         {
-            _source = new Dictionary<TsObject, TsObject>();
+            Source = new Dictionary<TsObject, TsObject>();
         }
 
         public TsMap(TsObject[] args)
         {
+            Source = new Dictionary<TsObject, TsObject>();
         }
 
         public TsMap(IDictionary<TsObject, TsObject> source)
         {
-            _source = new Dictionary<TsObject, TsObject>(source);
+            Source = new Dictionary<TsObject, TsObject>(source);
         }
 
         private TsMap(Dictionary<TsObject, TsObject> source)
         {
-            _source = source;
+            Source = source;
         }
 
         public static TsMap Wrap(Dictionary<TsObject, TsObject> source)
@@ -44,68 +55,59 @@ namespace TaffyScript.Collections
             return new TsMap(source);
         }
 
-        public TsObject Call(string scriptName, params TsObject[] args)
+        public override IEnumerator<TsObject> GetEnumerator()
+        {
+            foreach (var kvp in Source)
+                yield return new TsKeyValuePair(kvp);
+        }
+
+        public override TsObject Call(string scriptName, params TsObject[] args)
         {
             switch(scriptName)
             {
                 case "add":
-                    if (_source.ContainsKey(args[0]))
+                    if (Source.ContainsKey(args[0]))
                         return false;
-                    _source.Add(args[0], args[1]);
+                    Source.Add(args[0], args[1]);
                     return true;
                 case "clear":
-                    _source.Clear();
+                    Source.Clear();
                     break;
                 case "contains_key":
-                    return _source.ContainsKey(args[0]);
+                    return Source.ContainsKey(args[0]);
                 case "copy":
-                    return new TsMap(_source);
+                    return new TsMap(Source);
                 case "get":
-                    if (_source.TryGetValue(args[0], out var result))
+                    if (Source.TryGetValue(args[0], out var result))
                         return result;
                     break;
                 case "remove":
-                    return _source.Remove(args[0]);
+                    return Source.Remove(args[0]);
                 case "set":
-                    _source[args[0]] = args[1];
+                    Source[args[0]] = args[1];
                     break;
                 default:
-                    throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
+                    return base.Call(scriptName, args);
             }
             return TsObject.Empty;
         }
 
-        public TsDelegate GetDelegate(string delegateName)
-        {
-            if (TryGetDelegate(delegateName, out var del))
-                return del;
-
-            throw new MemberAccessException($"The type {ObjectType} does not define a script called {delegateName}");
-        }
-
-        public TsObject GetMember(string name)
+        public override TsObject GetMember(string name)
         {
             switch(name)
             {
                 case "count":
-                    return _source.Count;
+                    return Source.Count;
                 case "keys":
-                    return _source.Keys.ToArray();
+                    return new WrappedEnumerable(Source.Keys);
                 default:
-                    if (TryGetDelegate(name, out var del))
-                        return del;
-                    throw new MemberAccessException($"Couldn't find member with the name {name}");
+                    return base.GetMember(name);
             }
         }
 
-        public void SetMember(string name, TsObject value)
+        public override bool TryGetDelegate(string scriptName, out TsDelegate del)
         {
-            throw new MemberAccessException($"Member {name} on type {ObjectType} is readonly");
-        }
-
-        public bool TryGetDelegate(string delegateName, out TsDelegate del)
-        {
-            switch(delegateName)
+            switch(scriptName)
             {
                 case "get":
                     del = new TsDelegate(get, "get");
@@ -126,8 +128,7 @@ namespace TaffyScript.Collections
                     del = new TsDelegate(contains_key, "contains_key");
                     return true;
                 default:
-                    del = null;
-                    return false;
+                    return base.TryGetDelegate(scriptName, out del);
             }
         }
 
@@ -143,45 +144,96 @@ namespace TaffyScript.Collections
 
 #pragma warning disable IDE1006 // Naming Styles
 
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <arg name="key" type="object">The key to get the value of.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.item?view=netframework-4.7</source>
+        /// <returns>object</returns>
         public TsObject get(params TsObject[] args)
         {
-            return _source[args[0]];
+            return Source[args[0]];
         }
 
+        /// <summary>
+        /// Gets an Enumerator used to iterate over the items in the map.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.getenumerator?view=netframework-4.7</source>
+        /// <returns>Enumerator</returns>
+        public override TsObject get_enumerator(TsObject[] args)
+        {
+            return new WrappedEnumerator(GetEnumerator());
+        }
+
+        /// <summary>
+        /// Sets the value associated with the specified key.
+        /// </summary>
+        /// <arg name="key" type="object">The key of the item to set.</arg>
+        /// <arg name="value" type="object">The value of the item to set.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.item?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject set(params TsObject[] args)
         {
-            _source[args[0]] = args[1];
+            Source[args[0]] = args[1];
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Attempts to add an item to the map. Returns true if the item was added, false otherwise.
+        /// </summary>
+        /// <arg name="key" type="object">The key of the item to add.</arg>
+        /// <arg name="value" type="object">The value of the item to add.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.add?view=netframework-4.7</source>
+        /// <returns>bool</returns>
         public TsObject add(params TsObject[] args)
         {
-            if (_source.ContainsKey(args[0]))
+            if (Source.ContainsKey(args[0]))
                 return false;
 
-            _source.Add(args[0], args[1]);
+            Source.Add(args[0], args[1]);
             return true;
         }
 
+        /// <summary>
+        /// Clears all items from the map.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.clear?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject clear(params TsObject[] args)
         {
-            _source.Clear();
+            Source.Clear();
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Attempts to remove the item with the specified key.
+        /// </summary>
+        /// <arg name="key" type="object">The key of the item to remove.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.remove?view=netframework-4.7</source>
+        /// <returns>bool</returns>
         public TsObject remove(params TsObject[] args)
         {
-            return _source.Remove(args[0]);
+            return Source.Remove(args[0]);
         }
 
+        /// <summary>
+        /// Determines if an item with the specified key is in the map.
+        /// </summary>
+        /// <arg name="key" type="object">The key to check.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.containskey?view=netframework-4.7</source>
+        /// <returns>bool</returns>
         public TsObject contains_key(params TsObject[] args)
         {
-            return _source.ContainsKey(args[0]);
+            return Source.ContainsKey(args[0]);
         }
 
+        /// <summary>
+        /// Creates a copy of the map.
+        /// </summary>
+        /// <returns>[Map]({{site.baseurl}}/docs/Map)</returns>
         public TsObject copy(params TsObject[] args)
         {
-            return new TsMap(_source);
+            return new TsMap((IDictionary<TsObject, TsObject>)Source);
         }
     }
 }

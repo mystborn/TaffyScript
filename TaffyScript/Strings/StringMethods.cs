@@ -9,19 +9,32 @@ namespace TaffyScript.Strings
     [TaffyScriptBaseType]
     public static class StringMethods
     {
-        [TaffyScriptMethod]
+        /// <summary>
+        /// Decodes a 64-bit encoded string.
+        /// </summary>
+        /// <arg name="str" type="string">The string to decode.</arg>
+        /// <returns>string</returns>
         public static TsObject base64_decode(TsObject[] args)
         {
             return Encoding.Unicode.GetString(Convert.FromBase64String((string)args[0]));
         }
-
-        [TaffyScriptMethod]
+        
+        /// <summary>
+        /// Converts a string to a base64 encoded string.
+        /// </summary>
+        /// <arg name="str" type="string">The string to encode.</arg>
+        /// <returns>string</returns>
         public static TsObject base64_encode(TsObject[] args)
         {
             return Convert.ToBase64String(Encoding.Unicode.GetBytes((string)args[0]));
         }
-
-        [TaffyScriptMethod]
+        
+        /// <summary>
+        /// Converts each argument into a string and concatenates them together with the specified seperator.
+        /// </summary>
+        /// <arg name="seperator" type="string">The string to put in between each argument.</arg>
+        /// <arg name="..args" type="objects">Any number of arguments to convert to a string.</arg>
+        /// <returns>string</returns>
         public static TsObject string_join(TsObject[] args)
         {
             if (args.Length == 1)
@@ -39,7 +52,6 @@ namespace TaffyScript.Strings
         /// Takes an ordinal value and converts it to a character.
         /// </summary>
         /// <returns>string</returns>
-        [TaffyScriptMethod]
         public static TsObject to_char(TsObject[] args)
         {
             return (char)(int)args[0];

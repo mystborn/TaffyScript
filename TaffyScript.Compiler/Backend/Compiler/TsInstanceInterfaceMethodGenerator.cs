@@ -306,7 +306,7 @@ namespace TaffyScript.Compiler.Backend
                     .Throw();
             }
 
-            if(callTypeErrors)
+            if (callTypeErrors)
             {
                 call.MarkLabel(callTypeError)
                     .LdStr($"Tried to call member '{{0}}' defined by type '{typeName}' that wasn't a script")
@@ -315,6 +315,8 @@ namespace TaffyScript.Compiler.Backend
                     .New(typeof(InvalidTsTypeException).GetConstructor(new[] { typeof(string) }))
                     .Throw();
             }
+            else
+                call.MarkLabel(callTypeError);
         }
 
         private static bool NeedsParentMethods(ObjectInfo parentInfo, out MethodInfo parentTry, out MethodInfo parentCall, out MethodInfo parentGet, out MethodInfo parentSet)
@@ -903,6 +905,8 @@ namespace TaffyScript.Compiler.Backend
                             .LdArg(2)
                             .Call(typeof(TsDelegate).GetMethod("Invoke"))
                             .Ret();
+
+                        callTypeErrors = true;
 
                         validType = tryd.DefineLabel();
 

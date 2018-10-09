@@ -8,6 +8,10 @@ using InternalReader = System.IO.StringReader;
 
 namespace TaffyScript.IO
 {
+    /// <summary>
+    /// Implements a TextReader that reads from a string.
+    /// </summary>
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stringreader?view=netframework-4.7</source>
     [TaffyScriptObject]
     public class StringReader : TextReader
     {
@@ -21,6 +25,11 @@ namespace TaffyScript.IO
             Source = source;
         }
 
+        /// <summary>
+        /// Initializes a new StringReader that reads from the specified string.
+        /// </summary>
+        /// <arg name="str" type="string">The string to read from.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stringreader.-ctor?view=netframework-4.7</source>
         public StringReader(TsObject[] args)
         {
             Source = new InternalReader((string)args[0]);

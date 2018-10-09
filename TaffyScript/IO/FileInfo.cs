@@ -8,6 +8,69 @@ using InternalSource = System.IO.FileInfo;
 
 namespace TaffyScript.IO
 {
+    /// <summary>
+    /// Provides mechanisms for the creation, copying, deletion, moving, and opening of files.
+    /// </summary>
+    /// <property name="attributes" type="[FileAttributes](https://docs.microsoft.com/en-us/dotnet/api/system.io.fileattributes)" access="both">
+    ///     <summary>Gets or sets the attributes for the directory.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filesysteminfo.attributes</source>
+    /// </property>
+    /// <property name="creation_time" type="[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime)" access="both">
+    ///     <summary>Gets or sets the creation time of the directory.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filesysteminfo.creationtime</source>
+    /// </property>
+    /// <property name="creation_time_utc" type="[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime)" access="both">
+    ///     <summary>Gets or sets the creation time in coordinated universal time of the directory.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filesysteminfo.creationtimeutc</source>
+    /// </property>
+    /// <property name="exists" type="bool" access="get">
+    ///     <summary>Determines if the directory exists.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.exists</source>
+    /// </property>
+    /// <property name="extension" type="string" access="get">
+    ///     <summary>Gets the extension part of the directory.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filesysteminfo.extension</source>
+    /// </property>
+    /// <property name="full_name" type="string" access="get">
+    ///     <summary>Gets the full path of the directory</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filesysteminfo.fullname</source>
+    /// </property>
+    /// <property name="last_access_time" type="[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime)" access="both">
+    ///     <summary>Gets or sets the last time the directory was accessed.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filesysteminfo.lastaccesstime</source>
+    /// </property>
+    /// <property name="last_access_time_utc" type="[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime)" access="both">
+    ///     <summary>Gets or sets the last time the directory was accessed in coordinated universal time.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filesysteminfo.lastaccesstimeutc</source>
+    /// </property>
+    /// <property name="last_write_time" type="[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime)" access="both">
+    ///     <summary>Gets or sets the last time the directory was written to.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filesysteminfo.lastwritetime</source>
+    /// </property>
+    /// <property name="last_write_time_utc" type="[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime)" access="both">
+    ///     <summary>Gets or sets the last time the directory was written to in coordinated universal time.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filesysteminfo.lastwritetimeutc</source>
+    /// </property>
+    /// <property name="name" type="string" access="get">
+    ///     <summary>Gets the name of the directory.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.name</source>
+    /// </property>
+    /// <property name="directory" type="[DirectoryInfo]({{site.baseurl}}/docs/TaffyScript/IO/DirectoryInfo)" access="get">
+    ///     <summary>Gets an instance of the parent directory.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.directory</source>
+    /// </property>
+    /// <property name="directory_name" type="string" access="get">
+    ///     <summary>Gets the name of the parent directory.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.directoryname</source>
+    /// </property>
+    /// <property name="is_read_only" type="bool" access="both">
+    ///     <summary>Gets or sets a value that determines if the file read only.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.isreadonly</source>
+    /// </property>
+    /// <property name="length" type="number" access="get">
+    ///     <summary>Gets the size, in bytes, of the current file.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.length</source>
+    /// </property>
     [TaffyScriptObject]
     public class FileInfo : ITsInstance
     {
@@ -201,11 +264,23 @@ namespace TaffyScript.IO
             return true;
         }
 
+        /// <summary>
+        /// Creates a StreamWriter that appends text to this file.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.appendtext?view=netframework-4.7</source>
+        /// <returns>[StreamWriter]({{site.baseurl}}/docs/TaffyScript/IO/StreamWriter)</returns>
         public TsObject append_text(TsObject[] args)
         {
             return new StreamWriter(Source.AppendText());
         }
 
+        /// <summary>
+        /// Copies the file to a new file, optionally allowing the overwrite of an existing file.
+        /// </summary>
+        /// <arg name="new_file_name" type="string">The name of the new file to copy to.</arg>
+        /// <arg name="[overwrite=false]" type="bool">Determines whether this script can overwrite an existing file.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.copyto?view=netframework-4.7</source>
+        /// <returns>[FileInfo]({{site.baseurl}}/docs/TaffyScript/IO/FileInfo)</returns>
         public TsObject copy_to(TsObject[] args)
         {
             switch (args.Length)
@@ -213,46 +288,85 @@ namespace TaffyScript.IO
                 case 1:
                     return new FileInfo(Source.CopyTo((string)args[0]));
                 case 2:
-                    return new FileInfo(Source.CopyTo((string)args[1]));
+                    return new FileInfo(Source.CopyTo((string)args[0], (bool)args[1]));
                 default:
                     throw new ArgumentException($"Invalid number of arguments passed to {ObjectType}.{nameof(copy_to)}");
             }
         }
 
+        /// <summary>
+        /// Creates the file.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.create?view=netframework-4.7</source>
+        /// <returns>[FileStream]({{site.baseurl}}/docs/TaffyScript/IO/FileStream)</returns>
         public TsObject create(TsObject[] args)
         {
             return new FileStream(Source.Create());
         }
 
+        /// <summary>
+        /// Creates a StreamWriter that writes to a new text file.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.createtext?view=netframework-4.7</source>
+        /// <returns>[StreamWriter]({{site.baseurl}}/docs/TaffyScript/IO/StreamWriter)</returns>
         public TsObject create_text(TsObject[] args)
         {
             return new StreamWriter(Source.CreateText());
         }
 
+        /// <summary>
+        /// Decrypts a file that was encrypted by the current account using encrypt.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.decrypt?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject decrypt(TsObject[] args)
         {
             Source.Decrypt();
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Permanently deletes this file.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.delete?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject delete(TsObject[] args)
         {
             Source.Delete();
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Encrypts a file so only the account used to encrypt the file can decrypt it.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.encrypt?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject encrypt(TsObject[] args)
         {
             Source.Encrypt();
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Moves the file to a new location.
+        /// </summary>
+        /// <arg name="new_file_name" type="string">The name of the new file.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.moveto?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject move_to(TsObject[] args)
         {
             Source.MoveTo((string)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Opens the file with the specified options.
+        /// </summary>
+        /// <arg name="mode" type="[FileMode](https://docs.microsoft.com/en-us/dotnet/api/system.io.filemode)">Specifies the mode in which to open the file.</arg>
+        /// <arg name="[access]" type="[FileAccess](https://docs.microsoft.com/en-us/dotnet/api/system.io.fileaccess)">Determines the access with which to open the file.</arg>
+        /// <arg name="[share]" type="[FileShare](https://docs.microsoft.com/en-us/dotnet/api/system.io.fileshare)">Determines the type of access other FileStreams have to this file.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.open?view=netframework-4.7</source>
+        /// <returns>[FileStream]({{site.baseurl}}/docs/TaffyScript/IO/FileStream)</returns>
         public TsObject open(TsObject[] args)
         {
             switch (args.Length)
@@ -268,27 +382,55 @@ namespace TaffyScript.IO
             }
         }
 
+        /// <summary>
+        /// Creates a read-only FileStream.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.openread?view=netframework-4.7</source>
+        /// <returns>[FileStream]({{site.baseurl}}/docs/TaffyScript/IO/FileStream)</returns>
         public TsObject open_read(TsObject[] args)
         {
             return new FileStream(Source.OpenRead());
         }
 
+        /// <summary>
+        /// Creates a StreamReader that reads from an existing text file.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.opentext?view=netframework-4.7</source>
+        /// <returns>[StreamReader]({{site.baseurl}}/docs/TaffyScript/IO/StreamReader)</returns>
         public TsObject open_text(TsObject[] args)
         {
             return new StreamReader(Source.OpenText());
         }
 
+        /// <summary>
+        /// Creates a write-only FileStream.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.openwrite?view=netframework-4.7</source>
+        /// <returns>[FileStream]({{site.baseurl}}/docs/TaffyScript/IO/FileStream)</returns>
         public TsObject open_write(TsObject[] args)
         {
             return new FileStream(Source.OpenWrite());
         }
 
+        /// <summary>
+        /// Refreshes the state of this file.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filesysteminfo.refresh</source>
+        /// <returns>null</returns>
         public TsObject refresh(TsObject[] args)
         {
             Source.Refresh();
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Replaces the contents of the specified file with the contents of this file.
+        /// </summary>
+        /// <arg name="destination_file_name" type="string">The name of a file to replace.</arg>
+        /// <arg name="destination_backup_file_name" type="string">The name of a file with which to create a backup of the replaced file. Will not be created if this argument is null.</arg>
+        /// <arg name="[ignore_metadata_errors]" type="bool">Determines whether to ignore merge errors from the replaced file to the replacement file.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.fileinfo.replace?view=netframework-4.7</source>
+        /// <returns>[FileInfo]({{site.baseurl}}/docs/TaffyScript/IO/FileInfo)</returns>
         public TsObject replace(TsObject[] args)
         {
             switch (args.Length)
@@ -296,7 +438,7 @@ namespace TaffyScript.IO
                 case 2:
                     return new FileInfo(Source.Replace((string)args[0], (string)args[1]));
                 case 3:
-                    return new FileInfo(Source.Replace((string)args[0], (string)args[1], (bool)args[2]));
+                    return new FileInfo(Source.Replace((string)args[0], args[1].GetStringOrNull(), (bool)args[2]));
                 default:
                     throw new ArgumentException($"Invalid number of arguments passed to {ObjectType}.{nameof(replace)}");
             }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -7,6 +8,23 @@ using InternalWriter = System.IO.TextWriter;
 
 namespace TaffyScript.IO
 {
+    /// <summary>
+    /// Represents a writer that can write a sequential series of characters.
+    /// </summary>
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter?view=netframework-4.7</source>
+    /// <property name="culture" type="string" access="get">
+    ///     <summary>Gets the name of the culture that controls the formatting.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.formatprovider?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="encoding" type="string" access="get">
+    ///     <summary>Gets the name of the character encoding in which the output is written.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.encoding?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="new_line" type="string" access="both">
+    ///     <summary>Gets or sets the line terminator string.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.newline?view=netframework-4.7</source>
+    /// </property>
+    [TaffyScriptObject]
     public abstract class TextWriter : ITsInstance
     {
         public TsObject this[string memberName]
@@ -18,12 +36,10 @@ namespace TaffyScript.IO
         public abstract string ObjectType { get; }
         public abstract InternalWriter Writer { get; }
 
-        public TsObject Call(string scriptName, params TsObject[] args)
+        public virtual TsObject Call(string scriptName, params TsObject[] args)
         {
             switch(scriptName)
             {
-                case "close":
-                    return close(args);
                 case "dispose":
                     return dispose(args);
                 case "flush":
@@ -88,12 +104,17 @@ namespace TaffyScript.IO
             throw new MissingMethodException(ObjectType, scriptName);
         }
 
-        public TsObject GetMember(string name)
+        public virtual TsObject GetMember(string name)
         {
             switch(name)
             {
                 case "encoding":
                     return Writer.Encoding.EncodingName;
+                case "culture":
+                    if (Writer.FormatProvider is CultureInfo ci)
+                        return ci.Name;
+                    else
+                        return TsObject.Empty;
                 case "new_line":
                     return Writer.NewLine;
                 default:
@@ -103,7 +124,7 @@ namespace TaffyScript.IO
             }
         }
 
-        public void SetMember(string name, TsObject value)
+        public virtual void SetMember(string name, TsObject value)
         {
             switch(name)
             {
@@ -115,13 +136,10 @@ namespace TaffyScript.IO
             }
         }
 
-        public bool TryGetDelegate(string scriptName, out TsDelegate del)
+        public virtual bool TryGetDelegate(string scriptName, out TsDelegate del)
         {
             switch (scriptName)
             {
-                case "close":
-                    del = new TsDelegate(close, scriptName);
-                    break;
                 case "dispose":
                     del = new TsDelegate(dispose, scriptName);
                     break;
@@ -207,96 +225,178 @@ namespace TaffyScript.IO
             return true;
         }
 
-        public TsObject close(TsObject[] args)
-        {
-            Writer.Close();
-            return TsObject.Empty;
-        }
-
+        /// <summary>
+        /// Releases all resources used by the TextWriter.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textreader.dispose?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject dispose(TsObject[] args)
         {
             Writer.Dispose();
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Clears all buffers and writes any buffered data to be written to the underlying device.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.flush?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject flush(TsObject[] args)
         {
             Writer.Flush();
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given string.
+        /// </summary>
+        /// <arg name="value" type="string">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.write?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write(TsObject[] args)
         {
             Writer.Write((string)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given bool.
+        /// </summary>
+        /// <arg name="value" type="bool">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.write?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_bool(TsObject[] args)
         {
             Writer.Write((bool)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given byte.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.write?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_byte(TsObject[] args)
         {
             Writer.Write((byte)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given sbyte.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.write?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_sbyte(TsObject[] args)
         {
             Writer.Write((sbyte)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given ushort.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.write?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_ushort(TsObject[] args)
         {
             Writer.Write((ushort)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given short.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.write?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_short(TsObject[] args)
         {
             Writer.Write((short)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given uint.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.write?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_uint(TsObject[] args)
         {
             Writer.Write((uint)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given int.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.write?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_int(TsObject[] args)
         {
             Writer.Write((int)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given ulong.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.write?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_ulong(TsObject[] args)
         {
             Writer.Write((ulong)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given long.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.write?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_long(TsObject[] args)
         {
             Writer.Write((long)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given float.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.write?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_float(TsObject[] args)
         {
             Writer.Write((float)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given double.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.write?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_double(TsObject[] args)
         {
             Writer.Write((double)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes a line terminator.
+        /// </summary>
+        /// <arg name="[value]" type="string">An optional string to write before the line terminator.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.writeline?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_line(TsObject[] args)
         {
             if (args is null)
@@ -316,66 +416,132 @@ namespace TaffyScript.IO
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given bool.
+        /// </summary>
+        /// <arg name="value" type="bool">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.writeline?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_line_bool(TsObject[] args)
         {
             Writer.WriteLine((bool)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given byte.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.writeline?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_line_byte(TsObject[] args)
         {
             Writer.WriteLine((byte)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given sbyte.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.writeline?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_line_sbyte(TsObject[] args)
         {
             Writer.WriteLine((sbyte)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given ushort.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.writeline?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_line_ushort(TsObject[] args)
         {
             Writer.WriteLine((ushort)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given short.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.writeline?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_line_short(TsObject[] args)
         {
             Writer.WriteLine((short)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given uint.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.writeline?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_line_uint(TsObject[] args)
         {
             Writer.WriteLine((uint)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given int.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.writeline?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_line_int(TsObject[] args)
         {
             Writer.WriteLine((int)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given ulong.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.writeline?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_line_ulong(TsObject[] args)
         {
             Writer.WriteLine((ulong)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given long.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.writeline?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_line_long(TsObject[] args)
         {
             Writer.WriteLine((long)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given float.
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.writeline?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_line_float(TsObject[] args)
         {
             Writer.WriteLine((float)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes the text representation of the given double
+        /// </summary>
+        /// <arg name="value" type="number">The value to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textwriter.writeline?view=netframework-4.7</source>
+        /// <returns>null</returns>
         public TsObject write_line_double(TsObject[] args)
         {
             Writer.WriteLine((double)args[0]);

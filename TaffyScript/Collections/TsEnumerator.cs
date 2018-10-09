@@ -10,57 +10,48 @@ namespace TaffyScript.Collections
     /// <summary>
     /// Supports iteration over a collection.
     /// </summary>
-    /// <property name="current" type="object" access="get">
-    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.ienumerator-1.current</source>
-    ///     <summary>Gets the element in the collection at the current position of the enumerator.</summary>
-    /// </property>
-    public struct TsEnumerator : IEnumerator<TsObject>, ITsInstance
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.ienumerator-1?view=netframework-4.7</source>
+    [TaffyScriptObject("TaffyScript.Collections.Enumerator")]
+    public abstract class TsEnumerator : IEnumerator<TsObject>, ITsInstance
     {
-        private IEnumerator<TsObject> _source;
-
         public TsObject this[string memberName]
         {
             get => GetMember(memberName);
             set => SetMember(memberName, value);
         }
 
-        public TsObject Current => _source.Current;
-        object IEnumerator.Current => _source.Current;
+        public virtual TsObject Current => current;
+        object IEnumerator.Current => Current;
 
-        public string ObjectType => "TaffyScript.Collections.TsEnumerator";
+        /// <summary>
+        /// Gets the element in the collection at the current position of the enumerator.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.ienumerator-1.current</source>
+        /// <type>object</type>
+        public abstract TsObject current { get; }
 
-        public TsEnumerator(IEnumerable<TsObject> source)
+        public abstract string ObjectType { get; }
+
+        public TsEnumerator(TsObject[] args)
         {
-            _source = source.GetEnumerator();
         }
 
-        public TsEnumerator(IEnumerator<TsObject> source)
+        public virtual void Dispose()
         {
-            _source = source;
+            dispose(null);
         }
 
-        public void Dispose()
+        public virtual bool MoveNext()
         {
-            _source.Dispose();
+            return (bool)move_next(null);
         }
 
-        public bool MoveNext()
+        public virtual void Reset()
         {
-            return _source.MoveNext();
+            reset(null);
         }
 
-        public void Reset()
-        {
-            _source.Reset();
-        }
-
-        public IEnumerable<TsObject> Iterate()
-        {
-            while (MoveNext())
-                yield return Current;
-        }
-
-        public TsObject Call(string scriptName, params TsObject[] args)
+        public virtual TsObject Call(string scriptName, params TsObject[] args)
         {
             switch(scriptName)
             {
@@ -84,7 +75,7 @@ namespace TaffyScript.Collections
             throw new MissingMethodException(ObjectType, scriptName);
         }
 
-        public TsObject GetMember(string name)
+        public virtual TsObject GetMember(string name)
         {
             switch(name)
             {
@@ -97,12 +88,12 @@ namespace TaffyScript.Collections
             }
         }
 
-        public void SetMember(string name, TsObject value)
+        public virtual void SetMember(string name, TsObject value)
         {
             throw new MissingMemberException(ObjectType, name);
         }
 
-        public bool TryGetDelegate(string scriptName, out TsDelegate del)
+        public virtual bool TryGetDelegate(string scriptName, out TsDelegate del)
         {
             switch(scriptName)
             {
@@ -126,34 +117,86 @@ namespace TaffyScript.Collections
         /// Disposes any dynamic resources held by the enumerator.
         /// </summary>
         /// <returns>null</returns>
-        public TsObject dispose(TsObject[] args)
-        {
-            Dispose();
-            return TsObject.Empty;
-        }
+        public abstract TsObject dispose(TsObject[] args);
 
         /// <summary>
         /// Advances the enumerator to the next element in the collection.
         /// </summary>
         /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.ienumerator.movenext</source>
         /// <returns>bool</returns>
-        public TsObject move_next(TsObject[] args)
-        {
-            return MoveNext();
-        }
+        public abstract TsObject move_next(TsObject[] args);
 
         /// <summary>
         /// Sets the enumerator to its initial position, which is before the last element in the collection.
         /// </summary>
         /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.ienumerator.reset</source>
         /// <returns>null</returns>
-        public TsObject reset(TsObject[] args)
+        public abstract TsObject reset(TsObject[] args);
+
+        public static implicit operator TsObject(TsEnumerator enumerator) => new TsInstanceWrapper(enumerator);
+        public static explicit operator TsEnumerator(TsObject obj) => (TsEnumerator)obj.WeakValue;
+    }
+
+    public sealed class WrappedEnumerator : TsEnumerator
+    {
+        private IEnumerator<TsObject> _source;
+
+        public override string ObjectType => "TaffyScript.Collections.WrappedEnumerator";
+
+        public override TsObject Current => _source.Current;
+        public override TsObject current => _source.Current;
+
+        public WrappedEnumerator(IEnumerator<TsObject> enumerator)
+            : base(null)
+        {
+            _source = enumerator;
+        }
+
+        public override void Dispose()
+        {
+            _source.Dispose();
+        }
+
+        public override TsObject dispose(TsObject[] args)
+        {
+            _source.Dispose();
+            return TsObject.Empty;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return _source.Equals(obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return _source.GetHashCode();
+        }
+
+        public override bool MoveNext()
+        {
+            return _source.MoveNext();
+        }
+
+        public override TsObject move_next(TsObject[] args)
+        {
+            return MoveNext();
+        }
+
+        public override void Reset()
+        {
+            _source.Reset();
+        }
+
+        public override TsObject reset(TsObject[] args)
         {
             Reset();
             return TsObject.Empty;
         }
 
-        public static implicit operator TsObject(TsEnumerator enumerator) => new TsInstanceWrapper(enumerator);
-        public static explicit operator TsEnumerator(TsObject obj) => (TsEnumerator)obj.WeakValue;
+        public override string ToString()
+        {
+            return _source.ToString();
+        }
     }
 }

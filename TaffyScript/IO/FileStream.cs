@@ -9,8 +9,37 @@ using InternalStream = System.IO.FileStream;
 namespace TaffyScript.IO
 {
     /// <summary>
-    /// TaffyScript wrapper around <see cref="InternalStream"/>.
+    /// Provides a Stream for a file.
     /// </summary>
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filestream?view=netframework-4.7</source>
+    /// <property name="can_read" type="bool" access="get">
+    ///     <summary>Determines if the stream can be read from.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filestream.canread?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="can_seek" type="bool" access="get">
+    ///     <summary>Determines if the stream supports seeking.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filestream.canseek?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="can_write" type="bool" access="get">
+    ///     <summary>Determines if the stream can be written to.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filestream.canwrite?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="is_async" type="bool" access="get">
+    ///     <summary>Determines if the file stream was opened asynchronously or synchronously.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filestream.isasync?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="length" type="number" access="get">
+    ///     <summary>Gets the length in bytes of the stream.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filestream.length?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="name" type="string" access="get">
+    ///     <summary>Gets the absolute path of the file opened in the FileStream</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filestream.name?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="position" type="number" access="both">
+    ///     <summary>Gets or sets the position within the stream.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.filestream.position?view=netframework-4.7</source>
+    /// </property>
     [TaffyScriptObject]
     public class FileStream : TsStream
     {

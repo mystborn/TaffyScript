@@ -6,6 +6,15 @@ using System.Threading.Tasks;
 
 namespace TaffyScript
 {
+    /// <summary>
+    /// Represents the result from parsing operations.
+    /// </summary>
+    /// <property name="success" type="bool" access="get">
+    ///     <summary>Determines if the parse operation was successful.</summary>
+    /// </property>
+    /// <property name="result" type="object" access="get">
+    ///     <summary>If the parse operation was successful, holds the result.</summary>
+    /// </property>
     [TaffyScriptObject]
     public class ParseResult : TsInstance
     {

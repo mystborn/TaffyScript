@@ -14,6 +14,7 @@ namespace TaffyScript.Collections
     /// <property name="count" type="number" access="get">
     ///     <summary>Gets the number of items in the list.</summary>
     /// </property>
+    [TaffyScriptObject("List")]
     public class TsList : TsEnumerable
     {
         private List<TsObject> _source;
@@ -92,7 +93,7 @@ namespace TaffyScript.Collections
                 case "sort":
                     return sort(args);
                 default:
-                    throw new MemberAccessException($"The type {ObjectType} does not define a script called {scriptName}");
+                    return base.Call(scriptName, args);
             }
             return TsObject.Empty;
         }
@@ -145,8 +146,7 @@ namespace TaffyScript.Collections
                     del = new TsDelegate(sort, "sort");
                     return true;
                 default:
-                    del = null;
-                    return false;
+                    return base.TryGetDelegate(scriptName, out del);
             }
         }
 
@@ -205,10 +205,10 @@ namespace TaffyScript.Collections
         /// <summary>
         /// Gets an enumerator used to iterate over the elements in the list.
         /// </summary>
-        /// <returns>[TsEnumerator]({{site.baseurl}}/docs/TaffyScript/Collections/TsEnumerator)</returns>
+        /// <returns>Enumerator</returns>
         public override TsObject get_enumerator(TsObject[] args)
         {
-            return new TsEnumerator(_source.GetEnumerator());
+            return new WrappedEnumerator(_source.GetEnumerator());
         }
 
         /// <summary>
@@ -227,7 +227,7 @@ namespace TaffyScript.Collections
         /// Finds the index of the first occurrence of the value in the list. Returns -1 if the value isn't found.
         /// </summary>
         /// <arg name="item" type="object">The item to search for.</arg>
-        /// <returns></returns>
+        /// <returns>int</returns>
         public TsObject index_of(TsObject[] args)
         {
             return _source.IndexOf(args[0]);
@@ -260,7 +260,7 @@ namespace TaffyScript.Collections
         }
 
         /// <summary>
-        /// Shiffles the values in the list.
+        /// Shuffles the values in the list.
         /// </summary>
         /// <returns>null</returns>
         public TsObject shuffle(TsObject[] args)

@@ -7,6 +7,70 @@ using System.Xml;
 
 namespace TaffyScript.Xml
 {
+    /// <summary>
+    /// Specifies a set of features to support on the XmlWriter created with these settings.
+    /// </summary>
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings?view=netframework-4.7</source>
+    /// <property name="async" type="bool" access="both">
+    ///     <summary>Determines if asynchronous methods can be used on a particular SmlWriter instance.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.async?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="check_characters" type="bool" access="both">
+    ///     <summary>Determines if the XmlWriter should ensure that all characters conform to the XML specification.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.checkcharacters?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="close_output" type="bool" access="both">
+    ///     <summary>Determines if the XmlWriter should also close the underlying device when it's closed.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.closeoutput?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="conformance_level" type="" access="both">
+    ///     <summary>Determines the level of conformance the XmlWriter checks the output for.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.conformancelevel?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="do_not_excape_uri_attributes" type="bool" access="both">
+    ///     <summary>Determines whether the XmlWriter does not escape URI attributes.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.donotescapeuriattributes?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="encoding" type="string" access="both">
+    ///     <summary>Determines the type of text encoding to use.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.encoding?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="indent" type="bool" access="both">
+    ///     <summary>Determines whether to indent elements.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.indent?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="indent_chars" type="string" access="both">
+    ///     <summary>Determines the string to be used when indenting.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.indentchars?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="namespace_handling" type="" access="both">
+    ///     <summary>Determines if the XmlWriter should remove duplicate namespace declarations when writing Xml content.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.namespacehandling?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="new_line_chars" type="string" access="both">
+    ///     <summary>Determines the string to be used for line breaks.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.newlinechars?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="new_line_handling" type="" access="both">
+    ///     <summary>Determines whether to normalize line breaks in the output.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.newlinehandling?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="new_line_on_attributes" type="bool" access="both">
+    ///     <summary>Determines whether to write attributes on a new line.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.newlineonattributes?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="omit_xml_declaration" type="bool" access="both">
+    ///     <summary>Determines whether to omit an XML declaration.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.omitxmldeclaration?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="output_method" type="" access="get">
+    ///     <summary>Gets the method used to serialize XmlWriter output.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.outputmethod?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="write_end_document_on_close" type="bool" access="both">
+    ///     <summary>Determines whether the XmlWriter will add closing tags to all unclosed elements when closed.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwritersettings.writeenddocumentonclose?view=netframework-4.7</source>
+    /// </property>
     [TaffyScriptObject]
     public class XmlWriterSettings : ITsInstance
     {
@@ -159,11 +223,19 @@ namespace TaffyScript.Xml
             return true;
         }
 
+        /// <summary>
+        /// Creates a copy of this instance.
+        /// </summary>
+        /// <returns>[XmlWriterSettings]({{site.baseurl}}/docs/TaffyScript/Xml/XmlWriterSettings)</returns>
         public TsObject clone(TsObject[] args)
         {
             return new XmlWriterSettings(Source.Clone());
         }
 
+        /// <summary>
+        /// Resets the settings to their default values.
+        /// </summary>
+        /// <returns>null</returns>
         public TsObject reset(TsObject[] args)
         {
             Source.Reset();

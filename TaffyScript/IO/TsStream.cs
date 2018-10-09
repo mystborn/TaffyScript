@@ -10,6 +10,40 @@ namespace TaffyScript.IO
     /// <summary>
     /// Base class for TaffyScript streams.
     /// </summary>
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream</source>
+    /// <property name="can_read" type="bool" access="get">
+    ///     <summary>Determines if the stream can be read from.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.canread</source>
+    /// </property>
+    /// <property name="can_seek" type="bool" access="get">
+    ///     <summary>Determines if the stream supports seeking.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.canseek</source>
+    /// </property>
+    /// <property name="can_timeout" type="bool" access="get">
+    ///     <summary>Determines if the stream can time out.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.cantimeout</source>
+    /// </property>
+    /// <property name="can_write" type="bool" access="get">
+    ///     <summary>Determines if the stream can be written to.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.canwrite</source>
+    /// </property>
+    /// <property name="length" type="number" access="get">
+    ///     <summary>Gets the length in bytes of the stream.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.length</source>
+    /// </property>
+    /// <property name="position" type="number" access="both">
+    ///     <summary>Gets or sets the position within the stream.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.position</source>
+    /// </property>
+    /// <property name="read_timeout" type="number" access="both">
+    ///     <summary>Gets or sets the length of time in milliseconds the stream will attempt to read before timing out.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.readtimeout</source>
+    /// </property>
+    /// <property name="write_timeout" type="number" access="both">
+    ///     <summary>Gets or set the length of tume in milliseconds the stream will attempt to write before timing out.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.writetimeout</source>
+    /// </property>
+    [TaffyScriptObject("TaffyScript.IO.Stream")]
     public abstract class TsStream : ITsInstance
     {
         public TsObject this[string memberName]
@@ -25,8 +59,6 @@ namespace TaffyScript.IO
         {
             switch (scriptName)
             {
-                case "close":
-                    return close(args);
                 case "copy_to":
                     return copy_to(args);
                 case "dispose":
@@ -102,9 +134,6 @@ namespace TaffyScript.IO
         {
             switch(scriptName)
             {
-                case "close":
-                    del = new TsDelegate(close, scriptName);
-                    break;
                 case "copy_to":
                     del = new TsDelegate(copy_to, scriptName);
                     break;
@@ -132,12 +161,13 @@ namespace TaffyScript.IO
             return true;
         }
 
-        public TsObject close(TsObject[] args)
-        {
-            Stream.Close();
-            return TsObject.Empty;
-        }
-
+        /// <summary>
+        /// Reads the bytes from this stream and writes them to another.
+        /// </summary>
+        /// <arg name="other" type="[Stream]({{site.baseurl}}/docs/TaffyScript/IO/Stream)">The stream to write to.</arg>
+        /// <arg name="[buffer_size]" type="number">The size of the buffer.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.copyto</source>
+        /// <returns>null</returns>
         public TsObject copy_to(TsObject[] args)
         {
             switch(args.Length)
@@ -154,34 +184,98 @@ namespace TaffyScript.IO
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Releases all resources used by this stream.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.dispose</source>
+        /// <returns>null</returns>
         public TsObject dispose(TsObject[] args)
         {
             Stream.Dispose();
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Clears all buffers for this stream and writes any buffered data to the underlying device.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.flush</source>
+        /// <returns>null</returns>
         public TsObject flush(TsObject[] args)
         {
             Stream.Flush();
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Reads a sequence of bytes from the stream into a buffer and returns the number of bytes read.
+        /// </summary>
+        /// <arg name="buffer" type="[Buffer]({{site.baseurl}}/docs/TaffyScript.IO.Buffer)">The buffer to write the data to.</arg>
+        /// <arg name="offset" type="number">The position in the buffer to write the data.</arg>
+        /// <arg name="count" type="number">The maximum number of bytes to be read.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.read</source>
+        /// <returns>number</returns>
+        public TsObject read(TsObject[] args)
+        {
+            var buffer = (Buffer)args[0];
+            var count = Stream.Read(buffer.Memory, (int)args[1], (int)args[2]);
+            return count;
+        }
+
+        /// <summary>
+        /// Reads the next byte from the stream.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.readbyte</source>
+        /// <returns>number</returns>
         public TsObject read_byte(TsObject[] args)
         {
             return Stream.ReadByte();
         }
 
+        /// <summary>
+        /// Sets the position within the stream.
+        /// </summary>
+        /// <arg name="offset" type="number">A byte offset relative to the origin parameter.</arg>
+        /// <arg name="origin" type="[SeekOrigin](https://docs.microsoft.com/en-us/dotnet/api/system.io.seekorigin)">Indicates the starting point to obtain the new position.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.seek</source>
+        /// <returns>number</returns>
         public TsObject seek(TsObject[] args)
         {
             return Stream.Seek((long)args[0], (SeekOrigin)(int)args[1]);
         }
 
+        /// <summary>
+        /// Sets the length of the current stream.
+        /// </summary>
+        /// <arg name="length" type="number">The desired length of the stream in bytes.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.setlength</source>
+        /// <returns>null</returns>
         public TsObject set_length(TsObject[] args)
         {
             Stream.SetLength((long)args[0]);
             return TsObject.Empty;
         }
 
+        /// <summary>
+        /// Writes a sequence of bytes from a buffer to the stream.
+        /// </summary>
+        /// <arg name="buffer" type="[Buffer]({{site.baseurl}}/docs/TaffyScript.IO.Buffer)">The buffer to read the data from.</arg>
+        /// <arg name="offset" type="number">The position in the buffer to start reading from.</arg>
+        /// <arg name="count" type="number">The number of bytes to read from the buffer.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.write</source>
+        /// <returns>null</returns>
+        public TsObject write(TsObject[] args)
+        {
+            var buffer = (Buffer)args[0];
+            Stream.Write(buffer.Memory, (int)args[1], (int)args[2]);
+            return TsObject.Empty;
+        }
+
+        /// <summary>
+        /// Writes a byte to the stream.
+        /// </summary>
+        /// <arg name="byte" type="number">The byte to write.</arg>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.stream.writebyte</source>
+        /// <returns>null</returns>
         public TsObject write_byte(TsObject[] args)
         {
             Stream.WriteByte((byte)args[0]);

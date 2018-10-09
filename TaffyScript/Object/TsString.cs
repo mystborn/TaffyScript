@@ -7,6 +7,12 @@ using Number = System.Single;
 
 namespace TaffyScript
 {
+    /// <summary>
+    /// The string literal built into TaffyScript.
+    /// </summary>
+    /// <property name="length" type="number" access="get">
+    ///     <summary>Gets the number of characters in the string.</summary>
+    /// </property>
     public class TsString : TsObject, ITsInstance
     {
         public string Value { get; }
@@ -220,11 +226,22 @@ namespace TaffyScript
             }
         }
 
+        /// <summary>
+        /// Determines if the string contains the specified substring.
+        /// </summary>
+        /// <arg name="substring" type="string">The substring to search for.</arg>
+        /// <returns>bool</returns>
         public TsObject contains(TsObject[] args)
         {
             return Value.Contains((string)args[0]);
         }
 
+        /// <summary>
+        /// Returns a copy of a portion of the string.
+        /// </summary>
+        /// <arg name="[start_index=0]" type="number">The index to start copying characters from.</arg>
+        /// <arg name="[count]" type="number">The number of characters to copy. If absent, copies characters from the start index to the end of the string.</arg>
+        /// <returns>string</returns>
         public TsObject copy(TsObject[] args)
         {
             if (args is null)
@@ -241,6 +258,11 @@ namespace TaffyScript
             }
         }
 
+        /// <summary>
+        /// Counts the number of time a substring appears in the string.
+        /// </summary>
+        /// <arg name="substring" type="string">The substring to count.</arg>
+        /// <returns>number</returns>
         public TsObject count(TsObject[] args)
         {
             var subString = (string)args[0];
@@ -250,11 +272,27 @@ namespace TaffyScript
             return (Value.Length - Value.Replace(subString, "").Length) / subString.Length;
         }
 
+        /// <summary>
+        /// Removes a portion of the string and returns the result.
+        /// </summary>
+        /// <arg name="start_index" type="number">The index to start removing characters.</arg>
+        /// <arg name="[count]" type="number">The number of characters to remove. If absent, removes characters from the start_index until the end of the string.</arg>
+        /// <returns>string</returns>
         public TsObject delete(TsObject[] args)
         {
-            return Value.Remove((int)args[0], (int)args[1]);
+            switch(args.Length)
+            {
+                case 1:
+                    return Value.Remove((int)args[0]);
+                default:
+                    return Value.Remove((int)args[0], (int)args[1]);
+            }
         }
 
+        /// <summary>
+        /// Returns a copy of the string with all non-digit characters removed.
+        /// </summary>
+        /// <returns>string</returns>
         public TsObject digits(TsObject[] args)
         {
             // Test with regex to see if that's faster.
@@ -269,6 +307,11 @@ namespace TaffyScript
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Returns a new string with this string repeated the specified number of times.
+        /// </summary>
+        /// <arg name="count" type="number">The number of times to repeat this string.</arg>
+        /// <returns>string</returns>
         public TsObject duplicate(TsObject[] args)
         {
             var count = (int)args[0];
@@ -280,36 +323,73 @@ namespace TaffyScript
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Determines if this string ends with the specified substring.
+        /// </summary>
+        /// <arg name="substring" type="string">The string to compare with the end of this string.</arg>
+        /// <returns>bool</returns>
         public TsObject ends_with(TsObject[] args)
         {
             return Value.EndsWith((string)args[0]);
         }
 
+        /// <summary>
+        /// <![CDATA[Replaces format items with the corresponding arguments. A format item takes the following form: {<argument_number>}]]>
+        /// </summary>
+        /// <arg name="..args" type="objects">The arguments used to format the string.</arg>
+        /// <returns>string</returns>
         public TsObject format(TsObject[] args)
         {
             return string.Format(Value, args);
         }
 
+        /// <summary>
+        /// Gets the character at the specified position within the string.
+        /// </summary>
+        /// <arg name="index" type="number">The index of the character to get.</arg>
+        /// <returns>string</returns>
         public TsObject get(TsObject[] args)
         {
             return Value[(int)args[0]];
         }
 
+        /// <summary>
+        /// Gets the index of the first occurrence of the specified substring, or -1 if it wasn't found.
+        /// </summary>
+        /// <arg name="substring" type="string">The string to get the index of.</arg>
+        /// <arg name="[start_index=0]" type="number">The index to start searching for the string.</arg>
+        /// <returns>number</returns>
         public TsObject index_of(TsObject[] args)
         {
             return args.Length == 1 ? Value.IndexOf((string)args[0]) : Value.IndexOf((string)args[0], (int)args[1]);
         }
 
+        /// <summary>
+        /// Inserts the specified substring into this string and returns the result.
+        /// </summary>
+        /// <arg name="substring" type="string">The string to insert.</arg>
+        /// <arg name="index" type="number">The position to insert the substring.</arg>
+        /// <returns>string</returns>
         public TsObject insert(TsObject[] args)
         {
             return Value.Insert((int)args[0], (string)args[1]);
         }
 
+        /// <summary>
+        /// Gets the index of the last occurrence of the specified substring, or -1 if it wasn't found.
+        /// </summary>
+        /// <arg name="substring" type="string">The string to get the index of.</arg>
+        /// <arg name="[start_index=0]" type="number">The index to start searching for the string.</arg>
+        /// <returns>number</returns>
         public TsObject last_index_of(TsObject[] args)
         {
             return args.Length == 1 ? Value.LastIndexOf((string)args[0]) : Value.LastIndexOf((string)args[0], (int)args[1]);
         }
 
+        /// <summary>
+        /// Returns a copy of this string with all non-letter characters removed.
+        /// </summary>
+        /// <returns>string</returns>
         public TsObject letters(TsObject[] args)
         {
             // Test with regex to see if that's faster.
@@ -323,6 +403,10 @@ namespace TaffyScript
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Returns a copy of this string with all non-letter and non-digit characters removed.
+        /// </summary>
+        /// <returns>string</returns>
         public TsObject letters_digits(TsObject[] args)
         {
             //Test with regex to see if that's faster.
@@ -336,16 +420,31 @@ namespace TaffyScript
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Returns a copy of this string with all letters converted to lowercase.
+        /// </summary>
+        /// <returns>string</returns>
         public TsObject lower(TsObject[] args)
         {
             return Value.ToLower();
         }
 
+        /// <summary>
+        /// Gets the ordinal value of the character at the specified index.
+        /// </summary>
+        /// <arg name="index" type="number">The index of the character to get the ordinal value of.</arg>
+        /// <returns>number</returns>
         public TsObject ord(TsObject[] args)
         {
             return (Number)Value[(int)args[0]];
         }
 
+        /// <summary>
+        /// Replaces the first occurrence of a substring with another string.
+        /// </summary>
+        /// <arg name="substring" type="string">The string to replace.</arg>
+        /// <arg name="replacement" type="string">The string to replace the substring with.</arg>
+        /// <returns>string</returns>
         public TsObject replace(TsObject[] args)
         {
             var subString = (string)args[0];
@@ -355,16 +454,33 @@ namespace TaffyScript
             return index != -1 ? Value.Substring(0, index) + newString + Value.Substring(index + subString.Length) : Value;
         }
 
+        /// <summary>
+        /// Replaces all occurrences of a substring with another string.
+        /// </summary>
+        /// <arg name="substring" type="string">The string to replace.</arg>
+        /// <arg name="replacement" type="string">The string to replace the substring with.</arg>
+        /// <returns>string</returns>
         public TsObject replace_all(TsObject[] args)
         {
             return Value.Replace((string)args[0], (string)args[1]);
         }
 
+        /// <summary>
+        /// Determines if this string starts with the specified substring.
+        /// </summary>
+        /// <arg name="substring" type="string">The string to compare to the beginning of this string.</arg>
+        /// <returns>bool</returns>
         public TsObject starts_with(TsObject[] args)
         {
             return Value.StartsWith((string)args[0]);
         }
 
+        /// <summary>
+        /// Based on a set of substrings, splits this string into an array.
+        /// </summary>
+        /// <arg name="..seperators" type="strings">Any number of string that will be used to determine split borders.</arg>
+        /// <arg name="[remove_empty_entries=false]" type="bool">Determines if any empty strings should be removed from the resultant array.</arg>
+        /// <returns>array</returns>
         public TsObject split(TsObject[] args)
         {
             string[] parts;
@@ -391,6 +507,11 @@ namespace TaffyScript
             return result;
         }
 
+        /// <summary>
+        /// Removes all leading and trailing whitespace characters (or the specified characters, if any) from this string and returns the result.
+        /// </summary>
+        /// <arg name="[..characters]" type="strings">Any number of characters to remove from this strings borders.</arg>
+        /// <returns>string</returns>
         public TsObject trim(TsObject[] args)
         {
             if (args is null)
@@ -402,6 +523,11 @@ namespace TaffyScript
             return Value.Trim(characters);
         }
 
+        /// <summary>
+        /// Removes all trailing whitespace characters (or the specified characters, if any) from this string and returns the result.
+        /// </summary>
+        /// <arg name="[..characters]" type="strings">Any number of characters to remove from this strings end.</arg>
+        /// <returns>string</returns>
         public TsObject trim_end(TsObject[] args)
         {
             if (args is null)
@@ -413,6 +539,11 @@ namespace TaffyScript
             return Value.TrimEnd(characters);
         }
 
+        /// <summary>
+        /// Removes all leading whitespace characters (or the specified characters, if any) from this string and returns the result.
+        /// </summary>
+        /// <arg name="[..characters]" type="strings">Any number of characters to remove from this strings start.</arg>
+        /// <returns>string</returns>
         public TsObject trim_start(TsObject[] args)
         {
             if (args is null)
@@ -424,6 +555,10 @@ namespace TaffyScript
             return Value.TrimStart(characters);
         }
 
+        /// <summary>
+        /// Returns a copy of this string with characters converted to uppercase.
+        /// </summary>
+        /// <returns>string</returns>
         public TsObject upper(TsObject[] args)
         {
             return Value.ToUpper();

@@ -8,6 +8,34 @@ using InternalStream = System.IO.MemoryStream;
 
 namespace TaffyScript.IO
 {
+    /// <summary>
+    /// Creates a stream whose backing store is memory.
+    /// </summary>
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.memorystream?view=netframework-4.7</source>
+    /// <property name="can_read" type="bool" access="get">
+    ///     <summary>Determines if the stream can be read from.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.memorystream.canread?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="can_seek" type="bool" access="get">
+    ///     <summary>Determines if the stream supports seeking.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.memorystream.canseek?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="can_write" type="bool" access="get">
+    ///     <summary>Determines if the stream can be written to.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.memorystream.canwrite?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="capacity" type="number" access="both">
+    ///     <summary>Gets or sets the number of bytes allocated for this stream.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.memorystream.capacity?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="length" type="number" access="get">
+    ///     <summary>Gets the length in bytes of the stream.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.memorystream.length?view=netframework-4.7</source>
+    /// </property>
+    /// <property name="position" type="number" access="both">
+    ///     <summary>Gets or sets the position within the stream.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.memorystream.position?view=netframework-4.7</source>
+    /// </property>
     [TaffyScriptObject]
     public class MemoryStream : TsStream
     {
