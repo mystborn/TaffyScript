@@ -7,10 +7,10 @@ title: string.split
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[split]({{site.baseurl}}/docs/string/split/)
 
-Based on a set of substrings, splits this string into an array.
+_Based on a set of substrings, splits this string into an array._
 
 ```cs
-string.split(..seperators, [remove_empty_entries = false])
+string.split(..seperators, [remove_empty_entries=false])
 ```
 
 ## Arguments
@@ -29,12 +29,12 @@ string.split(..seperators, [remove_empty_entries = false])
     <tr>
       <td>..seperators</td>
       <td>strings</td>
-      <td>Any number of strings that will be used to determine split borders.</td>
+      <td>Any number of string that will be used to determine split borders.</td>
     </tr>
     <tr>
-      <td>[remove_empty_entries = false]</td>
+      <td>[remove_empty_entries=false]</td>
       <td>bool</td>
-      <td>Optional value to used to determine if any empty strings should be removed from the resultant array.</td>
+      <td>Determines if any empty strings should be removed from the resultant array.</td>
     </tr>
   </tbody>
 </table>

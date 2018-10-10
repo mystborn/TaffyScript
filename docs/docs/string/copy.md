@@ -7,10 +7,10 @@ title: string.copy
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[copy]({{site.baseurl}}/docs/string/copy/)
 
-Returns a copy of a portion of the string.
+_Returns a copy of a portion of the string._
 
 ```cs
-string.copy([start_index], [count])
+string.copy([start_index=0], [count])
 ```
 
 ## Arguments
@@ -27,14 +27,14 @@ string.copy([start_index], [count])
   </thead>
   <tbody>
     <tr>
-      <td>[start_index]</td>
+      <td>[start_index=0]</td>
       <td>number</td>
       <td>The index to start copying characters from.</td>
     </tr>
     <tr>
       <td>[count]</td>
       <td>number</td>
-      <td>The number of characters to copy.</td>
+      <td>The number of characters to copy. If absent, copies characters from the start index to the end of the string.</td>
     </tr>
   </tbody>
 </table>

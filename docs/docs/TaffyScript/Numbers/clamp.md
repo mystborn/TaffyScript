@@ -7,7 +7,7 @@ title: clamp
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[clamp]({{site.baseurl}}/docs/TaffyScript/Numbers/clamp/)
 
-Returns a value clamped in between a min and max number.
+_Clamps a value between a minimum and maximum_
 
 ```cs
 clamp(value, min, max)
@@ -34,7 +34,7 @@ clamp(value, min, max)
     <tr>
       <td>min</td>
       <td>number</td>
-      <td>The minumum possible value.</td>
+      <td>The minimum possible value.</td>
     </tr>
     <tr>
       <td>max</td>

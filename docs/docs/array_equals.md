@@ -7,7 +7,7 @@ title: array_equals
 
 [\[global\]]({{site.baseurl}}/docs/).[array_equals]({{site.baseurl}}/docs/array_equals/)
 
-Compares the elements in two arrays to determine equality.
+_Determines if the elements in two arrays are equivalent._
 
 ```cs
 array_equals(array1, array2)

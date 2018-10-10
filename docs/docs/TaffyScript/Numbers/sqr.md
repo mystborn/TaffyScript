@@ -7,7 +7,7 @@ title: sqr
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[sqr]({{site.baseurl}}/docs/TaffyScript/Numbers/sqr/)
 
-Returns the square of a value.
+_Squares a number._
 
 ```cs
 sqr(value)

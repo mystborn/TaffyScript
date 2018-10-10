@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace TaffyScript.Strings
 {
+    /// <summary>
+    /// Provides mechanisms for procesing and manipulating strings.
+    /// </summary>
     [TaffyScriptBaseType]
     public static class StringMethods
     {

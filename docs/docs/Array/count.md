@@ -3,12 +3,12 @@ layout: default
 title: Array.count
 ---
 
-# Array.count
+# count
 
 [\[global\]]({{site.baseurl}}/docs/).[Array]({{site.baseurl}}/docs/Array/).[count]({{site.baseurl}}/docs/Array/count/)
 
 ```cs
-Array.count
+Array.count { get; }
 ```
 
 **Type:** number

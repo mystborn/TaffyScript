@@ -7,7 +7,7 @@ title: List.get
 
 [\[global\]]({{site.baseurl}}/docs/).[List]({{site.baseurl}}/docs/List/).[get]({{site.baseurl}}/docs/List/get/)
 
-Gets the value at the specified index in the list.
+_Gets the element at the specified index._
 
 ```cs
 List.get(index)
@@ -29,7 +29,7 @@ List.get(index)
     <tr>
       <td>index</td>
       <td>number</td>
-      <td>The index of the value to get.</td>
+      <td>The index of the element to get.</td>
     </tr>
   </tbody>
 </table>

@@ -13,6 +13,7 @@ namespace TaffyScript
     /// <property name="length" type="number" access="get">
     ///     <summary>Gets the number of characters in the string.</summary>
     /// </property>
+    [TaffyScriptObject("String")]
     public class TsString : TsObject, ITsInstance
     {
         public string Value { get; }

@@ -7,10 +7,10 @@ title: string.ends_with
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[ends_with]({{site.baseurl}}/docs/string/ends_with/)
 
-Determines if this string ends with the specified string.
+_Determines if this string ends with the specified substring._
 
 ```cs
-string.ends_with(value)
+string.ends_with(substring)
 ```
 
 ## Arguments
@@ -27,9 +27,9 @@ string.ends_with(value)
   </thead>
   <tbody>
     <tr>
-      <td>value</td>
+      <td>substring</td>
       <td>string</td>
-      <td>The string to compare to the end of this string.</td>
+      <td>The string to compare with the end of this string.</td>
     </tr>
   </tbody>
 </table>

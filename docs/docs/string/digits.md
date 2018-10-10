@@ -7,7 +7,7 @@ title: string.digits
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[digits]({{site.baseurl}}/docs/string/digits/)
 
-Returns a copy of this string with all non-digit characters removed.
+_Returns a copy of the string with all non-digit characters removed._
 
 ```cs
 string.digits()

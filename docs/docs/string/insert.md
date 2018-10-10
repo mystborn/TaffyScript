@@ -7,10 +7,10 @@ title: string.insert
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[insert]({{site.baseurl}}/docs/string/insert/)
 
-Inserts the specified substring into this string and returns the result.
+_Inserts the specified substring into this string and returns the result._
 
 ```cs
-string.insert(index, substring)
+string.insert(substring, index)
 ```
 
 ## Arguments
@@ -27,14 +27,14 @@ string.insert(index, substring)
   </thead>
   <tbody>
     <tr>
-      <td>index</td>
-      <td>number</td>
-      <td>The index to insert the substring.</td>
-    </tr>
-    <tr>
       <td>substring</td>
       <td>string</td>
       <td>The string to insert.</td>
+    </tr>
+    <tr>
+      <td>index</td>
+      <td>number</td>
+      <td>The position to insert the substring.</td>
     </tr>
   </tbody>
 </table>

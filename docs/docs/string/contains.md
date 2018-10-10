@@ -7,7 +7,7 @@ title: string.contains
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[contains]({{site.baseurl}}/docs/string/contains/)
 
-Determines if the string contains a substring.
+_Determines if the string contains the specified substring._
 
 ```cs
 string.contains(substring)

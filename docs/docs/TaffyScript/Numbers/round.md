@@ -7,7 +7,7 @@ title: round
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[round]({{site.baseurl}}/docs/TaffyScript/Numbers/round/)
 
-Rounds value to the nearest integer.
+_Rounds a value to the nearest integer._
 
 ```cs
 round(value)

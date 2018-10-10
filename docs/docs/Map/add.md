@@ -7,7 +7,7 @@ title: Map.add
 
 [\[global\]]({{site.baseurl}}/docs/).[Map]({{site.baseurl}}/docs/Map/).[add]({{site.baseurl}}/docs/Map/add/)
 
-Tries to add a new key-value pair to the map.
+_Attempts to add an item to the map. Returns true if the item was added, false otherwise._
 
 ```cs
 Map.add(key, value)
@@ -29,12 +29,12 @@ Map.add(key, value)
     <tr>
       <td>key</td>
       <td>object</td>
-      <td>The key of the pair to add.</td>
+      <td>The key of the item to add.</td>
     </tr>
     <tr>
       <td>value</td>
       <td>object</td>
-      <td>The value of the pair to add.</td>
+      <td>The value of the item to add.</td>
     </tr>
   </tbody>
 </table>

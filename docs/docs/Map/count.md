@@ -3,12 +3,12 @@ layout: default
 title: Map.count
 ---
 
-# Map.count
+# count
 
 [\[global\]]({{site.baseurl}}/docs/).[Map]({{site.baseurl}}/docs/Map/).[count]({{site.baseurl}}/docs/Map/count/)
 
 ```cs
-Map.count
+Map.count { get; }
 ```
 
 **Type:** number

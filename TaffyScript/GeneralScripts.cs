@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace TaffyScript
 {
     /// <summary>
-    /// Provides an implementation for unclassified, general purpose scripts.
+    /// Container namespace for basic TaffyScript functionality.
     /// </summary>
     [TaffyScriptBaseType]
     public static class GeneralScripts

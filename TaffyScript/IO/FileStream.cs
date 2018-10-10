@@ -57,7 +57,7 @@ namespace TaffyScript.IO
         }
 
         /// <summary>
-        /// Creates a new <see cref="FileStream"/> from a path.
+        /// Creates a new FileStream from a path.
         /// </summary>
         /// <arg name="path" type="string">Absolute or relative path to a file.</arg>
         /// <arg name="mode" type="[FileMode](https://docs.microsoft.com/en-us/dotnet/api/system.io.filemode)">Determines how to open or create the file.</arg>

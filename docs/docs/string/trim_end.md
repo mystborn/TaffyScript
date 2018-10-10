@@ -7,7 +7,7 @@ title: string.trim_end
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[trim_end]({{site.baseurl}}/docs/string/trim_end/)
 
-Removes all trailing whitespace characters (or the specified characters, if any) from this string and returns the result.
+_Removes all trailing whitespace characters (or the specified characters, if any) from this string and returns the result._
 
 ```cs
 string.trim_end([..characters])
@@ -29,7 +29,7 @@ string.trim_end([..characters])
     <tr>
       <td>[..characters]</td>
       <td>strings</td>
-      <td>Any number of characters to remove from the end of this string</td>
+      <td>Any number of characters to remove from this strings end.</td>
     </tr>
   </tbody>
 </table>

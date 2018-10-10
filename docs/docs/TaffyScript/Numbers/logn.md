@@ -7,10 +7,10 @@ title: logn
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[logn]({{site.baseurl}}/docs/TaffyScript/Numbers/logn/)
 
-Gets the exponent needed to get a value from a base number.
+_Gets the logarithm in the specified base of a value._
 
 ```cs
-logn(base, value)
+logn(value, log_base)
 ```
 
 ## Arguments
@@ -27,14 +27,14 @@ logn(base, value)
   </thead>
   <tbody>
     <tr>
-      <td>base</td>
-      <td>number</td>
-      <td>The log base.</td>
-    </tr>
-    <tr>
       <td>value</td>
       <td>number</td>
-      <td>The value to get the base logarithm of.</td>
+      <td>The value to get the logarithm of.</td>
+    </tr>
+    <tr>
+      <td>log_base</td>
+      <td>number</td>
+      <td>The base of the logarithm.</td>
     </tr>
   </tbody>
 </table>

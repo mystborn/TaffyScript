@@ -7,10 +7,10 @@ title: XmlReader.read_to_following
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Xml]({{site.baseurl}}/docs/TaffyScript/Xml/).[XmlReader]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/).[read_to_following]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/read_to_following/)
 
-Reads until an element with the specified name is found.
+_Reads until the named element is found._
 
 ```cs
-XmlReader.read_to_following(name, [namespace_uri])
+XmlReader.read_to_following(name, [ns])
 ```
 
 ## Arguments
@@ -29,12 +29,12 @@ XmlReader.read_to_following(name, [namespace_uri])
     <tr>
       <td>name</td>
       <td>string</td>
-      <td>The name of the element.</td>
+      <td>The name of the element to find.</td>
     </tr>
     <tr>
-      <td>[namespace_uri]</td>
+      <td>[ns]</td>
       <td>string</td>
-      <td>The namespace URI of the element.</td>
+      <td>The namespace URI of the element to find.</td>
     </tr>
   </tbody>
 </table>

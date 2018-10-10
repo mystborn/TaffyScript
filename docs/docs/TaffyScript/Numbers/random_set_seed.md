@@ -7,7 +7,7 @@ title: random_set_seed
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[random_set_seed]({{site.baseurl}}/docs/TaffyScript/Numbers/random_set_seed/)
 
-Sets the seed used by the RNG.
+_Initializes the random number generator using the given seed._
 
 ```cs
 random_set_seed(seed)
@@ -29,7 +29,7 @@ random_set_seed(seed)
     <tr>
       <td>seed</td>
       <td>number</td>
-      <td>The seed to set the RNG to.</td>
+      <td>The number used to initialize the rng.</td>
     </tr>
   </tbody>
 </table>

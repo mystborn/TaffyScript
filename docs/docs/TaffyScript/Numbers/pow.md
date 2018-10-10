@@ -7,10 +7,10 @@ title: pow
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[pow]({{site.baseurl}}/docs/TaffyScript/Numbers/pow/)
 
-Raises a number to the specified power.
+_Raises a value to the specifies power._
 
 ```cs
-pow(x, y)
+pow(value, pow)
 ```
 
 ## Arguments
@@ -27,16 +27,16 @@ pow(x, y)
   </thead>
   <tbody>
     <tr>
-      <td>x</td>
+      <td>value</td>
       <td>number</td>
-      <td>The number to raise to the specified power.</td>
+      <td>The value to raise.</td>
     </tr>
     <tr>
-      <td>y</td>
+      <td>pow</td>
       <td>number</td>
-      <td>The power to raise x to.</td>
+      <td>The power to raise the value to.</td>
     </tr>
   </tbody>
 </table>
 
-**Returns:** number
+**Returns:** 

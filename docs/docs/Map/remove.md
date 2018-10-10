@@ -7,7 +7,7 @@ title: Map.remove
 
 [\[global\]]({{site.baseurl}}/docs/).[Map]({{site.baseurl}}/docs/Map/).[remove]({{site.baseurl}}/docs/Map/remove/)
 
-Tries to remove a key-value pair from the map.
+_Attempts to remove the item with the specified key._
 
 ```cs
 Map.remove(key)
@@ -29,7 +29,7 @@ Map.remove(key)
     <tr>
       <td>key</td>
       <td>object</td>
-      <td>The key for the key-value pair to remove.</td>
+      <td>The key of the item to remove.</td>
     </tr>
   </tbody>
 </table>

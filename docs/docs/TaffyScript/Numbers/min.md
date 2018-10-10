@@ -7,7 +7,7 @@ title: min
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[min]({{site.baseurl}}/docs/TaffyScript/Numbers/min/)
 
-Returns the argument with the lowest value.
+_Gets the argument with the lowest value._
 
 ```cs
 min(..args)

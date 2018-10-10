@@ -7,10 +7,10 @@ title: print
 
 [\[global\]]({{site.baseurl}}/docs/).[print]({{site.baseurl}}/docs/print/)
 
-Prints a value to the console.
+_Prints a value depending on the arguments to the Standard Output._
 
 ```cs
-print(output)
+print([value], [..format_args])
 ```
 
 ## Arguments
@@ -27,9 +27,14 @@ print(output)
   </thead>
   <tbody>
     <tr>
-      <td>output</td>
+      <td>[value]</td>
       <td>object</td>
-      <td>The value to print to the console.</td>
+      <td>A value to write to stdout. If this isn't provided, this script just writes a line terminator.</td>
+    </tr>
+    <tr>
+      <td>[..format_args]</td>
+      <td>objects</td>
+      <td>These arguments will be used to format value.</td>
     </tr>
   </tbody>
 </table>

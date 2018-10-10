@@ -1,9 +1,43 @@
 - name: Introduction
-  link: introduction
+  link: /
+- name: Installation
+  link: /installation
+- name: Hello, World
+  link: /hello-world
+- name: Data Types
+  link: /data-types
+- name: Variables
+  link: /variables
+- name: Operators
+  link: /operators
+- name: If/Else Statements
+  link: /if-else
+- name: Loops
+  link: /loops
+- name: Switch Statement
+  link: /switch
+- name: Scripts
+  link: /scripts
+- name: Enums
+  link: /enums
+- name: Objects
+  link: /objects
+- name: Using the Compiler
+  link: /using-the-compiler
+- name: The Build File
+  link: /build-file
+- name: Including Libararies
+  link: /including-libraries
+- name: C# Integration
+  link: /c-sharp/
   subfolders:
-    - name: What is TaffyScript
-      link: introduction/what-is-taffyscript
-    - name: Hello, World
-      link: introduction/hello-world
-- name: Types
-  link: types
+    - name: Interop Types
+      link: /c-sharp/interop-types
+    - name: Understanding TsObject
+      link: /c-sharp/tsobject
+    - name: Importing Methods
+      link: /c-sharp/importing-methods
+    - name: Importing Objects
+      link: /c-sharp/importing-objects
+    - name: Writing TaffyScript Assemblies in C#
+      link: /c-sharp/writing-taffyscript-assemblies

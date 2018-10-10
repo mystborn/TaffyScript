@@ -7,10 +7,10 @@ title: array_create
 
 [\[global\]]({{site.baseurl}}/docs/).[array_create]({{site.baseurl}}/docs/array_create/)
 
-Creates a new array of the specified size and value.
+_Creates an array of the specified size, and optionally initialized with the specified value._
 
 ```cs
-array_create(size, [default = null])
+array_create(size, [default_element=null])
 ```
 
 ## Arguments
@@ -32,9 +32,9 @@ array_create(size, [default = null])
       <td>The size of the array to create.</td>
     </tr>
     <tr>
-      <td>[default = null]</td>
+      <td>[default_element=null]</td>
       <td>object</td>
-      <td>The default value of each item in the array.</td>
+      <td>The value to set each array index to.</td>
     </tr>
   </tbody>
 </table>

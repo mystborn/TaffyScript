@@ -12,7 +12,7 @@ namespace TaffyScript.IO
     /// Represents a reader that can read a sequential series of characters.
     /// </summary>
     /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.io.textreader?view=netframework-4.7</source>
-    [TaffyScriptObject("System.IO.TextReader")]
+    [TaffyScriptObject]
     public abstract class TextReader : ITsInstance
     {
         public TsObject this[string memberName]

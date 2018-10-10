@@ -7,10 +7,10 @@ title: List.add
 
 [\[global\]]({{site.baseurl}}/docs/).[List]({{site.baseurl}}/docs/List/).[add]({{site.baseurl}}/docs/List/add/)
 
-Adds any number of values to the end of a list.
+_Adds the arguments to the list._
 
 ```cs
-List.add(..values)
+List.add(..elements)
 ```
 
 ## Arguments
@@ -27,9 +27,9 @@ List.add(..values)
   </thead>
   <tbody>
     <tr>
-      <td>..values</td>
+      <td>..elements</td>
       <td>objects</td>
-      <td>Any number of values to add to the list.</td>
+      <td>The elements to add to the list.</td>
     </tr>
   </tbody>
 </table>

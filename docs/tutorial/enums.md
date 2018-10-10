@@ -1,6 +1,6 @@
 ---
 layout: tutorial
-title: Variables
+title: Enums
 ---
 
 In TaffyScript, an enum is a set of named number constants. To declare an enum, write `enum` followed by the enum name. Inside of a block, you write each constant name separated by a comma. Each name gets assigned a value starting at 0, and then iterating by one. For example:

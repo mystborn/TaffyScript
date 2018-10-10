@@ -7,10 +7,10 @@ title: XmlReader.read_to_descendant
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Xml]({{site.baseurl}}/docs/TaffyScript/Xml/).[XmlReader]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/).[read_to_descendant]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/read_to_descendant/)
 
-Advances the reader to the next descendant with the specified name.
+_Advances the reader to the next matching descendant element._
 
 ```cs
-XmlReader.read_to_descendant(name, [namespace_uri])
+XmlReader.read_to_descendant(name, [ns])
 ```
 
 ## Arguments
@@ -29,12 +29,12 @@ XmlReader.read_to_descendant(name, [namespace_uri])
     <tr>
       <td>name</td>
       <td>string</td>
-      <td>The name of the element.</td>
+      <td>The name of the element to move to.</td>
     </tr>
     <tr>
-      <td>[namespace_uri]</td>
+      <td>[ns]</td>
       <td>string</td>
-      <td>The namespace URI of the element.</td>
+      <td>The namespace URI of the element to move to.</td>
     </tr>
   </tbody>
 </table>

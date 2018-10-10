@@ -7,7 +7,7 @@ title: ln
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[ln]({{site.baseurl}}/docs/TaffyScript/Numbers/ln/)
 
-Gets the natural logarithm of a value.
+_Gets the natural logarithm of a value._
 
 ```cs
 ln(value)
@@ -29,7 +29,7 @@ ln(value)
     <tr>
       <td>value</td>
       <td>number</td>
-      <td>The value to get the natural logarithm of.</td>
+      <td>The value to get the natural log of.</td>
     </tr>
   </tbody>
 </table>

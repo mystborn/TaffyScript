@@ -7,7 +7,7 @@ title: List.set
 
 [\[global\]]({{site.baseurl}}/docs/).[List]({{site.baseurl}}/docs/List/).[set]({{site.baseurl}}/docs/List/set/)
 
-Sets the value at the specified index within the list. If `index` is greater than the size of the list, null elements will be added until the index can be set.
+_Sets the value at the specified index within the list. If `index` is greater than the size of the list, null elements will be added until the index can be set._
 
 ```cs
 List.set(index, value)

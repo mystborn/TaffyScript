@@ -7,7 +7,7 @@ title: List.remove
 
 [\[global\]]({{site.baseurl}}/docs/).[List]({{site.baseurl}}/docs/List/).[remove]({{site.baseurl}}/docs/List/remove/)
 
-Removes the value at the specified index within the list.
+_Removes the value at the specified index within the list._
 
 ```cs
 List.remove(index)

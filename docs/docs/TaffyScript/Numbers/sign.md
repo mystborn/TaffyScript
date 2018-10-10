@@ -7,7 +7,7 @@ title: sign
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[sign]({{site.baseurl}}/docs/TaffyScript/Numbers/sign/)
 
-Returns a number that represents the sign of the specified value. -1 for negative numbers, 1 for positive numbers, and 0 for 0.
+_Gets a value representing the sign of the specified number. Returns -1 for a negativae value, 0 for zero, and 1 for a positive number._
 
 ```cs
 sign(value)

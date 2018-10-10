@@ -7,10 +7,10 @@ title: string.replace
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[replace]({{site.baseurl}}/docs/string/replace/)
 
-Replaces the first occurrence of a substring with another string.
+_Replaces the first occurrence of a substring with another string._
 
 ```cs
-string.replace(substring, new_string)
+string.replace(substring, replacement)
 ```
 
 ## Arguments
@@ -32,9 +32,9 @@ string.replace(substring, new_string)
       <td>The string to replace.</td>
     </tr>
     <tr>
-      <td>new_string</td>
+      <td>replacement</td>
       <td>string</td>
-      <td>The replacement string.</td>
+      <td>The string to replace the substring with.</td>
     </tr>
   </tbody>
 </table>

@@ -7,7 +7,7 @@ title: log10
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[log10]({{site.baseurl}}/docs/TaffyScript/Numbers/log10/)
 
-Gets the number of power of ten needed to get the specified value.
+_Gets the logarithm in base 10 of a value._
 
 ```cs
 log10(value)
@@ -29,7 +29,7 @@ log10(value)
     <tr>
       <td>value</td>
       <td>number</td>
-      <td>The value to get the base10 logarithm of.</td>
+      <td>The value to get the logarithm of.</td>
     </tr>
   </tbody>
 </table>

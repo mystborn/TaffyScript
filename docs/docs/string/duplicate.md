@@ -7,7 +7,7 @@ title: string.duplicate
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[duplicate]({{site.baseurl}}/docs/string/duplicate/)
 
-Returns a string with this string repeated the specified number of times.
+_Returns a new string with this string repeated the specified number of times._
 
 ```cs
 string.duplicate(count)
@@ -29,7 +29,7 @@ string.duplicate(count)
     <tr>
       <td>count</td>
       <td>number</td>
-      <td>The number of times to duplicate the string.</td>
+      <td>The number of times to repeat this string.</td>
     </tr>
   </tbody>
 </table>

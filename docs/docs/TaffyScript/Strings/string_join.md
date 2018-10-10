@@ -7,7 +7,7 @@ title: string_join
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Strings]({{site.baseurl}}/docs/TaffyScript/Strings/).[string_join]({{site.baseurl}}/docs/TaffyScript/Strings/string_join/)
 
-Converts each argument into a string and concatenates them together with the specified seperator.
+_Converts each argument into a string and concatenates them together with the specified seperator._
 
 ```cs
 string_join(seperator, ..args)
@@ -34,7 +34,7 @@ string_join(seperator, ..args)
     <tr>
       <td>..args</td>
       <td>objects</td>
-      <td>Any number of arguments to convert into a string.</td>
+      <td>Any number of arguments to convert to a string.</td>
     </tr>
   </tbody>
 </table>

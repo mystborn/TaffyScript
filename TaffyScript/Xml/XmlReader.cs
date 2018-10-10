@@ -840,7 +840,7 @@ namespace TaffyScript.Xml
         /// Returns a new XmlReader that can be used to read the current node and its descendants.
         /// </summary>
         /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlreader.readsubtree?view=netframework-4.7</source>
-        /// <returns>[XmlReader]({{site.baseurl/docs/TaffyScript/Xml/XmlReader)</returns>
+        /// <returns>[XmlReader]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader)</returns>
         public TsObject read_subtree(TsObject[] args)
         {
             return new XmlReader(Source.ReadSubtree());

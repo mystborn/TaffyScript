@@ -8,6 +8,9 @@ using System.Reflection.Emit;
 
 namespace TaffyScript.Reflection
 {
+    /// <summary>
+    /// Provides scripts to dynamically retrieve information about loaded assemblies.
+    /// </summary>
     [TaffyScriptBaseType]
     public static class ReflectionScripts
     {

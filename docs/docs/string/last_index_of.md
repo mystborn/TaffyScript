@@ -7,10 +7,10 @@ title: string.last_index_of
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[last_index_of]({{site.baseurl}}/docs/string/last_index_of/)
 
-Searches for the index of the last occurrence of a string starting at the specified index. Returns -1 if the substring wasn't found.
+_Gets the index of the last occurrence of the specified substring, or -1 if it wasn't found._
 
 ```cs
-string.last_index_of(substring, [start_index])
+string.last_index_of(substring, [start_index=0])
 ```
 
 ## Arguments
@@ -29,12 +29,12 @@ string.last_index_of(substring, [start_index])
     <tr>
       <td>substring</td>
       <td>string</td>
-      <td>The string to search for.</td>
+      <td>The string to get the index of.</td>
     </tr>
     <tr>
-      <td>[start_index]</td>
+      <td>[start_index=0]</td>
       <td>number</td>
-      <td>The index to start searching from. Defaults to the last character in this string.</td>
+      <td>The index to start searching for the string.</td>
     </tr>
   </tbody>
 </table>

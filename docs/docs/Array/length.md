@@ -3,12 +3,12 @@ layout: default
 title: Array.length
 ---
 
-# Array.length
+# length
 
 [\[global\]]({{site.baseurl}}/docs/).[Array]({{site.baseurl}}/docs/Array/).[length]({{site.baseurl}}/docs/Array/length/)
 
 ```cs
-Array.length
+Array.length { get; }
 ```
 
 **Type:** number

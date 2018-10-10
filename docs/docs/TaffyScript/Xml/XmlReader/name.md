@@ -3,12 +3,12 @@ layout: default
 title: XmlReader.name
 ---
 
-# XmlReader.name
+# name
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Xml]({{site.baseurl}}/docs/TaffyScript/Xml/).[XmlReader]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/).[name]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/name/)
 
 ```cs
-XmlReader.name
+XmlReader.name { get; }
 ```
 
 **Type:** string

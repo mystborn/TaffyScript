@@ -3,12 +3,12 @@ layout: default
 title: string.length
 ---
 
-# string.length
+# length
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[length]({{site.baseurl}}/docs/string/length/)
 
 ```cs
-string.length
+string.length { get; }
 ```
 
 **Type:** number

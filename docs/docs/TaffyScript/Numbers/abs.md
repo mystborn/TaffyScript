@@ -7,10 +7,10 @@ title: abs
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[abs]({{site.baseurl}}/docs/TaffyScript/Numbers/abs/)
 
-Returns the absolute value of number.
+_Gets the absolute value of a number._
 
 ```cs
-abs(num)
+abs(value)
 ```
 
 ## Arguments
@@ -27,7 +27,7 @@ abs(num)
   </thead>
   <tbody>
     <tr>
-      <td>num</td>
+      <td>value</td>
       <td>number</td>
       <td>The number to get the absolute value of.</td>
     </tr>

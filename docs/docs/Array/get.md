@@ -7,10 +7,10 @@ title: Array.get
 
 [\[global\]]({{site.baseurl}}/docs/).[Array]({{site.baseurl}}/docs/Array/).[get]({{site.baseurl}}/docs/Array/get/)
 
-Gets the value at the specified index.
+_Gets the value at the specified index._
 
 ```cs
-Array.get(index)
+Array.get(..indeces)
 ```
 
 ## Arguments
@@ -27,9 +27,9 @@ Array.get(index)
   </thead>
   <tbody>
     <tr>
-      <td>index</td>
+      <td>..indeces</td>
       <td>number</td>
-      <td>The index of the value to get.</td>
+      <td>The index of the value to get. If there is more than one number, these should be the indeces of the inner arrays until the desired array to get.</td>
     </tr>
   </tbody>
 </table>

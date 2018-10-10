@@ -19,7 +19,7 @@ namespace TaffyScript.Strings.RegularExpressions
     ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.capture.length</source>
     ///     <summary>Gets the length of the captured string.</summary>
     /// </property>
-    /// <property>
+    /// <property name="value" type="string" access="get">
     ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.capture.value</source>
     ///     <summary>Gets the captured string.</summary>
     /// </property>

@@ -7,7 +7,7 @@ title: Map.clear
 
 [\[global\]]({{site.baseurl}}/docs/).[Map]({{site.baseurl}}/docs/Map/).[clear]({{site.baseurl}}/docs/Map/clear/)
 
-Clears all values from the map.
+_Clears all items from the map._
 
 ```cs
 Map.clear()

@@ -7,7 +7,7 @@ title: string.ord
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[ord]({{site.baseurl}}/docs/string/ord/)
 
-Gets the ordinal value of the character at the specified index.
+_Gets the ordinal value of the character at the specified index._
 
 ```cs
 string.ord(index)

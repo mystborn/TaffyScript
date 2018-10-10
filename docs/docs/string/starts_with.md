@@ -7,10 +7,10 @@ title: string.starts_with
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[starts_with]({{site.baseurl}}/docs/string/starts_with/)
 
-Determines if this string starts with the specified string.
+_Determines if this string starts with the specified substring._
 
 ```cs
-string.starts_with(value)
+string.starts_with(substring)
 ```
 
 ## Arguments
@@ -27,7 +27,7 @@ string.starts_with(value)
   </thead>
   <tbody>
     <tr>
-      <td>value</td>
+      <td>substring</td>
       <td>string</td>
       <td>The string to compare to the beginning of this string.</td>
     </tr>

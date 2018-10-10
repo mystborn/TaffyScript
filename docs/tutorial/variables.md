@@ -50,7 +50,7 @@ print(i);
 // Outputs: 10
 ```
 
-In most other languages, the second use of var would [shadow](https://en.wikipedia.org/wiki/Variable_shadowing) the previous variable for the duration of the code in between the braces. Here it overwrites the old i.
+In most other languages, the second use of var would [shadow](https://en.wikipedia.org/wiki/Variable_shadowing) the previous variable for the duration of the code in between the braces. Here it overwrites the old i. In fact the second `var` gets discarded by the compiler.
 
 ```cs
 var i = 0;

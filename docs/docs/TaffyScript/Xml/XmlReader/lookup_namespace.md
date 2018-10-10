@@ -7,7 +7,7 @@ title: XmlReader.lookup_namespace
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Xml]({{site.baseurl}}/docs/TaffyScript/Xml/).[XmlReader]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/).[lookup_namespace]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/lookup_namespace/)
 
-Resolves a namespace prefix in the current elements scope.
+_Resolves a namespace prefix in the current scope._
 
 ```cs
 XmlReader.lookup_namespace(prefix)
@@ -29,7 +29,7 @@ XmlReader.lookup_namespace(prefix)
     <tr>
       <td>prefix</td>
       <td>string</td>
-      <td>The prefix whose namespace URI you want to resolve.</td>
+      <td>The prefix whose namespace URI is to be resolved. To match the default namespace, pass an empty string.</td>
     </tr>
   </tbody>
 </table>

@@ -7,7 +7,7 @@ title: Map.contains_key
 
 [\[global\]]({{site.baseurl}}/docs/).[Map]({{site.baseurl}}/docs/Map/).[contains_key]({{site.baseurl}}/docs/Map/contains_key/)
 
-Determines if a key has been added to the map.
+_Determines if an item with the specified key is in the map._
 
 ```cs
 Map.contains_key(key)

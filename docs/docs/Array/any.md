@@ -1,0 +1,37 @@
+---
+layout: default
+title: Array.any
+---
+
+# Array.any
+
+[\[global\]]({{site.baseurl}}/docs/).[Array]({{site.baseurl}}/docs/Array/).[any]({{site.baseurl}}/docs/Array/any/)
+
+_Determines if there are any elements in the sequence. If a script is provided, determines if any element satisfies a condition._
+
+```cs
+Array.any([condition])
+```
+
+## Arguments
+
+<table>
+  <col width="15%">
+  <col width="15%">
+  <thead>
+    <tr>
+      <th>Argument</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>[condition]</td>
+      <td>script</td>
+      <td>Tests each element for a condition.</td>
+    </tr>
+  </tbody>
+</table>
+
+**Returns:** bool

@@ -7,7 +7,7 @@ title: XmlReader.read
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Xml]({{site.baseurl}}/docs/TaffyScript/Xml/).[XmlReader]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/).[read]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/read/)
 
-Reads the next node from the stream.
+_Reads the next node from the stream._
 
 ```cs
 XmlReader.read()

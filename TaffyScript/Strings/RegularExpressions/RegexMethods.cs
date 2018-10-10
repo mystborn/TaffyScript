@@ -9,6 +9,9 @@ using TaffyScript.Collections;
 
 namespace TaffyScript.Strings.RegularExpressions
 {
+    /// <summary>
+    /// Contains objects and scripts that provide access to the .NET regular expression engine.
+    /// </summary>
     [TaffyScriptBaseType]
     public static class RegexMethods
     {

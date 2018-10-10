@@ -7,7 +7,7 @@ title: string.get
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[get]({{site.baseurl}}/docs/string/get/)
 
-Gets the character at the specified index.
+_Gets the character at the specified position within the string._
 
 ```cs
 string.get(index)

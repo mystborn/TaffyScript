@@ -7,7 +7,7 @@ title: Map.get
 
 [\[global\]]({{site.baseurl}}/docs/).[Map]({{site.baseurl}}/docs/Map/).[get]({{site.baseurl}}/docs/Map/get/)
 
-Tries to get the value for a specified key.
+_Gets the value associated with the specified key._
 
 ```cs
 Map.get(key)
@@ -29,7 +29,7 @@ Map.get(key)
     <tr>
       <td>key</td>
       <td>object</td>
-      <td>The key to get the value for.</td>
+      <td>The key to get the value of.</td>
     </tr>
   </tbody>
 </table>

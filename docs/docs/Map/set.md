@@ -7,7 +7,7 @@ title: Map.set
 
 [\[global\]]({{site.baseurl}}/docs/).[Map]({{site.baseurl}}/docs/Map/).[set]({{site.baseurl}}/docs/Map/set/)
 
-Sets a key to the specifed value.
+_Sets the value associated with the specified key._
 
 ```cs
 Map.set(key, value)
@@ -29,12 +29,12 @@ Map.set(key, value)
     <tr>
       <td>key</td>
       <td>object</td>
-      <td>The key of the pair to set.</td>
+      <td>The key of the item to set.</td>
     </tr>
     <tr>
       <td>value</td>
       <td>object</td>
-      <td>The value of the pair to set.</td>
+      <td>The value of the item to set.</td>
     </tr>
   </tbody>
 </table>

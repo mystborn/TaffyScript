@@ -7,7 +7,7 @@ title: string.count
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[count]({{site.baseurl}}/docs/string/count/)
 
-Gets the number of occurrences of a substring in the string.
+_Counts the number of time a substring appears in the string._
 
 ```cs
 string.count(substring)
@@ -29,7 +29,7 @@ string.count(substring)
     <tr>
       <td>substring</td>
       <td>string</td>
-      <td>The substring to count the number of occurrences of.</td>
+      <td>The substring to count.</td>
     </tr>
   </tbody>
 </table>

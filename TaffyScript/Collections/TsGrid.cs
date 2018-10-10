@@ -8,6 +8,7 @@ namespace TaffyScript.Collections
 {
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
+    [TaffyScriptObject("TaffyScript.Collections.Grid")]
     public class TsGrid : ITsInstance
     {
         private Grid<TsObject> _source;

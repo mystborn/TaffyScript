@@ -7,7 +7,7 @@ title: XmlReader.skip
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Xml]({{site.baseurl}}/docs/TaffyScript/Xml/).[XmlReader]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/).[skip]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/skip/)
 
-Skips the children of the current node.
+_Skips the children of the current node._
 
 ```cs
 XmlReader.skip()

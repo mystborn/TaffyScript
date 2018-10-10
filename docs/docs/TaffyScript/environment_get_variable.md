@@ -7,10 +7,10 @@ title: environment_get_variable
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[environment_get_variable]({{site.baseurl}}/docs/TaffyScript/environment_get_variable/)
 
-Retrieves the value of an environment variable from the current process.
+_Retrieves the value of an environment variable from the current process._
 
 ```cs
-environment_get_variable(str)
+environment_get_variable(variable)
 ```
 
 ## Arguments
@@ -27,9 +27,9 @@ environment_get_variable(str)
   </thead>
   <tbody>
     <tr>
-      <td>str</td>
+      <td>variable</td>
       <td>string</td>
-      <td>The name of the environment variable to get.</td>
+      <td>The name of the environment variable.</td>
     </tr>
   </tbody>
 </table>

@@ -7,10 +7,10 @@ title: XmlReader.get_attribute
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Xml]({{site.baseurl}}/docs/TaffyScript/Xml/).[XmlReader]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/).[get_attribute]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader/get_attribute/)
 
-Gets the value of the specified attribute. Returns null if the attribute wasn't found.
+_Gets the value of an attibute._
 
 ```cs
-XmlReader.get_attribute(attribute)
+XmlReader.get_attribute(name_or_index, [ns])
 ```
 
 ## Arguments
@@ -27,9 +27,14 @@ XmlReader.get_attribute(attribute)
   </thead>
   <tbody>
     <tr>
-      <td>attribute</td>
+      <td>name_or_index</td>
       <td>string or number</td>
       <td>The name or index of the attribute.</td>
+    </tr>
+    <tr>
+      <td>[ns]</td>
+      <td>string</td>
+      <td>The namespace URI of the attribute.</td>
     </tr>
   </tbody>
 </table>

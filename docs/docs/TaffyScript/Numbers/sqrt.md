@@ -7,7 +7,7 @@ title: sqrt
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[sqrt]({{site.baseurl}}/docs/TaffyScript/Numbers/sqrt/)
 
-Gets the square root of a value.
+_Gets the square root of a number._
 
 ```cs
 sqrt(value)

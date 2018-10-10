@@ -7,7 +7,7 @@ title: max
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[max]({{site.baseurl}}/docs/TaffyScript/Numbers/max/)
 
-Returns the argument with the highest value.
+_Gets the argument with the highest value._
 
 ```cs
 max(..args)

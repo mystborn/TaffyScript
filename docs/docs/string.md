@@ -7,7 +7,7 @@ title: string
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/)
 
-Converts a value to a string.
+_Converts a value to a string._
 
 ```cs
 string(value)

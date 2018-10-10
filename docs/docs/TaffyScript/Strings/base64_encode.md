@@ -7,7 +7,7 @@ title: base64_encode
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Strings]({{site.baseurl}}/docs/TaffyScript/Strings/).[base64_encode]({{site.baseurl}}/docs/TaffyScript/Strings/base64_encode/)
 
-Converts a string into a base64 format encoded string.
+_Converts a string to a base64 encoded string._
 
 ```cs
 base64_encode(str)

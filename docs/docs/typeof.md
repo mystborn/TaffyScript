@@ -7,7 +7,7 @@ title: typeof
 
 [\[global\]]({{site.baseurl}}/docs/).[typeof]({{site.baseurl}}/docs/typeof/)
 
-Gets the type of an object.
+_Gets the type of a value._
 
 ```cs
 typeof(value)
@@ -34,4 +34,4 @@ typeof(value)
   </tbody>
 </table>
 
-**Returns:** string
+**Returns:** [Type]({{site.baseurl}}/docs/TaffyScript/Type)

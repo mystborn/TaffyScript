@@ -7,7 +7,7 @@ title: string.lower
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[lower]({{site.baseurl}}/docs/string/lower/)
 
-Returns a copy of this string with all letters converted to lowercase.
+_Returns a copy of this string with all letters converted to lowercase._
 
 ```cs
 string.lower()

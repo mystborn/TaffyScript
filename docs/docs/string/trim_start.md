@@ -7,7 +7,7 @@ title: string.trim_start
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[trim_start]({{site.baseurl}}/docs/string/trim_start/)
 
-Removes all leading whitespace characters (or the specified characters, if any) from this string and returns the result.
+_Removes all leading whitespace characters (or the specified characters, if any) from this string and returns the result._
 
 ```cs
 string.trim_start([..characters])
@@ -29,7 +29,7 @@ string.trim_start([..characters])
     <tr>
       <td>[..characters]</td>
       <td>strings</td>
-      <td>Any number of characters to remove from the start of this string</td>
+      <td>Any number of characters to remove from this strings start.</td>
     </tr>
   </tbody>
 </table>

@@ -7,7 +7,7 @@ title: List.clear
 
 [\[global\]]({{site.baseurl}}/docs/).[List]({{site.baseurl}}/docs/List/).[clear]({{site.baseurl}}/docs/List/clear/)
 
-Removes all values from the list.
+_Removes all elements from this list._
 
 ```cs
 List.clear()

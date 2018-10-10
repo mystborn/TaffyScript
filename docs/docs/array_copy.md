@@ -7,10 +7,10 @@ title: array_copy
 
 [\[global\]]({{site.baseurl}}/docs/).[array_copy]({{site.baseurl}}/docs/array_copy/)
 
-Copies a number of elements from one array to another.
+_Copies a range of elements from one array to another._
 
 ```cs
-array_copy(source, source_index, destination, destination_index, length)
+array_copy(source_array, source_index, dest_array, dest_index, count)
 ```
 
 ## Arguments
@@ -27,27 +27,27 @@ array_copy(source, source_index, destination, destination_index, length)
   </thead>
   <tbody>
     <tr>
-      <td>source</td>
+      <td>source_array</td>
       <td>array</td>
-      <td>The source array.</td>
+      <td>The array to copy from.</td>
     </tr>
     <tr>
       <td>source_index</td>
       <td>number</td>
-      <td>The index of the source to start copying from</td>
+      <td>The index of the source array to start copying from.</td>
     </tr>
     <tr>
-      <td>destination</td>
+      <td>dest_array</td>
       <td>array</td>
-      <td>The destination array.</td>
+      <td>The array to write to.</td>
     </tr>
     <tr>
-      <td>destination_index</td>
+      <td>dest_index</td>
       <td>number</td>
-      <td>The index of the destination to start copying to.</td>
+      <td>The index of the destination array to start writing to.</td>
     </tr>
     <tr>
-      <td>length</td>
+      <td>count</td>
       <td>number</td>
       <td>The number of elements to copy.</td>
     </tr>

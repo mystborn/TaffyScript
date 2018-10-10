@@ -7,10 +7,10 @@ title: Map.copy
 
 [\[global\]]({{site.baseurl}}/docs/).[Map]({{site.baseurl}}/docs/Map/).[copy]({{site.baseurl}}/docs/Map/copy/)
 
-Returns a shallow copy of the map.
+_Creates a copy of the map._
 
 ```cs
 Map.copy()
 ```
 
-**Returns:** Map
+**Returns:** [Map]({{site.baseurl}}/docs/Map)

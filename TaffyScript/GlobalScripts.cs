@@ -8,8 +8,9 @@ using System.Threading.Tasks;
 namespace TaffyScript
 {
     /// <summary>
-    /// Provides an implementation for all of the global scripts in TaffyScript.
+    /// These scripts and objects are available in the global scope. Reserved for the most commonly used functionality.
     /// </summary>
+    [TaffyScriptBaseType("")]
     public static class GlobalScripts
     {
         // This class privodes the implementation of all of the
@@ -186,7 +187,7 @@ namespace TaffyScript
         /// <arg name="value" type="object">The value to convert to a string.</arg>
         /// <returns>string</returns>
         [TaffyScriptMethod]
-        public static TsObject ToString(TsObject[] args)
+        public static TsObject @string(TsObject[] args)
         {
             return args[0].ToString();
         }
@@ -197,7 +198,7 @@ namespace TaffyScript
         /// <arg name="value" type="object">The value to get the type of.</arg>
         /// <returns>[Type]({{site.baseurl}}/docs/TaffyScript/Type)</returns>
         [TaffyScriptMethod]
-        public static TsObject Typeof(TsObject[] args)
+        public static TsObject @typeof(TsObject[] args)
         {
             switch (args[0].Type)
             {

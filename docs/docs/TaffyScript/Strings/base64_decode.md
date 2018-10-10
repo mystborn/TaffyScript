@@ -7,7 +7,7 @@ title: base64_decode
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Strings]({{site.baseurl}}/docs/TaffyScript/Strings/).[base64_decode]({{site.baseurl}}/docs/TaffyScript/Strings/base64_decode/)
 
-Decodes a 64 bit encoded string.
+_Decodes a 64-bit encoded string._
 
 ```cs
 base64_decode(str)

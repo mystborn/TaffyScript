@@ -7,7 +7,7 @@ title: randomise
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[randomise]({{site.baseurl}}/docs/TaffyScript/Numbers/randomise/)
 
-Sets the RNG to a random seed.
+_Initializes the random number generator with a random seed._
 
 ```cs
 randomise()

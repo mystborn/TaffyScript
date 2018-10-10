@@ -7,7 +7,7 @@ title: choose
 
 [\[global\]]({{site.baseurl}}/docs/).[TaffyScript]({{site.baseurl}}/docs/TaffyScript/).[Numbers]({{site.baseurl}}/docs/TaffyScript/Numbers/).[choose]({{site.baseurl}}/docs/TaffyScript/Numbers/choose/)
 
-Randomly chooses an item from the arguments.
+_Randomly chooses one of the arguments._
 
 ```cs
 choose(..args)
@@ -29,7 +29,7 @@ choose(..args)
     <tr>
       <td>..args</td>
       <td>objects</td>
-      <td>Any number of objects.</td>
+      <td>Any number of objects to choose from.</td>
     </tr>
   </tbody>
 </table>

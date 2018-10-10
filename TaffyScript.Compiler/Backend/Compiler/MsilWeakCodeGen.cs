@@ -375,6 +375,7 @@ namespace TaffyScript.Compiler.Backend
                 //      If the namespace of this iteration matches the last one, no need to exit and reenter.
                 //      Just stay in the namespace.
                 var objAttrib = type.GetCustomAttribute<TaffyScriptObjectAttribute>();
+                var baseAttrib = type.GetCustomAttribute<TaffyScriptBaseTypeAttribute>();
                 if (objAttrib != null)
                 {
                     string name;
@@ -419,12 +420,13 @@ namespace TaffyScript.Compiler.Backend
                 {
                     ProcessEnum(type);
                 }
-                else if(type.GetCustomAttribute<TaffyScriptBaseTypeAttribute>() != null)
+                else if(baseAttrib != null)
                 {
-                    var count = _table.EnterNamespace(type.Namespace);
+                    var name = baseAttrib.Name ?? type.Namespace;
+                    var count = _table.EnterNamespace(name);
                     foreach (var method in type.GetMethods(_methodFlags).Where(mi => IsMethodValid(mi)))
                     {
-                        _methods.Add(type.Namespace ?? "", method.Name, method);
+                        _methods.Add(name ?? "", method.Name, method);
                         _table.AddLeaf(method.Name, SymbolType.Script, SymbolScope.Global);
                     }
                     _table.Exit(count);

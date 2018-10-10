@@ -7,7 +7,7 @@ title: Array.get_length
 
 [\[global\]]({{site.baseurl}}/docs/).[Array]({{site.baseurl}}/docs/Array/).[get_length]({{site.baseurl}}/docs/Array/get_length/)
 
-Gets the number of elements in this array or a nested array.
+_Gets the number of elements in this array or a nested array._
 
 ```cs
 Array.get_length([..nested_indeces])

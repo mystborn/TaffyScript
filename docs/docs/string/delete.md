@@ -7,10 +7,10 @@ title: string.delete
 
 [\[global\]]({{site.baseurl}}/docs/).[string]({{site.baseurl}}/docs/string/).[delete]({{site.baseurl}}/docs/string/delete/)
 
-Removes a portion of the string and returns the result.
+_Removes a portion of the string and returns the result._
 
 ```cs
-string.delete(start_index, count)
+string.delete(start_index, [count])
 ```
 
 ## Arguments
@@ -32,9 +32,9 @@ string.delete(start_index, count)
       <td>The index to start removing characters.</td>
     </tr>
     <tr>
-      <td>count</td>
+      <td>[count]</td>
       <td>number</td>
-      <td>The number of characters to remove.</td>
+      <td>The number of characters to remove. If absent, removes characters from the start_index until the end of the string.</td>
     </tr>
   </tbody>
 </table>
