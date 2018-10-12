@@ -747,7 +747,7 @@ namespace TaffyScript.Compiler.Backend
             else if (accessModifiers.HasFlag(AccessModifiers.Protected))
                 attributes |= MethodAttributes.Family;
             else
-                attributes |= MethodAttributes.Static;
+                attributes |= MethodAttributes.Private;
 
             if (accessModifiers.HasFlag(AccessModifiers.Instance))
             {
@@ -810,7 +810,7 @@ namespace TaffyScript.Compiler.Backend
                     .BeqS(notValid)
                     .LdArg(0)
                     .LdArg(1)
-                    .Call(createScript, 2, typeof(TsObject))
+                    .Call(createScript, 1, typeof(TsObject))
                     .Pop()
                     .MarkLabel(notValid);
             }

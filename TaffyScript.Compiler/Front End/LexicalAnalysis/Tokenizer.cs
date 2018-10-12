@@ -48,7 +48,7 @@ namespace TaffyScript.Compiler.FrontEnd
             { "script", TokenType.Script },
             { "sealed", TokenType.AccessModifier },
             { "self", TokenType.ReadOnly },
-            { "static", TokenType.Static },
+            { "static", TokenType.AccessModifier },
             { "switch", TokenType.Switch },
             { "true", TokenType.Bool },
             { "until", TokenType.Until },

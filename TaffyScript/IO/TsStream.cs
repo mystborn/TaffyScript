@@ -55,6 +55,11 @@ namespace TaffyScript.IO
         public abstract string ObjectType { get; }
         public abstract Stream Stream { get; }
 
+        public static TsStream Wrap(Stream stream)
+        {
+            return new WrappedStream(stream);
+        }
+
         public virtual TsObject Call(string scriptName, params TsObject[] args)
         {
             switch (scriptName)

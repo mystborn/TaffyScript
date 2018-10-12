@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace TaffyScript.IO
 {
-    public class WrappedStream : TsStream
+    internal class WrappedStream : TsStream
     {
         public override string ObjectType => "TaffyScript.IO.WrappedStream";
         public override Stream Stream { get; }

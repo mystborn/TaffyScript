@@ -1476,7 +1476,7 @@ namespace TaffyScript.Compiler.Backend
 
                                 assign.Right.Accept(this);
                                 EmitHelper.ConvertTopToObject(emit);
-                                emit.Call(property.SetMethod);
+                                emit.Call(property.SetMethod, 1, typeof(void));
                                 break;
                             default:
                                 _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
@@ -1572,7 +1572,7 @@ namespace TaffyScript.Compiler.Backend
 
                                         assign.Right.Accept(this);
                                         EmitHelper.ConvertTopToObject(emit);
-                                        emit.Call(property.SetMethod);
+                                        emit.Call(property.SetMethod, 1, typeof(void));
                                         return;
                                     default:
                                         break;
@@ -1830,11 +1830,11 @@ namespace TaffyScript.Compiler.Backend
 
                                 if (!property.GetMethod.IsStatic)
                                     LoadTarget().Dup();
-                                emit.Call(property.GetMethod);
+                                emit.Call(property.GetMethod, 0, typeof(TsObject));
                                 assign.Right.Accept(this);
                                 emit.Call(GetOperator(op, property.PropertyType, emit.GetTop(), assign.Position));
                                 EmitHelper.ConvertTopToObject(emit);
-                                emit.Call(property.SetMethod);
+                                emit.Call(property.SetMethod, 1, typeof(void));
                                 break;
                             default:
                                 _logger.Error($"Cannot assign to the value {symbol.Name}", variable.Position);
@@ -1941,11 +1941,11 @@ namespace TaffyScript.Compiler.Backend
 
                                         if (!property.GetMethod.IsStatic)
                                             LoadTarget().Dup();
-                                        emit.Call(property.GetMethod);
+                                        emit.Call(property.GetMethod, 0, typeof(TsObject));
                                         assign.Right.Accept(this);
                                         emit.Call(GetOperator(op, property.PropertyType, emit.GetTop(), assign.Position));
                                         EmitHelper.ConvertTopToObject(emit);
-                                        emit.Call(property.SetMethod);
+                                        emit.Call(property.SetMethod, 1, typeof(void));
                                         return;
                                     default:
                                         break;
@@ -2023,7 +2023,7 @@ namespace TaffyScript.Compiler.Backend
                             }
 
                             if (op != null)
-                                emit.Call(property.GetMethod);
+                                emit.Call(property.GetMethod, 0, typeof(TsObject));
 
                             assign.Right.Accept(this);
                             EmitHelper.ConvertTopToObject(emit);
@@ -2034,10 +2034,10 @@ namespace TaffyScript.Compiler.Backend
                                 EmitHelper.ConvertTopToObject(emit);
                             }
 
-                            emit.Call(property.SetMethod);
+                            emit.Call(property.SetMethod, 1, typeof(void));
                         }
                         else
-                            emit.Call(property.GetMethod);
+                            emit.Call(property.GetMethod, 0, typeof(TsObject));
                         break;
                     case MethodInfo method:
                         _logger.Error($"Tried to set a static method", member.Position);
@@ -2236,9 +2236,9 @@ namespace TaffyScript.Compiler.Backend
                         emit.Pop();
                         break;
                     default:
+                        _logger.Error("Stack is unbalanced inside of a block", block.Position);
                         while (emit.Types.Count > 0)
                             emit.Pop();
-                        _logger.Error("Stack is unbalanced inside of a block", block.Position);
                         break;
                 }
             }
@@ -2536,7 +2536,7 @@ namespace TaffyScript.Compiler.Backend
                         var method = _assets.GetInstanceMethod(symbol.Parent, symbol.Name, callSite.Position);
                         LoadTarget();
                         LoadFunctionArguments(functionCall.Arguments);
-                        emit.Call(method, 2, typeof(TsObject));
+                        emit.Call(method, 1, typeof(TsObject));
                         return;
                     }
                     else
@@ -2587,7 +2587,7 @@ namespace TaffyScript.Compiler.Backend
                     if (!property.GetMethod.IsStatic)
                         LoadTarget();
 
-                    emit.Call(property.GetMethod);
+                    emit.Call(property.GetMethod, 0, typeof(TsObject));
                     LoadFunctionArguments(functionCall.Arguments);
                     emit.Call(typeof(TsObject).GetMethod("DelegateInvoke", new[] { typeof(TsObject[]) }));
                     return;
@@ -2624,7 +2624,7 @@ namespace TaffyScript.Compiler.Backend
                         emit.Call(TsTypes.Empty);
                         return;
                     }
-                    emit.Call(property.GetMethod);
+                    emit.Call(property.GetMethod, 0, typeof(TsObject));
                     break;
                 case MethodInfo method:
                     LoadFunctionArguments(functionCall.Arguments);
@@ -3213,7 +3213,7 @@ namespace TaffyScript.Compiler.Backend
                             emit.Call(TsTypes.Empty);
                             return;
                         }
-                        emit.Call(property.GetMethod);
+                        emit.Call(property.GetMethod, 0, typeof(TsObject));
                         break;
                     case MethodInfo method:
                         emit.LdNull()
@@ -3835,11 +3835,11 @@ namespace TaffyScript.Compiler.Backend
                                 if (!property.GetMethod.IsStatic)
                                     LoadTarget().Dup();
 
-                                emit.Call(property.GetMethod)
+                                emit.Call(property.GetMethod, 0, typeof(TsObject))
                                     .Dup()
                                     .StLocal(secret)
                                     .Call(GetOperator(postfix.Op, property.PropertyType, postfix.Position))
-                                    .Call(property.SetMethod)
+                                    .Call(property.SetMethod, 1, typeof(void))
                                     .LdLocal(secret);
 
                                 break;
@@ -4170,11 +4170,11 @@ namespace TaffyScript.Compiler.Backend
 
                                 if (!property.GetMethod.IsStatic)
                                     LoadTarget().Dup();
-                                emit.Call(property.GetMethod)
+                                emit.Call(property.GetMethod, 0, typeof(TsObject))
                                     .Call(GetOperator(prefix.Op, property.PropertyType, prefix.Position))
                                     .Dup()
                                     .StLocal(secret)
-                                    .Call(property.SetMethod)
+                                    .Call(property.SetMethod, 1, typeof(void))
                                     .LdLocal(secret);
 
                                 FreeLocal(secret);
@@ -4298,7 +4298,7 @@ namespace TaffyScript.Compiler.Backend
                                 return;
                             }
 
-                            emit.Call(property.GetMethod);
+                            emit.Call(property.GetMethod, 0, typeof(TsObject));
 
                             if (postfix)
                                 emit.Dup().StLocal(secret);
@@ -4308,11 +4308,11 @@ namespace TaffyScript.Compiler.Backend
                             if (!postfix)
                                 emit.Dup().StLocal(secret);
 
-                            emit.Call(property.SetMethod)
+                            emit.Call(property.SetMethod, 1, typeof(void))
                                 .LdLocal(secret);
                         }
                         else
-                            emit.Call(property.GetMethod);
+                            emit.Call(property.GetMethod, 0, typeof(TsObject));
                         break;
                     case MethodInfo method:
                         emit.Call(TsTypes.Empty);
@@ -5000,7 +5000,7 @@ namespace TaffyScript.Compiler.Backend
                     }
                     if (!property.GetMethod.IsStatic)
                         LoadTarget();
-                    emit.Call(property.GetMethod);
+                    emit.Call(property.GetMethod, 0, typeof(TsObject));
                     break;
                 default:
                     _logger.Error($"Currently cannot reference indentifier {variableSymbol.Type} by it's raw value.", variableToken.Position);
@@ -5384,7 +5384,7 @@ namespace TaffyScript.Compiler.Backend
             mthd.LdArg(0)
                 .LdArg(1)
                 .LdLocalA(del)
-                .Call(tryGetDelegateMethod, 3, typeof(bool))
+                .Call(tryGetDelegateMethod, 2, typeof(bool))
                 .BrFalse(getError)
                 .LdLocal(del)
                 .Ret()
@@ -5408,7 +5408,7 @@ namespace TaffyScript.Compiler.Backend
             mthd = new ILEmitter(indexGet, new[] { typeof(string) });
             mthd.LdArg(0)
                 .LdArg(1)
-                .Call(getMemberMethod, 2, typeof(TsObject))
+                .Call(getMemberMethod, 1, typeof(TsObject))
                 .Ret();
 
             indexer.SetGetMethod(indexGet);
@@ -5426,7 +5426,7 @@ namespace TaffyScript.Compiler.Backend
             mthd.LdArg(0)
                 .LdArg(1)
                 .LdArg(2)
-                .Call(setMemberMethod, 3, typeof(void))
+                .Call(setMemberMethod, 2, typeof(void))
                 .Ret();
 
             indexer.SetSetMethod(indexSet);

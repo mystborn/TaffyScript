@@ -40,6 +40,44 @@ namespace TaffyScript.Numbers
         }
 
         /// <summary>
+        /// Returns the angle whose cosine is the specified number.
+        /// </summary>
+        /// <arg name="d" type="number">A number representing a cosine, whose value must be between -1 and 1.</arg>
+        /// <returns>number</returns>
+        public static TsObject acos(TsObject[] args)
+        {
+            return Math.Acos((double)args[0]);
+        }
+        /// <summary>
+        /// Returns the angle whose sine is the specified number.
+        /// </summary>
+        /// <arg name="d" type="number">A number representing a sine, whose value must be between -1 and 1.</arg>
+        /// <returns>number</returns>
+        public static TsObject asin(TsObject[] args)
+        {
+            return Math.Asin((double)args[0]);
+        }
+        /// <summary>
+        /// Returns the angle whose tangent is the specified number.
+        /// </summary>
+        /// <arg name="d" type="number">A number representing a tangent.</arg>
+        /// <returns>number</returns>
+        public static TsObject atan(TsObject[] args)
+        {
+            return Math.Atan((double)args[0]);
+        }
+        /// <summary>
+        /// Returns the angle whose tangent is the quotient of two specified numbers.
+        /// </summary>
+        /// <arg name="y" type="number">The y coordinate of a point.</arg>
+        /// <arg name="x" type="number">The x coordinate of a point.</arg>
+        /// <returns>number</returns>
+        public static TsObject atan2(TsObject[] args)
+        {
+            return Math.Atan2((double)args[0], (double)args[1]);
+        }
+
+        /// <summary>
         /// Rounds a number to the closest integer that is greater than or equal to the value.
         /// </summary>
         /// <param name="value" type="number">The value to round.</param>
@@ -75,6 +113,16 @@ namespace TaffyScript.Numbers
         {
             float val = (float)args[0], min = (float)args[1], max = (float)args[2];
             return val < min ? min : (val > max ? max : val);
+        }
+
+        /// <summary>
+        /// Returns the cosine of the specified angle.
+        /// </summary>
+        /// <arg name="angle" type="number">The angle, measured in radians.</arg>
+        /// <returns>number</returns>
+        public static TsObject cos(TsObject[] args)
+        {
+            return Math.Cos((double)args[0]);
         }
 
         /// <summary>
@@ -297,6 +345,16 @@ namespace TaffyScript.Numbers
         }
 
         /// <summary>
+        /// Returns the sine of the specified angle.
+        /// </summary>
+        /// <arg name="angle" type="number">The angle, measured in radians.</arg>
+        /// <returns>number</returns>
+        public static TsObject sin(TsObject[] args)
+        {
+            return Math.Sin((double)args[0]);
+        }
+
+        /// <summary>
         /// Squares a number.
         /// </summary>
         /// <arg name="value" type="number">The value to square.</arg>
@@ -317,6 +375,16 @@ namespace TaffyScript.Numbers
         public static TsObject sqrt(TsObject[] args)
         {
             return Math.Sqrt((double)args[0]);
+        }
+
+        /// <summary>
+        /// Returns the tangent of the specified angle.
+        /// </summary>
+        /// <arg name="angle" type="number">The angle, measured in radians.</arg>
+        /// <returns>number</returns>
+        public static TsObject tan(TsObject[] args)
+        {
+            return Math.Tan((double)args[0]);
         }
     }
 }

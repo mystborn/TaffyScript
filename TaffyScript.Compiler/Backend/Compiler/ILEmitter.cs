@@ -232,6 +232,8 @@ namespace TaffyScript.Compiler.Backend
         {
             if (method == null)
                 return this;
+            if (!method.IsStatic)
+                input += 1;
             for (var i = 0; i < input; i++)
                 _types.Pop();
 

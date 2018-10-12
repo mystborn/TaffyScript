@@ -495,7 +495,29 @@ namespace TaffyScript.Compiler.FrontEnd
         public void Visit(UsingsNode usingsNode)
         {
             foreach (var ns in usingsNode.Usings)
-                _table.AddNamespaceToDefinitionLookup(ns.Namespace);
+            {
+                var parts = ns.Namespace.Split('.');
+                var node = _table.Current;
+                var success = true;
+                for(var i = 0; i < parts.Length; i++)
+                {
+                    if (!node.Children.TryGetValue(parts[i], out var child))
+                    {
+                        _logger.Error($"Tried to use namespace '{ns.Namespace}' that doesn't exist", ns.Position);
+                        success = false;
+                        break;
+                    }
+                    if((node = child as SymbolNode) is null || node.Type != SymbolType.Namespace)
+                    {
+                        _logger.Error($"Tried to use symbol '{ns.Namespace}' that wasn't a namespace", ns.Position);
+                        success = false;
+                        break;
+                    }
+                }
+                if (!success)
+                    continue;
+                _table.AddSymbolToDefinitionLookup(node);
+            }
 
             foreach (var declaration in usingsNode.Declarations)
             {

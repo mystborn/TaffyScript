@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -12,6 +13,10 @@ namespace TaffyScript.Documentation
     {
         const string CorrectArguments = "(TaffyScript.TsObject[])";
         const string ConstructorDecorator = ".#ctor";
+        private const string MarkdownToHtmlLinkReplacement = "<a href=\"${link}\">${text}</a>";
+        private const string ReplaceStarsWithQuotes = "\"$1\"";
+        private static Regex _quoteRegex = new Regex(@"\*(.*?)\*");
+        private static Regex _linkRegex = new Regex(@"\[(?<text>.+?)\]\((?<link>.+?)\)", RegexOptions.Compiled);
 
         TypeCache _cache;
 
@@ -40,7 +45,7 @@ namespace TaffyScript.Documentation
                     NamespaceDocumentation ns;
                     while (reader.Name == "member")
                     {
-                        var name = reader["name"];
+                        var name = NormalizeText(reader["name"]);;
                         if (name is null)
                             continue;
 
@@ -73,15 +78,15 @@ namespace TaffyScript.Documentation
                                         switch (reader.Name)
                                         {
                                             case "summary":
-                                                documentation.Summary = await ReadSummary(reader);
+                                                documentation.Summary = await ReadElementContentAsNormalizedString(reader);
                                                 break;
                                             case "source":
-                                                documentation.Source = await reader.ReadElementContentAsStringAsync();
+                                                documentation.Source = await ReadElementContentAsNormalizedString(reader);
                                                 break;
                                             case "property":
-                                                var pName = reader["name"];
-                                                var pType = reader["type"];
-                                                var access = reader["access"];
+                                                var pName = NormalizeText(reader["name"]);;
+                                                var pType = NormalizeText(reader["type"]);;
+                                                var access = NormalizeText(reader["access"]);;
                                                 string pSummary = null, pSource = null;
                                                 reader.ReadStartElement();
                                                 while (reader.NodeType != XmlNodeType.EndElement && reader.Name != "property")
@@ -89,10 +94,10 @@ namespace TaffyScript.Documentation
                                                     switch (reader.Name)
                                                     {
                                                         case "summary":
-                                                            pSummary = await ReadSummary(reader);
+                                                            pSummary = await ReadElementContentAsNormalizedString(reader);
                                                             break;
                                                         case "source":
-                                                            pSource = await reader.ReadElementContentAsStringAsync();
+                                                            pSource = await ReadElementContentAsNormalizedString(reader);
                                                             break;
                                                         default:
                                                             reader.Skip();
@@ -110,8 +115,8 @@ namespace TaffyScript.Documentation
                                                 });
                                                 break;
                                             case "field":
-                                                var fName = reader["name"];
-                                                var fType = reader["type"];
+                                                var fName = NormalizeText(reader["name"]);;
+                                                var fType = NormalizeText(reader["type"]);;
                                                 string fSummary = null, fSource = null;
                                                 reader.ReadStartElement();
                                                 while (reader.NodeType != XmlNodeType.EndElement && reader.Name != "field")
@@ -119,10 +124,10 @@ namespace TaffyScript.Documentation
                                                     switch (reader.Name)
                                                     {
                                                         case "summary":
-                                                            fSummary = await ReadSummary(reader);
+                                                            fSummary = await ReadElementContentAsNormalizedString(reader);
                                                             break;
                                                         case "source":
-                                                            fSource = await reader.ReadElementContentAsStringAsync();
+                                                            fSource = await ReadElementContentAsNormalizedString(reader);
                                                             break;
                                                         default:
                                                             reader.Skip();
@@ -151,7 +156,7 @@ namespace TaffyScript.Documentation
                                         switch (reader.Name)
                                         {
                                             case "summary":
-                                                ns.Summary = await ReadSummary(reader);
+                                                ns.Summary = await ReadElementContentAsNormalizedString(reader);
                                                 break;
                                             default:
                                                 reader.Skip();
@@ -198,13 +203,13 @@ namespace TaffyScript.Documentation
                                     switch (reader.Name)
                                     {
                                         case "summary":
-                                            property.Summary = await ReadSummary(reader);
+                                            property.Summary = await ReadElementContentAsNormalizedString(reader);
                                             break;
                                         case "source":
-                                            property.Source = await reader.ReadElementContentAsStringAsync();
+                                            property.Source = await ReadElementContentAsNormalizedString(reader);
                                             break;
                                         case "type":
-                                            property.Type = await reader.ReadElementContentAsStringAsync();
+                                            property.Type = await ReadElementContentAsNormalizedString(reader);
                                             break;
                                         default:
                                             reader.Skip();
@@ -242,13 +247,13 @@ namespace TaffyScript.Documentation
                                         switch (reader.Name)
                                         {
                                             case "summary":
-                                                constructor.Summary = await ReadSummary(reader);
+                                                constructor.Summary = await ReadElementContentAsNormalizedString(reader);
                                                 break;
                                             case "arg":
                                                 constructor.Arguments.Add(await ReadArgument(reader));
                                                 break;
                                             case "source":
-                                                constructor.Source = await reader.ReadElementContentAsStringAsync();
+                                                constructor.Source = await ReadElementContentAsNormalizedString(reader);
                                                 break;
                                             default:
                                                 reader.Skip();
@@ -336,16 +341,16 @@ namespace TaffyScript.Documentation
                 switch (reader.Name)
                 {
                     case "summary":
-                        script.Summary = await ReadSummary(reader);
+                        script.Summary = await ReadElementContentAsNormalizedString(reader);
                         break;
                     case "arg":
                         script.Arguments.Add(await ReadArgument(reader));
                         break;
                     case "source":
-                        script.Source = await reader.ReadElementContentAsStringAsync();
+                        script.Source = await ReadElementContentAsNormalizedString(reader);
                         break;
                     case "returns":
-                        script.Returns = await reader.ReadElementContentAsStringAsync();
+                        script.Returns = await ReadElementContentAsNormalizedString(reader);
                         break;
                     default:
                         reader.Skip();
@@ -356,23 +361,47 @@ namespace TaffyScript.Documentation
             return script;
         }
 
-        private async Task<string> ReadSummary(XmlReader reader)
+        private async Task<string> ReadElementContentAsNormalizedString(XmlReader reader)
         {
             var summary = await reader.ReadElementContentAsStringAsync();
-            return summary.Trim();
+            return NormalizeText(summary.Trim());
         }
 
         private async Task<ArgumentDocumentation> ReadArgument(XmlReader reader)
         {
-            var name = reader["name"];
-            var type = reader["type"];
-            var summary = await ReadSummary(reader);
+            var name = NormalizeText(reader["name"]);
+            var type = NormalizeText(reader["type"]);
+            var summary = await ReadElementContentAsNormalizedString(reader);
             return new ArgumentDocumentation()
             {
                 Name = name,
                 Type = type,
                 Summary = summary
             };
+        }
+
+        private string NormalizeText(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+            var index = 0;
+            Match match;
+            while((match = _quoteRegex.Match(text, index)).Success)
+            {
+                text = text.Remove(match.Index, match.Length)
+                           .Insert(match.Index, match.Result(ReplaceStarsWithQuotes));
+                index = match.Index;
+            }
+
+            index = 0;
+
+            while ((match = _linkRegex.Match(text, index)).Success)
+            {
+                text = text.Remove(match.Index, match.Length)
+                           .Insert(match.Index, match.Result(MarkdownToHtmlLinkReplacement));
+                index = match.Index;
+            }
+            return text;
         }
 
         private void HandleInheritance()

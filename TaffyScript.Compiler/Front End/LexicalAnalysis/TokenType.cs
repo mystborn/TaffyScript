@@ -72,7 +72,6 @@ namespace TaffyScript.Compiler.FrontEnd
         SemiColon,
         ShiftLeft,
         ShiftRight,
-        Static,
         String,
         SubEquals,
         Switch,

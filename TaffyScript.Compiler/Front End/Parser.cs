@@ -394,7 +394,7 @@ namespace TaffyScript.Compiler
                         break;
                     default:
                         _logger.Error("Invalid token inside of Object definition", _stream.Current.Position);
-                        SynchronizeBraces(false, TokenType.Script, TokenType.Static);
+                        SynchronizeBraces(false, TokenType.Script, TokenType.AccessModifier);
                         break;
                 }
             }
@@ -447,7 +447,7 @@ namespace TaffyScript.Compiler
             if ((accessModifiers & AccessModifiers.Static) == 0)
                 accessModifiers |= AccessModifiers.Instance;
 
-            if ((accessModifiers & AccessModifiers.Sealed) == 0)
+            if ((accessModifiers & (AccessModifiers.Sealed | AccessModifiers.Static)) == 0)
                 accessModifiers |= AccessModifiers.Virtual;
 
             return accessModifiers;
@@ -470,20 +470,24 @@ namespace TaffyScript.Compiler
                 {
                     case "get":
                         var getToken = _stream.Read();
-                        get = new ScriptNode(getToken.Text, new List<VariableDeclaration>(), BlockStatement(), getToken.Position);
                         if (!_table.AddChild(new ScriptSymbol(propertySymbol, getToken.Text, scope, accessModifiers)))
                             Error(getToken, $"Property '{property.Text}' defines two get scripts.");
+                        _table.Enter("get");
+                        get = new ScriptNode(getToken.Text, new List<VariableDeclaration>(), BlockStatement(), getToken.Position);
+                        _table.Exit();
                         break;
                     case "set":
                         _inPropertySet = true;
                         var setToken = _stream.Read();
+                        if (!_table.AddChild(new ScriptSymbol(_table.Current, setToken.Text, scope, accessModifiers)))
+                            Error(setToken, $"Property '{property.Text}' defineds two set scripts");
+                        _table.Enter("set");
                         set = new ScriptNode(setToken.Text,
                                              new List<VariableDeclaration>() { new VariableDeclaration("value", null, setToken.Position) },
                                              BlockStatement(),
                                              setToken.Position);
                         _inPropertySet = false;
-                        if (!_table.AddChild(new ScriptSymbol(_table.Current, setToken.Text, scope, accessModifiers)))
-                            Error(setToken, $"Property '{property.Text}' defineds two set scripts");
+                        _table.Exit();
                         break;
                     default:
                         Error(_stream.Current, "Invalid property script name.");

@@ -54,7 +54,7 @@ namespace TaffyScript
     ///     <summary>Gets the value of this TimeSpan expressed as whole and fractional seconds.</summary>
     ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.timespan.totalseconds?view=netframework-4.7</source>
     /// </property>
-    [TaffyScriptObject("TimeSpan")]
+    [TaffyScriptObject("TaffyScript.TimeSpan")]
     public sealed class TsTimeSpan : ITsInstance
     {
         public TsObject this[string memberName]

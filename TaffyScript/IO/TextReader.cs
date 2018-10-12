@@ -126,7 +126,7 @@ namespace TaffyScript.IO
         /// <returns>string</returns>
         public TsObject read_line(TsObject[] args)
         {
-            return Reader.ReadLine();
+            return Reader.ReadLine() ?? TsObject.Empty;
         }
 
         /// <summary>

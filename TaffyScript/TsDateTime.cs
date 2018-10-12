@@ -11,7 +11,7 @@ namespace TaffyScript
     /// Represents an instant in time.
     /// </summary>
     /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.datetime?view=netframework-4.7</source>
-    /// <property name="date" type="[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime" access="get">
+    /// <property name="date" type="[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime)" access="get">
     ///     <summary>Gets the date component of this instance.</summary>
     ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.datetime.date?view=netframework-4.7</source>
     /// </property>
@@ -78,19 +78,19 @@ namespace TaffyScript
         /// <summary>
         /// Gets a DateTime that is set to the current date and time on this computer, expressed as the local time.
         /// </summary>
-        /// <type>[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime</type>
+        /// <type>[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime)</type>
         public static TsObject now => new TsDateTime(DateTime.Now);
 
         /// <summary>
         /// Gets the current date.
         /// </summary>
-        /// <type>[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime</type>
+        /// <type>[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime)</type>
         public static TsObject today => new TsDateTime(DateTime.Today);
 
         /// <summary>
         /// Gets a DateTime that is set to the current date and time on this computer, expressed as UTC.
         /// </summary>
-        /// <type>[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime</type>
+        /// <type>[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime)</type>
         public static TsObject utc_now => new TsDateTime(DateTime.UtcNow);
 
         public TsDateTime(DateTime dateTime)
@@ -391,8 +391,8 @@ namespace TaffyScript
         /// <summary>
         /// Compares two DateTime instances and returns a number representing the result. -1 if the first is less than the second, 0 if they are equal, 1 if the first is greater than the second.
         /// </summary>
-        /// <arg name="first" type="[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime">The first DateTime to compare.</arg>
-        /// <arg name="second" type="[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime">The second DateTime to compare.</arg>
+        /// <arg name="first" type="[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime)">The first DateTime to compare.</arg>
+        /// <arg name="second" type="[DateTime]({{site.baseurl}}/docs/TaffyScript/DateTime)">The second DateTime to compare.</arg>
         /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.datetime.compare?view=netframework-4.7</source>
         /// <returns>number</returns>
         public static TsObject compare(TsObject[] args)
