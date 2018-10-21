@@ -34,6 +34,7 @@
     <DocumentationFile>bin\Release\TaffyScript.xml</DocumentationFile>
     <LangVersion>7.3</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>CS1591</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release86|AnyCPU'">
     <OutputPath>bin\Release86\</OutputPath>

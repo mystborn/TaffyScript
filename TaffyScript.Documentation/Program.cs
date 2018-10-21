@@ -26,7 +26,8 @@ namespace TaffyScript.Documentation
             }
             catch(Exception e)
             {
-
+                Console.WriteLine("Documentation generation failed:");
+                Console.WriteLine(e.Message);
             }
         }
     }

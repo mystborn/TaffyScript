@@ -526,6 +526,11 @@ namespace TaffyScript
             return false;
         }
 
+        public override int GetHashCode()
+        {
+            return Source.GetHashCode();
+        }
+
         public static implicit operator TsObject(TsType type)
         {
             return new TsInstanceWrapper(type);

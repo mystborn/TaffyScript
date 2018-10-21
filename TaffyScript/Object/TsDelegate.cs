@@ -9,7 +9,6 @@ namespace TaffyScript
     /// <summary>
     /// Represents a TaffyScript script.
     /// </summary>
-    /// <param name="target">The target of the script.</param>
     /// <param name="args">The script arguments.</param>
     /// <returns>The scripts result.</returns>
     public delegate TsObject TsScript(TsObject[] args);

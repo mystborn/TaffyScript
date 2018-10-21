@@ -8,6 +8,7 @@ namespace TaffyScript.Compiler.Syntax
     {
         public override SyntaxType Type => SyntaxType.Lambda;
         public string Scope { get; }
+        public bool ConstructLocally { get; set; }
         public List<VariableDeclaration> Arguments { get; }
         public BlockNode Body { get; }
 

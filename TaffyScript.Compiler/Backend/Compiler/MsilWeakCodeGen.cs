@@ -134,6 +134,7 @@ namespace TaffyScript.Compiler.Backend
 
         private Closure _closure = null;
         private int _closures = 0;
+        private int _closureDisplyNumber = 0;
         private ISymbol _parent = null;
         private int _argumentArray = 0;
 
@@ -884,10 +885,10 @@ namespace TaffyScript.Compiler.Backend
         {
             emit = new ILEmitter(method, args);
             _table.Enter(scriptName);
-            DeclareLocals(true);
+            DeclareLocals();
         }
 
-        private void DeclareLocals(bool declareLocalLambda)
+        private void DeclareLocals()
         {
             foreach(var local in _table.Symbols)
             {
@@ -896,7 +897,7 @@ namespace TaffyScript.Compiler.Backend
                     if (leaf.IsCaptured)
                     {
                         if (_closure == null)
-                            GetClosure(declareLocalLambda);
+                            DefineClosure();
                         var field = _closure.Type.DefineField(local.Name, typeof(TsObject), FieldAttributes.Public);
                         _closure.Fields.Add(local.Name, field);
                     }
@@ -913,6 +914,7 @@ namespace TaffyScript.Compiler.Backend
             _secrets.Clear();
             _secret = 0;
             _argumentCount = null;
+            _closureDisplyNumber = 0;
             if(_closure != null)
             {
                 _closure.Type.CreateType();
@@ -920,54 +922,55 @@ namespace TaffyScript.Compiler.Backend
             }
         }
 
-        private Closure GetClosure(bool setLocal)
+        private Closure DefineClosure()
         {
-            if(_closure == null)
+            var parent = _closure;
+            var bt = GetBaseType(_namespace);
+            var type = bt.DefineNestedType($"<>{emit.Method.Name}_Display_{_closureDisplyNumber++}", 
+                                           TypeAttributes.NestedAssembly | 
+                                               TypeAttributes.AnsiClass | 
+                                               TypeAttributes.Sealed | 
+                                               TypeAttributes.BeforeFieldInit);
+
+            var constructor = type.DefineConstructor(MethodAttributes.Public |
+                                                         MethodAttributes.HideBySig |
+                                                         MethodAttributes.SpecialName |
+                                                         MethodAttributes.RTSpecialName,
+                                                     CallingConventions.HasThis,
+                                                     Type.EmptyTypes);
+
+            var temp = emit;
+
+            emit = new ILEmitter(constructor, new[] { typeof(object) });
+            emit.LdArg(0)
+                .CallBase(typeof(object).GetConstructor(Type.EmptyTypes))
+                .Ret();
+
+            emit = temp;
+
+            _closure = new Closure(type, constructor);
+
+            _closure.Self = emit.DeclareLocal(type, "__0closure");
+
+            emit.New(constructor, 0);
+            if (parent != null)
             {
-                var bt = GetBaseType(_namespace);
-                var type = bt.DefineNestedType($"<>{emit.Method.Name}_Display", TypeAttributes.NestedAssembly | TypeAttributes.AnsiClass | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit);
-                var constructor = type.DefineConstructor(MethodAttributes.Public |
-                                                          MethodAttributes.HideBySig |
-                                                          MethodAttributes.SpecialName |
-                                                          MethodAttributes.RTSpecialName,
-                                                      CallingConventions.HasThis,
-                                                      Type.EmptyTypes);
-
-                var temp = emit;
-
-                emit = new ILEmitter(constructor, new[] { typeof(object) });
-                emit.LdArg(0)
-                    .CallBase(typeof(object).GetConstructor(Type.EmptyTypes))
-                    .Ret();
-
-                emit = temp;
-                
-                _closure = new Closure(type, constructor);
-
-                if (setLocal || !emit.Method.IsStatic)
-                {
-                    var local = emit.DeclareLocal(type, "__0closure");
-
-                    if (emit.Method.IsStatic) {
-                        emit.New(constructor, 0)
-                            .StLocal(local);
-                    }
-                    else
-                    {
-                        // Todo: Only do this if instance variable/self is accessed.
-                        // Todo: Test on nested closure.
-                        _closure.Target = type.DefineField("__0Target0__", emit.Method.DeclaringType, FieldAttributes.Assembly);
-                        emit.New(constructor, 0)
-                            .Dup()
-                            .StLocal(local)
-                            .LdArg(0)
-                            .StFld(_closure.Target);
-                    }
-
-                    _closure.Self = local;
-                    _closure.Constructed = true;
-                }
+                _closure.ParentField = _closure.Type.DefineField("<>Parent", parent.Type, FieldAttributes.Assembly);
+                _closure.Parent = parent;
+                emit.Dup()
+                    .LdLocal(parent.Self)
+                    .StFld(_closure.ParentField);
             }
+            if(!emit.Method.IsStatic)
+            {
+                _closure.Target = type.DefineField("__0Target0__", emit.Method.DeclaringType, FieldAttributes.Assembly);
+                emit.Dup()
+                    .LdArg(0)
+                    .StFld(_closure.Target);
+            }
+
+            emit.StLocal(_closure.Self);
+            _closure.Constructed = true;
 
             return _closure;
         }
@@ -1059,8 +1062,8 @@ namespace TaffyScript.Compiler.Backend
         {
             if (_closures > 0)
             {
-                emit.LdArg(0)
-                    .LdFld(_closure.Fields["value"]);
+                _closure.LoadVariablesClosure("value", emit, out var field);
+                emit.LdFld(field);
             }
             else
                 emit.LdArg(_argumentArray);
@@ -1428,19 +1431,15 @@ namespace TaffyScript.Compiler.Backend
                 {
                     if(symbol is VariableLeaf leaf)
                     {
+                        FieldInfo field = default;
                         if (leaf.IsCaptured)
-                        {
-                            if (_closures > 0)
-                                emit.LdArg(0);
-                            else
-                                emit.LdLocal(_closure.Self);
-                        }
+                            _closure.LoadVariablesClosure(leaf.Name, emit, out field);
 
                         assign.Right.Accept(this);
                         ConvertTopToObject();
 
                         if (leaf.IsCaptured)
-                            emit.StFld(_closure.Fields[leaf.Name]);
+                            emit.StFld(field);
                         else
                             emit.StLocal(_locals[symbol]);
                     }
@@ -1777,11 +1776,8 @@ namespace TaffyScript.Compiler.Backend
                     {
                         if (leaf.IsCaptured)
                         {
-                            if (_closures > 0)
-                                emit.LdArg(0);
-                            else
-                                emit.LdLocal(_closure.Self);
-                            emit.LdFldA(_closure.Fields[variable.Name]);
+                            _closure.LoadVariablesClosure(leaf.Name, emit, out var field);
+                            emit.LdFldA(field);
                         }
                         else
                             emit.LdLocalA(_locals[symbol]);
@@ -2118,12 +2114,8 @@ namespace TaffyScript.Compiler.Backend
             {
                 if (variable.IsCaptured)
                 {
-                    if (_closures == 0)
-                        emit.LdLocal(_closure.Self);
-                    else
-                        emit.LdArg(0);
-
-                    emit.LdFld(_closure.Fields[variable.Name]);
+                    _closure.LoadVariablesClosure(variable.Name, emit, out var field);
+                    emit.LdFld(field);
                 }
                 else
                     emit.LdLocal(_locals[variable]);
@@ -2218,16 +2210,37 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(BlockNode block)
         {
-            bool constructed = _closure?.Constructed ?? false;
+            var definedNewClosure = false;
+
+            if (block.Id != null)
+            {
+                _table.Enter(block.Id);
+                foreach(var leaf in block.Variables)
+                {
+                    if (leaf.IsCaptured)
+                    {
+                        if (!definedNewClosure)
+                        {
+                            DefineClosure();
+                            definedNewClosure = true;
+                        }
+                        var field = _closure.Type.DefineField(leaf.Name, typeof(TsObject), FieldAttributes.Public);
+                        _closure.Fields.Add(leaf.Name, field);
+                    }
+                    else
+                        _locals.Add(leaf, emit.DeclareLocal(typeof(TsObject), leaf.Name));
+                }
+            }
 
             for (var i = 0; i < block.Body.Count; ++i)
             {
                 block.Body[i].Accept(this);
-                //Each child in a block is either a statement which leaves nothing on the stack,
-                //or an expression which will leave one value.
-                //If there's a value left, pop it.
-                //If there's more than one value, the compiler failed somehow.
-                //It should never happen, but we log an error just in case.
+
+                // Each child in a block is either a statement which leaves nothing on the stack,
+                // or an expression which will leave one value.
+                // If there's a value left, pop it.
+                // If there's more than one value, the compiler failed somehow.
+                // It should never happen, but we log an error just in case.
                 switch(emit.Types.Count)
                 {
                     case 0:
@@ -2243,8 +2256,15 @@ namespace TaffyScript.Compiler.Backend
                 }
             }
 
-            if (_closure != null)
-                _closure.Constructed = constructed;
+            if (block.Id != null)
+            {
+                _table.Exit();
+                if (definedNewClosure)
+                {
+                    _closure.Type.CreateType();
+                    _closure = _closure.Parent;
+                }
+            }
         }
 
         public void Visit(BreakToken breakToken)
@@ -2985,42 +3005,18 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(LambdaNode lambda)
         {
-            var bt = GetBaseType(_namespace);
-            var owner = GetClosure(false);
-            var closure = owner.Type.DefineMethod($"<{emit.Method.Name}>closure_{lambda.Scope.Remove(0, 5)}",
+            if (lambda.ConstructLocally)
+                DefineClosure();
+            var closure = _closure.Type.DefineMethod($"<{emit.Method.Name}>closure_{lambda.Scope.Remove(0, 5)}",
                                                   MethodAttributes.Assembly | MethodAttributes.HideBySig,
                                                   typeof(TsObject),
                                                   TsTypes.ArgumentTypes);
             _table.Enter(lambda.Scope);
-            if (_closures == 0 && owner.Self is null && _table.Symbols.Any())
-            {
-                owner.Self = emit.DeclareLocal(owner.Type, "__0closure");
-                emit.New(owner.Constructor, 0)
-                    .StLocal(owner.Self);
-            }
-            else if(_closures == 0 && !_closure.Constructed && owner.Self != null)
-            {
-                if (!emit.Method.IsStatic)
-                {
-                    emit.New(owner.Constructor, 0)
-                        .Dup()
-                        .StLocal(owner.Self)
-                        .LdArg(0)
-                        .StFld(owner.Target);
-                }
-                else
-                {
-                    emit.New(owner.Constructor, 0)
-                        .StLocal(owner.Self);
-                }
 
-                _closure.Constructed = true;
-            }
             var temp = emit;
-
-
             emit = new ILEmitter(closure, TsTypes.ArgumentTypes);
-            DeclareLocals(false);
+
+            DeclareLocals();
             ++_closures;
             var argumentArray = _argumentArray;
             _argumentArray = 1;
@@ -3028,6 +3024,7 @@ namespace TaffyScript.Compiler.Backend
             ProcessScriptArguments(lambda.Arguments);
 
             lambda.Body.Accept(this);
+
             //Todo: Don't do this if last node was return stmt.
             if (!emit.TryGetTop(out _))
                 emit.Call(TsTypes.Empty);
@@ -3041,10 +3038,10 @@ namespace TaffyScript.Compiler.Backend
             emit = temp;
             if (_closures == 0)
             {
-                if (owner.Self == null)
-                    emit.New(owner.Constructor, 0);
+                if (_closure.Self == null)
+                    emit.New(_closure.Constructor, 0);
                 else
-                    emit.LdLocal(owner.Self);
+                    emit.LdLocal(_closure.Self);
             }
             else
                 emit.LdArg(0);
@@ -3053,6 +3050,12 @@ namespace TaffyScript.Compiler.Backend
                 .New(typeof(TsScript).GetConstructor(new[] { typeof(object), typeof(IntPtr) }))
                 .LdStr("lambda")
                 .New(typeof(TsDelegate).GetConstructor(new[] { typeof(TsScript), typeof(string) }));
+
+            if(lambda.ConstructLocally)
+            {
+                _closure.Type.CreateType();
+                _closure = _closure.Parent;
+            }
         }
 
         public void Visit(LocalsNode localsNode)
@@ -3062,13 +3065,9 @@ namespace TaffyScript.Compiler.Backend
                 var symbol = _table.Defined(local.Name);
                 if (symbol is VariableLeaf leaf)
                 {
+                    FieldInfo field = null;
                     if (leaf.IsCaptured)
-                    {
-                        if (_closures > 0)
-                            emit.LdArg(0);
-                        else
-                            emit.LdLocal(_closure.Self);
-                    }
+                        _closure.LoadVariablesClosure(leaf.Name, emit, out field);
 
                     if (local.HasValue)
                     {
@@ -3079,7 +3078,7 @@ namespace TaffyScript.Compiler.Backend
                         emit.Call(TsTypes.Empty);
 
                     if (leaf.IsCaptured)
-                        emit.StFld(_closure.Fields[leaf.Name]);
+                        emit.StFld(field);
                     else
                         emit.StLocal(_locals[symbol]);
                 }
@@ -3770,11 +3769,8 @@ namespace TaffyScript.Compiler.Backend
                     {
                         if (leaf.IsCaptured)
                         {
-                            if (_closures > 0)
-                                emit.LdArg(0);
-                            else
-                                emit.LdLocal(_closure.Self);
-                            emit.LdFldA(_closure.Fields[variable.Name]);
+                            _closure.LoadVariablesClosure(leaf.Name, emit, out var field);
+                            emit.LdFldA(field);
                         }
                         else
                             emit.LdLocalA(_locals[symbol]);
@@ -4107,11 +4103,8 @@ namespace TaffyScript.Compiler.Backend
                     {
                         if (leaf.IsCaptured)
                         {
-                            if (_closures > 0)
-                                emit.LdArg(0);
-                            else
-                                emit.LdLocal(_closure.Self);
-                            emit.LdFldA(_closure.Fields[variable.Name]);
+                            _closure.LoadVariablesClosure(leaf.Name, emit, out var field);
+                            emit.LdFldA(field);
                         }
                         else
                             emit.LdLocalA(_locals[symbol]);
@@ -4384,13 +4377,9 @@ namespace TaffyScript.Compiler.Backend
 
         private void MemberStaticAccessUnaryVariable(MemberAccessNode member, VariableLeaf leaf, ISyntaxElement unary, string op, bool postfix)
         {
+            FieldInfo field = default;
             if (leaf != null && leaf.IsCaptured)
-            {
-                if (_closures == 0)
-                    emit.LdLocal(_closure.Self);
-                else
-                    emit.LdArg(0);
-            }
+                _closure.LoadVariablesClosure(leaf.Name, emit, out field);
 
             if (member.Right is VariableToken variable)
             {
@@ -4398,7 +4387,7 @@ namespace TaffyScript.Compiler.Backend
                 var target = GetLocal(typeof(ITsInstance));
 
                 if (leaf != null && leaf.IsCaptured)
-                    emit.LdFld(_closure.Fields[leaf.Name]);
+                    emit.LdFld(field);
                 else
                     emit.LdLocal(_locals[leaf]);
 
@@ -4428,7 +4417,7 @@ namespace TaffyScript.Compiler.Backend
             else
             {
                 if (leaf != null && leaf.IsCaptured)
-                    emit.LdFld(_closure.Fields[leaf.Name]);
+                    emit.LdFld(field);
                 else
                     emit.LdLocal(_locals[leaf]);
 
@@ -4682,6 +4671,7 @@ namespace TaffyScript.Compiler.Backend
                     {
                         var lte = emit.DefineLabel();
                         var end = emit.DefineLabel();
+                        FieldInfo field = default;
                         emit.Dup()
                             .LdNull()
                             .Beq(lte)
@@ -4697,12 +4687,9 @@ namespace TaffyScript.Compiler.Backend
                         {
                             var secret = GetLocal();
                             emit.StLocal(secret);
-                            if (_closures == 0)
-                                emit.LdLocal(_closure.Self);
-                            else
-                                emit.LdArg(0);
+                            _closure.LoadVariablesClosure(leaf.Name, emit, out field);
                             emit.LdLocal(secret)
-                                .StFld(_closure.Fields[leaf.Name]);
+                                .StFld(field);
 
                             FreeLocal(secret);
                         }
@@ -4714,18 +4701,13 @@ namespace TaffyScript.Compiler.Backend
                         //Must be ConstantToken
 
                         if (leaf.IsCaptured)
-                        {
-                            if (_closures == 0)
-                                emit.LdLocal(_closure.Self);
-                            else
-                                emit.LdArg(0);
-                        }
+                            _closure.LoadVariablesClosure(leaf.Name, emit, out field);
 
                         arg.Value.Accept(this);
                         ConvertTopToObject();
 
                         if (leaf.IsCaptured)
-                            emit.StFld(_closure.Fields[leaf.Name]);
+                            emit.StFld(field);
                         else
                             emit.StLocal(_locals[symbol]);
 
@@ -4741,13 +4723,11 @@ namespace TaffyScript.Compiler.Backend
                         {
                             var secret = GetLocal();
                             emit.StLocal(secret);
-                            if (_closures == 0)
-                                emit.LdLocal(_closure.Self);
-                            else
-                                emit.LdArg(0);
+
+                            _closure.LoadVariablesClosure(leaf.Name, emit, out var field);
 
                             emit.LdLocal(secret)
-                                .StFld(_closure.Fields[leaf.Name]);
+                                .StFld(field);
 
                             FreeLocal(secret);
                         }
@@ -4961,13 +4941,7 @@ namespace TaffyScript.Compiler.Backend
                     }
                     else if (variableSymbol is VariableLeaf leaf && leaf.IsCaptured)
                     {
-                        var capturedField = _closure.Fields[variableSymbol.Name];
-
-                        if (_closures == 0)
-                            emit.LdLocal(_closure.Self);
-                        else
-                            emit.LdArg(0);
-
+                        _closure.LoadVariablesClosure(leaf.Name, emit, out var capturedField);
                         emit.LdFld(capturedField);
                     }
                     else

@@ -80,7 +80,7 @@ namespace TaffyScript.Numbers
         /// <summary>
         /// Rounds a number to the closest integer that is greater than or equal to the value.
         /// </summary>
-        /// <param name="value" type="number">The value to round.</param>
+        /// <arg name="value" type="number">The value to round.</arg>
         /// <returns>number</returns>
         [TaffyScriptMethod]
         public static TsObject ceil(TsObject[] args)
@@ -139,7 +139,7 @@ namespace TaffyScript.Numbers
         /// <summary>
         /// Rounds a number to the closest integer that is less than or equal to the value.
         /// </summary>
-        /// <param name="value" type="number">The value to round.</param>
+        /// <arg name="value" type="number">The value to round.</arg>
         /// <returns>number</returns>
         [TaffyScriptMethod]
         public static TsObject floor(TsObject[] args)

@@ -14,6 +14,9 @@ namespace TaffyScript.Compiler.FrontEnd
     {
         private bool _inLambda = false;
         private bool _hasParent = false;
+        private bool _createLambdaLocally = false;
+        private Stack<string> _definedVariables = new Stack<string>();
+        private Stack<ISyntaxElement> _nestedBlocks = new Stack<ISyntaxElement>();
         private LoopType _currentLoop = LoopType.None;
         private MethodType _currentMethod = MethodType.None;
         private PropertyType _currentProperty = PropertyType.None;
@@ -21,7 +24,6 @@ namespace TaffyScript.Compiler.FrontEnd
         private IErrorLogger _logger;
         private SymbolTable _table;
         private SymbolResolver _resolver;
-        private Dictionary<string, string> _inheritance = new Dictionary<string, string>();
 
         public Resolver(IErrorLogger logger, SymbolTable table, SymbolResolver resolver)
         {
@@ -122,10 +124,45 @@ namespace TaffyScript.Compiler.FrontEnd
 
         public void Visit(BlockNode block)
         {
+            var variableCount = _definedVariables.Count;
+            var blockCount = _nestedBlocks.Count;
+
+            if(block.Id != null)
+            {
+                _table.Enter(block.Id);
+                _environment = new Environment(_environment);
+            }
+
             foreach (var element in block.Body)
             {
                 element.Parent = block;
-                element.Accept(this);
+                switch(element.Type)
+                {
+                    case SyntaxType.If:
+                    case SyntaxType.Switch:
+                    case SyntaxType.While:
+                    case SyntaxType.Repeat:
+                    case SyntaxType.Do:
+                    case SyntaxType.For:
+                    case SyntaxType.Block:
+                        _nestedBlocks.Push(element);
+                        break;
+                    default:
+                        element.Accept(this);
+                        break;
+                }
+            }
+
+            while (_definedVariables.Count > variableCount)
+                block.Variables.Add((VariableLeaf)_table.Defined(_definedVariables.Pop()));
+
+            while (_nestedBlocks.Count > blockCount)
+                _nestedBlocks.Pop().Accept(this);
+
+            if(block.Id != null)
+            {
+                _environment = _environment.Enclosing;
+                _table.Exit();
             }
         }
 
@@ -257,11 +294,15 @@ namespace TaffyScript.Compiler.FrontEnd
             foreach (var arg in lambdaNode.Arguments)
                 _environment.Define(arg.Name, EncounterType.Local);
 
+            var createLambdaLocally = _createLambdaLocally;
+            _createLambdaLocally = true;
             var inLambda = _inLambda;
             _inLambda = true;
             lambdaNode.Body.Parent = lambdaNode;
             lambdaNode.Body.Accept(this);
             _inLambda = inLambda;
+            lambdaNode.ConstructLocally = _createLambdaLocally;
+            _createLambdaLocally = createLambdaLocally;
             _environment = _environment.Enclosing;
             _table.Exit();
         }
@@ -270,10 +311,12 @@ namespace TaffyScript.Compiler.FrontEnd
         {
             foreach(var variable in locals.Locals)
             {
-                if (_environment.Encountered(variable.Name, out var encounterType) && encounterType != EncounterType.Local)
-                    _logger.Error("Tried to declare a variable that has already been encountered in the current scope.", variable.Position);
+                if (_environment.Encountered(variable.Name, out var encounterType))
+                    _logger.Error($"Tried to declare variable '{variable.Name}' that has already been declared int the current or a parent scope.", variable.Position);
                 else
                     _environment.FastDefine(variable.Name, EncounterType.Local);
+
+                _definedVariables.Push(variable.Name);
 
                 if(variable.Value != null)
                 {
@@ -548,7 +591,10 @@ namespace TaffyScript.Compiler.FrontEnd
                         break;
                     case SymbolType.Variable:
                         if (_inLambda && symbol is VariableLeaf leaf && _environment.Depth(variableToken.Name) != 0)
+                        {
                             leaf.IsCaptured = true;
+                            _createLambdaLocally = false;
+                        }
                         break;
                     default:
                         break;

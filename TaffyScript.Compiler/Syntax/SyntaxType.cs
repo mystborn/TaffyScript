@@ -33,7 +33,6 @@ namespace TaffyScript.Compiler
         Default,
         While,
         Repeat,
-        With,
         Do,
         For,
         Return,

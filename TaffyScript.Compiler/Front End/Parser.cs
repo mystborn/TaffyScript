@@ -22,6 +22,7 @@ namespace TaffyScript.Compiler
         private Tokenizer _stream;
         private SymbolTable _table;
         private int _lambdaId = 0;
+        private ulong _blockId = 0;
         private bool _canAssign = false;
         private bool _inPropertySet = false;
         private RootNode _root;
@@ -473,7 +474,7 @@ namespace TaffyScript.Compiler
                         if (!_table.AddChild(new ScriptSymbol(propertySymbol, getToken.Text, scope, accessModifiers)))
                             Error(getToken, $"Property '{property.Text}' defines two get scripts.");
                         _table.Enter("get");
-                        get = new ScriptNode(getToken.Text, new List<VariableDeclaration>(), BlockStatement(), getToken.Position);
+                        get = new ScriptNode(getToken.Text, new List<VariableDeclaration>(), BlockStatement(false), getToken.Position);
                         _table.Exit();
                         break;
                     case "set":
@@ -484,7 +485,7 @@ namespace TaffyScript.Compiler
                         _table.Enter("set");
                         set = new ScriptNode(setToken.Text,
                                              new List<VariableDeclaration>() { new VariableDeclaration("value", null, setToken.Position) },
-                                             BlockStatement(),
+                                             BlockStatement(false),
                                              setToken.Position);
                         _inPropertySet = false;
                         _table.Exit();
@@ -521,7 +522,7 @@ namespace TaffyScript.Compiler
                 Error(name, $"Name conflict between script and {_table.Defined(name.Text).Type} {name.Text}");
             _table.Enter(name.Text);
             var arguments = ReadScriptArguments();
-            var body = BlockStatement();
+            var body = BlockStatement(false);
             _table.Exit();
             return new ScriptNode(name.Text, arguments, body, name.Position);
         }
@@ -559,7 +560,7 @@ namespace TaffyScript.Compiler
         private ISyntaxElement EmbeddedStatement()
         {
             if (Check(TokenType.OpenBrace))
-                return BlockStatement();
+                return BlockStatement(true);
             else
                 return SimpleStatement();
         }
@@ -587,7 +588,7 @@ namespace TaffyScript.Compiler
                     var repeatCount = Expression();
                     if (paren)
                         Consume(TokenType.CloseParen, "Expected matching ')' after repeat count");
-                    var body = BodyStatement();
+                    var body = BodyStatement(true);
                     return new RepeatNode(repeatCount, body, token.Position);
                 case TokenType.While:
                     token = Consume(TokenType.While, "Expected 'while'");
@@ -595,11 +596,11 @@ namespace TaffyScript.Compiler
                     var condition = Expression();
                     if (paren)
                         Consume(TokenType.CloseParen, "Expected matching ')' after while condition");
-                    body = BodyStatement();
+                    body = BodyStatement(true);
                     return new WhileNode(condition, body, token.Position);
                 case TokenType.Do:
                     token = Consume(TokenType.Do, "Expected 'do'");
-                    body = BodyStatement();
+                    body = BodyStatement(true);
                     while (Match(TokenType.SemiColon)) ;
                     Consume(TokenType.Until, "Expected 'until' after do body");
                     paren = Match(TokenType.OpenParen);
@@ -613,24 +614,44 @@ namespace TaffyScript.Compiler
                     condition = Expression();
                     if (paren)
                         Consume(TokenType.CloseParen, "Expected matching ')' after if condition");
-                    body = BodyStatement();
+                    body = BodyStatement(true);
                     Match(TokenType.SemiColon);
                     ISyntaxElement elseBranch = null;
                     if (Match(TokenType.Else))
-                        elseBranch = BodyStatement();
+                        elseBranch = BodyStatement(true);
                     return new IfNode(condition, body, elseBranch, token.Position);
                 case TokenType.For:
                     token = Consume(TokenType.For, "Expected 'for'");
                     Consume(TokenType.OpenParen, "Expected '(' after for");
+
+                    var blockId = GetBlockId();
+                    _table.Enter(blockId);
+
                     ISyntaxElement init = null;
                     ISyntaxElement increment = null;
 
                     // If there is no initializer, we can make init an EndToken
                     // because they don't get processed but they can be visited.
-                    if (!Check(TokenType.SemiColon))
-                        init = BodyStatement();
-                    else
-                        init = new EndToken(_stream.Position);
+                    switch(_stream.Current.Type)
+                    {
+                        case TokenType.Var:
+                            init = Locals();
+                            break;
+                        case TokenType.SemiColon:
+                            init = new EndToken(_stream.Position);
+                            break;
+                        default:
+                            init = ExpressionStatement();
+                            if(Check(TokenType.Comma))
+                            {
+                                var expressions = new List<ISyntaxElement>();
+                                expressions.Add(init);
+                                while(Match(TokenType.Comma))
+                                    expressions.Add(ExpressionStatement());
+                                init = new BlockNode(expressions, null, expressions[0].Position);
+                            }
+                            break;
+                    }
 
                     var semi = Consume(TokenType.SemiColon, "Expected ';' after for initializer");
 
@@ -643,13 +664,15 @@ namespace TaffyScript.Compiler
                     Consume(TokenType.SemiColon, "Expected ';' after for condition");
 
                     if (!Check(TokenType.CloseParen))
-                        increment = BodyStatement();
+                        increment = ExpressionStatement();
                     else
                         increment = new EndToken(_stream.Position);
 
                     Consume(TokenType.CloseParen, "Expected ')' after for increment");
-                    body = BodyStatement();
-                    return new ForNode(init, condition, increment, body, token.Position);
+                    body = BodyStatement(false);
+
+                    _table.Exit();
+                    return new BlockNode(new List<ISyntaxElement>() { new ForNode(init, condition, increment, body, token.Position) }, blockId, token.Position);
                 case TokenType.Switch:
                     token = Consume(TokenType.Switch, "Expected 'switch'");
                     paren = Match(TokenType.OpenParen);
@@ -686,29 +709,55 @@ namespace TaffyScript.Compiler
         {
             List<ISyntaxElement> statements = new List<ISyntaxElement>();
             var start = Consume(TokenType.Colon, "Expected ':' after switch case");
+            var id = GetBlockId();
+            _table.EnterNew(id, SymbolType.Block);
             while (!_stream.Finished && !Check(TokenType.Case) && !Check(TokenType.Default) && !Check(TokenType.CloseBrace))
                 statements.Add(Statement());
-            return new BlockNode(statements, start.Position);
+            _table.Exit();
+            return new BlockNode(statements, id, start.Position);
         }
 
-        private BlockNode BlockStatement()
+        private BlockNode BlockStatement(bool enterScope)
         {
             var start = Consume(TokenType.OpenBrace, "Expected '{' at start of block");
+
+            string id = null;
+            if (enterScope)
+            {
+                id = GetBlockId();
+                _table.EnterNew(id, SymbolType.Block);
+            }
+
             var statements = new List<ISyntaxElement>();
             while (!_stream.Finished && !Check(TokenType.CloseBrace))
                 statements.Add(Statement());
 
             Consume(TokenType.CloseBrace, "Expected '}' after block body");
-            return new BlockNode(statements, start.Position);
+
+            if(enterScope)
+                _table.Exit();
+
+            return new BlockNode(statements, id, start.Position);
         }
 
-        private BlockNode BodyStatement()
+        private BlockNode BodyStatement(bool enterScope)
         {
             if (Check(TokenType.OpenBrace))
-                return BlockStatement();
+                return BlockStatement(enterScope);
+
+            string id = null;
+            if (enterScope)
+            {
+                id = GetBlockId();
+                _table.EnterNew(id, SymbolType.Block);
+            }
 
             var body = Statement();
-            return new BlockNode(new List<ISyntaxElement>() { body }, body.Position);
+
+            if(enterScope)
+                _table.Exit();
+
+            return new BlockNode(new List<ISyntaxElement>() { body }, id, body.Position);
         }
 
         private ISyntaxElement ExpressionStatement()
@@ -734,7 +783,7 @@ namespace TaffyScript.Compiler
                 var scope = $"lambda{_lambdaId++}";
                 _table.EnterNew(scope, SymbolType.Script, SymbolScope.Local);
                 var arguments = ReadScriptArguments();
-                var body = BlockStatement();
+                var body = BlockStatement(false);
                 _table.Exit();
                 return new LambdaNode(scope, arguments, body, token.Position);
             }
@@ -1454,6 +1503,11 @@ namespace TaffyScript.Compiler
                 type = new MemberAccessNode(type, new VariableToken(token.Text, token.Position), token.Position);
             }
             return type;
+        }
+
+        private string GetBlockId()
+        {
+            return $"<>block_{_blockId++}";
         }
 
         private void Synchronize(params TokenType[] tokens)
