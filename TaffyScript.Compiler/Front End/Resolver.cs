@@ -153,11 +153,11 @@ namespace TaffyScript.Compiler.FrontEnd
                 }
             }
 
-            while (_definedVariables.Count > variableCount)
-                block.Variables.Add((VariableLeaf)_table.Defined(_definedVariables.Pop()));
-
             while (_nestedBlocks.Count > blockCount)
                 _nestedBlocks.Pop().Accept(this);
+
+            while (_definedVariables.Count > variableCount)
+                block.Variables.Add((VariableLeaf)_table.Defined(_definedVariables.Pop()));
 
             if(block.Id != null)
             {
@@ -501,6 +501,7 @@ namespace TaffyScript.Compiler.FrontEnd
                 _environment.Define(arg.Name, EncounterType.Local);
             script.Body.Parent = script;
             script.Body.Accept(this);
+
             _environment = _environment.Enclosing;
             _currentMethod = enclosing;
             _table.Exit();

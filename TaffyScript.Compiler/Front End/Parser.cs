@@ -625,7 +625,7 @@ namespace TaffyScript.Compiler
                     Consume(TokenType.OpenParen, "Expected '(' after for");
 
                     var blockId = GetBlockId();
-                    _table.Enter(blockId);
+                    _table.EnterNew(blockId, SymbolType.Block);
 
                     ISyntaxElement init = null;
                     ISyntaxElement increment = null;
@@ -664,7 +664,13 @@ namespace TaffyScript.Compiler
                     Consume(TokenType.SemiColon, "Expected ';' after for condition");
 
                     if (!Check(TokenType.CloseParen))
-                        increment = ExpressionStatement();
+                    {
+                        var expressions = new List<ISyntaxElement>();
+                        do
+                            expressions.Add(ExpressionStatement());
+                        while (Match(TokenType.Comma));
+                        increment = new BlockNode(expressions, null, expressions[0].Position);
+                    }
                     else
                         increment = new EndToken(_stream.Position);
 
