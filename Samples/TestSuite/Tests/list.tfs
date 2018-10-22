@@ -4,35 +4,28 @@ using TaffyScript.Tests;
 namespace LanguageTests {
     script run_list_tests() {
         var tests = new UnitTest("List Tests",
-                                      list_create,
-                                      list_add_one,
-                                      list_add_many,
-                                      list_clear,
-                                      list_insert,
-                                      list_index_of,
-                                      list_remove,
-                                      list_set_script_ib,
-                                      list_set_script_oob,
-                                      list_set_access_ib,
-                                      list_set_access_oob,
-                                      list_get_script_ib,
-                                      list_get_access_ib,
-                                      run_faulty_list_tests);
+                                 list_create,
+                                 list_add_one,
+                                 list_add_many,
+                                 list_clear,
+                                 list_insert,
+                                 list_index_of,
+                                 list_remove,
+                                 list_set_script_ib,
+                                 list_set_script_oob,
+                                 list_set_access_ib,
+                                 list_set_access_oob,
+                                 list_get_script_ib,
+                                 list_get_script_oob,
+                                 list_get_access_ib,
+                                 list_get_access_oob);
         tests.run_tests();
-    }
-
-    script run_faulty_list_tests() {
-        assert(try_expect(list_get_script_oob, "ArgumentOutOfRangeException"));
-        assert(try_expect(list_get_access_oob, "ArgumentOutOfRangeException"));
-        assert(try_expect(list_call_non_existant_script, "MemberAccessException"));
-        assert(try_expect(list_get_non_existant_member, "MemberAccessException"));
-        test_it("faulty list");
     }
 
     script list_create() {
         test_it("var l = new List()");
         var list = new List();
-        assert_equal(typeof(list), "List");
+        assert_equal(typeof(list), List);
     }
 
     script list_add_one() {
@@ -123,6 +116,7 @@ namespace LanguageTests {
 
     script list_get_script_oob() {
         test_it("val = list.get(val (oob))");
+        expect_error("ArgumentOutOfRangeException");
         var list = new List();
         list.add(20);
         var result = list.get(1);
@@ -137,18 +131,9 @@ namespace LanguageTests {
 
     script list_get_access_oob() {
         test_it("val = list[val (oob)]");
+        expect_error("ArgumentOutOfRangeException");
         var list = new List();
         list.add(20);
         var result = list[1];
-    }
-
-    script list_call_non_existant_script() {
-        var list = new List();
-        list.moo();
-    }
-
-    script list_get_non_existant_member() {
-        var list = new List();
-        var result = list.member;
     }
 }

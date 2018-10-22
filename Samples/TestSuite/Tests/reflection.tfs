@@ -2,23 +2,23 @@ using UnitTests;
 using TaffyScript.Reflection;
 
 namespace LanguageTests {
-    script run_reflection_tests() {
+    /*cript run_reflection_tests() {
         var tests = new UnitTest("Reflection Tests",
-                                      event_perform_object_with_args,
-                                      event_perform_object_without_args,
-                                      reflection_object_get_name,
-                                      reflection_object_get_parent,
-                                      reflection_object_is_ancestor,
-                                      reflection_script_execute,
-                                      reflection_script_exists,
-                                      reflection_global_exists,
-                                      reflection_global_get,
-                                      reflection_global_get_names,
-                                      reflection_global_set,
-                                      reflection_instance_exists,
-                                      reflection_instance_get,
-                                      reflection_instance_get_names,
-                                      reflection_instance_set);
+                                 event_perform_object_with_args,
+                                 event_perform_object_without_args,
+                                 reflection_object_get_name,
+                                 reflection_object_get_parent,
+                                 reflection_object_is_ancestor,
+                                 reflection_script_execute,
+                                 reflection_script_exists,
+                                 reflection_global_exists,
+                                 reflection_global_get,
+                                 reflection_global_get_names,
+                                 reflection_global_set,
+                                 reflection_instance_exists,
+                                 reflection_instance_get,
+                                 reflection_instance_get_names,
+                                 reflection_instance_set);
         tests.run_tests();
     }
 
@@ -143,7 +143,7 @@ namespace LanguageTests {
 
     script reflection_echo() {
         return argument0;
-    }
+    }*/
 
     object obj_mirror {
         script create() {

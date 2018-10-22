@@ -135,6 +135,7 @@ namespace TaffyScript.Compiler.Backend
         private Closure _closure = null;
         private int _closures = 0;
         private int _closureDisplyNumber = 0;
+        private TypeBuilder _currentType = null;
         private ISymbol _parent = null;
         private int _argumentArray = 0;
 
@@ -925,7 +926,12 @@ namespace TaffyScript.Compiler.Backend
         private Closure DefineClosure()
         {
             var parent = _closure;
-            var bt = GetBaseType(_namespace);
+            TypeBuilder bt;
+            if (_currentType != null)
+                bt = _currentType;
+            else
+                bt = GetBaseType(_namespace);
+
             var type = bt.DefineNestedType($"<>{emit.Method.Name}_Display_{_closureDisplyNumber++}", 
                                            TypeAttributes.NestedAssembly | 
                                                TypeAttributes.AnsiClass | 
@@ -3426,7 +3432,7 @@ namespace TaffyScript.Compiler.Backend
                 parent = _assets.GetDefinedType(_parent, objectNode.Inherits.Position);
 
             var info = _assets.GetObjectInfo(_table.Current, objectNode.Position);
-            var type = (TypeBuilder)info.Type;
+            _currentType = (TypeBuilder)info.Type;
 
             var scripts = new List<MethodInfo>();
 
@@ -3435,7 +3441,7 @@ namespace TaffyScript.Compiler.Backend
             ConstructorBuilder cctor = null;
             ILEmitter init = null;
             var ctor = new ILEmitter(info.Constructor as ConstructorBuilder, new[] { typeof(TsObject[]) });
-            ctor.PushType(type);
+            ctor.PushType(_currentType);
 
             foreach(var field in objectNode.Fields)
             {
@@ -3443,14 +3449,14 @@ namespace TaffyScript.Compiler.Backend
 
                 // This prevents the compiler from completely crashing when
                 // an object tries to override a sealed script.
-                if (fieldInfo.DeclaringType != type)
+                if (fieldInfo.DeclaringType != _currentType)
                     continue;
 
                 if (fieldInfo.IsStatic)
                 {
                     if(cctor is null)
                     {
-                        cctor = type.DefineTypeInitializer();
+                        cctor = _currentType.DefineTypeInitializer();
                         init = new ILEmitter(cctor, Type.EmptyTypes);
                     }
 
@@ -3491,7 +3497,7 @@ namespace TaffyScript.Compiler.Backend
 
                 // This prevents the compiler from completely crashing when
                 // an object tries to override a sealed script.
-                if (property is null || property.DeclaringType != type)
+                if (property is null || property.DeclaringType != _currentType)
                     continue;
 
                 _table.Enter(property.Name);
@@ -3534,7 +3540,7 @@ namespace TaffyScript.Compiler.Backend
 
                 // This prevents the compiler from completely crashing when
                 // an object tries to override a sealed script.
-                if (method is null || method.DeclaringType != type)
+                if (method is null || method.DeclaringType != _currentType)
                     continue;
 
                 _argumentArray = method.IsStatic ? 0 : 1;
@@ -3559,9 +3565,9 @@ namespace TaffyScript.Compiler.Backend
             _assets.FinalizeType(info, _parent, scripts, objectNode.Position);
 
             if (parent != null && parent is TypeBuilder builder && !builder.IsCreated())
-                _unresolvedTypes.Add(type, builder);
+                _unresolvedTypes.Add(_currentType, builder);
             else
-                type.CreateType();
+                _currentType.CreateType();
 
             if (_parent != null)
             {
@@ -3573,6 +3579,7 @@ namespace TaffyScript.Compiler.Backend
                 }
 
             }
+            _currentType = null;
             _table.Exit();
             _parent = temp;
         }

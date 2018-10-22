@@ -43,15 +43,13 @@ namespace LanguageTests {
         print("");
         run_string_tests();
         print("");
-        run_reflection_tests();
-        print("");
+        // run_reflection_tests();
+        // print("");
         run_repeat_tests();
         print("");
         run_logical_and_tests();
         print("");
         run_logical_or_tests();
-        print("");
-        run_scope_tests();
         print("");
         run_static_tests();
         print("");

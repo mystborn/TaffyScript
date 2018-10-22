@@ -55,9 +55,10 @@ namespace TaffyScript.Strings
         /// Takes an ordinal value and converts it to a character.
         /// </summary>
         /// <returns>string</returns>
-        public static TsObject to_char(TsObject[] args)
+        public static unsafe TsObject to_char(TsObject[] args)
         {
-            return (char)(int)args[0];
+            var val = (short)args[0];
+            return *((char*)&val);
         }
     }
 }

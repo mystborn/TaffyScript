@@ -3,8 +3,8 @@ using UnitTests;
 namespace LanguageTests {
     script run_return_tests() {
         var tests = new UnitTest("Return Tests",
-                                      return_something_works,
-                                      return_nothing_works);
+                                 return_something_works,
+                                 return_nothing_works);
         tests.run_tests();
     }
 

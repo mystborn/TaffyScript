@@ -5,23 +5,23 @@ namespace LanguageTests {
     script run_postfix_tests() {
         var obj = new obj_postfix();
         var tests = new UnitTest("Postfix Tests",
-                                      postfix_array_increment,
-                                      postfix_array_decrement,
-                                      postfix_list_increment,
-                                      postfix_list_decrement,
-                                      postfix_local_var_increment,
-                                      postfix_local_var_decrement,
-                                      postfix_global_var_increment,
-                                      postfix_global_var_decrement,
-                                      postfix_local_var_decrement,
-                                      postfix_local_object_var_increment,
-                                      postfix_local_object_var_decrement,
-                                      postfix_global_object_var_increment,
-                                      postfix_global_object_var_decrement,
-                                      obj.postfix_object_var_increment,
-                                      obj.postfix_object_var_decrement,
-                                      obj.postfix_self_var_increment,
-                                      obj.postfix_self_var_decrement);
+                                 postfix_array_increment,
+                                 postfix_array_decrement,
+                                 postfix_list_increment,
+                                 postfix_list_decrement,
+                                 postfix_local_var_increment,
+                                 postfix_local_var_decrement,
+                                 postfix_global_var_increment,
+                                 postfix_global_var_decrement,
+                                 postfix_local_var_decrement,
+                                 postfix_local_object_var_increment,
+                                 postfix_local_object_var_decrement,
+                                 postfix_global_object_var_increment,
+                                 postfix_global_object_var_decrement,
+                                 obj.postfix_object_var_increment,
+                                 obj.postfix_object_var_decrement,
+                                 obj.postfix_self_var_increment,
+                                 obj.postfix_self_var_decrement);
 
         tests.run_tests();
     }

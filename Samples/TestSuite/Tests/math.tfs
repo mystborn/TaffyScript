@@ -9,24 +9,25 @@
 
 using UnitTests;
 using TaffyScript.Numbers;
+using TaffyScript.Reflection;
 
 namespace LanguageTests {
     script run_math_tests() {
         var tests = new UnitTest("Math Tests",
-                                      math_abs,
-                                      math_ceil,
-                                      math_choose,
-                                      math_clamp_none,
-                                      math_clamp_min,
-                                      math_clamp_max,
-                                      math_floor,
-                                      math_max,
-                                      math_min,
-                                      math_random_seed,
-                                      math_round,
-                                      math_sign,
-                                      math_square,
-                                      math_square_root);
+                                 math_abs,
+                                 math_ceil,
+                                 math_choose,
+                                 math_clamp_none,
+                                 math_clamp_min,
+                                 math_clamp_max,
+                                 math_floor,
+                                 math_max,
+                                 math_min,
+                                 math_random_seed,
+                                 math_round,
+                                 math_sign,
+                                 math_square,
+                                 math_square_root);
         tests.run_tests();
     }
 
@@ -89,7 +90,7 @@ namespace LanguageTests {
     script math_random_seed() {
         test_it("random_seed");
         var seed = random_get_seed();
-        assert_equal(typeof(seed), "real");
+        assert(is_number(seed));
         random_set_seed(987654321);
         seed = random_get_seed();
         assert_equal(seed, 987654321);

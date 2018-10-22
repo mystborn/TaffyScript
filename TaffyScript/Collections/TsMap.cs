@@ -15,11 +15,11 @@ namespace TaffyScript.Collections
     ///     <summary>Gets the number of items added to the map.</summary>
     ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.count</source>
     /// </property>
-    /// <property name="keys" type="Enumerable" access="get">
+    /// <property name="keys" type="[MapKeyCollection]({{site.baseurl}}/docs/TaffyScript/Collections/MapKeyCollection)" access="get">
     ///     <summary>Gets a collection of the keys added to the map.</summary>
     ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.keys</source>
     /// </property>
-    /// <property name="values" type="Enumerable" access="get">
+    /// <property name="values" type="[MapValueCollection]({{site.baseurl}}/docs/TaffyScript/Collections/MapValueCollection)" access="get">
     ///     <summary>Gets a collection of the values added to the map.</summary>
     ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.values</source>
     /// </property>
@@ -99,7 +99,9 @@ namespace TaffyScript.Collections
                 case "count":
                     return Source.Count;
                 case "keys":
-                    return new WrappedEnumerable(Source.Keys);
+                    return new MapKeyCollection(Source.Keys);
+                case "values":
+                    return new MapValueCollection(Source.Values);
                 default:
                     return base.GetMember(name);
             }
@@ -234,6 +236,100 @@ namespace TaffyScript.Collections
         public TsObject copy(params TsObject[] args)
         {
             return new TsMap((IDictionary<TsObject, TsObject>)Source);
+        }
+    }
+
+    /// <summary>
+    /// Represents the collection of keys in a Map.
+    /// </summary>
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.keycollection?view=netframework-4.7</source>
+    /// <property name="count" type="number" access="get">
+    ///     <summary>Gets the number of elements contained in this collection.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.keycollection.count?view=netframework-4.7</source>
+    /// </property>
+    [TaffyScriptObject]
+    public sealed class MapKeyCollection : TsEnumerable
+    {
+        public override string ObjectType => "TaffyScript.Collections.MapKeyCollection";
+
+        public Dictionary<TsObject, TsObject>.KeyCollection Keys { get; }
+
+        public MapKeyCollection(Dictionary<TsObject, TsObject>.KeyCollection keys)
+        {
+            Keys = keys;
+        }
+
+        public override IEnumerator<TsObject> GetEnumerator()
+        {
+            return Keys.GetEnumerator();
+        }
+
+        public override TsObject GetMember(string name)
+        {
+            switch(name)
+            {
+                case "count":
+                    return Keys.Count;
+                default:
+                    return base.GetMember(name);
+            }
+        }
+
+        /// <summary>
+        /// Gets an Enumerator used to iterate over the items in the key collection.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.keycollection.getenumerator?view=netframework-4.7</source>
+        /// <returns>Enumerator</returns>
+        public override TsObject get_enumerator(TsObject[] args)
+        {
+            return TsEnumerator.Wrap(Keys.GetEnumerator());
+        }
+    }
+
+    /// <summary>
+    /// Represents the collection of values in a Map.
+    /// </summary>
+    /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.valuecollection?view=netframework-4.7</source>
+    /// <property name="count" type="number" access="get">
+    ///     <summary>Gets the number of elements contained in this collection.</summary>
+    ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.valuecollection.count?view=netframework-4.7</source>
+    /// </property>
+    [TaffyScriptObject]
+    public class MapValueCollection : TsEnumerable
+    {
+        public override string ObjectType => "TaffyScript.Collections.MapValueCollection";
+
+        public Dictionary<TsObject, TsObject>.ValueCollection Values { get; }
+
+        public MapValueCollection(Dictionary<TsObject, TsObject>.ValueCollection values)
+        {
+            Values = values;
+        }
+
+        public override IEnumerator<TsObject> GetEnumerator()
+        {
+            return Values.GetEnumerator();
+        }
+
+        public override TsObject GetMember(string name)
+        {
+            switch (name)
+            {
+                case "count":
+                    return Values.Count;
+                default:
+                    return base.GetMember(name);
+            }
+        }
+
+        /// <summary>
+        /// Gets an Enumerator used to iterate over the items in the key collection.
+        /// </summary>
+        /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.valuecollection.getenumerator?view=netframework-4.7</source>
+        /// <returns>Enumerator</returns>
+        public override TsObject get_enumerator(TsObject[] args)
+        {
+            return TsEnumerator.Wrap(Values.GetEnumerator());
         }
     }
 }

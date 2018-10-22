@@ -38,7 +38,7 @@ namespace LanguageTests {
 
     object obj_comp3 : obj_comp2 {
         script moo() {
-            return "moo" + event_inherited();
+            return "moo" + base();
         }
     }
 }

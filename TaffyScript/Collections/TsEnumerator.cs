@@ -51,6 +51,11 @@ namespace TaffyScript.Collections
             reset(null);
         }
 
+        public static TsEnumerator Wrap(IEnumerator<TsObject> enumerator)
+        {
+            return new WrappedEnumerator(enumerator);
+        }
+
         public virtual TsObject Call(string scriptName, params TsObject[] args)
         {
             switch(scriptName)

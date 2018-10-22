@@ -8,13 +8,13 @@ using TaffyScript.Reflection;
 namespace LanguageTests {
     script run_lambda_tests() {
         var tests = new UnitTest("Lambda Tests",
-                                      lambda_no_capture,
-                                      lambda_capture_local,
-                                      lambda_capture_argument,
-                                      lambda_capture_default_argument,
-                                      lambda_argument,
-                                      lambda_local,
-                                      lambda_nested_lambda);
+                                 lambda_no_capture,
+                                 lambda_capture_local,
+                                 lambda_capture_argument,
+                                 lambda_capture_default_argument,
+                                 lambda_argument,
+                                 lambda_local,
+                                 lambda_nested_lambda);
 
         tests.run_tests();
     }

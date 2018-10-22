@@ -3,21 +3,21 @@ using UnitTests;
 namespace LanguageTests {
     script run_map_tests() {
         var tests = new UnitTest("Map Tests",
-                                      map_create,
-                                      map_add_new,
-                                      map_add_duplicate,
-                                      map_clear,
-                                      map_remove_true,
-                                      map_remove_false,
-                                      map_contains_key_true,
-                                      map_contains_key_false,
-                                      map_copy,
-                                      map_keys_some,
-                                      map_keys_none,
-                                      map_get_script,
-                                      map_get_access,
-                                      map_set_script,
-                                      map_set_access);
+                                 map_create,
+                                 map_add_new,
+                                 map_add_duplicate,
+                                 map_clear,
+                                 map_remove_true,
+                                 map_remove_false,
+                                 map_contains_key_true,
+                                 map_contains_key_false,
+                                 map_copy,
+                                 map_keys_some,
+                                 map_keys_none,
+                                 map_get_script,
+                                 map_get_access,
+                                 map_set_script,
+                                 map_set_access);
 
         tests.run_tests();
     }
@@ -25,7 +25,7 @@ namespace LanguageTests {
     script map_create() {
         test_it("var m = new Map()");
         var map = new Map();
-        assert_equal(typeof(map), "Map");
+        assert_equal(typeof(map), Map);
     }
 
     script map_add_new() {
@@ -101,19 +101,19 @@ namespace LanguageTests {
     }
 
     script map_keys_some() {
-        test_it("map.keys.length > 0");
+        test_it("map.keys.count > 0");
         var map = new Map();
         map.add(0, 2);
         map.add("moo", "cow");
         var keys = map.keys;
-        assert_equal(array_length(keys), 2);
+        assert_equal(keys.count, 2);
     }
 
     script map_keys_none() {
-        test_it("map.keys.length == 0");
+        test_it("map.keys.count == 0");
         var map = new Map();
         var keys = map.keys;
-        assert_equal(array_length(keys), 0);
+        assert_equal(keys.count, 0);
     }
 
     script map_get_script() {

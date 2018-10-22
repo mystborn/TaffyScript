@@ -140,7 +140,7 @@ namespace TaffyScript.Compiler
                     if (Match(TokenType.Assign))
                     {
                         var negate = Match(TokenType.Minus);
-                        var valueToken = Consume(TokenType.Number, "Enum value must be a numberic literal", 1);
+                        var valueToken = Consume(TokenType.Number, "Enum value must be a numeric literal", 1);
                         var style = NumberStyles.Integer;
                         var text = valueToken.Text;
                         if(text.StartsWith("0x"))

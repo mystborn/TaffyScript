@@ -156,8 +156,11 @@ namespace TaffyScript.Compiler.FrontEnd
             while (_nestedBlocks.Count > blockCount)
                 _nestedBlocks.Pop().Accept(this);
 
-            while (_definedVariables.Count > variableCount)
-                block.Variables.Add((VariableLeaf)_table.Defined(_definedVariables.Pop()));
+            if (block.Id != null || block.Parent.Type == SyntaxType.Script || block.Parent.Type == SyntaxType.Lambda)
+            {
+                while (_definedVariables.Count > variableCount)
+                    block.Variables.Add((VariableLeaf)_table.Defined(_definedVariables.Pop()));
+            }
 
             if(block.Id != null)
             {

@@ -81,12 +81,13 @@ namespace TaffyScript.Tests
             return result;
         }
 
-        public static void gc_collect()
+        public static TsObject gc_collect(TsObject[] args) 
         {
             GC.Collect();
+            return TsObject.Empty;
         }
 
-        public static long gc_get_used_memory()
+        public static TsObject gc_get_used_memory(TsObject[] args)
         {
             //return GC.GetTotalMemory(false);
             return Environment.WorkingSet;

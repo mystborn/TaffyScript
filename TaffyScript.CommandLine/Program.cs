@@ -28,7 +28,7 @@ namespace TaffyScript.CommandLine
                 path = extra[0];
 
 #if DEBUG
-            path = @"C:\Users\Chris\Source\TaffyScript\CompileTests";
+            path = @"C:\Users\Chris\Source\Repos\GmParser\Samples\TestSuite\UnitTestLib";
 #endif
 
             if (generateBuild)
@@ -73,7 +73,7 @@ namespace TaffyScript.CommandLine
                     sw.Stop();
                     Console.WriteLine($"Compile time: {sw.ElapsedMilliseconds} ms");
                 }
-                Console.WriteLine($"Output: {result.PathToAssembly}");
+                Console.WriteLine($"Output: {Path.GetFullPath(result.PathToAssembly)}");
                 if (run && result.PathToAssembly.EndsWith(".exe"))
                 {
                     Console.WriteLine("Running...\n");

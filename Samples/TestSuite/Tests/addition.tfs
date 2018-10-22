@@ -4,54 +4,49 @@ using TaffyScript.Tests;
 namespace LanguageTests {
     script run_addition_tests() {
         var tests = new UnitTest("Addition Tests",
-                                       number_var_plus_number_var,
-                                       number_var_plus_number_literal,
-                                       number_var_plus_string_var,
-                                       number_var_plus_string_literal,
-                                       number_var_plus_array1,
-                                       number_var_plus_delegate_var,
-                                       number_var_plus_delegate_literal,
-                                       number_literal_plus_number_var,
-                                       number_literal_plus_number_literal,
-                                       number_literal_plus_string_var,
-                                       number_literal_plus_array1,
-                                       number_literal_plus_delegate_var,
-                                       string_var_plus_string_var,
-                                       string_var_plus_string_literal,
-                                       string_var_plus_number_var,
-                                       string_var_plus_number_literal,
-                                       string_var_plus_array1,
-                                       string_var_plus_delegate_var,
-                                       string_var_plus_delegate_literal,
-                                       string_literal_plus_string_var,
-                                       string_literal_plus_string_literal,
-                                       string_literal_plus_number_var,
-                                       string_literal_plus_array1,
-                                       run_addition_faulty_tests);
+                                 number_var_plus_number_var,
+                                 number_var_plus_number_literal,
+                                 number_var_plus_string_var,
+                                 number_var_plus_string_literal,
+                                 number_var_plus_array1,
+                                 number_var_plus_delegate_var,
+                                 number_var_plus_delegate_literal,
+                                 number_literal_plus_number_var,
+                                 number_literal_plus_number_literal,
+                                 number_literal_plus_string_var,
+                                 number_literal_plus_array1,
+                                 number_literal_plus_delegate_var,
+                                 string_var_plus_string_var,
+                                 string_var_plus_string_literal,
+                                 string_var_plus_number_var,
+                                 string_var_plus_number_literal,
+                                 string_var_plus_array1,
+                                 string_var_plus_delegate_var,
+                                 string_var_plus_delegate_literal,
+                                 string_literal_plus_string_var,
+                                 string_literal_plus_string_literal,
+                                 string_literal_plus_number_var,
+                                 string_literal_plus_array1,
+                                 array1_plus_number_var,
+                                 array1_plus_number_literal,
+                                 array1_plus_string_var,
+                                 array1_plus_string_literal,
+                                 array1_plus_array1,
+                                 array1_plus_delegate_var,
+                                 array1_plus_delegate_literal,
+                                 delegate_var_plus_number_var,
+                                 delegate_var_plus_number_literal,
+                                 delegate_literal_plus_number_var,
+                                 delegate_var_plus_string_var,
+                                 delegate_var_plus_string_literal,
+                                 delegate_literal_plus_string_var,
+                                 delegate_var_plus_array1,
+                                 delegate_literal_plus_array1,
+                                 delegate_var_plus_delegate_var,
+                                 delegate_var_plus_delegate_literal,
+                                 delegate_literal_plus_delegate_var);
 
         tests.run_tests();
-    }
-
-    script run_addition_faulty_tests() {
-        assert(try_expect(array1_plus_number_var, "InvalidTsTypeException"));
-        assert(try_expect(array1_plus_number_literal, "InvalidTsTypeException"));
-        assert(try_expect(array1_plus_string_var, "InvalidTsTypeException"));
-        assert(try_expect(array1_plus_string_literal, "InvalidTsTypeException"));
-        assert(try_expect(array1_plus_array1, "InvalidTsTypeException"));
-        assert(try_expect(array1_plus_delegate_var, "InvalidTsTypeException"));
-        assert(try_expect(array1_plus_delegate_literal, "InvalidTsTypeException"));
-        assert(try_expect(delegate_var_plus_number_var, "InvalidTsTypeException"));
-        assert(try_expect(delegate_var_plus_number_literal, "InvalidTsTypeException"));
-        assert(try_expect(delegate_literal_plus_number_var, "InvalidTsTypeException"));
-        assert(try_expect(delegate_var_plus_string_var, "InvalidTsTypeException"));
-        assert(try_expect(delegate_var_plus_string_literal, "InvalidTsTypeException"));
-        assert(try_expect(delegate_literal_plus_string_var, "InvalidTsTypeException"));
-        assert(try_expect(delegate_var_plus_array1, "InvalidTsTypeException"));
-        assert(try_expect(delegate_literal_plus_array1, "InvalidTsTypeException"));
-        assert(try_expect(delegate_var_plus_delegate_var, "InvalidTsTypeException"));
-        assert(try_expect(delegate_var_plus_delegate_literal, "InvalidTsTypeException"));
-        assert(try_expect(delegate_literal_plus_delegate_var, "InvalidTsTypeException"));
-        test_it("Faulty Addition");
     }
 
     script number_var_plus_number_var() {

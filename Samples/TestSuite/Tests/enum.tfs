@@ -2,7 +2,9 @@ using UnitTests;
 
 namespace LanguageTests {
     script run_enum_tests() {
-        var tests = new UnitTest("Enum Tests");
+        var tests = new UnitTest("Enum Tests",
+                                 enum_ascending,
+                                 enum_specified_values);
         tests.run_tests();
     }
 

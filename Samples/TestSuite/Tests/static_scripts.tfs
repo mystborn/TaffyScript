@@ -3,12 +3,12 @@ using UnitTests;
 namespace LanguageTests {
     script run_static_tests() {
         var tests = new UnitTest("Static Tests",
-                                      static_invoke,
-                                      static_namespace_invoke,
-                                      static_through_instance,
-                                      static_through_child_instance,
-                                      static_through_del,
-                                      static_through_namespace_del);
+                                 static_invoke,
+                                 static_namespace_invoke,
+                                 static_through_instance,
+                                 static_through_child_instance,
+                                 static_through_del,
+                                 static_through_namespace_del);
         tests.run_tests();
     }
 

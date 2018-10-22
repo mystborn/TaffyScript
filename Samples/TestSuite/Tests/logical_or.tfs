@@ -3,10 +3,10 @@ using UnitTests;
 namespace LanguageTests {
     script run_logical_or_tests() {
         var tests = new UnitTest("And Tests",
-                                      logical_or_symbol_short_curcuit,
-                                      logical_or_keyword_short_circuit,
-                                      logical_or_symbol_full,
-                                      logival_or_keyword_full);
+                                 logical_or_symbol_short_curcuit,
+                                 logical_or_keyword_short_circuit,
+                                 logical_or_symbol_full,
+                                 logival_or_keyword_full);
         tests.run_tests();
     }
 

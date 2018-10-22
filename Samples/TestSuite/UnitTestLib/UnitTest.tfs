@@ -7,7 +7,7 @@ using TaffyScript.Tests;
 
 namespace UnitTests {
     object UnitTest {
-        test_numer = 0;
+        test_number = 0;
         tests_failed = false;
         test_description = "";
         tests = new List();
@@ -49,7 +49,7 @@ namespace UnitTests {
             }
 
             if(failed_count > 0)
-                show_error("{0} tests have failed. See output for more info.".format(tests_failed), true);
+                show_error("{0} tests have failed. See output for more info.".format(failed_count), true);
             else
                 print("All tests have passed - " + test_suite);
         }
@@ -87,7 +87,7 @@ namespace UnitTests {
             if(argument_count > 2)
                 msg = argument2;
             else
-                msg = scr_ut_create_assert_error(string(argument0) + " is " + string(argument1));
+                msg = ut_create_assert_error(string(argument0) + " is " + string(argument1));
 
             test_fail(msg);
         }
@@ -114,7 +114,9 @@ namespace UnitTests {
             if(argument_count > 1)
                 msg = argument1;
             else
-                msg = scr_ut_create_assert_error(string(argument0) + " is not undefined");
+                msg = ut_create_assert_error(string(argument0) + " is not null");
+
+            test_fail(msg)
         }
     }
 
@@ -122,7 +124,7 @@ namespace UnitTests {
         UnitTest.unit_test.expected_error = error_type;
     }
 
-    script ut_create_assert_error {
+    script ut_create_assert_error() {
         return "ASSERT ERROR - " + string(argument0) + " - ASSERT #" + string(UnitTest.unit_test.test_number);
     }
 

@@ -4,11 +4,11 @@ using TaffyScript.Tests;
 namespace LanguageTests {
     script run_repeat_tests() {
         var tests = new UnitTest("Repeat Tests",
-                                      run_repeat_faulty_tests,
-                                      repeat_number_literal,
-                                      repeat_number_variable,
-                                      repeat_break,
-                                      repeat_continue);
+                                 run_repeat_faulty_tests,
+                                 repeat_number_literal,
+                                 repeat_number_variable,
+                                 repeat_break,
+                                 repeat_continue);
         tests.run_tests();
     }
 
