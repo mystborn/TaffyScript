@@ -138,6 +138,10 @@ namespace TaffyScript.Compiler.Backend
         private TypeBuilder _currentType = null;
         private ISymbol _parent = null;
         private int _argumentArray = 0;
+        private Stack<int> _tryContinueLevel = new Stack<int>(new[] { -1 });
+        private Stack<int> _tryBreakLevel = new Stack<int>(new[] { -1 });
+        private LocalBuilder _returnValue = null;
+        private Label _returnLabel;
 
         #endregion
 
@@ -910,6 +914,13 @@ namespace TaffyScript.Compiler.Backend
 
         private void ScriptEnd()
         {
+            if(_returnValue != null)
+            {
+                emit.MarkLabel(_returnLabel)
+                    .LdLocal(_returnValue)
+                    .Ret();
+                _returnValue = null;
+            }
             _table.Exit();
             _locals.Clear();
             _secrets.Clear();
@@ -2275,10 +2286,16 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(BreakToken breakToken)
         {
-            if (_loopEnd.Count > 0)
-                emit.Br(_loopEnd.Peek());
-            else
+            if (_loopEnd.Count == 0)
+            {
                 _logger.Error("Tried to break outside of a loop", breakToken.Position);
+                return;
+            }
+
+            if (_tryBreakLevel.Peek() == _loopEnd.Count)
+                emit.Leave(_loopEnd.Peek());
+            else
+                emit.Br(_loopEnd.Peek());
         }
 
         public void Visit(ConditionalNode conditionalNode)
@@ -2335,7 +2352,10 @@ namespace TaffyScript.Compiler.Backend
 
         public void Visit(ContinueToken continueToken)
         {
-            emit.Br(_loopStart.Peek());
+            if (_tryContinueLevel.Peek() == _loopStart.Count)
+                emit.Leave(_loopStart.Peek());
+            else
+                emit.Br(_loopStart.Peek());
         }
 
         public void Visit(DoNode doNode)
@@ -2475,6 +2495,113 @@ namespace TaffyScript.Compiler.Backend
 
             _loopStart.Pop();
             _loopEnd.Pop();
+        }
+
+        public void Visit(ForeachNode foreachNode)
+        {
+            var iterable = GetLocal(typeof(IEnumerator<TsObject>));
+            BeginTryBlock();
+            var foreachStart = emit.DefineLabel();
+            var foreachEnd = emit.DefineLabel();
+            var nullCheck = emit.DefineLabel();
+            _loopStart.Push(foreachStart);
+            _loopEnd.Push(foreachEnd);
+            foreachNode.Iterable.Accept(this);
+            emit.Call(typeof(TsObject).GetMethod("get_WeakValue"))
+                .CastClass(typeof(ITsInstance))
+                .LdStr("get_enumerator")
+                .LdNull()
+                .Call(typeof(ITsInstance).GetMethod("Call"))
+                .Call(typeof(TsObject).GetMethod("get_WeakValue"))
+                .CastClass(typeof(IEnumerator<TsObject>))
+                .StLocal(iterable)
+                .TryStart()
+                .MarkLabel(foreachStart)
+                .LdLocal(iterable)
+                .Call(typeof(System.Collections.IEnumerator).GetMethod("MoveNext"))
+                .BrFalse(foreachEnd)
+                .LdLocal(iterable)
+                .Call(typeof(IEnumerator<TsObject>).GetMethod("get_Current"));
+
+            if (!_table.Defined(foreachNode.Variable.Name, out var symbol))
+            {
+                _logger.Error($"Tried to load invalid symbol variable in foreach statement: '{foreachNode.Variable.Name}'", foreachNode.Variable.Position);
+            }
+
+            switch(symbol.Type)
+            {
+                case SymbolType.Field:
+                    var field = _assets.GetInstanceField(symbol.Parent, symbol.Name, foreachNode.Variable.Position);
+                    if (!field.IsStatic)
+                        LoadTarget();
+                    emit.StFld(field);
+                    break;
+                case SymbolType.Property:
+                    var property = _assets.GetProperty(symbol.Parent, symbol.Name, foreachNode.Variable.Position);
+                    if(!property.CanWrite)
+                    {
+                        _logger.Error($"Cannot set property '{symbol.Name}'", foreachNode.Variable.Position);
+                        emit.Pop();
+                        return;
+                    }
+                    if (!property.SetMethod.IsStatic)
+                        LoadTarget();
+                    emit.Call(property.SetMethod);
+                    break;
+                case SymbolType.Variable:
+                    var leaf = (VariableLeaf)symbol;
+                    if (leaf.IsCaptured)
+                    {
+                        _closure.LoadVariablesClosure(leaf.Name, emit, out field);
+                        emit.StFld(field);
+                    }
+                    else
+                        emit.StLocal(_locals[leaf]);
+                    break;
+                default:
+                    _logger.Error($"Tried to assign to non-assignable identifier '{symbol.Name}'", foreachNode.Variable.Position);
+                    emit.Pop();
+                    return;
+            }
+
+            foreachNode.Body.Accept(this);
+
+            var finallyEnd = emit.DefineLabel();
+            emit.Br(foreachStart)
+                .MarkLabel(foreachEnd)
+                .FinallyStart()
+                .LdLocal(iterable)
+                .Dup()
+                .BrFalseS(nullCheck)
+                .Call(typeof(IDisposable).GetMethod("Dispose"))
+                .BrS(finallyEnd)
+                .MarkLabel(nullCheck)
+                .Pop(false)
+                .MarkLabel(finallyEnd)
+                .TryEnd();
+
+            EndTryBlock();
+
+            _loopStart.Pop();
+            _loopEnd.Pop();
+            FreeLocal(iterable);
+        }
+
+        public void BeginTryBlock()
+        {
+            _tryContinueLevel.Push(_loopStart.Count);
+            _tryBreakLevel.Push(_loopEnd.Count);
+            if(_returnValue is null)
+            {
+                _returnValue = MakeSecret();
+                _returnLabel = emit.DefineLabel();
+            }
+        }
+
+        public void EndTryBlock()
+        {
+            _tryContinueLevel.Pop();
+            _tryBreakLevel.Pop();
         }
 
         public void Visit(FunctionCallNode functionCall)
@@ -4584,7 +4711,13 @@ namespace TaffyScript.Compiler.Backend
             else
                 emit.Call(TsTypes.Empty);
 
-            emit.Ret();
+            if (_returnValue != null)
+            {
+                emit.StLocal(_returnValue)
+                    .Leave(_returnLabel);
+            }
+            else
+                emit.Ret();
         }
 
         public void Visit(RootNode root)
@@ -4836,6 +4969,11 @@ namespace TaffyScript.Compiler.Backend
             emit.MarkLabel(end);
 
             _loopEnd.Pop();
+        }
+
+        public void Visit(TryNode tryNode)
+        {
+            throw new NotImplementedException();
         }
 
         public void Visit(UsingsNode usings)

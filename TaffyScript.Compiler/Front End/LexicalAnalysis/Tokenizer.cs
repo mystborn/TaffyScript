@@ -31,6 +31,7 @@ namespace TaffyScript.Compiler.FrontEnd
             { "enum", TokenType.Enum },
             { "false", TokenType.Bool },
             { "for", TokenType.For },
+            { "foreach", TokenType.Foreach },
             { "global", TokenType.ReadOnly },
             { "if", TokenType.If },
             { "import", TokenType.Import },

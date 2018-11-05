@@ -437,6 +437,18 @@ namespace TaffyScript.Compiler.Backend
             return this;
         }
 
+        public ILEmitter FinallyEnd()
+        {
+            _generator.Emit(OpCodes.Endfinally);
+            return this;
+        }
+
+        public ILEmitter FinallyStart()
+        {
+            _generator.BeginFinallyBlock();
+            return this;
+        }
+
         public ILEmitter LdArg(int index)
         {
             if (index < 0)
@@ -744,6 +756,12 @@ namespace TaffyScript.Compiler.Backend
             return this;
         }
 
+        public ILEmitter Leave(Label label)
+        {
+            _generator.Emit(OpCodes.Leave, label);
+            return this;
+        }
+
         public ILEmitter Mul()
         {
             //Only pop first type, reload second.
@@ -966,6 +984,18 @@ namespace TaffyScript.Compiler.Backend
         {
             _types.Pop();
             _generator.Emit(OpCodes.Throw);
+            return this;
+        }
+
+        public ILEmitter TryEnd()
+        {
+            _generator.EndExceptionBlock();
+            return this;
+        }
+
+        public ILEmitter TryStart()
+        {
+            _generator.BeginExceptionBlock();
             return this;
         }
 

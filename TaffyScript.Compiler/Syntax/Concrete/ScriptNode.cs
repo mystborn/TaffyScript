@@ -8,6 +8,7 @@ namespace TaffyScript.Compiler.Syntax
         public string Name { get; }
         public List<VariableDeclaration> Arguments { get; }
         public ISyntaxElement Body { get; }
+        public bool HasTryBlock { get; set; }
 
         public ScriptNode(string name, List<VariableDeclaration> arguments, ISyntaxElement body, TokenPosition position)
             : base(position)

@@ -35,6 +35,7 @@ namespace TaffyScript.Compiler
         Repeat,
         Do,
         For,
+        Foreach,
         Return,
         Block,
         ImportScript,
@@ -48,6 +49,7 @@ namespace TaffyScript.Compiler
         ImportObject,
         Lambda,
         Base,
+        Try,
 
         //Token
         Constant,

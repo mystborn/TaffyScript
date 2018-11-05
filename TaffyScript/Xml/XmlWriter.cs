@@ -482,7 +482,7 @@ namespace TaffyScript.Xml
         /// <summary>
         /// Copies everything from the specified XmlReader to this and moves the reader to the start of the next sibling.
         /// </summary>
-        /// <arg name="reader" type=[XmlReader]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader)">The XmlReader to read from.</arg>
+        /// <arg name="reader" type="[XmlReader]({{site.baseurl}}/docs/TaffyScript/Xml/XmlReader)">The XmlReader to read from.</arg>
         /// <arg name="defattr" type="bool">Determines whether to copy the default attributes from the XmlReader.</arg>
         /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlwriter.writenode?view=netframework-4.7</source>
         /// <returns>null</returns>

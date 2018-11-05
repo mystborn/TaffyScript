@@ -543,7 +543,7 @@ namespace TaffyScript.Compiler
             {
                 var name = Consume(TokenType.Identifier, "Expected name for local variable");
                 if (!_table.AddLeaf(name.Text, SymbolType.Variable, SymbolScope.Local) && _table.Defined(name.Text).Type != SymbolType.Variable)
-                    Error(name, $"Identifier {name.Text} is already defined");
+                    Error(name, $"Identifier '{name.Text}' is already defined");
 
                 ISyntaxElement value = null;
                 if (Check(TokenType.Assign))
@@ -679,6 +679,26 @@ namespace TaffyScript.Compiler
 
                     _table.Exit();
                     return new BlockNode(new List<ISyntaxElement>() { new ForNode(init, condition, increment, body, token.Position) }, blockId, token.Position);
+                case TokenType.Foreach:
+                    blockId = GetBlockId();
+                    _table.EnterNew(blockId, SymbolType.Block);
+                    token = Consume(TokenType.Foreach, "Expected 'foreach'");
+                    paren = Match(TokenType.OpenParen);
+                    var declaredVariable = Match(TokenType.Var);
+                    var variableToken = Consume(TokenType.Identifier, "Expected identifier in 'foreach' statement");
+                    if(declaredVariable)
+                    {
+                        if (!_table.AddLeaf(variableToken.Text, SymbolType.Variable, SymbolScope.Local))
+                            Error(variableToken, $"Identifier '{variableToken.Text}' already defined in the current scope.");
+                    }
+                    var variable = new VariableToken(variableToken.Text, variableToken.Position);
+                    Consume(TokenType.Colon, "Expected ':' after foreach variable");
+                    var iterable = Expression();
+                    if (paren)
+                        Consume(TokenType.CloseParen, "Expected ')' after foreach iterable.");
+                    body = BodyStatement(false);
+                    _table.Exit();
+                    return new BlockNode(new List<ISyntaxElement>() { new ForeachNode(declaredVariable, variable, iterable, body, token.Position) }, blockId, token.Position);
                 case TokenType.Switch:
                     token = Consume(TokenType.Switch, "Expected 'switch'");
                     paren = Match(TokenType.OpenParen);

@@ -148,6 +148,7 @@
     <Compile Include="Syntax\Concrete\EndToken.cs" />
     <Compile Include="Syntax\Concrete\EnumNode.cs" />
     <Compile Include="Syntax\Concrete\EqualityNode.cs" />
+    <Compile Include="Syntax\Concrete\ForeachNode.cs" />
     <Compile Include="Syntax\Concrete\ForNode.cs" />
     <Compile Include="Syntax\Concrete\FunctionCallNode.cs" />
     <Compile Include="Syntax\Concrete\IfNode.cs" />
@@ -175,6 +176,7 @@
     <Compile Include="Syntax\Concrete\ScriptNode.cs" />
     <Compile Include="Syntax\Concrete\ShiftNode.cs" />
     <Compile Include="Syntax\Concrete\SwitchNode.cs" />
+    <Compile Include="Syntax\Concrete\TryNode.cs" />
     <Compile Include="Syntax\Concrete\UsingsNode.cs" />
     <Compile Include="Syntax\Concrete\VariableToken.cs" />
     <Compile Include="Syntax\Concrete\WhileNode.cs" />

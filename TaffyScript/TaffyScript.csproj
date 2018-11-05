@@ -75,6 +75,7 @@
     <Compile Include="Attributes\WeakBaseTypeAttribute.cs" />
     <Compile Include="Collections\CollectionMethods.cs" />
     <Compile Include="Collections\EventCache.cs" />
+    <Compile Include="Collections\Set.cs" />
     <Compile Include="Collections\TsComparer.cs" />
     <Compile Include="Collections\TsEnumerable.cs" />
     <Compile Include="Collections\TsEnumerator.cs" />
@@ -96,6 +97,7 @@
     <Compile Include="IO\TextWriter.cs" />
     <Compile Include="IO\TsStream.cs" />
     <Compile Include="IO\WrappedStream.cs" />
+    <Compile Include="Numbers\MathConstants.cs" />
     <Compile Include="Numbers\NumberScripts.cs" />
     <Compile Include="Object\TsArray.cs" />
     <Compile Include="Object\TsInstanceWrapper.cs" />

@@ -24,6 +24,7 @@ namespace TaffyScript.Compiler.Syntax
         void Visit(EndToken endToken);
         void Visit(EnumNode enumDeclaration);
         void Visit(EqualityNode equality);
+        void Visit(ForeachNode foreachNode);
         void Visit(ForNode @for);
         void Visit(FunctionCallNode functionCall);
         void Visit(IfNode @if);
@@ -47,6 +48,7 @@ namespace TaffyScript.Compiler.Syntax
         void Visit(ScriptNode script);
         void Visit(ShiftNode shift);
         void Visit(SwitchNode @switch);
+        void Visit(TryNode tryNode);
         void Visit(UsingsNode usingsNode);
         void Visit(VariableToken variableToken);
         void Visit(WhileNode @while);

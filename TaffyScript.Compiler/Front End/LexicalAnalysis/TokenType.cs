@@ -37,6 +37,7 @@ namespace TaffyScript.Compiler.FrontEnd
         EoF,
         Equal,
         For,
+        Foreach,
         GreaterThan,
         GreaterThanOrEqual,
         Identifier,

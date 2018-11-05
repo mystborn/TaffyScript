@@ -256,6 +256,26 @@ namespace TaffyScript.Compiler.FrontEnd
             }
         }
 
+        public void Visit(ForeachNode foreachNode)
+        {
+            if(foreachNode.VariableDeclared)
+            {
+                if (_environment.Encountered(foreachNode.Variable.Name, out var encounterType))
+                    _logger.Error($"Tried to declare variable '{foreachNode.Variable.Name}' that has already been declared int the current or a parent scope.", foreachNode.Variable.Position);
+                else
+                    _environment.FastDefine(foreachNode.Variable.Name, EncounterType.Local);
+
+                _definedVariables.Push(foreachNode.Variable.Name);
+            }
+
+            foreachNode.Body.Parent = foreachNode;
+            foreachNode.Iterable.Parent = foreachNode;
+            foreachNode.Variable.Parent = foreachNode;
+
+            foreachNode.Iterable.Accept(this);
+            foreachNode.Body.Accept(this);
+        }
+
         public void Visit(FunctionCallNode functionCall)
         {
             functionCall.Callee.Parent = functionCall;
@@ -537,6 +557,11 @@ namespace TaffyScript.Compiler.FrontEnd
                 switchNode.DefaultCase.Accept(this);
             }
             _currentLoop = loop;
+        }
+
+        public void Visit(TryNode tryNode)
+        {
+            throw new NotImplementedException();
         }
 
         public void Visit(UsingsNode usingsNode)

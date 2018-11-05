@@ -11,7 +11,6 @@ namespace TaffyScript.Xml
     /// Specifies a set of features to support on the XmlReader created with these settings.
     /// </summary>
     /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlreadersettings?view=netframework-4.7</source>
-    /// <property>
     /// <property name="check_characters" type="bool" access="both">
     ///     <summary>Determines if the XmlReader does character checking.</summary>
     ///     <source>https://docs.microsoft.com/en-us/dotnet/api/system.xml.xmlreadersettings.checkcharacters?view=netframework-4.7</source>

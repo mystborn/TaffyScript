@@ -29,6 +29,11 @@ namespace TaffyScript.Collections
         public TsEnumerable() { }
         public TsEnumerable(TsObject[] args) { }
 
+        public static TsEnumerable Wrap(IEnumerable<TsObject> enumerable)
+        {
+            return new WrappedEnumerable(enumerable);
+        }
+
         public virtual IEnumerator<TsObject> GetEnumerator()
         {
             return (IEnumerator<TsObject>)get_enumerator(null).WeakValue;
@@ -329,7 +334,7 @@ namespace TaffyScript.Collections
         /// <arg name="[comparer]" type="EqualityComparer">A comparer used to determine if an item in the sequence equals the value.</arg>
         /// <source>https://docs.microsoft.com/en-us/dotnet/api/system.linq.enumerable.contains</source>
         /// <returns>bool</returns>
-        public TsObject contains(TsObject[] args)
+        public virtual TsObject contains(TsObject[] args)
         {
             switch (args.Length)
             {
@@ -908,7 +913,7 @@ namespace TaffyScript.Collections
         public static explicit operator TsEnumerable(TsObject obj) => (TsEnumerable)obj.WeakValue;
     }
 
-    public class WrappedEnumerable : TsEnumerable
+    internal class WrappedEnumerable : TsEnumerable
     {
         private IEnumerable<TsObject> _enumerable;
 

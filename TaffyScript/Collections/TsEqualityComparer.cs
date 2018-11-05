@@ -25,6 +25,11 @@ namespace TaffyScript.Collections
         {
         }
 
+        public static TsEqualityComparer Wrap(IEqualityComparer<TsObject> comparer)
+        {
+            return new WrappedEqualityComparer(comparer);
+        }
+
         public virtual bool Equals(TsObject x, TsObject y)
         {
             return (bool)equals(new[] { x, y });
@@ -95,6 +100,11 @@ namespace TaffyScript.Collections
             return args[0].GetHashCode();
         }
 
+        /// <summary>
+        /// Creates an EqualityComparer from a script that compares two objects.
+        /// </summary>
+        /// <arg name="scr" type="script">A script that compares two objects.</arg>
+        /// <returns>[EqualityComparer]({{site.baseurl}}/docs/TaffyScript/Collections/EqualityComparer)</returns>
         public static TsObject from_script(TsObject[] args)
         {
             return new WrappedScriptEqualityComparer((TsDelegate)args[0]);
@@ -102,6 +112,53 @@ namespace TaffyScript.Collections
 
         public static implicit operator TsObject(TsEqualityComparer comparer) => new TsInstanceWrapper(comparer);
         public static explicit operator TsEqualityComparer(TsObject obj) => (TsEqualityComparer)obj.WeakValue;
+    }
+
+    internal class WrappedEqualityComparer : TsEqualityComparer
+    {
+        public override string ObjectType => "TaffyScript.Collections.WrappedEqualityComparer";
+        public IEqualityComparer<TsObject> Source { get; }
+
+        public WrappedEqualityComparer(IEqualityComparer<TsObject> source)
+            : base(null)
+        {
+            Source = source;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is WrappedEqualityComparer wec)
+                return Source == wec;
+            else if (obj is IEqualityComparer<TsObject> ec)
+                return Source == ec;
+
+            return false;
+        }
+
+        public override bool Equals(TsObject x, TsObject y)
+        {
+            return Source.Equals(x, y);
+        }
+
+        public override TsObject equals(TsObject[] args)
+        {
+            return Equals(args[0], args[1]);
+        }
+
+        public override int GetHashCode()
+        {
+            return Source.GetHashCode();
+        }
+
+        public override int GetHashCode(TsObject obj)
+        {
+            return Source.GetHashCode(obj);
+        }
+
+        public override TsObject get_hash_code(TsObject[] args)
+        {
+            return GetHashCode(args[0]);
+        }
     }
 
     internal class WrappedScriptEqualityComparer : TsEqualityComparer

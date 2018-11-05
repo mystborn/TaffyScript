@@ -28,7 +28,7 @@ namespace TaffyScript.CommandLine
                 path = extra[0];
 
 #if DEBUG
-            path = @"C:\Users\Chris\Source\Repos\GmParser\Samples\TestSuite\UnitTestLib";
+            path = @"C:\Users\Chris\Source\TaffyScript\CompileTests";
 #endif
 
             if (generateBuild)

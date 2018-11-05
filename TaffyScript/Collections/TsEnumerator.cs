@@ -32,6 +32,11 @@ namespace TaffyScript.Collections
 
         public abstract string ObjectType { get; }
 
+        public static TsEnumerator Wrap(IEnumerator<TsObject> enumerator)
+        {
+            return new WrappedEnumerator(enumerator);
+        }
+
         public TsEnumerator(TsObject[] args)
         {
         }
@@ -49,11 +54,6 @@ namespace TaffyScript.Collections
         public virtual void Reset()
         {
             reset(null);
-        }
-
-        public static TsEnumerator Wrap(IEnumerator<TsObject> enumerator)
-        {
-            return new WrappedEnumerator(enumerator);
         }
 
         public virtual TsObject Call(string scriptName, params TsObject[] args)
@@ -142,7 +142,7 @@ namespace TaffyScript.Collections
         public static explicit operator TsEnumerator(TsObject obj) => (TsEnumerator)obj.WeakValue;
     }
 
-    public sealed class WrappedEnumerator : TsEnumerator
+    internal class WrappedEnumerator : TsEnumerator
     {
         private IEnumerator<TsObject> _source;
 
